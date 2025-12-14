@@ -13,6 +13,7 @@ import BoloBoard from './BoloBoard';
 import Applications from './Applications';
 
 import RoleGuard from '../components/auth/RoleGuard';
+import ShiftPanel from './ShiftPanel';
 
 const Dashboard = () => {
     return (
@@ -23,6 +24,7 @@ const Dashboard = () => {
                 </RoleGuard>
             }>
                 <Route index element={<LogList />} />
+                <Route path="shift" element={<ShiftPanel />} />
                 <Route path="new" element={<LogForm />} />
                 <Route path="staff" element={<StaffHub />} />
                 <Route path="bolo" element={<BoloBoard />} />

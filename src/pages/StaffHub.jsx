@@ -1,41 +1,102 @@
-import React from 'react';
-import { Shield, Star, Award, Clock } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { supabase } from '../services/supabase';
+import { Shield, Star, Award, Clock, UserPlus, Search } from 'lucide-react';
 
 const StaffHub = () => {
-    // Mock data
-    const staffMembers = [
-        { id: 1, name: 'Gonzalez', role: 'Owner', avatar: null, status: 'online', joined: '2023-01-01', actions: 1542 },
-        { id: 2, name: 'AdminUser', role: 'Admin', avatar: null, status: 'idle', joined: '2023-05-12', actions: 890 },
-        { id: 3, name: 'ModOne', role: 'Moderator', avatar: null, status: 'offline', joined: '2024-02-15', actions: 320 },
-        { id: 4, name: 'ModTwo', role: 'Moderator', avatar: null, status: 'online', joined: '2024-03-01', actions: 150 },
-        { id: 5, name: 'DevOne', role: 'Developer', avatar: null, status: 'dnd', joined: '2023-08-20', actions: 55 },
-    ];
+    const [staff, setStaff] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [stats, setStats] = useState({ totalStaff: 0, activeNow: 0, totalHours: 0 });
+    const [searchTerm, setSearchTerm] = useState('');
+
+    useEffect(() => {
+        fetchStaffData();
+    }, []);
+
+    const fetchStaffData = async () => {
+        setLoading(true);
+        try {
+            // 1. Fetch Profiles
+            const { data: profiles, error: profileError } = await supabase
+                .from('profiles')
+                .select('*')
+                .order('role');
+
+            if (profileError) throw profileError;
+
+            // 2. Fetch Time Logs (Completed)
+            const { data: logs, error: logError } = await supabase
+                .from('time_logs')
+                .select('user_id, duration_minutes, status');
+
+            if (logError) throw logError;
+
+            // 3. Process Data
+            const staffMap = profiles.map(user => {
+                const userLogs = logs.filter(l => l.user_id === user.id);
+
+                // Calculate Total Hours
+                const totalMinutes = userLogs.reduce((acc, curr) => acc + (curr.duration_minutes || 0), 0);
+                const totalHours = (totalMinutes / 60).toFixed(1);
+
+                // Check active status
+                // Implicitly check if there is an 'active' log? 
+                // We don't have 'active' logs in the 'logs' fetch if we filtered? 
+                // Actually the fetch above selects ALL logs.
+                // However, 'active' logs have duration_minutes = NULL usually until finished.
+                // But let's check 'status' column.
+                const isActive = userLogs.some(l => l.status === 'active');
+                const calculatedStatus = isActive ? 'online' : (user.status || 'offline');
+
+                return {
+                    ...user,
+                    totalHours,
+                    status: calculatedStatus,
+                    actions: userLogs.length // Using shifts count as "actions" for now
+                };
+            });
+
+            setStaff(staffMap);
+
+            // Calculate Overall Stats
+            setStats({
+                totalStaff: profiles.length,
+                activeNow: staffMap.filter(s => s.status === 'online').length,
+                totalHours: staffMap.reduce((acc, curr) => acc + parseFloat(curr.totalHours), 0).toFixed(0)
+            });
+
+        } catch (error) {
+            console.error("Error fetching staff data:", error);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const getRoleColor = (role) => {
-        switch (role) {
-            case 'Owner': return '#e74c3c'; // Red
-            case 'Co-Owner': return '#d35400'; // Orange
-            case 'Admin': return '#f1c40f'; // Yellow
-            case 'Developer': return '#3498db'; // Blue
-            case 'Moderator': return '#2ecc71'; // Green
-            default: return '#95a5a6';
-        }
+        if (!role) return '#95a5a6';
+        const r = role.toLowerCase();
+        if (r.includes('owner')) return '#e74c3c';
+        if (r.includes('admin')) return '#f1c40f';
+        if (r.includes('mod')) return '#2ecc71';
+        if (r.includes('dev')) return '#3498db';
+        return '#95a5a6';
     };
 
-    const getStatusColor = (status) => {
-        switch (status) {
-            case 'online': return '#2ecc71';
-            case 'idle': return '#f1c40f';
-            case 'dnd': return '#e74c3c';
-            default: return '#7f8c8d';
-        }
-    };
+    const filteredStaff = staff.filter(s =>
+        (s.username || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (s.full_name || '').toLowerCase().includes(searchTerm.toLowerCase())
+    );
 
     return (
         <div className="staff-hub-container">
             <div className="page-header">
-                <h1 className="page-title">Directorio de Staff</h1>
-                <p className="page-subtitle">Gestión y visualización del equipo de Nación MX.</p>
+                <div>
+                    <h1 className="page-title">Directorio de Staff</h1>
+                    <p className="page-subtitle">Gestión de horas y actividad del equipo.</p>
+                </div>
+                {/* Placeholder for Add Member */}
+                <button className="btn-add">
+                    <UserPlus size={18} /> Nuevo Miembro
+                </button>
             </div>
 
             <div className="stats-grid">
@@ -45,7 +106,7 @@ const StaffHub = () => {
                     </div>
                     <div className="stat-info">
                         <h3>Total Staff</h3>
-                        <p>{staffMembers.length} Miembros</p>
+                        <p>{stats.totalStaff}</p>
                     </div>
                 </div>
                 <div className="stat-card">
@@ -54,7 +115,7 @@ const StaffHub = () => {
                     </div>
                     <div className="stat-info">
                         <h3>Activos Ahora</h3>
-                        <p>{staffMembers.filter(m => m.status !== 'offline').length} En línea</p>
+                        <p>{stats.activeNow}</p>
                     </div>
                 </div>
                 <div className="stat-card">
@@ -62,48 +123,101 @@ const StaffHub = () => {
                         <Award size={24} />
                     </div>
                     <div className="stat-info">
-                        <h3>Acciones Totales</h3>
-                        <p>{staffMembers.reduce((acc, curr) => acc + curr.actions, 0)} Registradas</p>
+                        <h3>Horas Totales</h3>
+                        <p>{stats.totalHours} hrs</p>
                     </div>
                 </div>
             </div>
 
-            <div className="staff-grid">
-                {staffMembers.map(member => (
-                    <div key={member.id} className="staff-card card">
-                        <div className="staff-header">
-                            <div className="staff-avatar-container">
-                                <div className="staff-avatar-placeholder">
-                                    {member.name.charAt(0)}
-                                </div>
-                                <div
-                                    className="status-indicator"
-                                    style={{ background: getStatusColor(member.status) }}
-                                    title={member.status}
-                                />
-                            </div>
-                            <div className="staff-identity">
-                                <h3>{member.name}</h3>
-                                <span className="role-badge" style={{ borderColor: getRoleColor(member.role), color: getRoleColor(member.role) }}>
-                                    {member.role}
-                                </span>
-                            </div>
-                        </div>
-                        <div className="staff-stats">
-                            <div className="mini-stat">
-                                <span className="label">Unido</span>
-                                <span className="value">{member.joined}</span>
-                            </div>
-                            <div className="mini-stat">
-                                <span className="label">Acciones</span>
-                                <span className="value">{member.actions}</span>
-                            </div>
-                        </div>
-                    </div>
-                ))}
+            <div className="search-bar">
+                <Search size={18} color="var(--text-muted)" />
+                <input
+                    type="text"
+                    placeholder="Buscar por nombre o rol..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                />
             </div>
 
+            {loading ? (
+                <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>Cargando datos...</div>
+            ) : (
+                <div className="staff-grid">
+                    {filteredStaff.map(member => (
+                        <div key={member.id} className="staff-card card">
+                            <div className="staff-header">
+                                <div className="staff-avatar-container">
+                                    {member.avatar_url ? (
+                                        <img src={member.avatar_url} className="staff-avatar" alt="avatar" />
+                                    ) : (
+                                        <div className="staff-avatar-placeholder">
+                                            {(member.username || '?').charAt(0).toUpperCase()}
+                                        </div>
+                                    )}
+                                    <div
+                                        className="status-indicator"
+                                        style={{ background: member.status === 'online' ? '#2ecc71' : '#7f8c8d' }}
+                                        title={member.status}
+                                    />
+                                </div>
+                                <div className="staff-identity">
+                                    <h3>{member.username || 'Sin Nombre'}</h3>
+                                    <span className="role-badge" style={{ borderColor: getRoleColor(member.role), color: getRoleColor(member.role) }}>
+                                        {member.role || 'Miembro'}
+                                    </span>
+                                </div>
+                            </div>
+                            <div className="staff-stats">
+                                <div className="mini-stat">
+                                    <span className="label">Turnos</span>
+                                    <span className="value">{member.actions}</span>
+                                </div>
+                                <div className="mini-stat">
+                                    <span className="label">Horas Totales</span>
+                                    <span className="value" style={{ color: 'var(--primary)' }}>{member.totalHours} h</span>
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
+
             <style>{`
+                .page-header {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    margin-bottom: 2rem;
+                }
+                .btn-add {
+                    background: var(--primary);
+                    color: black;
+                    border: none;
+                    padding: 0.75rem 1.5rem;
+                    border-radius: var(--radius);
+                    font-weight: bold;
+                    display: flex;
+                    align-items: center;
+                    gap: 0.5rem;
+                    cursor: pointer;
+                }
+                .search-bar {
+                    background: var(--bg-card);
+                    padding: 0.75rem 1rem;
+                    border-radius: var(--radius);
+                    border: 1px solid var(--border);
+                    display: flex;
+                    align-items: center;
+                    gap: 1rem;
+                    margin-bottom: 2rem;
+                }
+                .search-bar input {
+                    background: transparent;
+                    border: none;
+                    color: var(--text-main);
+                    width: 100%;
+                    outline: none;
+                }
                 .stats-grid {
                     display: grid;
                     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -139,7 +253,7 @@ const StaffHub = () => {
                 }
                 .staff-grid {
                     display: grid;
-                    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+                    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
                     gap: 1.5rem;
                 }
                 .staff-card {
@@ -160,6 +274,13 @@ const StaffHub = () => {
                 }
                 .staff-avatar-container {
                     position: relative;
+                }
+                .staff-avatar {
+                    width: 56px;
+                    height: 56px;
+                    border-radius: 50%;
+                    object-fit: cover;
+                    border: 2px solid var(--border);
                 }
                 .staff-avatar-placeholder {
                     width: 56px;
@@ -186,6 +307,10 @@ const StaffHub = () => {
                 .staff-identity h3 {
                     font-size: 1.1rem;
                     margin-bottom: 0.25rem;
+                    white-space: nowrap;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                    max-width: 150px;
                 }
                 .role-badge {
                     font-size: 0.75rem;

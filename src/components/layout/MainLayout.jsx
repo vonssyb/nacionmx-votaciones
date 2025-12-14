@@ -1,80 +1,47 @@
 import React, { useEffect, useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { Shield, BookOpen, FileText, Settings, LogOut, Users, Skull, Loader } from 'lucide-react';
+import { Shield, BookOpen, FileText, Settings, LogOut, Users, Skull, Clock } from 'lucide-react';
 import { supabase } from '../../services/supabase';
+import { useDiscordMember } from '../auth/RoleGuard'; // Import Context Hook
 import './MainLayout.css';
-
-const ROLE_MAP = {
-    '1412882240991658177': 'Owner',
-    '1449856794980516032': 'Co-Owner',
-    '1412882245735420006': 'Junta Directiva',
-    '1412882248411381872': 'Administrador',
-    '1412887079612059660': 'Staff',
-    '1412887167654690908': 'Staff en Entrenamiento'
-};
-
-const GUILD_ID = '1398525215134318713';
 
 const MainLayout = () => {
     const navigate = useNavigate();
+    const memberData = useDiscordMember(); // Get data from RoleGuard
+
     const [profile, setProfile] = useState({
-        username: 'Cargando...',
-        role: 'Verificando...',
+        username: 'Usuario',
+        role: 'Miembro',
         avatar: null
     });
 
     useEffect(() => {
-        const fetchProfile = async () => {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session) return;
+        // Calculate profile data from Context immediately
+        if (memberData) {
+            let username = memberData.nick || memberData.user.username; // Use nick or username
 
-            const providerToken = session.provider_token;
-            try {
-                // Fetch basic user data from Supabase
-                const { user } = session;
-                let username = user.user_metadata.full_name || user.user_metadata.name || 'Usuario';
-                let avatar = user.user_metadata.avatar_url;
-                let roleLabel = 'Miembro';
-
-                if (providerToken) {
-                    // Try to fetch specific Guild Member data for accurate Role & Nickname
-                    const response = await fetch(`https://discord.com/api/users/@me/guilds/${GUILD_ID}/member`, {
-                        headers: { Authorization: `Bearer ${providerToken}` }
-                    });
-
-                    if (response.ok) {
-                        const memberData = await response.json();
-                        if (memberData.nick) username = memberData.nick; // Use server nickname if present
-                        if (memberData.user.avatar) {
-                            // Construct dynamic avatar URL
-                            avatar = `https://cdn.discordapp.com/avatars/${memberData.user.id}/${memberData.user.avatar}.png`;
-                        }
-
-                        // Determine highest priority role
-                        const myRoles = memberData.roles;
-                        // Check in order of priority (defined by the order in map keys if we iterated, but let's check array)
-                        // Simple priority check:
-                        if (myRoles.includes('1412882240991658177')) roleLabel = 'Owner';
-                        else if (myRoles.includes('1449856794980516032')) roleLabel = 'Co-Owner';
-                        else if (myRoles.includes('1412882245735420006')) roleLabel = 'Junta Directiva';
-                        else if (myRoles.includes('1412882248411381872')) roleLabel = 'Administrador';
-                        else if (myRoles.includes('1412887079612059660')) roleLabel = 'Staff';
-                        else if (myRoles.includes('1412887167654690908')) roleLabel = 'Staff Ent.';
-                    } else {
-                        console.error("Failed to fetch Discord Member data:", response.status, response.statusText);
-                    }
-                }
-
-                setProfile({ username, role: roleLabel, avatar });
-            } catch (error) {
-                console.error("Error fetching profile:", error);
+            let avatar = null;
+            if (memberData.user.avatar) {
+                avatar = `https://cdn.discordapp.com/avatars/${memberData.user.id}/${memberData.user.avatar}.png`;
             }
-        };
 
-        fetchProfile();
-    }, []);
+            let roleLabel = 'Miembro';
+            const myRoles = memberData.roles || [];
+
+            if (myRoles.includes('1412882240991658177')) roleLabel = 'Owner';
+            else if (myRoles.includes('1449856794980516032')) roleLabel = 'Co-Owner';
+            else if (myRoles.includes('1412882245735420006')) roleLabel = 'Junta Directiva';
+            else if (myRoles.includes('1412882248411381872')) roleLabel = 'Administrador';
+            else if (myRoles.includes('1412887079612059660')) roleLabel = 'Staff';
+            else if (myRoles.includes('1412887167654690908')) roleLabel = 'Staff Ent.';
+
+            setProfile({ username, role: roleLabel, avatar, debugRoles: myRoles });
+        }
+    }, [memberData]);
 
     const handleLogout = async () => {
+        // Clear cache on logout
+        sessionStorage.clear();
         await supabase.auth.signOut();
         navigate('/login');
     };
@@ -112,6 +79,10 @@ const MainLayout = () => {
                         <Settings size={20} />
                         <span>Admin</span>
                     </NavLink>
+                    <NavLink to="/dashboard/shift" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+                        <Clock size={20} />
+                        <span>Fichar Turno</span>
+                    </NavLink>
                 </nav>
 
                 <div className="user-profile">
@@ -135,35 +106,6 @@ const MainLayout = () => {
             <main className="main-content">
                 <Outlet />
             </main>
-
-            <style>{`
-                .user-role-badge {
-                    font-size: 0.75rem;
-                    color: var(--primary);
-                    text-transform: uppercase;
-                    font-weight: 700;
-                    letter-spacing: 0.5px;
-                }
-                .user-avatar-placeholder {
-                    width: 40px;
-                    height: 40px;
-                    background: var(--bg-card-hover);
-                    border-radius: 50%;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    font-weight: bold;
-                    color: var(--text-muted);
-                }
-                .logout-btn {
-                    margin-left: auto;
-                    padding: 0.5rem;
-                    color: var(--error);
-                }
-                .logout-btn:hover {
-                    background: rgba(231, 76, 60, 0.1);
-                }
-            `}</style>
         </div>
     );
 };

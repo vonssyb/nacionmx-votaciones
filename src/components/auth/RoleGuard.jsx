@@ -1,14 +1,12 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, createContext, useContext } from 'react';
 import { supabase } from '../../services/supabase';
 import { useNavigate } from 'react-router-dom';
 import { ShieldAlert, Loader } from 'lucide-react';
 
 // CONFIGURATION
-// TODO: Replace with your actual Server ID (Guild ID)
-const GUILD_ID = '1398525215134318713';
+const GUILD_ID = '1398525215134318713'; // Nacion MX
 
-// TODO: Replace with the actual Role IDs allowed to access
-// You can get these by right-clicking a role in Discord > Copy ID (Developer Mode ON)
+// Allowed Roles
 const ALLOWED_ROLE_IDS = [
     '1412882240991658177', // Owner
     '1449856794980516032', // Co Owner
@@ -18,10 +16,16 @@ const ALLOWED_ROLE_IDS = [
     '1412887167654690908'  // Staff en entrenamiento
 ];
 
+// Context to share member data with children (MainLayout)
+const DiscordContext = createContext(null);
+
+export const useDiscordMember = () => useContext(DiscordContext);
+
 const RoleGuard = ({ children }) => {
     const [loading, setLoading] = useState(true);
     const [authorized, setAuthorized] = useState(false);
     const [error, setError] = useState(null);
+    const [memberData, setMemberData] = useState(null); // Store fetched data
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -39,7 +43,6 @@ const RoleGuard = ({ children }) => {
 
         const providerToken = session.provider_token;
         if (!providerToken) {
-            // Logged in but no Discord token found (maybe old session or email login)
             console.warn("No provider token found. Re-login required.");
             await supabase.auth.signOut();
             navigate('/login');
@@ -47,41 +50,52 @@ const RoleGuard = ({ children }) => {
         }
 
         try {
-            // Fetch User's Guild Member Object
-            const response = await fetch(`https://discord.com/api/users/@me/guilds/${GUILD_ID}/member`, {
-                headers: {
-                    Authorization: `Bearer ${providerToken}`
+            // Check cache first to avoid 429 loops during dev
+            const cacheKey = `discord_member_${session.user.id}`;
+            const cached = sessionStorage.getItem(cacheKey);
+
+            let data;
+
+            if (cached) {
+                console.log("Using cached Discord member data");
+                data = JSON.parse(cached);
+            } else {
+                console.log("Fetching Discord member data from API...");
+                const response = await fetch(`https://discord.com/api/users/@me/guilds/${GUILD_ID}/member`, {
+                    headers: {
+                        Authorization: `Bearer ${providerToken}`
+                    }
+                });
+
+                if (response.status === 404) {
+                    throw new Error("No eres miembro del servidor de Discord de Nación MX.");
                 }
-            });
 
-            if (response.status === 404) {
-                // User is not in the server
-                throw new Error("No eres miembro del servidor de Discord de Nación MX.");
+                if (response.status === 429) {
+                    throw new Error("Discord API Rate Limit. Por favor espera unos minutos antes de recargar.");
+                }
+
+                if (!response.ok) {
+                    const errData = await response.json().catch(() => ({}));
+                    console.error("Discord API Error:", response.status, errData);
+                    throw new Error(`Error ${response.status}: ${errData.message || 'Error verificando roles'}`);
+                }
+
+                data = await response.json();
+                // Cache for 5 minutes
+                sessionStorage.setItem(cacheKey, JSON.stringify(data));
             }
 
-            if (!response.ok) {
-                const errData = await response.json();
-                console.error("Discord API Error:", errData);
-                throw new Error("Error verificando roles en Discord.");
-            }
-
-            const memberData = await response.json();
-            const userRoles = memberData.roles; // Array of role IDs
+            const userRoles = data.roles || []; // Array of role IDs
 
             // Check if user has at least one allowed role
-            // If ALLOWED_ROLE_IDS contains generic placeholders, allow all for demo purposes but warn
-            const isConfigured = !ALLOWED_ROLE_IDS[0].includes('REPLACE');
+            const hasRole = userRoles.some(roleId => ALLOWED_ROLE_IDS.includes(roleId));
 
-            if (!isConfigured) {
-                console.warn("Role Guard not configured. allowing access for setup.");
+            if (hasRole) {
                 setAuthorized(true);
+                setMemberData(data); // Save for context
             } else {
-                const hasRole = userRoles.some(roleId => ALLOWED_ROLE_IDS.includes(roleId));
-                if (hasRole) {
-                    setAuthorized(true);
-                } else {
-                    throw new Error("No tienes los roles necesarios para acceder a este panel.");
-                }
+                throw new Error("No tienes los roles necesarios para acceder a este panel.");
             }
 
         } catch (err) {
@@ -116,17 +130,16 @@ const RoleGuard = ({ children }) => {
                     <button onClick={() => { supabase.auth.signOut(); navigate('/login'); }} style={styles.button}>
                         Volver al Inicio
                     </button>
-                    {error.includes('Discord') && (
-                        <small style={{ display: 'block', marginTop: '1rem', color: '#666' }}>
-                            Asegúrate de estar en el servidor correcto y tener el rol asignado.
-                        </small>
-                    )}
                 </div>
             </div>
         );
     }
 
-    return authorized ? children : null;
+    return (
+        <DiscordContext.Provider value={memberData}>
+            {authorized ? children : null}
+        </DiscordContext.Provider>
+    );
 };
 
 const styles = {

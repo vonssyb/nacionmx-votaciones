@@ -1,17 +1,43 @@
 import React, { useState } from 'react';
 import { Plus, Filter, Search, MoreHorizontal } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { supabase } from '../services/supabase';
 
 const LogList = () => {
     const navigate = useNavigate();
     const [searchTerm, setSearchTerm] = useState('');
 
-    // Temporary mock data
-    const logs = [
-        { id: 1, type: 'ban', target: 'Player123', reason: 'Exploiting', moderator: 'ModOne', date: '2025-12-14 14:30' },
-        { id: 2, type: 'warn', target: 'ToxicUser', reason: 'Insulting staff', moderator: 'ModTwo', date: '2025-12-14 12:15' },
-        { id: 3, type: 'kick', target: 'AFKPlayer', reason: 'AFK in event', moderator: 'ModOne', date: '2025-12-14 10:00' },
-    ];
+    const [logs, setLogs] = useState([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        fetchLogs();
+    }, []);
+
+    const fetchLogs = async () => {
+        setLoading(true);
+        const { data, error } = await supabase
+            .from('activity_logs')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+        if (error) {
+            console.error('Error fetching logs:', error);
+        } else {
+            setLogs(data);
+        }
+        setLoading(false);
+    };
+
+    const formatDate = (dateString) => {
+        if (!dateString) return '';
+        return new Date(dateString).toLocaleString('es-MX', {
+            year: 'numeric', month: 'short', day: 'numeric',
+            hour: '2-digit', minute: '2-digit'
+        });
+    };
+
+    // Temporary mock data removed
 
     const getBadgeStyle = (type) => {
         switch (type) {
@@ -73,10 +99,10 @@ const LogList = () => {
                                         {log.type.toUpperCase()}
                                     </span>
                                 </td>
-                                <td style={{ fontWeight: 600 }}>{log.target}</td>
+                                <td style={{ fontWeight: 600 }}>{log.target_username || log.target}</td>
                                 <td style={{ color: 'var(--text-muted)' }}>{log.reason}</td>
-                                <td>{log.moderator}</td>
-                                <td style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>{log.date}</td>
+                                <td>{log.moderator_name || 'Staff'}</td>
+                                <td style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>{formatDate(log.created_at)}</td>
                                 <td>
                                     <button className="icon-btn">
                                         <MoreHorizontal size={18} />
