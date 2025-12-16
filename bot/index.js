@@ -296,15 +296,14 @@ client.on('interactionCreate', async interaction => {
         if (subCmd === 'estado') {
             await interaction.deferReply({ ephemeral: true });
 
-            // Optimization: We don't have direct discord_id on credit_cards, it's on profiles.
-            // Complex query needed or just search profiles first.
-            const { data: profile } = await supabase.from('profiles').select('id').eq('discord_id', interaction.user.id).single();
+            // FIX: Query 'citizens' table instead of 'profiles' because credit_cards are linked to citizens.
+            const { data: citizen } = await supabase.from('citizens').select('id').eq('discord_id', interaction.user.id).single();
 
-            if (!profile) {
-                return interaction.editReply('❌ No tienes una cuenta bancaria vinculada.');
+            if (!citizen) {
+                return interaction.editReply('❌ No tienes un ciudadano vinculado a tu Discord. Contacta a un administrador en el Panel.');
             }
 
-            const { data: userCard } = await supabase.from('credit_cards').select('*').eq('citizen_id', profile.id).eq('status', 'ACTIVE').single();
+            const { data: userCard } = await supabase.from('credit_cards').select('*').eq('citizen_id', citizen.id).eq('status', 'ACTIVE').single();
 
             if (!userCard) {
                 return interaction.editReply('❌ No tienes una tarjeta activa actualmente.');
@@ -329,11 +328,11 @@ client.on('interactionCreate', async interaction => {
 
             if (amount <= 0) return interaction.editReply('❌ El monto debe ser mayor a 0.');
 
-            // 1. Find User & Card
-            const { data: profile } = await supabase.from('profiles').select('id, discord_id').eq('discord_id', interaction.user.id).single();
-            if (!profile) return interaction.editReply('❌ No tienes cuenta vinculada.');
+            // 1. Find User (Citizen) & Card
+            const { data: citizen } = await supabase.from('citizens').select('id, discord_id').eq('discord_id', interaction.user.id).single();
+            if (!citizen) return interaction.editReply('❌ No tienes un ciudadano vinculado.');
 
-            const { data: userCard } = await supabase.from('credit_cards').select('*').eq('citizen_id', profile.id).eq('status', 'ACTIVE').single();
+            const { data: userCard } = await supabase.from('credit_cards').select('*').eq('citizen_id', citizen.id).eq('status', 'ACTIVE').single();
             if (!userCard) return interaction.editReply('❌ No tienes una tarjeta activa.');
 
             // 2. Validate Limit
@@ -381,7 +380,7 @@ client.on('interactionCreate', async interaction => {
                 .setFooter({ text: 'Sistema Financiero Nacion MX' });
 
             if (!ubResult.success) {
-                embed.setDescription(`✅ Deudaregistrada, pero hubo un error enviando el dinero a UnbelievaBoat.\nError: ${ubResult.error}\nContacta a Staff.`);
+                embed.setDescription(`✅ Deuda registrada, pero hubo un error enviando el dinero a UnbelievaBoat.\nError: ${ubResult.error}\nContacta a Staff.`);
                 embed.setColor(0xFFA500);
             }
 
@@ -394,11 +393,11 @@ client.on('interactionCreate', async interaction => {
 
             if (amount <= 0) return interaction.editReply('❌ El monto debe ser mayor a 0.');
 
-            // 1. Find User & Card
-            const { data: profile } = await supabase.from('profiles').select('id, discord_id').eq('discord_id', interaction.user.id).single();
-            if (!profile) return interaction.editReply('❌ No tienes cuenta vinculada.');
+            // 1. Find User (Citizen) & Card
+            const { data: citizen } = await supabase.from('citizens').select('id, discord_id').eq('discord_id', interaction.user.id).single();
+            if (!citizen) return interaction.editReply('❌ No tienes cuenta vinculada (Citizen).');
 
-            const { data: userCard } = await supabase.from('credit_cards').select('*').eq('citizen_id', profile.id).eq('status', 'ACTIVE').single();
+            const { data: userCard } = await supabase.from('credit_cards').select('*').eq('citizen_id', citizen.id).eq('status', 'ACTIVE').single();
             if (!userCard) return interaction.editReply('❌ No tienes una tarjeta activa.');
 
             if (amount > userCard.current_debt) {
