@@ -281,16 +281,25 @@ const FinancePanel = () => {
                     <form onSubmit={handleRegister} className="finance-form">
                         <h3><User size={20} /> Datos del Ciudadano</h3>
                         <div className="form-row">
+                            {/* DNI Field Removed as requested
                             <div className="form-group">
                                 <label>DNI (Número)</label>
+                                <input ... />
+                            </div>
+                            */}
+
+                            <div className="form-group">
+                                <label>Nombre Completo</label>
                                 <input
                                     type="text"
-                                    value={dni}
-                                    onChange={(e) => setDni(e.target.value)}
+                                    value={fullName}
+                                    onChange={(e) => setFullName(e.target.value)}
                                     required
-                                    placeholder="Número de identificación"
+                                    placeholder="Nombre Apellido"
+                                    className="premium-input"
                                 />
                             </div>
+
                             <div className="form-group">
                                 <label>Captura del DNI</label>
                                 <div className="file-input-wrapper">
@@ -301,30 +310,25 @@ const FinancePanel = () => {
                                         id="dni-upload"
                                         style={{ display: 'none' }}
                                     />
-                                    <label htmlFor="dni-upload" className="file-upload-btn">
+                                    <label htmlFor="dni-upload" className="file-upload-btn premium-btn">
                                         <Camera size={18} />
-                                        {dniFile ? dniFile.name : "Subir Foto"}
+                                        <span>{dniFile ? dniFile.name : "Subir Foto"}</span>
                                     </label>
                                 </div>
                             </div>
-                            <div className="form-group">
-                                <label>Nombre Completo</label>
-                                <input
-                                    type="text"
-                                    value={fullName}
-                                    onChange={(e) => setFullName(e.target.value)}
-                                    required
-                                    placeholder="Nombre Apellido"
-                                />
-                            </div>
-                            <div className="form-group">
-                                <label>ID de Discord (Opcional)</label>
+                        </div>
+
+                        <div className="form-row">
+                            <div className="form-group full-width">
+                                <label>ID de Discord (Obligatorio)</label>
                                 <input
                                     type="text"
                                     value={discordId}
                                     onChange={(e) => setDiscordId(e.target.value)}
+                                    required
                                     placeholder="Ej: 123456789012345678"
                                     title="Activa el Modo Desarrollador en Discord para copiar IDs"
+                                    className="premium-input"
                                 />
                             </div>
                         </div>
@@ -364,12 +368,16 @@ const FinancePanel = () => {
                         </div>
 
                         <div className="form-group checkbox-group">
-                            <label>
+                            <label className="custom-checkbox-label">
                                 <input
                                     type="checkbox"
                                     checked={hasLoans}
                                     onChange={(e) => setHasLoans(e.target.checked)}
+                                    className="hidden-checkbox"
                                 />
+                                <span className={`custom-checkbox ${hasLoans ? 'checked' : ''}`}>
+                                    {hasLoans && <CheckCircle size={14} />}
+                                </span>
                                 ¿Ha solicitado préstamos anteriormente?
                             </label>
                         </div>
