@@ -18,10 +18,11 @@ const AdminPanel = () => {
             const { count: profileCount, data: loadedProfiles } = await supabase.from('profiles').select('*', { count: 'exact' });
             const { count: logCount } = await supabase.from('time_logs').select('*', { count: 'exact', head: true });
 
-            setStats({ profiles: profileCount, logs: logCount, proofs: 0 });
+            setStats({ profiles: profileCount || 0, logs: logCount || 0, proofs: 0 });
             setProfiles(loadedProfiles || []);
         } catch (error) {
             console.error("Admin Fetch Error:", error);
+            setFeedback({ type: 'error', text: 'Error de Conexión: ' + (error.message || 'Consulta fallida') });
         } finally {
             setLoading(false);
         }
@@ -53,6 +54,8 @@ const AdminPanel = () => {
                 </div>
                 <button onClick={fetchAdminData} style={styles.iconBtn} title="Recargar"><RefreshCw size={20} /></button>
             </div>
+
+            {loading && <div style={styles.loading}>Cargando datos del sistema...</div>}
 
             {feedback && (
                 <div style={{ ...styles.feedback, background: feedback.type === 'error' ? '#e74c3c20' : '#2ecc7120', borderColor: feedback.type === 'error' ? '#e74c3c' : '#2ecc71' }}>
@@ -125,7 +128,8 @@ const styles = {
     tr: { borderBottom: '1px solid var(--border)' },
     badge: { background: 'rgba(255,255,255,0.05)', padding: '2px 8px', borderRadius: '4px', fontSize: '0.8rem' },
     actionBtn: { background: 'var(--primary)', color: 'black', border: 'none', padding: '0.5rem 1rem', borderRadius: '4px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '0.8rem', fontWeight: 'bold' },
-    feedback: { padding: '1rem', marginBottom: '1rem', borderRadius: 'var(--radius)', border: '1px solid', color: 'white' }
+    feedback: { padding: '1rem', marginBottom: '1rem', borderRadius: 'var(--radius)', border: '1px solid', color: 'white' },
+    loading: { padding: '2rem', textAlign: 'center', color: 'var(--text-muted)', fontStyle: 'italic' }
 };
 
 export default AdminPanel;
