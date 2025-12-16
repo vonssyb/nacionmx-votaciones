@@ -422,11 +422,15 @@ const CancellationForm = () => {
     const [formData, setFormData] = useState({
         targetUser: '',
         reason: '',
-        location: ''
+        location: '',
+        moderatorId: '' // Added manual moderator ID
     });
     const [files, setFiles] = useState({ proof1: null, proof2: null, proof3: null });
     const [loading, setLoading] = useState(false);
-    const [currentUser, setCurrentUser] = useState(null);
+
+    // We can keep currentUser state to know if we auto-detected or not, 
+    // but primarily we'll rely on formData.moderatorId
+    const [autoDetected, setAutoDetected] = useState(false);
 
     useEffect(() => {
         getCurrentUser();
@@ -437,7 +441,10 @@ const CancellationForm = () => {
         if (user) {
             // Get profile for discord_id
             const { data: profile } = await supabase.from('profiles').select('discord_id').eq('id', user.id).single();
-            setCurrentUser(profile);
+            if (profile && profile.discord_id) {
+                setFormData(prev => ({ ...prev, moderatorId: profile.discord_id }));
+                setAutoDetected(true);
+            }
         }
     };
 
@@ -466,8 +473,9 @@ const CancellationForm = () => {
         setLoading(true);
 
         try {
-            if (!currentUser || !currentUser.discord_id) {
-                alert('Tu usuario no tiene Discord vinculado. No puedes procesar cancelaciones.');
+            // Validate Moderator ID
+            if (!formData.moderatorId) {
+                alert('Debes ingresar tu ID de Discord (Moderador) si no está vinculado automáticamente.');
                 setLoading(false);
                 return;
             }
@@ -485,7 +493,7 @@ const CancellationForm = () => {
 
             // Insert to DB
             const { error } = await supabase.from('rp_cancellations').insert([{
-                moderator_discord_id: currentUser.discord_id,
+                moderator_discord_id: formData.moderatorId,
                 target_user: formData.targetUser,
                 reason: formData.reason,
                 location: formData.location,
@@ -497,7 +505,9 @@ const CancellationForm = () => {
             if (error) throw error;
 
             alert('✅ Cancelación procesada correctamente. Se ha publicado en Discord.');
-            setFormData({ targetUser: '', reason: '', location: '' });
+            // Reset form but keep moderatorId if it was auto-detected or manual? 
+            // Better to keep it for convenience if they do multiple reports.
+            setFormData(prev => ({ ...prev, targetUser: '', reason: '', location: '' }));
             setFiles({ proof1: null, proof2: null, proof3: null });
 
         } catch (err) {
@@ -514,6 +524,23 @@ const CancellationForm = () => {
                 🚫 Formulario de Cancelación de Rol
             </h2>
             <form onSubmit={handleSubmit}>
+                {/* Manual Moderator ID Input (Always visible or only if missing? Making it visible allows overriding or filling) */}
+                <div className="form-group">
+                    <label>Tu Discord ID (Moderador)</label>
+                    <input
+                        type="text"
+                        className="form-input"
+                        value={formData.moderatorId}
+                        onChange={e => setFormData({ ...formData, moderatorId: e.target.value })}
+                        placeholder="Ej: 123456789012345678"
+                        required
+                        disabled={autoDetected} // Disable if auto-detected to prevent spoofing? Or allow editing? Let's allow editing strictly speaking but auto-fill is nice. 
+                        // Actually forcing it if auto-detected prevents mistakes.
+                        style={{ opacity: autoDetected ? 0.7 : 1 }}
+                    />
+                    {!autoDetected && <small style={{ color: '#f1c40f' }}>⚠️ No se detectó tu Discord ID automáticamente. Ingrésalo manualmente.</small>}
+                </div>
+
                 <div className="form-group">
                     <label>Usuario Sancionado (ID o Nombre)</label>
                     <input
