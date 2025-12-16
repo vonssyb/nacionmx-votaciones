@@ -208,6 +208,44 @@ client.once('ready', async () => {
                     ]
                 }
             ]
+        },
+        {
+            name: 'banco',
+            description: 'Comandos administrativos del Banco',
+            options: [
+                {
+                    name: 'registrar',
+                    description: 'Registrar una nueva tarjeta manualmente (Staff Banco)',
+                    type: 1, // SUB_COMMAND
+                    options: [
+                        { name: 'usuario', description: 'Usuario a registrar', type: 6, required: true },
+                        {
+                            name: 'tipo',
+                            description: 'Nivel de la tarjeta',
+                            type: 3,
+                            required: true,
+                            choices: [
+                                { name: 'NMX Clásica', value: 'NMX Clásica' },
+                                { name: 'NMX Oro', value: 'NMX Oro' },
+                                { name: 'NMX Platino', value: 'NMX Platino' },
+                                { name: 'NMX Diamante', value: 'NMX Diamante' },
+                                { name: 'NMX Centurión', value: 'NMX Centurión' }
+                            ]
+                        },
+                        { name: 'limite', description: 'Límite de crédito', type: 10, required: true },
+                        { name: 'interes', description: 'Tasa de interés (%)', type: 10, required: true }
+                    ]
+                }
+            ]
+        },
+        {
+            name: 'multa',
+            description: 'Imponer una multa a un ciudadano (Policía)',
+            options: [
+                { name: 'usuario', description: 'Ciudadano a multar', type: 6, required: true },
+                { name: 'monto', description: 'Monto de la multa', type: 10, required: true },
+                { name: 'razon', description: 'Motivo de la infracción', type: 3, required: true }
+            ]
         }
     ];
 
@@ -645,105 +683,200 @@ client.on('interactionCreate', async interaction => {
             await interaction.editReply('✅ Reporte de cancelación enviado exitosamente. Se publicará en breve.');
         }
     }
+}
 
-    else if (commandName === 'fichar') {
+    else if (commandName === 'banco') {
+    const subCmd = interaction.options.getSubcommand();
+
+    if (subCmd === 'registrar') {
         await interaction.deferReply({ ephemeral: true });
-        const action = interaction.options.getString('accion');
 
-        const { data: profile } = await supabase
-            .from('profiles')
-            .select('id, full_name, role')
-            .eq('discord_id', interaction.user.id)
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .maybeSingle();
-
-        if (!profile) {
-            return interaction.editReply('❌ No tienes tu cuenta de Discord vinculada. Pide a un admin que añada tu ID de Discord a tu perfil en el Panel de Staff.');
+        // 1. Role Check (Staff Banco: 1450591546524307689)
+        if (!interaction.member.roles.cache.has('1450591546524307689') && !interaction.member.permissions.has('Administrator')) {
+            return interaction.editReply('⛔ No tienes permisos para registrar tarjetas (Rol Staff Banco Requerido).');
         }
 
-        // 2. Check for Active Shift
-        const { data: activeShift } = await supabase
+        const targetUser = interaction.options.getUser('usuario');
+        const cardType = interaction.options.getString('tipo');
+        const limit = interaction.options.getNumber('limite');
+        const interest = interaction.options.getNumber('interes');
+
+        // 2. Find Citizen
+        const { data: citizen, error: citError } = await supabase.from('citizens').select('id, full_name').eq('discord_id', targetUser.id).order('created_at', { ascending: false }).limit(1).maybeSingle();
+
+        if (!citizen) return interaction.editReply('❌ El usuario no tiene un Ciudadano vinculado. Debe usar `/fichar` primero.');
+
+        // 3. Create Card
+        const { error: insertError } = await supabase.from('credit_cards').insert([{
+            citizen_id: citizen.id,
+            card_type: cardType,
+            credit_limit: limit,
+            current_balance: 0,
+            interest_rate: interest,
+            status: 'ACTIVE',
+            next_payment_due: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() // 1 week
+        }]);
+
+        if (insertError) {
+            console.error(insertError);
+            return interaction.editReply(`❌ Error al crear tarjeta: ${insertError.message}`);
+        }
+
+        await interaction.editReply(`✅ **Tarjeta Registrada Exitosamente**\nUsuario: ${citizen.full_name}\nTipo: ${cardType}\nLímite: $${limit.toLocaleString()}\nInterés: ${interest}%`);
+    }
+}
+
+else if (commandName === 'multa') {
+    await interaction.deferReply();
+
+    // 1. Role Check (Policia: 1416867605976715363)
+    if (!interaction.member.roles.cache.has('1416867605976715363') && !interaction.member.permissions.has('Administrator')) {
+        return interaction.editReply({ content: '⛔ No tienes placa de policía (Rol Requerido).', ephemeral: true });
+    }
+
+    const targetUser = interaction.options.getUser('usuario');
+    const amount = interaction.options.getNumber('monto');
+    const reason = interaction.options.getString('razon');
+
+    // 2. Find Citizen
+    const { data: citizen } = await supabase.from('citizens').select('id, full_name').eq('discord_id', targetUser.id).order('created_at', { ascending: false }).limit(1).maybeSingle();
+
+    if (!citizen) return interaction.editReply('❌ El usuario no es ciudadano registrado.');
+
+    // 3. UnbelievaBoat Charge
+    let status = 'UNPAID';
+    let ubMessage = '';
+
+    try {
+        await billingService.ubService.removeMoney(interaction.guildId, targetUser.id, amount, `Multa: ${reason}`);
+        status = 'PAID';
+    } catch (err) {
+        ubMessage = `(Fallo cobro automático: ${err.message})`;
+    }
+
+    // 4. Record Fine
+    const { error: fineError } = await supabase.from('fines').insert([{
+        citizen_id: citizen.id,
+        officer_discord_id: interaction.user.id,
+        amount: amount,
+        reason: reason,
+        status: status
+    }]);
+
+    if (fineError) console.error("Fine error", fineError);
+
+    const embed = new EmbedBuilder()
+        .setTitle(status === 'PAID' ? '⚖️ Multa Pagada' : '⚖️ Multa Registrada (Cobro Pendiente)')
+        .setColor(status === 'PAID' ? 0x00FF00 : 0xFF0000)
+        .addFields(
+            { name: 'Ciudadano', value: `<@${targetUser.id}>`, inline: true },
+            { name: 'Oficial', value: `<@${interaction.user.id}>`, inline: true },
+            { name: 'Monto', value: `$${amount.toLocaleString()}`, inline: true },
+            { name: 'Motivo', value: reason }
+        )
+        .setFooter({ text: status === 'PAID' ? 'Cobrado automáticamente de cuenta bancaria.' : 'El ciudadano no tenía fondos suficientes. Se registró deuda judicial.' });
+
+    await interaction.editReply({ embeds: [embed] });
+}
+
+else if (commandName === 'fichar') {
+    await interaction.deferReply({ ephemeral: true });
+    const action = interaction.options.getString('accion');
+
+    const { data: profile } = await supabase
+        .from('profiles')
+        .select('id, full_name, role')
+        .eq('discord_id', interaction.user.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+    if (!profile) {
+        return interaction.editReply('❌ No tienes tu cuenta de Discord vinculada. Pide a un admin que añada tu ID de Discord a tu perfil en el Panel de Staff.');
+    }
+
+    // 2. Check for Active Shift
+    const { data: activeShift } = await supabase
+        .from('time_logs')
+        .select('id, clock_in')
+        .eq('user_id', profile.id)
+        .eq('status', 'active')
+        .single();
+
+    if (activeShift) {
+        // CLOCK OUT
+        const now = new Date();
+        const clockIn = new Date(activeShift.clock_in);
+        const durationMinutes = Math.round((now - clockIn) / 60000);
+
+        const { error } = await supabase
             .from('time_logs')
-            .select('id, clock_in')
-            .eq('user_id', profile.id)
-            .eq('status', 'active')
-            .single();
+            .update({
+                clock_out: now.toISOString(),
+                status: 'completed',
+                duration_minutes: durationMinutes
+            })
+            .eq('id', activeShift.id);
 
-        if (activeShift) {
-            // CLOCK OUT
-            const now = new Date();
-            const clockIn = new Date(activeShift.clock_in);
-            const durationMinutes = Math.round((now - clockIn) / 60000);
+        if (error) {
+            console.error(error);
+            return interaction.editReply('❌ Error al cerrar turno.');
+        }
 
-            const { error } = await supabase
-                .from('time_logs')
-                .update({
-                    clock_out: now.toISOString(),
-                    status: 'completed',
-                    duration_minutes: durationMinutes
-                })
-                .eq('id', activeShift.id);
+        const embed = new EmbedBuilder()
+            .setTitle('🛑 Turno Finalizado')
+            .setColor(0xFF0000)
+            .addFields(
+                { name: 'Oficial', value: profile.full_name || 'Agente' },
+                { name: 'Duración', value: `${durationMinutes} minutos` }
+            )
+            .setTimestamp();
 
-            if (error) {
-                console.error(error);
-                return interaction.editReply('❌ Error al cerrar turno.');
-            }
+        await interaction.editReply({ embeds: [embed] });
 
-            const embed = new EmbedBuilder()
-                .setTitle('🛑 Turno Finalizado')
-                .setColor(0xFF0000)
-                .addFields(
-                    { name: 'Oficial', value: profile.full_name || 'Agente' },
-                    { name: 'Duración', value: `${durationMinutes} minutos` }
-                )
-                .setTimestamp();
+        // Optional: Log to public channel
+        if (NOTIFICATION_CHANNEL_ID) {
+            const channel = await client.channels.fetch(NOTIFICATION_CHANNEL_ID).catch(() => null);
+            if (channel) channel.send({ embeds: [embed] });
+        }
 
-            await interaction.editReply({ embeds: [embed] });
+    } else {
+        // CLOCK IN
+        const { error } = await supabase
+            .from('time_logs')
+            .insert([{
+                user_id: profile.id,
+                clock_in: new Date().toISOString(),
+                status: 'active'
+            }]);
 
-            // Optional: Log to public channel
-            if (NOTIFICATION_CHANNEL_ID) {
-                const channel = await client.channels.fetch(NOTIFICATION_CHANNEL_ID).catch(() => null);
-                if (channel) channel.send({ embeds: [embed] });
-            }
+        if (error) {
+            console.error(error);
+            return interaction.editReply('❌ Error al iniciar turno.');
+        }
 
-        } else {
-            // CLOCK IN
-            const { error } = await supabase
-                .from('time_logs')
-                .insert([{
-                    user_id: profile.id,
-                    clock_in: new Date().toISOString(),
-                    status: 'active'
-                }]);
+        const embed = new EmbedBuilder()
+            .setTitle('🟢 Turno Iniciado')
+            .setColor(0x00FF00)
+            .addFields(
+                { name: 'Oficial', value: profile.full_name || 'Agente' },
+                { name: 'Hora', value: new Date().toLocaleTimeString() }
+            )
+            .setTimestamp();
 
-            if (error) {
-                console.error(error);
-                return interaction.editReply('❌ Error al iniciar turno.');
-            }
+        await interaction.editReply({ embeds: [embed] });
 
-            const embed = new EmbedBuilder()
-                .setTitle('🟢 Turno Iniciado')
-                .setColor(0x00FF00)
-                .addFields(
-                    { name: 'Oficial', value: profile.full_name || 'Agente' },
-                    { name: 'Hora', value: new Date().toLocaleTimeString() }
-                )
-                .setTimestamp();
-
-            await interaction.editReply({ embeds: [embed] });
-
-            if (NOTIFICATION_CHANNEL_ID) {
-                const channel = await client.channels.fetch(NOTIFICATION_CHANNEL_ID).catch(() => null);
-                if (channel) channel.send({ embeds: [embed] });
-            }
+        if (NOTIFICATION_CHANNEL_ID) {
+            const channel = await client.channels.fetch(NOTIFICATION_CHANNEL_ID).catch(() => null);
+            if (channel) channel.send({ embeds: [embed] });
         }
     }
+}
 
-    if (commandName === 'saldo') {
-        // ... (Existing logic or placeholder) ...
-        await interaction.reply({ content: 'Esta función estará disponible pronto.', ephemeral: true });
-    }
+if (commandName === 'saldo') {
+    // ... (Existing logic or placeholder) ...
+    await interaction.reply({ content: 'Esta función estará disponible pronto.', ephemeral: true });
+}
 });
 
 function getColorForCard(type) {
