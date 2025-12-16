@@ -112,6 +112,89 @@
     color: var(--text-muted);
 }
 
+/* Action Buttons */
+.card-actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-left: auto;
+}
+
+.action-btn {
+    background: rgba(255, 255, 255, 0.1);
+    border: none;
+    color: var(--text-secondary);
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.action-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: translateY(-2px);
+}
+
+.loan-btn:hover {
+    color: #4caf50;
+}
+
+.cancel-btn:hover {
+    color: #f44336;
+}
+
+.action-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* Modal */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    backdrop-filter: blur(4px);
+}
+
+.modal-content {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    padding: 2rem;
+    border-radius: 16px;
+    width: 90%;
+    max-width: 500px;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+
+.close-btn {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+}
+
+.close-btn:hover {
+    color: var(--text-primary);
+}
+
 .level-details-summary {
     background: rgba(255, 215, 0, 0.05);
     border: 1px solid var(--primary-dim);
@@ -193,14 +276,58 @@
     border: 1px solid var(--border);
 }
 
+/* Inputs Premium Styling */
+.finance-form input[type="text"],
+.finance-form input[type="number"],
+.finance-form textarea,
 .search-bar input {
-    background: transparent;
-    border: none;
-    color: var(--text-main);
-    font-size: 1rem;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid var(--border);
+    color: #fff;
+    padding: 0.8rem 1rem;
+    border-radius: var(--radius);
+    font-size: 0.95rem;
     width: 100%;
     outline: none;
+    transition: all 0.3s ease;
 }
+
+.finance-form input::placeholder {
+    color: rgba(255, 255, 255, 0.3);
+}
+
+.finance-form input:focus,
+.finance-form textarea:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 2px rgba(212, 175, 55, 0.1);
+    /* Gold glow */
+    background: rgba(0, 0, 0, 0.5);
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* File Upload Premium */
+.file-upload-btn {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px dashed var(--border);
+    color: var(--text-muted);
+    transition: all 0.3s;
+}
+
+.file-upload-btn:hover {
+    border-color: var(--primary);
+    color: var(--primary);
+    background: rgba(212, 175, 55, 0.05);
+}
+
 
 .cards-grid {
     display: grid;

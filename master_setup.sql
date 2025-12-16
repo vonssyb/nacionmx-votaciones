@@ -1,7 +1,15 @@
 -- MASTER SETUP SCRIPT
 -- Run this in Supabase SQL Editor to fix EVERYTHING.
 
--- 1. Create 'citizens' table (if missing)
+-- 1.2 Add discord_id to profiles (For Bot Shift Logging)
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'profiles' AND column_name = 'discord_id') THEN
+        ALTER TABLE profiles ADD COLUMN discord_id text UNIQUE;
+    END IF;
+END $$;
+
+-- 2. CREATE (or Update) 'citizens' table
 CREATE TABLE IF NOT EXISTS citizens (
   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
   dni text UNIQUE NOT NULL,
@@ -27,9 +35,21 @@ CREATE TABLE IF NOT EXISTS credit_cards (
   created_at timestamp with time zone DEFAULT timezone('utc'::text, now())
 );
 
+-- 2.5 Create 'card_transactions' table (History & Proofs)
+CREATE TABLE IF NOT EXISTS card_transactions (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  card_id uuid REFERENCES credit_cards(id) ON DELETE CASCADE NOT NULL,
+  amount numeric NOT NULL, -- Positive for Loans, Negative for Payments
+  type text CHECK (type IN ('loan', 'payment', 'interest')) NOT NULL,
+  proof_url text, -- Screenshot of log/transfer
+  notes text,
+  created_at timestamp with time zone DEFAULT timezone('utc'::text, now())
+);
+
 -- 3. Enable RLS for new tables
 ALTER TABLE citizens ENABLE ROW LEVEL SECURITY;
 ALTER TABLE credit_cards ENABLE ROW LEVEL SECURITY;
+ALTER TABLE card_transactions ENABLE ROW LEVEL SECURITY;
 
 -- 4. RLS Policies (Safe to run multiple times)
 DROP POLICY IF EXISTS "Staff can view citizens" ON citizens;
@@ -43,6 +63,9 @@ CREATE POLICY "Staff can update citizens" ON citizens FOR UPDATE USING (auth.rol
 
 DROP POLICY IF EXISTS "Staff can manage credit cards" ON credit_cards;
 CREATE POLICY "Staff can manage credit cards" ON credit_cards FOR ALL USING (auth.role() = 'authenticated');
+
+DROP POLICY IF EXISTS "Staff can manage transactions" ON card_transactions;
+CREATE POLICY "Staff can manage transactions" ON card_transactions FOR ALL USING (auth.role() = 'authenticated');
 
 -- 5. FIX ID GENERATION (Solve "Error al iniciar turno" and others)
 -- Applies to existing tables too
@@ -67,6 +90,10 @@ INSERT INTO storage.buckets (id, name, public)
 VALUES ('dni-images', 'dni-images', true)
 ON CONFLICT (id) DO NOTHING;
 
+INSERT INTO storage.buckets (id, name, public) 
+VALUES ('ledger-proofs', 'ledger-proofs', true)
+ON CONFLICT (id) DO NOTHING;
+
 -- 8. Storage Policies
 DROP POLICY IF EXISTS "Staff can upload dni images" ON storage.objects;
 CREATE POLICY "Staff can upload dni images"
@@ -77,3 +104,18 @@ DROP POLICY IF EXISTS "Public can view dni images" ON storage.objects;
 CREATE POLICY "Public can view dni images"
 ON storage.objects FOR SELECT
 USING ( bucket_id = 'dni-images' );
+
+DROP POLICY IF EXISTS "Staff can upload proofs" ON storage.objects;
+CREATE POLICY "Staff can upload proofs"
+ON storage.objects FOR INSERT
+WITH CHECK ( bucket_id = 'ledger-proofs' AND auth.role() = 'authenticated' );
+
+DROP POLICY IF EXISTS "Public can view proofs" ON storage.objects;
+CREATE POLICY "Public can view proofs"
+ON storage.objects FOR SELECT
+USING ( bucket_id = 'ledger-proofs' );
+
+-- 9. ENABLE REALTIME (Crucial for Bot to hear changes)
+PROCEED; -- Safe guard in case they run it all
+ALTER PUBLICATION supabase_realtime ADD TABLE credit_cards;
+ALTER PUBLICATION supabase_realtime ADD TABLE citizens;
