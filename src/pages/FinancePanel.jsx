@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { CreditCard, Search, User, DollarSign, AlertCircle, CheckCircle, Wallet, Plus, Send } from 'lucide-react';
+import { CreditCard, Search, User, DollarSign, AlertCircle, CheckCircle, Wallet, Plus, Send, Camera } from 'lucide-react';
 import { supabase } from '../services/supabase';
 import './FinancePanel.css';
 
@@ -25,6 +25,7 @@ const FinancePanel = () => {
 
     // Form State
     const [dni, setDni] = useState('');
+    const [dniFile, setDniFile] = useState(null);
     const [fullName, setFullName] = useState('');
     const [selectedLevel, setSelectedLevel] = useState(CARD_LEVELS[0]);
     const [hasLoans, setHasLoans] = useState(false);
@@ -85,9 +86,27 @@ const FinancePanel = () => {
             if (existingCitizen) {
                 citizenId = existingCitizen.id;
             } else {
+                // Upload DNI Image if present
+                let dniImageUrl = null;
+                if (dniFile) {
+                    const fileExt = dniFile.name.split('.').pop();
+                    const fileName = `${dni}_${Date.now()}.${fileExt}`;
+                    const { data: uploadData, error: uploadError } = await supabase.storage
+                        .from('dni-images')
+                        .upload(fileName, dniFile);
+
+                    if (uploadError) throw uploadError;
+
+                    const { data: { publicUrl } } = supabase.storage
+                        .from('dni-images')
+                        .getPublicUrl(fileName);
+
+                    dniImageUrl = publicUrl;
+                }
+
                 const { data: newCitizen, error: citizenError } = await supabase
                     .from('citizens')
-                    .insert([{ dni, full_name: fullName }])
+                    .insert([{ dni, full_name: fullName, dni_image_url: dniImageUrl }])
                     .select()
                     .single();
 
@@ -137,6 +156,7 @@ const FinancePanel = () => {
 
             setFeedback({ type: 'success', msg: 'Tarjeta registrada exitosamente.' });
             setDni('');
+            setDniFile(null);
             setFullName('');
             setNotes('');
         } catch (err) {
@@ -176,7 +196,7 @@ const FinancePanel = () => {
                         <h3><User size={20} /> Datos del Ciudadano</h3>
                         <div className="form-row">
                             <div className="form-group">
-                                <label>DNI</label>
+                                <label>DNI (Número)</label>
                                 <input
                                     type="text"
                                     value={dni}
@@ -184,6 +204,22 @@ const FinancePanel = () => {
                                     required
                                     placeholder="Número de identificación"
                                 />
+                            </div>
+                            <div className="form-group">
+                                <label>Captura del DNI</label>
+                                <div className="file-input-wrapper">
+                                    <input
+                                        type="file"
+                                        accept="image/*"
+                                        onChange={(e) => setDniFile(e.target.files[0])}
+                                        id="dni-upload"
+                                        style={{ display: 'none' }}
+                                    />
+                                    <label htmlFor="dni-upload" className="file-upload-btn">
+                                        <Camera size={18} />
+                                        {dniFile ? dniFile.name : "Subir Foto"}
+                                    </label>
+                                </div>
                             </div>
                             <div className="form-group">
                                 <label>Nombre Completo</label>

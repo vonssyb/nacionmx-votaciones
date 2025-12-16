@@ -1,14 +1,26 @@
 import React from 'react';
 import { FileText, Check, X, Clock } from 'lucide-react';
+import { supabase } from '../services/supabase';
 
 const Applications = () => {
     // Mock data
-    const applications = [
-        { id: 101, user: 'NewPlayer01', type: 'Whitelist', date: '2025-12-14 09:00', status: 'pending' },
-        { id: 102, user: 'CopWannabe', type: 'Police Job', date: '2025-12-13 18:30', status: 'pending' },
-        { id: 103, user: 'MedicPro', type: 'EMS Job', date: '2025-12-13 15:45', status: 'approved' },
-        { id: 104, user: 'BannedGuy', type: 'Unban Request', date: '2025-12-12 10:20', status: 'rejected' },
-    ];
+    const [applications, setApplications] = React.useState([]);
+    const [loading, setLoading] = React.useState(true);
+
+    React.useEffect(() => {
+        fetchApplications();
+    }, []);
+
+    const fetchApplications = async () => {
+        setLoading(true);
+        const { data, error } = await supabase
+            .from('applications')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+        if (data) setApplications(data);
+        setLoading(false);
+    };
 
     const getStatusBadge = (status) => {
         switch (status) {
@@ -34,10 +46,10 @@ const Applications = () => {
                         </div>
                         <div className="app-content">
                             <div className="app-header">
-                                <h3>{app.user}</h3>
+                                <h3>{app.applicant_username}</h3>
                                 <span className="app-type">{app.type}</span>
                             </div>
-                            <span className="app-date">{app.date}</span>
+                            <span className="app-date">{new Date(app.created_at).toLocaleString()}</span>
                         </div>
                         <div className="app-status">
                             {getStatusBadge(app.status)}
