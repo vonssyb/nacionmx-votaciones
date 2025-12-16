@@ -29,18 +29,46 @@ const RoleGuard = ({ children }) => {
     const navigate = useNavigate();
 
     useEffect(() => {
-        checkAccess();
+        let mounted = true;
+
+        const checkSession = async () => {
+            try {
+                // 1. Get Initial Session
+                const { data: { session }, error } = await supabase.auth.getSession();
+
+                if (error) throw error;
+                if (session) {
+                    if (mounted) verifyDiscordRole(session);
+                } else {
+                    // If no session, wait for potentially incoming OAuth redirect
+                    // This listener handles the 'SIGNED_IN' event from the OAuth callback
+                    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+                        if (event === 'SIGNED_IN' && session) {
+                            if (mounted) verifyDiscordRole(session);
+                        } else if (event === 'SIGNED_OUT') {
+                            if (mounted) {
+                                setLoading(false);
+                                navigate('/login');
+                            }
+                        }
+                    });
+                    return () => subscription.unsubscribe();
+                }
+            } catch (err) {
+                console.error("Session check error:", err);
+                if (mounted) {
+                    setLoading(false);
+                    navigate('/login');
+                }
+            }
+        };
+
+        checkSession();
+
+        return () => { mounted = false; };
     }, []);
 
-    const checkAccess = async () => {
-        setLoading(true);
-        const { data: { session } } = await supabase.auth.getSession();
-
-        if (!session) {
-            navigate('/login');
-            return;
-        }
-
+    const verifyDiscordRole = async (session) => {
         const providerToken = session.provider_token;
         if (!providerToken) {
             console.warn("No provider token found. Re-login required.");
