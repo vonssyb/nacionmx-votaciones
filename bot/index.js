@@ -265,4 +265,69 @@ function getColorForCard(type) {
     return 0xFFFFFF;
 }
 
+// Listen for new Credit Cards
+async function subscribeToNewCards() {
+    console.log("Listening for new credit cards...");
+
+    // 1. Listen for DB Inserts
+    supabase
+        .channel('credit-cards-insert')
+        .on(
+            'postgres_changes',
+            { event: 'INSERT', schema: 'public', table: 'credit_cards' },
+            async (payload) => {
+                console.log('💳 Nueva tarjeta detectada!', payload.new);
+                const newCard = payload.new;
+
+                // 2. Fetch Citizen Info (including discord_id)
+                const { data: citizen } = await supabase
+                    .from('citizens')
+                    .select('full_name, dni, discord_id')
+                    .eq('id', newCard.citizen_id)
+                    .single();
+
+                const citizenName = citizen ? citizen.full_name : 'Desconocido';
+                const citizenDni = citizen ? citizen.dni : '???';
+                const discordId = citizen ? citizen.discord_id : null;
+
+                // 3. Build the Embed
+                const embed = new EmbedBuilder()
+                    .setTitle('💳 Nueva Tarjeta Emitida')
+                    .setColor(getColorForCard(newCard.card_type))
+                    .addFields(
+                        { name: 'Titular', value: citizenName, inline: true },
+                        { name: 'DNI', value: citizenDni, inline: true },
+                        { name: 'Nivel', value: newCard.card_type, inline: true },
+                        { name: 'Límite', value: `$${newCard.credit_limit}`, inline: true },
+                        { name: 'Interés', value: `${newCard.interest_rate}%`, inline: true }
+                    )
+                    .setFooter({ text: 'Banco Nacional RP' })
+                    .setTimestamp();
+
+                // 4. Send to Public Channel
+                if (NOTIFICATION_CHANNEL_ID) {
+                    const channel = await client.channels.fetch(NOTIFICATION_CHANNEL_ID).catch(console.error);
+                    if (channel) channel.send({ embeds: [embed] }).catch(err => console.error("Error sending to channel:", err));
+                }
+
+                // 5. Send DM to User (if discord_id exists)
+                if (discordId) {
+                    try {
+                        const user = await client.users.fetch(discordId);
+                        if (user) {
+                            await user.send({
+                                content: `Hola ${citizenName}, tu nueva tarjeta ha sido aprobada.`,
+                                embeds: [embed]
+                            });
+                            console.log(`✅ DM enviado a ${user.tag}`);
+                        }
+                    } catch (err) {
+                        console.error(`❌ No se pudo enviar DM a ${discordId}. Puede tener DMs cerrados.`);
+                    }
+                }
+            }
+        )
+        .subscribe();
+}
+
 client.login(process.env.DISCORD_TOKEN);
