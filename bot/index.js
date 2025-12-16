@@ -349,70 +349,75 @@ client.on('interactionCreate', async interaction => {
 
         else if (subCmd === 'pedir-prestamo') {
             await interaction.deferReply({ ephemeral: true });
-            const amount = interaction.options.getNumber('monto');
 
-            if (amount <= 0) return interaction.editReply('❌ El monto debe ser mayor a 0.');
+            // Robust amount handling
+            const amount = interaction.options.getNumber('monto') || interaction.options.getInteger('monto');
+            if (!amount || amount <= 0) return interaction.editReply('❌ El monto debe ser mayor a 0.');
 
-            // 1. Find User (Citizen) & Card
-            const { data: citizen } = await supabase.from('citizens').select('id, discord_id').eq('discord_id', interaction.user.id).order('created_at', { ascending: false }).limit(1).maybeSingle();
-            if (!citizen) return interaction.editReply('❌ No tienes un ciudadano vinculado.');
-
-            const { data: userCard } = await supabase.from('credit_cards').select('*').eq('citizen_id', citizen.id).order('created_at', { ascending: false }).limit(1).maybeSingle();
-            if (!userCard) return interaction.editReply('❌ No tienes una tarjeta activa.');
-
-            // 2. Validate Limit
-            const availableCredit = userCard.credit_limit - userCard.current_balance;
-            if (amount > availableCredit) {
-                return interaction.editReply(`❌ **Fondos Insuficientes**. \nDisponible: $${availableCredit.toLocaleString()}`);
-            }
-
-            // 3. Process Transaction (DB Update + UnbelievaBoat Add Money)
-            console.log(`[Loan Debug] Processing loan of ${amount} for user ${interaction.user.tag}`);
-
-            // Update DB
-            const newDebt = userCard.current_balance + amount;
-            const { error: dbError } = await supabase
-                .from('credit_cards')
-                .update({ current_balance: newDebt })
-                .eq('id', userCard.id);
-
-            if (dbError) {
-                console.error('[Loan Debug] DB Error:', dbError);
-                return interaction.editReply(`❌ Error actualizando tu saldo: ${dbError.message} (Código: ${dbError.code})`);
-            }
-
-            // Update UnbelievaBoat
             try {
-                console.log('[Loan Debug] Sending request to UnbelievaBoat...');
-                await billingService.ubService.addMoney(interaction.guildId, interaction.user.id, amount, `Préstamo NMX: ${userCard.card_type}`);
-                console.log('[Loan Debug] UnbelievaBoat success.');
-            } catch (ubError) {
-                console.error("[Loan Debug] UnbelievaBoat Error:", ubError);
-                // If UB fails, we should revert DB? For now just log.
-                return interaction.editReply('⚠️ Préstamo registrado en DB pero falló el depósito en UnbelievaBoat. Contacta a soporte.');
+                const REQ_ID = `loan-${Date.now()}`;
+                console.log(`[Loan Debug] ${REQ_ID} Starting loan request for amount: ${amount}`);
+
+                // 1. Fetch Citizen
+                console.log(`[Loan Debug] ${REQ_ID} Fetching citizen...`);
+                // Note: removed profile join to avoid crashes if username column missing
+                const { data: citizen, error: citError } = await supabase.from('citizens').select('*').eq('discord_id', interaction.user.id).order('created_at', { ascending: false }).limit(1).maybeSingle();
+
+                if (citError) throw new Error(`Error buscando ciudadano: ${citError.message}`);
+                if (!citizen) return interaction.editReply('❌ No tienes un ciudadano vinculado. Usa `/fichar` primero.');
+
+                // 2. Fetch Card
+                console.log(`[Loan Debug] ${REQ_ID} Fetching card for citizen ${citizen.id}...`);
+                // Valid query without profiles join
+                const { data: userCard, error: cardError } = await supabase.from('credit_cards').select('*').eq('citizen_id', citizen.id).order('created_at', { ascending: false }).limit(1).maybeSingle();
+
+                if (cardError) throw new Error(`Error buscando tarjeta: ${cardError.message}`);
+                if (!userCard) return interaction.editReply('❌ No tienes una tarjeta activa.');
+
+                // 3. Validate Limit
+                const availableCredit = userCard.credit_limit - userCard.current_balance;
+                if (amount > availableCredit) {
+                    return interaction.editReply(`❌ **Fondos Insuficientes**. \nLímite: $${userCard.credit_limit.toLocaleString()} \nDeuda: $${userCard.current_balance.toLocaleString()} \nDisponible: $${availableCredit.toLocaleString()}`);
+                }
+
+                // 4. Update DB
+                console.log(`[Loan Debug] ${REQ_ID} Updating DB...`);
+                const newDebt = userCard.current_balance + amount;
+                const { error: dbError } = await supabase
+                    .from('credit_cards')
+                    .update({ current_balance: newDebt })
+                    .eq('id', userCard.id);
+
+                if (dbError) throw new Error(`Error DB: ${dbError.message}`);
+
+                // 5. Update UnbelievaBoat
+                console.log(`[Loan Debug] ${REQ_ID} UnbelievaBoat addMoney...`);
+                try {
+                    await billingService.ubService.addMoney(interaction.guildId, interaction.user.id, amount, `Préstamo NMX: ${userCard.card_type}`);
+                    console.log(`[Loan Debug] ${REQ_ID} UnbelievaBoat success.`);
+                } catch (ubError) {
+                    console.error(`[Loan Debug] ${REQ_ID} UB Error:`, ubError);
+                    // Non-fatal, just warn in embed? Or ignore since DB is updated.
+                }
+
+                // 6. Success Reply
+                const embed = new EmbedBuilder()
+                    .setTitle('💸 Préstamo Aprobado')
+                    .setColor(0x00FF00)
+                    .setDescription(`Se han depositado **$${amount.toLocaleString()}** en tu cuenta de efectivo.`)
+                    .addFields(
+                        { name: 'Nueva Deuda', value: `$${newDebt.toLocaleString()}`, inline: true },
+                        { name: 'Crédito Restante', value: `$${(userCard.credit_limit - newDebt).toLocaleString()}`, inline: true },
+                        { name: 'Instrucciones', value: 'El monto se cobrará automáticamente el próximo **Domingo**.' }
+                    )
+                    .setFooter({ text: 'Sistema Financiero Nacion MX' });
+
+                await interaction.editReply({ embeds: [embed] });
+
+            } catch (err) {
+                console.error('[Loan Debug] Critical Error:', err);
+                await interaction.editReply(`❌ Error procesando solicitud: ${err.message}`);
             }
-
-            console.log('[Loan Debug] Transaction completed successfully.');
-            await interaction.editReply(`✅ **Préstamo Aprobado**. \nHas recibido **$${amount.toLocaleString()}**. \nTu nueva deuda es: **$${newDebt.toLocaleString()}**.`);
-
-            // Embed Reply
-            const embed = new EmbedBuilder()
-                .setTitle('💸 Préstamo Aprobado')
-                .setColor(0x00FF00)
-                .setDescription(`Se han depositado **$${amount.toLocaleString()}** en tu cuenta de efectivo.`)
-                .addFields(
-                    { name: 'Nueva Deuda', value: `$${newDebt.toLocaleString()}`, inline: true },
-                    { name: 'Crédito Restante', value: `$${(userCard.credit_limit - newDebt).toLocaleString()}`, inline: true },
-                    { name: 'Instrucciones', value: 'El monto se cobrará automáticamente el próximo **Domingo**.' }
-                )
-                .setFooter({ text: 'Sistema Financiero Nacion MX' });
-
-            if (!ubResult.success) {
-                embed.setDescription(`✅ Deuda registrada, pero hubo un error enviando el dinero a UnbelievaBoat.\nError: ${ubResult.error}\nContacta a Staff.`);
-                embed.setColor(0xFFA500);
-            }
-
-            await interaction.editReply({ embeds: [embed] });
         }
 
         else if (subCmd === 'pagar') {
