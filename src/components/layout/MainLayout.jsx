@@ -17,7 +17,7 @@ const MainLayout = () => {
 
     useEffect(() => {
         // Calculate profile data from Context immediately
-        if (memberData) {
+        if (memberData && memberData.user) {
             let username = memberData.nick || memberData.user.username; // Use nick or username
 
             let avatar = null;
