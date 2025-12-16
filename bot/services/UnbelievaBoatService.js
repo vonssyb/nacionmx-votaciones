@@ -52,6 +52,24 @@ class UnbelievableBoatService {
             return { success: false, error: error.response?.data || error.message };
         }
     }
+
+    /**
+     * Add money to user balance
+     */
+    async addMoney(guildId, userId, amount, reason = "Préstamo Banco NMX") {
+        try {
+            const payload = {
+                cash: Math.abs(amount),
+                reason: reason
+            };
+
+            const response = await this.client.patch(`/guilds/${guildId}/users/${userId}`, payload);
+            return { success: true, newBalance: response.data };
+        } catch (error) {
+            console.error('Error adding money:', error.response?.data || error.message);
+            return { success: false, error: error.response?.data || error.message };
+        }
+    }
 }
 
 module.exports = UnbelievableBoatService;

@@ -97,6 +97,19 @@ client.once('ready', async () => {
                     name: 'estado',
                     description: 'Ver tu deuda y estado actual',
                     type: 1 // SUB_COMMAND
+                },
+                {
+                    name: 'pedir-prestamo',
+                    description: 'Retira efectivo de tu tarjeta (Se suma a tu deuda)',
+                    type: 1, // SUB_COMMAND
+                    options: [
+                        {
+                            name: 'monto',
+                            description: 'Cantidad a retirar',
+                            type: 10, // NUMBER
+                            required: true
+                        }
+                    ]
                 }
             ]
         }
@@ -254,6 +267,71 @@ client.on('interactionCreate', async interaction => {
                     { name: 'Interés Semanal', value: `${userCard.interest_rate}%`, inline: true }
                 )
                 .setFooter({ text: 'El corte es cada domingo a medianoche.' });
+
+            await interaction.editReply({ embeds: [embed] });
+        }
+
+        else if (subCmd === 'pedir-prestamo') {
+            await interaction.deferReply({ ephemeral: true });
+            const amount = interaction.options.getNumber('monto');
+
+            if (amount <= 0) return interaction.editReply('❌ El monto debe ser mayor a 0.');
+
+            // 1. Find User & Card
+            const { data: profile } = await supabase.from('profiles').select('id, discord_id').eq('discord_id', interaction.user.id).single();
+            if (!profile) return interaction.editReply('❌ No tienes cuenta vinculada.');
+
+            const { data: userCard } = await supabase.from('credit_cards').select('*').eq('citizen_id', profile.id).eq('status', 'ACTIVE').single();
+            if (!userCard) return interaction.editReply('❌ No tienes una tarjeta activa.');
+
+            // 2. Validate Limit
+            const availableCredit = userCard.credit_limit - userCard.current_debt;
+            if (amount > availableCredit) {
+                return interaction.editReply(`❌ **Fondos Insuficientes**. \nDisponible: $${availableCredit.toLocaleString()}`);
+            }
+
+            // 3. Process Transaction (DB Update + UnbelievaBoat Add Money)
+            // Update DB
+            const newDebt = userCard.current_debt + amount;
+            const { error: dbError } = await supabase
+                .from('credit_cards')
+                .update({ current_debt: newDebt })
+                .eq('id', userCard.id);
+
+            if (dbError) {
+                console.error(dbError);
+                return interaction.editReply('❌ Error actualizando tu saldo en base de datos.');
+            }
+
+            // Update UnbelievaBoat
+            const ubResult = await billingService.ubService.addMoney(GUILD_ID, interaction.user.id, amount, `Préstamo/Avance Tarjeta ${userCard.card_type}`);
+
+            // Log Transaction
+            await supabase.from('transaction_logs').insert([{
+                card_id: userCard.id,
+                discord_user_id: interaction.user.id,
+                amount: amount,
+                type: 'LOAN',
+                status: ubResult.success ? 'SUCCESS' : 'PARTIAL_ERROR',
+                metadata: ubResult
+            }]);
+
+            // Embed Reply
+            const embed = new EmbedBuilder()
+                .setTitle('💸 Préstamo Aprobado')
+                .setColor(0x00FF00)
+                .setDescription(`Se han depositado **$${amount.toLocaleString()}** en tu cuenta de efectivo.`)
+                .addFields(
+                    { name: 'Nueva Deuda', value: `$${newDebt.toLocaleString()}`, inline: true },
+                    { name: 'Crédito Restante', value: `$${(userCard.credit_limit - newDebt).toLocaleString()}`, inline: true },
+                    { name: 'Instrucciones', value: 'El monto se cobrará automáticamente el próximo **Domingo**.' }
+                )
+                .setFooter({ text: 'Sistema Financiero Nacion MX' });
+
+            if (!ubResult.success) {
+                embed.setDescription(`✅ Deudaregistrada, pero hubo un error enviando el dinero a UnbelievaBoat.\nError: ${ubResult.error}\nContacta a Staff.`);
+                embed.setColor(0xFFA500);
+            }
 
             await interaction.editReply({ embeds: [embed] });
         }
