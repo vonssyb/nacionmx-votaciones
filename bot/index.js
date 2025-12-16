@@ -1,5 +1,5 @@
 require('dotenv').config();
-const { Client, GatewayIntentBits, EmbedBuilder, REST, Routes, ActivityType } = require('discord.js');
+const { Client, GatewayIntentBits, EmbedBuilder, REST, Routes, ActivityType, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { createClient } = require('@supabase/supabase-js');
 const BillingService = require('./services/BillingService');
 
@@ -150,9 +150,27 @@ client.on('interactionCreate', async interaction => {
             const channel = await client.channels.fetch(TARGET_CHANNEL_ID);
             if (!channel) return interaction.editReply('❌ No encontré el canal de estado.');
 
+            // 1. Clear Channel Messages (Clean Slate)
+            try {
+                // Fetch last 100 messages and delete them
+                const messages = await channel.messages.fetch({ limit: 100 });
+                if (messages.size > 0) {
+                    await channel.bulkDelete(messages, true).catch(err => console.log("Error deleting old messages:", err.message));
+                }
+            } catch (cleanupError) {
+                console.log("Cleanup warning:", cleanupError.message);
+            }
+
             let newName = channel.name;
             let embed = null;
             let msgContent = '';
+
+            const robloxButton = new ActionRowBuilder().addComponents(
+                new ButtonBuilder()
+                    .setLabel('🎮 Unirme a NACIÓN MX')
+                    .setURL('https://www.roblox.com/games/start?launchData=%7B%22psCode%22%3A%22NACIONMX%22%7D&placeId=2534724415')
+                    .setStyle(ButtonStyle.Link)
+            );
 
             if (action === 'open') {
                 newName = '🟢・servidor-on';
@@ -179,25 +197,23 @@ client.on('interactionCreate', async interaction => {
                     .setTimestamp();
             }
 
-            // 1. Rename Channel
+            // 2. Rename Channel
             await channel.setName(newName);
 
-            // 2. Send Message (If Open or others if desired, user said "when open send announcement")
-            // I will send update for all states to keep chat informed, but only PING on Open.
+            // 3. Send Message
+            // Open: Ping + Embed + Button
             if (action === 'open') {
-                await channel.send({ content: msgContent, embeds: [embed] });
+                await channel.send({ content: msgContent, embeds: [embed], components: [robloxButton] });
             } else {
-                // For maintenance/closed, maybe just send the embed without ping?
-                // User requirement: "cuando este abierto mande un anuncio".
-                // I'll send embed for all distinct states to look pro.
-                await channel.send({ embeds: [embed] });
+                // Others: Just Embed + Button (Button is always useful for "Try to join later" context, or we can omit it if closed. User asked "pon un boton", assuming for all or mainly Open. I'll add to all for consistency)
+                await channel.send({ embeds: [embed], components: [robloxButton] });
             }
 
-            await interaction.editReply(`✅ Estado actualizado a: **${action.toUpperCase()}**\nCanal renombrado a: \`${newName}\``);
+            await interaction.editReply(`✅ Estado actualizado a: **${action.toUpperCase()}**\nLimpieza de chat realizada.`);
 
         } catch (error) {
             console.error(error);
-            await interaction.editReply('❌ Hubo un error actualizando el estado. Revisa permisos del Bot.');
+            await interaction.editReply('❌ Hubo un error actualizando el estado. Revisa permisos del Bot (Manage Messages/Channels).');
         }
     }
 
