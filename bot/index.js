@@ -69,6 +69,23 @@ client.once('ready', async () => {
             ]
         },
         {
+            name: 'estado',
+            description: 'Cambia el estado del servidor (CMD Staff)',
+            options: [
+                {
+                    name: 'seleccion',
+                    description: 'Nuevo estado del servidor',
+                    type: 3,
+                    required: true,
+                    choices: [
+                        { name: '🟢 Abierto', value: 'open' },
+                        { name: '🟠 Mantenimiento', value: 'maintenance' },
+                        { name: '🔴 Cerrado', value: 'closed' }
+                    ]
+                }
+            ]
+        },
+        {
             name: 'registrar-tarjeta',
             description: 'Enlace para solicitar tarjeta',
         },
@@ -119,6 +136,69 @@ client.on('interactionCreate', async interaction => {
 
     if (commandName === 'ping') {
         await interaction.reply('¡Pong! 🏓 El bot de finanzas está activo.');
+    }
+
+    else if (commandName === 'estado') {
+        // IDs Provided by User
+        const TARGET_CHANNEL_ID = '1412963363545284680';
+        const PING_ROLE_ID = '1412899401000685588';
+        const action = interaction.options.getString('seleccion');
+
+        await interaction.deferReply({ ephemeral: true });
+
+        try {
+            const channel = await client.channels.fetch(TARGET_CHANNEL_ID);
+            if (!channel) return interaction.editReply('❌ No encontré el canal de estado.');
+
+            let newName = channel.name;
+            let embed = null;
+            let msgContent = '';
+
+            if (action === 'open') {
+                newName = '🟢・servidor-on';
+                msgContent = `<@&${PING_ROLE_ID}>`;
+                embed = new EmbedBuilder()
+                    .setTitle('✅ NACIÓN MX ABIERTO')
+                    .setDescription('¡El servidor se encuentra **ONLINE**! \n\nConéctate ahora y disfruta del mejor Roleplay de México. 🇲🇽✨')
+                    .setColor(0x00FF00) // Green
+                    .setThumbnail(client.user.displayAvatarURL())
+                    .setTimestamp();
+            } else if (action === 'maintenance') {
+                newName = '🟠・mantenimiento';
+                embed = new EmbedBuilder()
+                    .setTitle('🛠️ EN MANTENIMIENTO')
+                    .setDescription('Estamos aplicando mejoras y actualizaciones.\nPor favor espera, el servidor volverá pronto.')
+                    .setColor(0xFFA500) // Orange
+                    .setTimestamp();
+            } else if (action === 'closed') {
+                newName = '🔴・servidor-off';
+                embed = new EmbedBuilder()
+                    .setTitle('⛔ SERVIDOR CERRADO')
+                    .setDescription('El servidor ha cerrado sus puertas por hoy.\n¡Nos vemos mañana!')
+                    .setColor(0xFF0000) // Red
+                    .setTimestamp();
+            }
+
+            // 1. Rename Channel
+            await channel.setName(newName);
+
+            // 2. Send Message (If Open or others if desired, user said "when open send announcement")
+            // I will send update for all states to keep chat informed, but only PING on Open.
+            if (action === 'open') {
+                await channel.send({ content: msgContent, embeds: [embed] });
+            } else {
+                // For maintenance/closed, maybe just send the embed without ping?
+                // User requirement: "cuando este abierto mande un anuncio".
+                // I'll send embed for all distinct states to look pro.
+                await channel.send({ embeds: [embed] });
+            }
+
+            await interaction.editReply(`✅ Estado actualizado a: **${action.toUpperCase()}**\nCanal renombrado a: \`${newName}\``);
+
+        } catch (error) {
+            console.error(error);
+            await interaction.editReply('❌ Hubo un error actualizando el estado. Revisa permisos del Bot.');
+        }
     }
 
     else if (commandName === 'registrar-tarjeta') {
