@@ -474,263 +474,241 @@ client.on('interactionCreate', async interaction => {
             }
         }
 
-        // 4. Log
-        await supabase.from('transaction_logs').insert([{
-            card_id: userCard.id,
-            discord_user_id: interaction.user.id,
-            amount: amount,
-            type: 'PAYMENT',
-            status: 'SUCCESS',
-            metadata: ubResult
-        }]);
 
-        // 5. Reply
-        const embed = new EmbedBuilder()
-            .setTitle('✅ Pago Exitoso')
-            .setColor(0x00FF00)
-            .setDescription(`Has abonado **$${amount.toLocaleString()}** a tu tarjeta.`)
-            .addFields(
-                { name: 'Deuda Restante', value: `$${newDebt.toLocaleString()}`, inline: true },
-                { name: 'Crédito Disponible', value: `$${(userCard.credit_limit - newDebt).toLocaleString()}`, inline: true }
-            )
-            .setFooter({ text: 'Sistema Financiero Nacion MX' });
 
-        await interaction.editReply({ embeds: [embed] });
-    }
+        else if (interaction.options.getSubcommandGroup() === 'admin') {
+            // Permission Check
+            if (!interaction.member.permissions.has('Administrator')) {
+                return interaction.reply({ content: '⛔ Solo administradores pueden usar esto.', ephemeral: true });
+            }
 
-    else if (interaction.options.getSubcommandGroup() === 'admin') {
-        // Permission Check
-        if (!interaction.member.permissions.has('Administrator')) {
-            return interaction.reply({ content: '⛔ Solo administradores pueden usar esto.', ephemeral: true });
+            const subCmdAdmin = interaction.options.getSubcommand();
+            const targetUser = interaction.options.getUser('usuario');
+            await interaction.deferReply({ ephemeral: true });
+
+            // Resolve Profile
+            const { data: profile } = await supabase.from('profiles').select('id, full_name').eq('discord_id', targetUser.id).order('created_at', { ascending: false }).limit(1).maybeSingle();
+            if (!profile) return interaction.editReply('❌ Este usuario no tiene perfil vinculado.');
+
+            const { data: userCard } = await supabase.from('credit_cards').select('*').eq('citizen_id', profile.id).order('created_at', { ascending: false }).limit(1).maybeSingle();
+            if (!userCard) return interaction.editReply('❌ Este usuario no tiene tarjeta.');
+
+            if (subCmdAdmin === 'info') {
+                const embed = new EmbedBuilder()
+                    .setTitle(`📂 Info Bancaria: ${profile.full_name}`)
+                    .setColor(0x0000FF)
+                    .addFields(
+                        { name: 'Tarjeta', value: userCard.card_type, inline: true },
+                        { name: 'Estado', value: userCard.status, inline: true },
+                        { name: 'Deuda', value: `$${userCard.current_balance.toLocaleString()}`, inline: true },
+                        { name: 'Límite', value: `$${userCard.credit_limit.toLocaleString()}`, inline: true },
+                        { name: 'Discord ID', value: targetUser.id, inline: true }
+                    );
+                await interaction.editReply({ embeds: [embed] });
+            }
+
+            else if (subCmdAdmin === 'perdonar') {
+                await supabase.from('credit_cards').update({ current_balance: 0 }).eq('id', userCard.id);
+                await supabase.from('transaction_logs').insert([{
+                    card_id: userCard.id,
+                    discord_user_id: targetUser.id,
+                    amount: userCard.current_balance,
+                    type: 'ADJUSTMENT',
+                    status: 'SUCCESS',
+                    metadata: { type: 'FORGIVE', by: interaction.user.tag }
+                }]);
+                await interaction.editReply(`✅ Deuda perdonada para **${profile.full_name}**. Deuda actual: $0.`);
+            }
+
+            else if (subCmdAdmin === 'congelar') {
+                await supabase.from('credit_cards').update({ status: 'FROZEN' }).eq('id', userCard.id);
+                await interaction.editReply(`❄️ Tarjeta de **${profile.full_name}** ha sido **CONGELADA**.`);
+            }
+
+            else if (subCmdAdmin === 'descongelar') {
+                await supabase.from('credit_cards').update({ status: 'ACTIVE' }).eq('id', userCard.id);
+                await interaction.editReply(`🔥 Tarjeta de **${profile.full_name}** ha sido **DESCONGELADA** y está Activa.`);
+            }
         }
+        else if (subCmd === 'debug') {
+            await interaction.deferReply({ ephemeral: true });
 
-        const subCmdAdmin = interaction.options.getSubcommand();
-        const targetUser = interaction.options.getUser('usuario');
-        await interaction.deferReply({ ephemeral: true });
+            const userId = interaction.user.id;
+            const userName = interaction.user.tag;
+            let output = `🔍 **Diagnóstico de Usuario**\n`;
+            output += `Discord ID: \`${userId}\`\n`;
+            output += `Usuario: ${userName}\n\n`;
 
-        // Resolve Profile
-        const { data: profile } = await supabase.from('profiles').select('id, full_name').eq('discord_id', targetUser.id).order('created_at', { ascending: false }).limit(1).maybeSingle();
-        if (!profile) return interaction.editReply('❌ Este usuario no tiene perfil vinculado.');
+            // 1. Search in Citizens with loose matching
+            // Try explicit match
+            const { data: exactMatch, error: exactError } = await supabase.from('citizens').select('*').eq('discord_id', userId).order('created_at', { ascending: false }).limit(1).maybeSingle();
 
-        const { data: userCard } = await supabase.from('credit_cards').select('*').eq('citizen_id', profile.id).order('created_at', { ascending: false }).limit(1).maybeSingle();
-        if (!userCard) return interaction.editReply('❌ Este usuario no tiene tarjeta.');
+            if (exactMatch) {
+                output += `✅ **Ciudadano Encontrado (Match Exacto)**\n`;
+                output += `ID: ${exactMatch.id}\nNombre: ${exactMatch.full_name}\nDNI: ${exactMatch.dni}\nDiscordID en DB: \`${exactMatch.discord_id}\`\n\n`;
 
-        if (subCmdAdmin === 'info') {
-            const embed = new EmbedBuilder()
-                .setTitle(`📂 Info Bancaria: ${profile.full_name}`)
-                .setColor(0x0000FF)
-                .addFields(
-                    { name: 'Tarjeta', value: userCard.card_type, inline: true },
-                    { name: 'Estado', value: userCard.status, inline: true },
-                    { name: 'Deuda', value: `$${userCard.current_balance.toLocaleString()}`, inline: true },
-                    { name: 'Límite', value: `$${userCard.credit_limit.toLocaleString()}`, inline: true },
-                    { name: 'Discord ID', value: targetUser.id, inline: true }
-                );
-            await interaction.editReply({ embeds: [embed] });
-        }
+                const { data: card } = await supabase.from('credit_cards').select('*').eq('citizen_id', exactMatch.id).order('created_at', { ascending: false }).limit(1).maybeSingle();
+                if (card) {
+                    output += `✅ **Tarjeta Encontrada**\nTipo: ${card.card_type}\nEstado: ${card.status}\n`;
+                } else {
+                    output += `⚠️ **Sin Tarjeta vinculada al ciudadano.**\n`;
+                }
 
-        else if (subCmdAdmin === 'perdonar') {
-            await supabase.from('credit_cards').update({ current_balance: 0 }).eq('id', userCard.id);
-            await supabase.from('transaction_logs').insert([{
-                card_id: userCard.id,
-                discord_user_id: targetUser.id,
-                amount: userCard.current_balance,
-                type: 'ADJUSTMENT',
-                status: 'SUCCESS',
-                metadata: { type: 'FORGIVE', by: interaction.user.tag }
-            }]);
-            await interaction.editReply(`✅ Deuda perdonada para **${profile.full_name}**. Deuda actual: $0.`);
-        }
-
-        else if (subCmdAdmin === 'congelar') {
-            await supabase.from('credit_cards').update({ status: 'FROZEN' }).eq('id', userCard.id);
-            await interaction.editReply(`❄️ Tarjeta de **${profile.full_name}** ha sido **CONGELADA**.`);
-        }
-
-        else if (subCmdAdmin === 'descongelar') {
-            await supabase.from('credit_cards').update({ status: 'ACTIVE' }).eq('id', userCard.id);
-            await interaction.editReply(`🔥 Tarjeta de **${profile.full_name}** ha sido **DESCONGELADA** y está Activa.`);
-        }
-    }
-    else if (subCmd === 'debug') {
-        await interaction.deferReply({ ephemeral: true });
-
-        const userId = interaction.user.id;
-        const userName = interaction.user.tag;
-        let output = `🔍 **Diagnóstico de Usuario**\n`;
-        output += `Discord ID: \`${userId}\`\n`;
-        output += `Usuario: ${userName}\n\n`;
-
-        // 1. Search in Citizens with loose matching
-        // Try explicit match
-        const { data: exactMatch, error: exactError } = await supabase.from('citizens').select('*').eq('discord_id', userId).order('created_at', { ascending: false }).limit(1).maybeSingle();
-
-        if (exactMatch) {
-            output += `✅ **Ciudadano Encontrado (Match Exacto)**\n`;
-            output += `ID: ${exactMatch.id}\nNombre: ${exactMatch.full_name}\nDNI: ${exactMatch.dni}\nDiscordID en DB: \`${exactMatch.discord_id}\`\n\n`;
-
-            const { data: card } = await supabase.from('credit_cards').select('*').eq('citizen_id', exactMatch.id).order('created_at', { ascending: false }).limit(1).maybeSingle();
-            if (card) {
-                output += `✅ **Tarjeta Encontrada**\nTipo: ${card.card_type}\nEstado: ${card.status}\n`;
             } else {
-                output += `⚠️ **Sin Tarjeta vinculada al ciudadano.**\n`;
+                output += `❌ **No se encontró coincidencia exacta en Citizens.**\n`;
+                if (exactError) output += `Error DB: ${exactError.message}\n`;
+
+                // Try fuzzy search or list recent to help Staff identify the correct record
+                const { data: potentials } = await supabase.from('citizens').select('full_name, discord_id').limit(5).order('created_at', { ascending: false });
+                output += `\n📋 **Últimos 5 registros (Para comparar):**\n`;
+                if (potentials) {
+                    potentials.forEach(p => {
+                        output += `- ${p.full_name}: \`${p.discord_id}\`\n`;
+                    });
+                }
             }
 
-        } else {
-            output += `❌ **No se encontró coincidencia exacta en Citizens.**\n`;
-            if (exactError) output += `Error DB: ${exactError.message}\n`;
-
-            // Try fuzzy search or list recent to help Staff identify the correct record
-            const { data: potentials } = await supabase.from('citizens').select('full_name, discord_id').limit(5).order('created_at', { ascending: false });
-            output += `\n📋 **Últimos 5 registros (Para comparar):**\n`;
-            if (potentials) {
-                potentials.forEach(p => {
-                    output += `- ${p.full_name}: \`${p.discord_id}\`\n`;
-                });
+            // Check Profiles just in case
+            const { data: profile } = await supabase.from('profiles').select('*').eq('discord_id', userId).order('created_at', { ascending: false }).limit(1).maybeSingle();
+            if (profile) {
+                output += `\n✅ **Perfil Web Encontrado (profiles)**\nRole: ${profile.role}\n`;
+            } else {
+                output += `\n⚠️ **Sin Perfil Web (profiles)**\n`;
             }
-        }
 
-        // Check Profiles just in case
-        const { data: profile } = await supabase.from('profiles').select('*').eq('discord_id', userId).order('created_at', { ascending: false }).limit(1).maybeSingle();
-        if (profile) {
-            output += `\n✅ **Perfil Web Encontrado (profiles)**\nRole: ${profile.role}\n`;
-        } else {
-            output += `\n⚠️ **Sin Perfil Web (profiles)**\n`;
+            await interaction.editReply(output.substring(0, 1999));
         }
-
-        await interaction.editReply(output.substring(0, 1999));
     }
-}
 
     else if (commandName === 'rol') {
-    const subCmd = interaction.options.getSubcommand();
-    if (subCmd === 'cancelar') {
-        await interaction.deferReply({ ephemeral: true });
+        const subCmd = interaction.options.getSubcommand();
+        if (subCmd === 'cancelar') {
+            await interaction.deferReply({ ephemeral: true });
 
-        const targetUser = interaction.options.getString('usuario');
-        const reason = interaction.options.getString('razon');
-        const location = interaction.options.getString('ubicacion');
-        const proof1 = interaction.options.getAttachment('prueba1');
-        const proof2 = interaction.options.getAttachment('prueba2');
+            const targetUser = interaction.options.getString('usuario');
+            const reason = interaction.options.getString('razon');
+            const location = interaction.options.getString('ubicacion');
+            const proof1 = interaction.options.getAttachment('prueba1');
+            const proof2 = interaction.options.getAttachment('prueba2');
 
-        // Insert into DB
-        const { error } = await supabase.from('rp_cancellations').insert([{
-            moderator_discord_id: interaction.user.id,
-            moderator_name: interaction.user.tag,
-            target_user: targetUser,
-            reason: reason,
-            location: location,
-            proof_url_1: proof1 ? proof1.url : null,
-            proof_url_2: proof2 ? proof2.url : null
-        }]);
-
-        if (error) {
-            console.error(error);
-            return interaction.editReply('❌ Error guardando el reporte en la base de datos.');
-        }
-
-        await interaction.editReply('✅ Reporte de cancelación enviado exitosamente. Se publicará en breve.');
-    }
-}
-
-else if (commandName === 'fichar') {
-    await interaction.deferReply({ ephemeral: true });
-    const action = interaction.options.getString('accion');
-
-    const { data: profile } = await supabase
-        .from('profiles')
-        .select('id, full_name, role')
-        .eq('discord_id', interaction.user.id)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-    if (!profile) {
-        return interaction.editReply('❌ No tienes tu cuenta de Discord vinculada. Pide a un admin que añada tu ID de Discord a tu perfil en el Panel de Staff.');
-    }
-
-    // 2. Check for Active Shift
-    const { data: activeShift } = await supabase
-        .from('time_logs')
-        .select('id, clock_in')
-        .eq('user_id', profile.id)
-        .eq('status', 'active')
-        .single();
-
-    if (activeShift) {
-        // CLOCK OUT
-        const now = new Date();
-        const clockIn = new Date(activeShift.clock_in);
-        const durationMinutes = Math.round((now - clockIn) / 60000);
-
-        const { error } = await supabase
-            .from('time_logs')
-            .update({
-                clock_out: now.toISOString(),
-                status: 'completed',
-                duration_minutes: durationMinutes
-            })
-            .eq('id', activeShift.id);
-
-        if (error) {
-            console.error(error);
-            return interaction.editReply('❌ Error al cerrar turno.');
-        }
-
-        const embed = new EmbedBuilder()
-            .setTitle('🛑 Turno Finalizado')
-            .setColor(0xFF0000)
-            .addFields(
-                { name: 'Oficial', value: profile.full_name || 'Agente' },
-                { name: 'Duración', value: `${durationMinutes} minutos` }
-            )
-            .setTimestamp();
-
-        await interaction.editReply({ embeds: [embed] });
-
-        // Optional: Log to public channel
-        if (NOTIFICATION_CHANNEL_ID) {
-            const channel = await client.channels.fetch(NOTIFICATION_CHANNEL_ID).catch(() => null);
-            if (channel) channel.send({ embeds: [embed] });
-        }
-
-    } else {
-        // CLOCK IN
-        const { error } = await supabase
-            .from('time_logs')
-            .insert([{
-                user_id: profile.id,
-                clock_in: new Date().toISOString(),
-                status: 'active'
+            // Insert into DB
+            const { error } = await supabase.from('rp_cancellations').insert([{
+                moderator_discord_id: interaction.user.id,
+                moderator_name: interaction.user.tag,
+                target_user: targetUser,
+                reason: reason,
+                location: location,
+                proof_url_1: proof1 ? proof1.url : null,
+                proof_url_2: proof2 ? proof2.url : null
             }]);
 
-        if (error) {
-            console.error(error);
-            return interaction.editReply('❌ Error al iniciar turno.');
-        }
+            if (error) {
+                console.error(error);
+                return interaction.editReply('❌ Error guardando el reporte en la base de datos.');
+            }
 
-        const embed = new EmbedBuilder()
-            .setTitle('🟢 Turno Iniciado')
-            .setColor(0x00FF00)
-            .addFields(
-                { name: 'Oficial', value: profile.full_name || 'Agente' },
-                { name: 'Hora', value: new Date().toLocaleTimeString() }
-            )
-            .setTimestamp();
-
-        await interaction.editReply({ embeds: [embed] });
-
-        if (NOTIFICATION_CHANNEL_ID) {
-            const channel = await client.channels.fetch(NOTIFICATION_CHANNEL_ID).catch(() => null);
-            if (channel) channel.send({ embeds: [embed] });
+            await interaction.editReply('✅ Reporte de cancelación enviado exitosamente. Se publicará en breve.');
         }
     }
-}
 
-if (commandName === 'saldo') {
-    // ... (Existing logic or placeholder) ...
-    await interaction.reply({ content: 'Esta función estará disponible pronto.', ephemeral: true });
-}
+    else if (commandName === 'fichar') {
+        await interaction.deferReply({ ephemeral: true });
+        const action = interaction.options.getString('accion');
+
+        const { data: profile } = await supabase
+            .from('profiles')
+            .select('id, full_name, role')
+            .eq('discord_id', interaction.user.id)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+        if (!profile) {
+            return interaction.editReply('❌ No tienes tu cuenta de Discord vinculada. Pide a un admin que añada tu ID de Discord a tu perfil en el Panel de Staff.');
+        }
+
+        // 2. Check for Active Shift
+        const { data: activeShift } = await supabase
+            .from('time_logs')
+            .select('id, clock_in')
+            .eq('user_id', profile.id)
+            .eq('status', 'active')
+            .single();
+
+        if (activeShift) {
+            // CLOCK OUT
+            const now = new Date();
+            const clockIn = new Date(activeShift.clock_in);
+            const durationMinutes = Math.round((now - clockIn) / 60000);
+
+            const { error } = await supabase
+                .from('time_logs')
+                .update({
+                    clock_out: now.toISOString(),
+                    status: 'completed',
+                    duration_minutes: durationMinutes
+                })
+                .eq('id', activeShift.id);
+
+            if (error) {
+                console.error(error);
+                return interaction.editReply('❌ Error al cerrar turno.');
+            }
+
+            const embed = new EmbedBuilder()
+                .setTitle('🛑 Turno Finalizado')
+                .setColor(0xFF0000)
+                .addFields(
+                    { name: 'Oficial', value: profile.full_name || 'Agente' },
+                    { name: 'Duración', value: `${durationMinutes} minutos` }
+                )
+                .setTimestamp();
+
+            await interaction.editReply({ embeds: [embed] });
+
+            // Optional: Log to public channel
+            if (NOTIFICATION_CHANNEL_ID) {
+                const channel = await client.channels.fetch(NOTIFICATION_CHANNEL_ID).catch(() => null);
+                if (channel) channel.send({ embeds: [embed] });
+            }
+
+        } else {
+            // CLOCK IN
+            const { error } = await supabase
+                .from('time_logs')
+                .insert([{
+                    user_id: profile.id,
+                    clock_in: new Date().toISOString(),
+                    status: 'active'
+                }]);
+
+            if (error) {
+                console.error(error);
+                return interaction.editReply('❌ Error al iniciar turno.');
+            }
+
+            const embed = new EmbedBuilder()
+                .setTitle('🟢 Turno Iniciado')
+                .setColor(0x00FF00)
+                .addFields(
+                    { name: 'Oficial', value: profile.full_name || 'Agente' },
+                    { name: 'Hora', value: new Date().toLocaleTimeString() }
+                )
+                .setTimestamp();
+
+            await interaction.editReply({ embeds: [embed] });
+
+            if (NOTIFICATION_CHANNEL_ID) {
+                const channel = await client.channels.fetch(NOTIFICATION_CHANNEL_ID).catch(() => null);
+                if (channel) channel.send({ embeds: [embed] });
+            }
+        }
+    }
+
+    if (commandName === 'saldo') {
+        // ... (Existing logic or placeholder) ...
+        await interaction.reply({ content: 'Esta función estará disponible pronto.', ephemeral: true });
+    }
 });
 
 function getColorForCard(type) {
