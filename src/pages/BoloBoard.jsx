@@ -1,12 +1,25 @@
 import React from 'react';
 import { AlertTriangle, Skull, CheckCircle, Clock } from 'lucide-react';
+import { supabase } from '../services/supabase';
 
 const BoloBoard = () => {
-    const bolos = [
-        { id: 1, name: 'El Patrón', crimes: ['Narcotráfico', 'Homicidio'], status: 'wanted', bounty: '$50,000', lastSeen: 'Norte de la ciudad' },
-        { id: 2, name: 'Speedy', crimes: ['Carreras Ilegales', 'Evasión'], status: 'captured', bounty: '$15,000', lastSeen: 'Prisión Estatal' },
-        { id: 3, name: 'Shadow', crimes: ['Robo a mano armada'], status: 'wanted', bounty: '$25,000', lastSeen: 'Desconocido' },
-    ];
+    const [bolos, setBolos] = React.useState([]);
+    const [loading, setLoading] = React.useState(true);
+
+    React.useEffect(() => {
+        fetchBolos();
+    }, []);
+
+    const fetchBolos = async () => {
+        setLoading(true);
+        const { data, error } = await supabase
+            .from('bolos')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+        if (data) setBolos(data);
+        setLoading(false);
+    };
 
     const getStatusBadge = (status) => {
         if (status === 'wanted') return <span className="status-badge wanted"><AlertTriangle size={14} /> BUSCADO</span>;
@@ -41,7 +54,9 @@ const BoloBoard = () => {
                             <div className="bolo-details">
                                 <div className="detail-row">
                                     <span className="label">Cargos:</span>
-                                    <span className="value">{bolo.crimes.join(', ')}</span>
+                                    <span className="value">
+                                        {Array.isArray(bolo.crimes) ? bolo.crimes.join(', ') : bolo.crimes}
+                                    </span>
                                 </div>
                                 <div className="detail-row">
                                     <span className="label">Recompensa:</span>

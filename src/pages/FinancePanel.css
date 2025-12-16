@@ -310,3 +310,28 @@
     border-color: var(--primary);
     color: var(--primary);
 }
+
+/* File Upload Button */
+.file-input-wrapper {
+    display: flex;
+    align-items: center;
+}
+
+.file-upload-btn {
+    background: var(--bg-card-hover);
+    border: 1px dashed var(--primary);
+    color: var(--text-main);
+    padding: 0.75rem 1rem;
+    border-radius: var(--radius);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    width: 100%;
+    justify-content: center;
+    transition: var(--transition);
+}
+
+.file-upload-btn:hover {
+    background: rgba(212, 175, 55, 0.1);
+}
