@@ -26,20 +26,48 @@ client.once('ready', () => {
     console.log(`🤖 Bot iniciado como ${client.user.tag}!`);
     console.log(`📡 Conectado a Supabase: ${supabaseUrl}`);
 
+    // Register basic slash commands
+    const guildId = process.env.GUILD_ID; // Optional: for instant registration
+    const commands = [
+        {
+            name: 'ping',
+            description: 'Comprueba si el bot está vivo',
+        },
+        {
+            name: 'saldo',
+            description: 'Consulta el saldo de tu tarjeta (Beta)',
+        }
+    ];
+
+    // Register global commands (takes ~1 hour) or Guild commands (instant)
+    if (guildId) {
+        client.guilds.cache.get(guildId)?.commands.set(commands);
+    } else {
+        client.application.commands.set(commands);
+    }
+
     // Start listening to Supabase changes
     subscribeToNewCards();
+});
+
+// Interaction Handler (Slash Commands)
+client.on('interactionCreate', async interaction => {
+    if (!interaction.isCommand()) return;
+
+    if (interaction.commandName === 'ping') {
+        await interaction.reply('¡Pong! 🏓 Estoy en línea y listo para trabajar.');
+    }
+
+    if (interaction.commandName === 'saldo') {
+        await interaction.reply({ content: 'Esta función estará disponible pronto. Necesito vincular tu usuario de Discord con tu DNI.', ephemeral: true });
+    }
 });
 
 // Listen for new Credit Cards
 async function subscribeToNewCards() {
     console.log("Listening for new credit cards...");
 
-    const channel = await client.channels.fetch(NOTIFICATION_CHANNEL_ID).catch(console.error);
-    if (!channel) {
-        console.error("❌ No se encontró el canal de notificaciones. Revisa el ID.");
-        return;
-    }
-
+    // 1. Listen for DB Inserts
     supabase
         .channel('credit-cards-insert')
         .on(
@@ -49,17 +77,18 @@ async function subscribeToNewCards() {
                 console.log('💳 Nueva tarjeta detectada!', payload.new);
                 const newCard = payload.new;
 
-                // Fetch citizen info to make the message pretty
-                // (Assuming you have a 'citizens' table linked)
+                // 2. Fetch Citizen Info (including discord_id)
                 const { data: citizen } = await supabase
                     .from('citizens')
-                    .select('full_name, dni')
+                    .select('full_name, dni, discord_id')
                     .eq('id', newCard.citizen_id)
                     .single();
 
                 const citizenName = citizen ? citizen.full_name : 'Desconocido';
                 const citizenDni = citizen ? citizen.dni : '???';
+                const discordId = citizen ? citizen.discord_id : null;
 
+                // 3. Build the Embed
                 const embed = new EmbedBuilder()
                     .setTitle('💳 Nueva Tarjeta Emitida')
                     .setColor(getColorForCard(newCard.card_type))
@@ -73,7 +102,27 @@ async function subscribeToNewCards() {
                     .setFooter({ text: 'Banco Nacional RP' })
                     .setTimestamp();
 
-                channel.send({ embeds: [embed] });
+                // 4. Send to Public Channel
+                if (NOTIFICATION_CHANNEL_ID) {
+                    const channel = await client.channels.fetch(NOTIFICATION_CHANNEL_ID).catch(console.error);
+                    if (channel) channel.send({ embeds: [embed] }).catch(err => console.error("Error sending to channel:", err));
+                }
+
+                // 5. Send DM to User (if discord_id exists)
+                if (discordId) {
+                    try {
+                        const user = await client.users.fetch(discordId);
+                        if (user) {
+                            await user.send({
+                                content: `Hola ${citizenName}, tu nueva tarjeta ha sido aprobada.`,
+                                embeds: [embed]
+                            });
+                            console.log(`✅ DM enviado a ${user.tag}`);
+                        }
+                    } catch (err) {
+                        console.error(`❌ No se pudo enviar DM a ${discordId}. Puede tener DMs cerrados.`);
+                    }
+                }
             }
         )
         .subscribe();

@@ -27,6 +27,7 @@ const FinancePanel = () => {
     const [dni, setDni] = useState('');
     const [dniFile, setDniFile] = useState(null);
     const [fullName, setFullName] = useState('');
+    const [discordId, setDiscordId] = useState('');
     const [selectedLevel, setSelectedLevel] = useState(CARD_LEVELS[0]);
     const [hasLoans, setHasLoans] = useState(false);
     const [notes, setNotes] = useState('');
@@ -106,7 +107,7 @@ const FinancePanel = () => {
 
                 const { data: newCitizen, error: citizenError } = await supabase
                     .from('citizens')
-                    .insert([{ dni, full_name: fullName, dni_image_url: dniImageUrl }])
+                    .insert([{ dni, full_name: fullName, dni_image_url: dniImageUrl, discord_id: discordId }])
                     .select()
                     .single();
 
@@ -158,6 +159,7 @@ const FinancePanel = () => {
             setDni('');
             setDniFile(null);
             setFullName('');
+            setDiscordId('');
             setNotes('');
         } catch (err) {
             console.error(err);
@@ -229,6 +231,16 @@ const FinancePanel = () => {
                                     onChange={(e) => setFullName(e.target.value)}
                                     required
                                     placeholder="Nombre Apellido"
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label>ID de Discord (Opcional)</label>
+                                <input
+                                    type="text"
+                                    value={discordId}
+                                    onChange={(e) => setDiscordId(e.target.value)}
+                                    placeholder="Ej: 123456789012345678"
+                                    title="Activa el Modo Desarrollador en Discord para copiar IDs"
                                 />
                             </div>
                         </div>
