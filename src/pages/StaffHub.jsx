@@ -473,12 +473,14 @@ const CancellationForm = () => {
         setLoading(true);
 
         try {
-            // Validate Moderator ID
-            if (!formData.moderatorId) {
-                alert('Debes ingresar tu ID de Discord (Moderador) si no está vinculado automáticamente.');
-                setLoading(false);
-                return;
-            }
+            // Validate Moderator ID (Optional now)
+            const modId = formData.moderatorId && formData.moderatorId.length > 5 ? formData.moderatorId : null;
+
+            // if (!modId) {
+            //     alert('Debes ingresar tu ID de Discord (Moderador) si no está vinculado automáticamente.');
+            //     setLoading(false);
+            //     return;
+            // }
 
             // Upload Files
             const url1 = await handleUpload(files.proof1);
@@ -493,7 +495,8 @@ const CancellationForm = () => {
 
             // Insert to DB
             const { error } = await supabase.from('rp_cancellations').insert([{
-                moderator_discord_id: formData.moderatorId,
+                moderator_discord_id: modId,
+                moderator_name: currentUser?.username || currentUser?.full_name || 'Staff Web',
                 target_user: formData.targetUser,
                 reason: formData.reason,
                 location: formData.location,
@@ -524,23 +527,6 @@ const CancellationForm = () => {
                 🚫 Formulario de Cancelación de Rol
             </h2>
             <form onSubmit={handleSubmit}>
-                {/* Manual Moderator ID Input (Always visible or only if missing? Making it visible allows overriding or filling) */}
-                <div className="form-group">
-                    <label>Tu Discord ID (Moderador)</label>
-                    <input
-                        type="text"
-                        className="form-input"
-                        value={formData.moderatorId}
-                        onChange={e => setFormData({ ...formData, moderatorId: e.target.value })}
-                        placeholder="Ej: 123456789012345678"
-                        required
-                        disabled={autoDetected} // Disable if auto-detected to prevent spoofing? Or allow editing? Let's allow editing strictly speaking but auto-fill is nice. 
-                        // Actually forcing it if auto-detected prevents mistakes.
-                        style={{ opacity: autoDetected ? 0.7 : 1 }}
-                    />
-                    {!autoDetected && <small style={{ color: '#f1c40f' }}>⚠️ No se detectó tu Discord ID automáticamente. Ingrésalo manualmente.</small>}
-                </div>
-
                 <div className="form-group">
                     <label>Usuario Sancionado (ID o Nombre)</label>
                     <input
