@@ -322,13 +322,13 @@ client.on('interactionCreate', async interaction => {
             await interaction.deferReply({ ephemeral: true });
 
             // FIX: Query 'citizens' table instead of 'profiles' because credit_cards are linked to citizens.
-            const { data: citizen } = await supabase.from('citizens').select('id').eq('discord_id', interaction.user.id).single();
+            const { data: citizen } = await supabase.from('citizens').select('id').eq('discord_id', interaction.user.id).order('created_at', { ascending: false }).limit(1).maybeSingle();
 
             if (!citizen) {
                 return interaction.editReply('❌ No tienes un ciudadano vinculado a tu Discord. Contacta a un administrador en el Panel.');
             }
 
-            const { data: userCard } = await supabase.from('credit_cards').select('*').eq('citizen_id', citizen.id).eq('status', 'ACTIVE').single();
+            const { data: userCard } = await supabase.from('credit_cards').select('*').eq('citizen_id', citizen.id).order('created_at', { ascending: false }).limit(1).maybeSingle();
 
             if (!userCard) {
                 return interaction.editReply('❌ No tienes una tarjeta activa actualmente.');
@@ -354,10 +354,10 @@ client.on('interactionCreate', async interaction => {
             if (amount <= 0) return interaction.editReply('❌ El monto debe ser mayor a 0.');
 
             // 1. Find User (Citizen) & Card
-            const { data: citizen } = await supabase.from('citizens').select('id, discord_id').eq('discord_id', interaction.user.id).single();
+            const { data: citizen } = await supabase.from('citizens').select('id, discord_id').eq('discord_id', interaction.user.id).order('created_at', { ascending: false }).limit(1).maybeSingle();
             if (!citizen) return interaction.editReply('❌ No tienes un ciudadano vinculado.');
 
-            const { data: userCard } = await supabase.from('credit_cards').select('*').eq('citizen_id', citizen.id).eq('status', 'ACTIVE').single();
+            const { data: userCard } = await supabase.from('credit_cards').select('*').eq('citizen_id', citizen.id).order('created_at', { ascending: false }).limit(1).maybeSingle();
             if (!userCard) return interaction.editReply('❌ No tienes una tarjeta activa.');
 
             // 2. Validate Limit
@@ -419,10 +419,10 @@ client.on('interactionCreate', async interaction => {
             if (amount <= 0) return interaction.editReply('❌ El monto debe ser mayor a 0.');
 
             // 1. Find User (Citizen) & Card
-            const { data: citizen } = await supabase.from('citizens').select('id, discord_id').eq('discord_id', interaction.user.id).single();
+            const { data: citizen } = await supabase.from('citizens').select('id, discord_id').eq('discord_id', interaction.user.id).order('created_at', { ascending: false }).limit(1).maybeSingle();
             if (!citizen) return interaction.editReply('❌ No tienes cuenta vinculada (Citizen).');
 
-            const { data: userCard } = await supabase.from('credit_cards').select('*').eq('citizen_id', citizen.id).eq('status', 'ACTIVE').single();
+            const { data: userCard } = await supabase.from('credit_cards').select('*').eq('citizen_id', citizen.id).order('created_at', { ascending: false }).limit(1).maybeSingle();
             if (!userCard) return interaction.editReply('❌ No tienes una tarjeta activa.');
 
             if (amount > userCard.current_debt) {
@@ -483,10 +483,10 @@ client.on('interactionCreate', async interaction => {
             await interaction.deferReply({ ephemeral: true });
 
             // Resolve Profile
-            const { data: profile } = await supabase.from('profiles').select('id, full_name').eq('discord_id', targetUser.id).single();
+            const { data: profile } = await supabase.from('profiles').select('id, full_name').eq('discord_id', targetUser.id).order('created_at', { ascending: false }).limit(1).maybeSingle();
             if (!profile) return interaction.editReply('❌ Este usuario no tiene perfil vinculado.');
 
-            const { data: userCard } = await supabase.from('credit_cards').select('*').eq('citizen_id', profile.id).single();
+            const { data: userCard } = await supabase.from('credit_cards').select('*').eq('citizen_id', profile.id).order('created_at', { ascending: false }).limit(1).maybeSingle();
             if (!userCard) return interaction.editReply('❌ Este usuario no tiene tarjeta.');
 
             if (subCmdAdmin === 'info') {
@@ -537,13 +537,13 @@ client.on('interactionCreate', async interaction => {
 
             // 1. Search in Citizens with loose matching
             // Try explicit match
-            const { data: exactMatch, error: exactError } = await supabase.from('citizens').select('*').eq('discord_id', userId).single();
+            const { data: exactMatch, error: exactError } = await supabase.from('citizens').select('*').eq('discord_id', userId).order('created_at', { ascending: false }).limit(1).maybeSingle();
 
             if (exactMatch) {
                 output += `✅ **Ciudadano Encontrado (Match Exacto)**\n`;
                 output += `ID: ${exactMatch.id}\nNombre: ${exactMatch.full_name}\nDNI: ${exactMatch.dni}\nDiscordID en DB: \`${exactMatch.discord_id}\`\n\n`;
 
-                const { data: card } = await supabase.from('credit_cards').select('*').eq('citizen_id', exactMatch.id).single();
+                const { data: card } = await supabase.from('credit_cards').select('*').eq('citizen_id', exactMatch.id).order('created_at', { ascending: false }).limit(1).maybeSingle();
                 if (card) {
                     output += `✅ **Tarjeta Encontrada**\nTipo: ${card.card_type}\nEstado: ${card.status}\n`;
                 } else {
@@ -565,7 +565,7 @@ client.on('interactionCreate', async interaction => {
             }
 
             // Check Profiles just in case
-            const { data: profile } = await supabase.from('profiles').select('*').eq('discord_id', userId).single();
+            const { data: profile } = await supabase.from('profiles').select('*').eq('discord_id', userId).order('created_at', { ascending: false }).limit(1).maybeSingle();
             if (profile) {
                 output += `\n✅ **Perfil Web Encontrado (profiles)**\nRole: ${profile.role}\n`;
             } else {
@@ -611,12 +611,13 @@ client.on('interactionCreate', async interaction => {
         await interaction.deferReply({ ephemeral: true });
         const action = interaction.options.getString('accion');
 
-        // 1. Find User by Discord ID
         const { data: profile } = await supabase
             .from('profiles')
             .select('id, full_name, role')
             .eq('discord_id', interaction.user.id)
-            .single();
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
 
         if (!profile) {
             return interaction.editReply('❌ No tienes tu cuenta de Discord vinculada. Pide a un admin que añada tu ID de Discord a tu perfil en el Panel de Staff.');
