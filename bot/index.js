@@ -30,6 +30,7 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 // 3. Configuration
 const NOTIFICATION_CHANNEL_ID = process.env.NOTIFICATION_CHANNEL_ID; // Channel to send banking logs
+const CANCELLATIONS_CHANNEL_ID = '1450610756663115879'; // Channel for Role Cancellations
 const GUILD_ID = process.env.GUILD_ID;
 const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
 
@@ -169,6 +170,24 @@ client.once('ready', async () => {
                     type: 1
                 }
             ]
+        },
+        {
+            name: 'rol',
+            description: 'Gestión de Roles y Sanciones',
+            options: [
+                {
+                    name: 'cancelar',
+                    description: 'Reportar cancelación de rol de un usuario',
+                    type: 1,
+                    options: [
+                        { name: 'usuario', description: 'Usuario sancionado (Nombre/ID)', type: 3, required: true },
+                        { name: 'razon', description: 'Motivo de la cancelación', type: 3, required: true },
+                        { name: 'ubicacion', description: 'Lugar de los hechos/arresto', type: 3, required: true },
+                        { name: 'prueba1', description: 'Evidencia principal (Imagen)', type: 11, required: true },
+                        { name: 'prueba2', description: 'Evidencia secundaria (Imagen)', type: 11 }
+                    ]
+                }
+            ]
         }
     ];
 
@@ -196,6 +215,7 @@ client.once('ready', async () => {
 
     // Start listening to Supabase changes
     subscribeToNewCards();
+    subscribeToCancellations();
 });
 
 // Interaction Handler (Slash Commands)
@@ -556,6 +576,37 @@ client.on('interactionCreate', async interaction => {
         }
     }
 
+    else if (commandName === 'rol') {
+        const subCmd = interaction.options.getSubcommand();
+        if (subCmd === 'cancelar') {
+            await interaction.deferReply({ ephemeral: true });
+
+            const targetUser = interaction.options.getString('usuario');
+            const reason = interaction.options.getString('razon');
+            const location = interaction.options.getString('ubicacion');
+            const proof1 = interaction.options.getAttachment('prueba1');
+            const proof2 = interaction.options.getAttachment('prueba2');
+
+            // Insert into DB
+            const { error } = await supabase.from('rp_cancellations').insert([{
+                moderator_discord_id: interaction.user.id,
+                moderator_name: interaction.user.tag,
+                target_user: targetUser,
+                reason: reason,
+                location: location,
+                proof_url_1: proof1 ? proof1.url : null,
+                proof_url_2: proof2 ? proof2.url : null
+            }]);
+
+            if (error) {
+                console.error(error);
+                return interaction.editReply('❌ Error guardando el reporte en la base de datos.');
+            }
+
+            await interaction.editReply('✅ Reporte de cancelación enviado exitosamente. Se publicará en breve.');
+        }
+    }
+
     else if (commandName === 'fichar') {
         await interaction.deferReply({ ephemeral: true });
         const action = interaction.options.getString('accion');
@@ -726,6 +777,44 @@ async function subscribeToNewCards() {
                     } catch (err) {
                         console.error(`❌ No se pudo enviar DM a ${discordId}. Puede tener DMs cerrados.`);
                     }
+                }
+            }
+        )
+        .subscribe();
+
+}
+
+async function subscribeToCancellations() {
+    console.log("Listening for Role Cancellations...");
+    supabase
+        .channel('cancellations-insert')
+        .on(
+            'postgres_changes',
+            { event: 'INSERT', schema: 'public', table: 'rp_cancellations' },
+            async (payload) => {
+                const data = payload.new;
+                console.log('🚫 Nueva cancelación detectada!', data);
+
+                const embed = new EmbedBuilder()
+                    .setTitle('🇲🇽 Formato de Cancelación de Rol')
+                    .setColor(0xFFFFFF) // White, per user expectation (or tri-color if we use fields)
+                    .addFields(
+                        { name: '👤 Moderador que cancela', value: `<@${data.moderator_discord_id}>`, inline: false },
+                        { name: '📝 Razón', value: data.reason, inline: false },
+                        { name: '📍 Lugar', value: data.location, inline: false },
+                        { name: '👤 Usuario Sancionado', value: data.target_user, inline: false }
+                    )
+                    .setTimestamp();
+
+                // Handle Images
+                if (data.proof_url_1) embed.setImage(data.proof_url_1);
+
+                const channel = await client.channels.fetch(CANCELLATIONS_CHANNEL_ID).catch(console.error);
+                if (channel) {
+                    await channel.send({ embeds: [embed] });
+                    // Send 2nd and 3rd images as plain attachments/small embeds if they exist
+                    if (data.proof_url_2) await channel.send({ content: '**Prueba Adicional 1:**', files: [data.proof_url_2] });
+                    if (data.proof_url_3) await channel.send({ content: '**Prueba Adicional 2:**', files: [data.proof_url_3] });
                 }
             }
         )

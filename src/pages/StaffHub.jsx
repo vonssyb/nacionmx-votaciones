@@ -7,10 +7,13 @@ const StaffHub = () => {
     const [loading, setLoading] = useState(true);
     const [stats, setStats] = useState({ totalStaff: 0, activeNow: 0, totalHours: 0 });
     const [searchTerm, setSearchTerm] = useState('');
+    const [activeTab, setActiveTab] = useState('list'); // 'list' | 'cancellations'
 
     useEffect(() => {
-        fetchStaffData();
-    }, []);
+        if (activeTab === 'list') {
+            fetchStaffData();
+        }
+    }, [activeTab]);
 
     const fetchStaffData = async () => {
         setLoading(true);
@@ -99,59 +102,86 @@ const StaffHub = () => {
                 </button>
             </div>
 
-            <div className="stats-grid">
-                <div className="stat-card">
-                    <div className="stat-icon" style={{ background: 'rgba(52, 152, 219, 0.2)', color: '#3498db' }}>
-                        <Shield size={24} />
-                    </div>
-                    <div className="stat-info">
-                        <h3>Total Staff</h3>
-                        <p>{stats.totalStaff}</p>
-                    </div>
-                </div>
-                <div className="stat-card">
-                    <div className="stat-icon" style={{ background: 'rgba(46, 204, 113, 0.2)', color: '#2ecc71' }}>
-                        <Clock size={24} />
-                    </div>
-                    <div className="stat-info">
-                        <h3>Activos Ahora</h3>
-                        <p>{stats.activeNow}</p>
-                    </div>
-                </div>
-                <div className="stat-card">
-                    <div className="stat-icon" style={{ background: 'rgba(241, 196, 15, 0.2)', color: '#f1c40f' }}>
-                        <Award size={24} />
-                    </div>
-                    <div className="stat-info">
-                        <h3>Horas Totales</h3>
-                        <p>{stats.totalHours} hrs</p>
-                    </div>
-                </div>
             </div>
 
-            <div className="search-bar">
-                <Search size={18} color="var(--text-muted)" />
-                <input
-                    type="text"
-                    placeholder="Buscar por nombre o rol..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                />
+            <div className="staff-tabs">
+                <button 
+                    className={`tab-btn ${activeTab === 'list' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('list')}
+                >
+                    👥 Directorio
+                </button>
+                <button 
+                    className={`tab-btn ${activeTab === 'cancellations' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('cancellations')}
+                >
+                    🚫 Cancelar Rol
+                </button>
             </div>
 
-            {loading ? (
-                <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>Cargando datos...</div>
-            ) : (
-                <div className="staff-sections">
-                    <StaffSection title="👑 Dueños / Co-Owners" roles={['owner', 'co_owner']} staff={filteredStaff} />
-                    <StaffSection title="🏛️ Junta Directiva" roles={['board']} staff={filteredStaff} />
-                    <StaffSection title="🛡️ Administradores" roles={['admin']} staff={filteredStaff} />
-                    <StaffSection title="👮 Staff Oficial" roles={['moderator', 'staff']} staff={filteredStaff} />
-                    <StaffSection title="🎓 Staff en Entrenamiento" roles={['training', 'developer']} staff={filteredStaff} />
+            {
+        activeTab === 'list' ? (
+            <>
+                <div className="stats-grid">
+                    <div className="stat-card">
+                        <div className="stat-icon" style={{ background: 'rgba(52, 152, 219, 0.2)', color: '#3498db' }}>
+                            <Shield size={24} />
+                        </div>
+                        <div className="stat-info">
+                            <h3>Total Staff</h3>
+                            <p>{stats.totalStaff}</p>
+                        </div>
+                    </div>
+                    <div className="stat-card">
+                        <div className="stat-icon" style={{ background: 'rgba(46, 204, 113, 0.2)', color: '#2ecc71' }}>
+                            <Clock size={24} />
+                        </div>
+                        <div className="stat-info">
+                            <h3>Activos Ahora</h3>
+                            <p>{stats.activeNow}</p>
+                        </div>
+                    </div>
+                    <div className="stat-card">
+                        <div className="stat-icon" style={{ background: 'rgba(241, 196, 15, 0.2)', color: '#f1c40f' }}>
+                            <Award size={24} />
+                        </div>
+                        <div className="stat-info">
+                            <h3>Horas Totales</h3>
+                            <p>{stats.totalHours} hrs</p>
+                        </div>
+                    </div>
                 </div>
-            )}
 
-            <style>{`
+                <div className="search-bar">
+                    <Search size={18} color="var(--text-muted)" />
+                    <input
+                        type="text"
+                        placeholder="Buscar por nombre o rol..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                    />
+                </div>
+
+                {loading ? (
+                    <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>Cargando datos...</div>
+                ) : (
+                    <div className="staff-sections">
+                        <StaffSection title="👑 Dueños / Co-Owners" roles={['owner', 'co_owner']} staff={filteredStaff} />
+                        <StaffSection title="🏛️ Junta Directiva" roles={['board']} staff={filteredStaff} />
+                        <StaffSection title="🛡️ Administradores" roles={['admin']} staff={filteredStaff} />
+                        <StaffSection title="👮 Staff Oficial" roles={['moderator', 'staff']} staff={filteredStaff} />
+                        <StaffSection title="🎓 Staff en Entrenamiento" roles={['training', 'developer']} staff={filteredStaff} />
+                    </div>
+                )}
+            </>
+        ) : (
+            <CancellationForm />
+        )
+    }
+
+
+
+    <style>{`
                 .page-header {
                     display: flex;
                     justify-content: space-between;
@@ -307,7 +337,236 @@ const StaffHub = () => {
                     font-size: 0.95rem;
                     font-weight: 600;
                 }
+                /* TABS */
+                .staff-tabs {
+                    display: flex;
+                    gap: 1rem;
+                    margin-bottom: 2rem;
+                    border-bottom: 1px solid var(--border);
+                    padding-bottom: 1rem;
+                }
+                .tab-btn {
+                    background: transparent;
+                    border: none;
+                    color: var(--text-muted);
+                    font-size: 1rem;
+                    font-weight: 600;
+                    padding: 0.5rem 1rem;
+                    cursor: pointer;
+                    border-radius: var(--radius);
+                    transition: all 0.2s;
+                }
+                .tab-btn.active {
+                    background: var(--bg-card-hover);
+                    color: var(--primary);
+                }
+                .tab-btn:hover {
+                    color: var(--primary);
+                }
+                /* FORM */
+                .cancellation-form-container {
+                    background: var(--bg-card);
+                    padding: 2rem;
+                    border-radius: var(--radius);
+                    border: 1px solid var(--border);
+                    max-width: 800px;
+                    margin: 0 auto;
+                }
+                .form-group {
+                    margin-bottom: 1.5rem;
+                }
+                .form-group label {
+                    display: block;
+                    margin-bottom: 0.5rem;
+                    color: var(--text-muted);
+                    font-size: 0.9rem;
+                }
+                .form-input {
+                    width: 100%;
+                    padding: 0.75rem;
+                    background: var(--bg-main);
+                    border: 1px solid var(--border);
+                    border-radius: var(--radius);
+                    color: white;
+                    outline: none;
+                }
+                .form-input:focus {
+                    border-color: var(--primary);
+                }
+                .btn-submit {
+                    width: 100%;
+                    padding: 1rem;
+                    background: #e74c3c;
+                    color: white;
+                    border: none;
+                    border-radius: var(--radius);
+                    font-weight: bold;
+                    cursor: pointer;
+                    margin-top: 1rem;
+                }
+                .btn-submit:disabled {
+                    opacity: 0.5;
+                    cursor: not-allowed;
+                }
+                .file-inputs {
+                    display: grid;
+                    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+                    gap: 1rem;
+                }
             `}</style>
+        </div >
+    );
+};
+
+const CancellationForm = () => {
+    const [formData, setFormData] = useState({
+        targetUser: '',
+        reason: '',
+        location: ''
+    });
+    const [files, setFiles] = useState({ proof1: null, proof2: null, proof3: null });
+    const [loading, setLoading] = useState(false);
+    const [currentUser, setCurrentUser] = useState(null);
+
+    useEffect(() => {
+        getCurrentUser();
+    }, []);
+
+    const getCurrentUser = async () => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+            // Get profile for discord_id
+            const { data: profile } = await supabase.from('profiles').select('discord_id').eq('id', user.id).single();
+            setCurrentUser(profile);
+        }
+    };
+
+    const handleUpload = async (file) => {
+        if (!file) return null;
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${Math.random()}.${fileExt}`;
+        const filePath = `cancellations/${fileName}`;
+
+        // Assuming 'evidence' bucket exists (reusing existing one) or 'cancellation-proofs'
+        // Let's try 'evidence' as it's cleaner to reuse if permissions allow.
+        // User asked for "role cancellation", let's assume 'evidence' is fine.
+        let { error: uploadError } = await supabase.storage.from('evidence').upload(filePath, file);
+
+        if (uploadError) {
+            console.error('Upload Error:', uploadError);
+            return null;
+        }
+
+        const { data: publicUrlData } = supabase.storage.from('evidence').getPublicUrl(filePath);
+        return publicUrlData.publicUrl;
+    };
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setLoading(true);
+
+        try {
+            if (!currentUser || !currentUser.discord_id) {
+                alert('Tu usuario no tiene Discord vinculado. No puedes procesar cancelaciones.');
+                setLoading(false);
+                return;
+            }
+
+            // Upload Files
+            const url1 = await handleUpload(files.proof1);
+            const url2 = await handleUpload(files.proof2);
+            const url3 = await handleUpload(files.proof3);
+
+            if (!url1) {
+                alert('La prueba #1 es obligatoria.');
+                setLoading(false);
+                return;
+            }
+
+            // Insert to DB
+            const { error } = await supabase.from('rp_cancellations').insert([{
+                moderator_discord_id: currentUser.discord_id,
+                target_user: formData.targetUser,
+                reason: formData.reason,
+                location: formData.location,
+                proof_url_1: url1,
+                proof_url_2: url2,
+                proof_url_3: url3
+            }]);
+
+            if (error) throw error;
+
+            alert('✅ Cancelación procesada correctamente. Se ha publicado en Discord.');
+            setFormData({ targetUser: '', reason: '', location: '' });
+            setFiles({ proof1: null, proof2: null, proof3: null });
+
+        } catch (err) {
+            console.error(err);
+            alert('Error al procesar la solicitud.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return (
+        <div className="cancellation-form-container">
+            <h2 style={{ marginBottom: '1.5rem', borderBottom: '1px solid var(--border)', paddingBottom: '1rem' }}>
+                🚫 Formulario de Cancelación de Rol
+            </h2>
+            <form onSubmit={handleSubmit}>
+                <div className="form-group">
+                    <label>Usuario Sancionado (ID o Nombre)</label>
+                    <input
+                        type="text"
+                        className="form-input"
+                        value={formData.targetUser}
+                        onChange={e => setFormData({ ...formData, targetUser: e.target.value })}
+                        required
+                    />
+                </div>
+                <div className="form-group">
+                    <label>Motivo de la Cancelación</label>
+                    <textarea
+                        className="form-input"
+                        rows="3"
+                        value={formData.reason}
+                        onChange={e => setFormData({ ...formData, reason: e.target.value })}
+                        required
+                    ></textarea>
+                </div>
+                <div className="form-group">
+                    <label>Ubicación / Contexto</label>
+                    <input
+                        type="text"
+                        className="form-input"
+                        value={formData.location}
+                        onChange={e => setFormData({ ...formData, location: e.target.value })}
+                        required
+                    />
+                </div>
+
+                <div className="form-group">
+                    <label>Evidencias (Máx 3 Fotos)</label>
+                    <div className="file-inputs">
+                        <div>
+                            <span style={{ fontSize: '0.8rem', color: '#e74c3c' }}>Prueba 1 (Obligatoria)</span>
+                            <input type="file" accept="image/*" onChange={e => setFiles({ ...files, proof1: e.target.files[0] })} required className="form-input" />
+                        </div>
+                        <div>
+                            <span style={{ fontSize: '0.8rem' }}>Prueba 2 (Opcional)</span>
+                            <input type="file" accept="image/*" onChange={e => setFiles({ ...files, proof2: e.target.files[0] })} className="form-input" />
+                        </div>
+                        <div>
+                            <span style={{ fontSize: '0.8rem' }}>Prueba 3 (Opcional)</span>
+                            <input type="file" accept="image/*" onChange={e => setFiles({ ...files, proof3: e.target.files[0] })} className="form-input" />
+                        </div>
+                    </div>
+                </div>
+
+                <button type="submit" className="btn-submit" disabled={loading}>
+                    {loading ? 'Procesando...' : 'ENVIAR REPORTE AL DISCORD'}
+                </button>
+            </form>
         </div>
     );
 };
