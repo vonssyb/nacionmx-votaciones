@@ -146,10 +146,25 @@ client.once('ready', async () => {
                     ]
                 },
                 {
+                    name: 'buro',
+                    description: 'Ver tu Score de Buró Financiero',
+                    type: 1
+                },
+                {
                     name: 'admin',
-                    description: 'Herramientas Administrativas de Banco (Staff)',
+                    description: 'Herramientas Administrativas (Staff)',
                     type: 2, // SUB_COMMAND_GROUP
                     options: [
+                        {
+                            name: 'puntos',
+                            description: 'Modificar Score de Buró (Staff)',
+                            type: 1,
+                            options: [
+                                { name: 'usuario', description: 'Usuario afectado', type: 6, required: true },
+                                { name: 'cantidad', description: 'Puntos a sumar (o restar con -)', type: 4, required: true },
+                                { name: 'razon', description: 'Motivo del ajuste', type: 3, required: true }
+                            ]
+                        },
                         {
                             name: 'perdonar',
                             description: 'Perdonar la deuda de un usuario',
@@ -233,7 +248,8 @@ client.once('ready', async () => {
                             ]
                         },
                         { name: 'limite', description: 'Límite de crédito', type: 10, required: true },
-                        { name: 'interes', description: 'Tasa de interés (%)', type: 10, required: true }
+                        { name: 'interes', description: 'Tasa de interés (%)', type: 10, required: true },
+                        { name: 'costo', description: 'Costo de apertura (Se cobra al aceptar)', type: 10, required: true }
                     ]
                 }
             ]
@@ -377,7 +393,30 @@ client.on('interactionCreate', async interaction => {
         const subCmd = interaction.options.getSubcommand();
         const isPrivate = interaction.options.getBoolean('privado') ?? false;
 
-        if (subCmd === 'estado') {
+        if (subCmd === 'buro') {
+            await interaction.deferReply({ ephemeral: isPrivate });
+
+            const { data: citizen } = await supabase.from('citizens').select('id, full_name, credit_score').eq('discord_id', interaction.user.id).order('created_at', { ascending: false }).limit(1).maybeSingle();
+
+            if (!citizen) return interaction.editReply('❌ No tienes un ciudadano vinculado.');
+
+            const score = citizen.credit_score || 100;
+            // Generate ASCII Progress Bar: [████████░░] 80/100
+            const filled = Math.round(score / 10); // 0-10
+            const bar = '█'.repeat(filled) + '░'.repeat(10 - filled);
+
+            const embed = new EmbedBuilder()
+                .setTitle(`📉 Buró Financiero: ${citizen.full_name}`)
+                .setColor(score > 60 ? 0x00FF00 : (score > 30 ? 0xFFA500 : 0xFF0000))
+                .addFields(
+                    { name: 'Score Crediticio', value: `${bar} **${score}/100**` },
+                    { name: 'Estado', value: score > 60 ? '✅ Excelente' : (score > 30 ? '⚠️ Regular' : '⛔ RIESGO (Acceso Limitado)') }
+                )
+                .setFooter({ text: 'Mantén un buen historial pagando tus tarjetas a tiempo.' });
+
+            await interaction.editReply({ embeds: [embed] });
+        }
+        else if (subCmd === 'estado') {
             await interaction.deferReply({ ephemeral: isPrivate });
 
             // FIX: Query 'citizens' table instead of 'profiles' because credit_cards are linked to citizens.
@@ -580,6 +619,37 @@ client.on('interactionCreate', async interaction => {
                 await interaction.editReply({ embeds: [embed] });
             }
 
+            else if (subCmdAdmin === 'puntos') {
+                // Fetch Citizen to get Score (not profile, Score is on citizens now)
+                const { data: citizenData } = await supabase.from('citizens').select('id, full_name, credit_score').eq('discord_id', targetUser.id).order('created_at', { ascending: false }).limit(1).maybeSingle();
+
+                if (!citizenData) return interaction.editReply('❌ No tiene un ciudadano vinculado.');
+
+                const amountChange = interaction.options.getInteger('cantidad');
+                const reason = interaction.options.getString('razon');
+
+                let currentScore = citizenData.credit_score || 100;
+                let newScore = currentScore + amountChange;
+
+                // Clamp 0-100
+                if (newScore > 100) newScore = 100;
+                if (newScore < 0) newScore = 0;
+
+                await supabase.from('citizens').update({ credit_score: newScore }).eq('id', citizenData.id);
+
+                const embed = new EmbedBuilder()
+                    .setTitle('📉 Ajuste de Buró Financiero')
+                    .setColor(amountChange >= 0 ? 0x00FF00 : 0xFF0000)
+                    .setDescription(`El score de **${citizenData.full_name}** ha sido actualizado por **${interaction.user.tag}**.`)
+                    .addFields(
+                        { name: 'Cambio', value: `${amountChange > 0 ? '+' : ''}${amountChange}`, inline: true },
+                        { name: 'Nuevo Score', value: `${newScore}/100`, inline: true },
+                        { name: 'Motivo', value: reason }
+                    );
+
+                await interaction.editReply({ embeds: [embed] });
+            }
+
             else if (subCmdAdmin === 'perdonar') {
                 await supabase.from('credit_cards').update({ current_balance: 0 }).eq('id', userCard.id);
                 await supabase.from('transaction_logs').insert([{
@@ -700,29 +770,122 @@ client.on('interactionCreate', async interaction => {
         const cardType = interaction.options.getString('tipo');
         const limit = interaction.options.getNumber('limite');
         const interest = interaction.options.getNumber('interes');
+        const cost = interaction.options.getNumber('costo');
 
         // 2. Find Citizen
         const { data: citizen, error: citError } = await supabase.from('citizens').select('id, full_name').eq('discord_id', targetUser.id).order('created_at', { ascending: false }).limit(1).maybeSingle();
 
         if (!citizen) return interaction.editReply('❌ El usuario no tiene un Ciudadano vinculado. Debe usar `/fichar` primero.');
 
-        // 3. Create Card
-        const { error: insertError } = await supabase.from('credit_cards').insert([{
-            citizen_id: citizen.id,
-            card_type: cardType,
-            credit_limit: limit,
-            current_balance: 0,
-            interest_rate: interest,
-            status: 'ACTIVE',
-            next_payment_due: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() // 1 week
-        }]);
+        // 3. Send Interactive Offer
+        const offerEmbed = new EmbedBuilder()
+            .setTitle('💳 Oferta de Tarjeta de Crédito')
+            .setColor(0xD4AF37)
+            .setDescription(`Hola <@${targetUser.id}>,\nEl Banco Nacional te ofrece una tarjeta **${cardType}**.\n\n**Detalles del Contrato:**`)
+            .addFields(
+                { name: 'Límite', value: `$${limit.toLocaleString()}`, inline: true },
+                { name: 'Interés Semanal', value: `${interest}%`, inline: true },
+                { name: 'Costo de Apertura', value: `$${cost.toLocaleString()}`, inline: true }
+            )
+            .setFooter({ text: 'Tienes 5 minutos para aceptar. Revisa los términos antes.' });
 
-        if (insertError) {
-            console.error(insertError);
-            return interaction.editReply(`❌ Error al crear tarjeta: ${insertError.message}`);
-        }
+        const row = new ActionRowBuilder()
+            .addComponents(
+                new ButtonBuilder().setCustomId('btn_terms').setLabel('📄 Ver Términos').setStyle(ButtonStyle.Secondary),
+                new ButtonBuilder().setCustomId('btn_accept').setLabel('✅ Aceptar y Pagar').setStyle(ButtonStyle.Success),
+                new ButtonBuilder().setCustomId('btn_reject').setLabel('❌ Rechazar').setStyle(ButtonStyle.Danger)
+            );
 
-        await interaction.editReply(`✅ **Tarjeta Registrada Exitosamente**\nUsuario: ${citizen.full_name}\nTipo: ${cardType}\nLímite: $${limit.toLocaleString()}\nInterés: ${interest}%`);
+        // Send to channel (Public) so user can see it
+        const message = await interaction.channel.send({ content: `<@${targetUser.id}>`, embeds: [offerEmbed], components: [row] });
+        await interaction.editReply(`✅ Oferta enviada a <@${targetUser.id}>. Esperando respuesta...`);
+
+        // 4. Collector
+        const filter = i => i.user.id === targetUser.id;
+        const collector = message.createMessageComponentCollector({ filter, time: 300000 }); // 5 min
+
+        collector.on('collect', async i => {
+            if (i.customId === 'btn_terms') {
+                // Terms & Conditions Logic
+                const tycEmbed = new EmbedBuilder()
+                    .setTitle('📜 Términos y Condiciones - Banco Nacional RP')
+                    .setColor(0x333333)
+                    .setDescription(`
+**1️⃣ ACEPTACIÓN**
+Al solicitar, activar o utilizar cualquier tarjeta, aceptas estos términos automáticamente.
+
+**2️⃣ NATURALEZA DEL SISTEMA**
+• Crédito es dinero RP, no real.
+• Uso obligatorio IC y regulado OOC.
+
+**3️⃣ LÍMITES DE CRÉDITO**
+• Máximo permitido: $1,000,000 MXN RP.
+• El banco puede modificar el límite según historial.
+
+**4️⃣ CORTE Y PAGOS**
+• Corte cada 7 días. Pago mínimo: 25%.
+• Intereses semanales no negociables.
+
+**5️⃣ INCUMPLIMIENTO**
+generará recargos, congelación, reporte a Buró Financiero, embargos y restricciones.
+
+**6️⃣ BURÓ FINANCIERO RP**
+• Historial afecta acceso a créditos futuros.
+
+**9️⃣ CANCELACIÓN**
+• Banco puede cancelar por mal uso. La deuda persiste.
+                        `);
+                await i.reply({ embeds: [tycEmbed], ephemeral: true });
+            }
+            else if (i.customId === 'btn_reject') {
+                await i.update({ content: '❌ Oferta rechazada por el usuario.', components: [] });
+                collector.stop();
+            }
+            else if (i.customId === 'btn_accept') {
+                // PAYMENT & CREATION LOGIC
+                await i.deferUpdate();
+
+                try {
+                    // Check Funds
+                    const balance = await billingService.ubService.getUserBalance(interaction.guildId, targetUser.id);
+                    const userMoney = balance.total || (balance.cash + balance.bank);
+
+                    if (userMoney < cost) {
+                        return i.followUp({ content: `❌ **Fondos Insuficientes**. Tienes: $${userMoney.toLocaleString()}. Necesitas: $${cost.toLocaleString()}.`, ephemeral: true });
+                    }
+
+                    // Charge
+                    await billingService.ubService.removeMoney(interaction.guildId, targetUser.id, cost, `Apertura Tarjeta ${cardType}`);
+
+                    // Create Card
+                    const { error: insertError } = await supabase.from('credit_cards').insert([{
+                        citizen_id: citizen.id,
+                        card_type: cardType,
+                        credit_limit: limit,
+                        current_balance: 0,
+                        interest_rate: interest,
+                        status: 'ACTIVE',
+                        next_payment_due: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+                    }]);
+
+                    if (insertError) throw new Error(insertError.message);
+
+                    // Initialize/Update Credit Score slightly? Optional
+                    await message.edit({ content: `✅ **Tarjeta Activada** para <@${targetUser.id}>. Cobro de $${cost.toLocaleString()} realizado.`, components: [] });
+
+                } catch (err) {
+                    console.error(err);
+                    await i.followUp({ content: `❌ Error procesando pago/creación: ${err.message}`, ephemeral: true });
+                }
+                collector.stop();
+            }
+        });
+
+        collector.on('end', collected => {
+            if (collected.size === 0) {
+                message.edit({ content: '⚠️ La oferta expiró.', components: [] });
+            }
+        });
     }
 }
 
