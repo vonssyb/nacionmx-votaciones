@@ -159,13 +159,18 @@ const RoleGuard = ({ children }) => {
 
             const userRoles = data.roles || []; // Array of role IDs
 
+            console.log("DEBUG: Your Roles:", userRoles);
+            console.log("DEBUG: Allowed Roles:", ALLOWED_ROLE_IDS);
+
             // Check if user has at least one allowed role
             const hasRole = userRoles.some(roleId => ALLOWED_ROLE_IDS.includes(roleId));
 
             if (hasRole) {
+                console.log("DEBUG: Authorization Success!");
                 setAuthorized(true);
                 setMemberData(data); // Save for context
             } else {
+                console.error("DEBUG: Authorization FAILED. Missing role.");
                 throw new Error("No tienes los roles necesarios para acceder a este panel.");
             }
 
