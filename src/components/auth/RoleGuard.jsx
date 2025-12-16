@@ -28,6 +28,12 @@ const RoleGuard = ({ children }) => {
     const [memberData, setMemberData] = useState(null); // Store fetched data
     const navigate = useNavigate();
 
+    const loadingRef = React.useRef(loading);
+
+    useEffect(() => {
+        loadingRef.current = loading;
+    }, [loading]);
+
     useEffect(() => {
         let mounted = true;
 
@@ -90,9 +96,9 @@ const RoleGuard = ({ children }) => {
 
         checkSession();
 
-        // Failsafe: If slightly stuck (e.g. Supabase hanging), force redirect after 6 seconds
+        // Failsafe: If truly stuck (loading is still true in ref), force redirect
         const timeout = setTimeout(() => {
-            if (mounted && loading) {
+            if (mounted && loadingRef.current) {
                 console.warn("RoleGuard timeout. Force redirecting to login.");
                 setLoading(false);
                 navigate('/login');
