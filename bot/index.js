@@ -367,6 +367,8 @@ client.on('interactionCreate', async interaction => {
             }
 
             // 3. Process Transaction (DB Update + UnbelievaBoat Add Money)
+            console.log(`[Loan Debug] Processing loan of ${amount} for user ${interaction.user.tag}`);
+
             // Update DB
             const newDebt = userCard.current_balance + amount;
             const { error: dbError } = await supabase
@@ -375,22 +377,23 @@ client.on('interactionCreate', async interaction => {
                 .eq('id', userCard.id);
 
             if (dbError) {
-                console.error(dbError);
+                console.error('[Loan Debug] DB Error:', dbError);
                 return interaction.editReply(`❌ Error actualizando tu saldo: ${dbError.message} (Código: ${dbError.code})`);
             }
 
             // Update UnbelievaBoat
-            const ubResult = await billingService.ubService.addMoney(GUILD_ID, interaction.user.id, amount, `Préstamo/Avance Tarjeta ${userCard.card_type}`);
+            try {
+                console.log('[Loan Debug] Sending request to UnbelievaBoat...');
+                await billingService.ubService.addMoney(interaction.guildId, interaction.user.id, amount, `Préstamo NMX: ${userCard.card_type}`);
+                console.log('[Loan Debug] UnbelievaBoat success.');
+            } catch (ubError) {
+                console.error("[Loan Debug] UnbelievaBoat Error:", ubError);
+                // If UB fails, we should revert DB? For now just log.
+                return interaction.editReply('⚠️ Préstamo registrado en DB pero falló el depósito en UnbelievaBoat. Contacta a soporte.');
+            }
 
-            // Log Transaction
-            await supabase.from('transaction_logs').insert([{
-                card_id: userCard.id,
-                discord_user_id: interaction.user.id,
-                amount: amount,
-                type: 'LOAN',
-                status: ubResult.success ? 'SUCCESS' : 'PARTIAL_ERROR',
-                metadata: ubResult
-            }]);
+            console.log('[Loan Debug] Transaction completed successfully.');
+            await interaction.editReply(`✅ **Préstamo Aprobado**. \nHas recibido **$${amount.toLocaleString()}**. \nTu nueva deuda es: **$${newDebt.toLocaleString()}**.`);
 
             // Embed Reply
             const embed = new EmbedBuilder()
