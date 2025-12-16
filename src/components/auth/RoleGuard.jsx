@@ -90,7 +90,19 @@ const RoleGuard = ({ children }) => {
 
         checkSession();
 
-        return () => { mounted = false; };
+        // Failsafe: If slightly stuck (e.g. Supabase hanging), force redirect after 6 seconds
+        const timeout = setTimeout(() => {
+            if (mounted && loading) {
+                console.warn("RoleGuard timeout. Force redirecting to login.");
+                setLoading(false);
+                navigate('/login');
+            }
+        }, 6000);
+
+        return () => {
+            mounted = false;
+            clearTimeout(timeout);
+        };
     }, []);
 
     const verifyDiscordRole = async (session) => {
