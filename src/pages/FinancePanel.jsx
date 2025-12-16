@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { CreditCard, Search, User, DollarSign, AlertCircle, CheckCircle, Wallet, Plus, Send, Camera } from 'lucide-react';
+import { CreditCard, Search, User, DollarSign, AlertCircle, CheckCircle, Wallet, Plus, Send, Camera, X, Ban, FileText } from 'lucide-react';
 import { supabase } from '../services/supabase';
 import './FinancePanel.css';
 
@@ -22,6 +22,13 @@ const FinancePanel = () => {
     const [loading, setLoading] = useState(false);
     const [cards, setCards] = useState([]);
     const [searchDni, setSearchDni] = useState('');
+
+    // Cancel / Loan State
+    const [showLoanModal, setShowLoanModal] = useState(false);
+    const [targetCard, setTargetCard] = useState(null);
+    const [loanAmount, setLoanAmount] = useState('');
+    const [loanNotes, setLoanNotes] = useState('');
+    const [loanFile, setLoanFile] = useState(null);
 
     // Form State
     const [dni, setDni] = useState('');
@@ -164,6 +171,83 @@ const FinancePanel = () => {
         } catch (err) {
             console.error(err);
             setFeedback({ type: 'error', msg: 'Error al registrar: ' + err.message });
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const openLoanModal = (card) => {
+        setTargetCard(card);
+        setShowLoanModal(true);
+    };
+
+    const handleLoanSubmit = async (e) => {
+        e.preventDefault();
+        if (!targetCard || !loanAmount) return;
+        setLoading(true);
+
+        try {
+            // Upload Proof
+            let proofUrl = null;
+            if (loanFile) {
+                const fileExt = loanFile.name.split('.').pop();
+                const fileName = `loan_${targetCard.id}_${Date.now()}.${fileExt}`;
+                const { error: uploadError } = await supabase.storage
+                    .from('ledger-proofs')
+                    .upload(fileName, loanFile);
+                if (uploadError) throw uploadError;
+
+                const { data: { publicUrl } } = supabase.storage
+                    .from('ledger-proofs')
+                    .getPublicUrl(fileName);
+                proofUrl = publicUrl;
+            }
+
+            // Insert Transaction
+            const amount = parseFloat(loanAmount);
+            const { error: txnError } = await supabase.from('card_transactions').insert([{
+                card_id: targetCard.id,
+                amount: amount,
+                type: 'loan',
+                proof_url: proofUrl,
+                notes: loanNotes
+            }]);
+            if (txnError) throw txnError;
+
+            // Update Card Balance
+            const { data: currentCard } = await supabase.from('credit_cards').select('current_balance').eq('id', targetCard.id).single();
+            const newBalance = (currentCard.current_balance || 0) + amount;
+
+            const { error: updateError } = await supabase.from('credit_cards')
+                .update({ current_balance: newBalance })
+                .eq('id', targetCard.id);
+
+            if (updateError) throw updateError;
+
+            setFeedback({ type: 'success', msg: 'Préstamo registrado exitosamente.' });
+            setShowLoanModal(false);
+            setLoanAmount('');
+            setLoanNotes('');
+            setLoanFile(null);
+            fetchCards(); // Refresh UI
+        } catch (err) {
+            console.error(err);
+            setFeedback({ type: 'error', msg: 'Error al registrar préstamo: ' + err.message });
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleCancelCard = async (cardId) => {
+        if (!window.confirm("¿Estás seguro de cancelar esta tarjeta? Esta acción es irreversible.")) return;
+        setLoading(true);
+        try {
+            const { error } = await supabase.from('credit_cards').update({ status: 'cancelled' }).eq('id', cardId);
+            if (error) throw error;
+            fetchCards();
+            setFeedback({ type: 'success', msg: 'Tarjeta cancelada.' });
+        } catch (err) {
+            alert("Error al cancelar: " + err.message);
         } finally {
             setLoading(false);
         }
@@ -362,6 +446,24 @@ const FinancePanel = () => {
                                         >
                                             Copiar Discord
                                         </button>
+                                        <div className="card-actions">
+                                            <button
+                                                className="action-btn loan-btn"
+                                                onClick={() => openLoanModal(card)}
+                                                disabled={card.status !== 'active'}
+                                                title="Agregar Deuda/Préstamo"
+                                            >
+                                                <DollarSign size={16} />
+                                            </button>
+                                            <button
+                                                className="action-btn cancel-btn"
+                                                onClick={() => handleCancelCard(card.id)}
+                                                disabled={card.status === 'cancelled'}
+                                                title="Cancelar Tarjeta"
+                                            >
+                                                <Ban size={16} />
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                             );
@@ -369,7 +471,64 @@ const FinancePanel = () => {
                     </div>
                 </div>
             )}
-        </div>
+
+
+            {/* Loan Modal */}
+            {
+                showLoanModal && (
+                    <div className="modal-overlay">
+                        <div className="modal-content fade-in">
+                            <div className="modal-header">
+                                <h3>Agregar Deuda / Préstamo</h3>
+                                <button className="close-btn" onClick={() => setShowLoanModal(false)}>
+                                    <X size={20} />
+                                </button>
+                            </div>
+                            <form onSubmit={handleLoanSubmit}>
+                                <div className="form-group">
+                                    <label>Monto a Agregar</label>
+                                    <input
+                                        type="number"
+                                        value={loanAmount}
+                                        onChange={e => setLoanAmount(e.target.value)}
+                                        required
+                                        placeholder="Ej: 5000"
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label>Comprobante (Obligatorio)</label>
+                                    <div className="file-input-wrapper">
+                                        <input
+                                            type="file"
+                                            accept="image/*"
+                                            onChange={(e) => setLoanFile(e.target.files[0])}
+                                            id="loan-upload"
+                                            required
+                                            style={{ display: 'none' }}
+                                        />
+                                        <label htmlFor="loan-upload" className="file-upload-btn">
+                                            <Camera size={18} />
+                                            {loanFile ? loanFile.name : "Subir Captura"}
+                                        </label>
+                                    </div>
+                                </div>
+                                <div className="form-group">
+                                    <label>Motivo / Notas</label>
+                                    <textarea
+                                        value={loanNotes}
+                                        onChange={e => setLoanNotes(e.target.value)}
+                                        placeholder="Razón del cargo..."
+                                    />
+                                </div>
+                                <button type="submit" className="submit-btn" disabled={loading}>
+                                    {loading ? 'Procesando...' : 'Confirmar Deuda'}
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                )
+            }
+        </div >
     );
 };
 

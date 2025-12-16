@@ -1,0 +1,29 @@
+INSTRUCCIONES DE INSTALACIÓN DEL BOT (GUILD MANAGER / HOSTING)
+
+1. PREPARACIÓN DE ARCHIVOS:
+   - Entra a la carpeta "bot" que está dentro de tu proyecto.
+   - Selecciona los siguientes archivos:
+     - index.js
+     - package.json
+   - Comprímelos en un archivo .ZIP (Click derecho -> Comprimir).
+
+2. SUBIDA AL HOSTING:
+   - Ve a tu panel de Guild Manager (o tu hosting de bots).
+   - Busca la opción "File Manager" o "Archivos".
+   - Sube el archivo .ZIP y extráelo (Unzip).
+
+3. CONFIGURACIÓN (VARIABLES DE ENTORNO):
+   - En tu panel de hosting, busca la sección "Startup", "Environment" o "Variables".
+   - Agrega las siguientes variables con TUS datos reales:
+
+     DISCORD_TOKEN= (Tu token del bot de Discord Developer Portal)
+     SUPABASE_URL= (La URL de tu proyecto Supabase: https://xyz.supabase.co)
+     SUPABASE_SERVICE_ROLE_KEY= (La clave "service_role" de Supabase - NO la "anon")
+     NOTIFICATION_CHANNEL_ID= (El ID del canal de Discord donde quieres las alertas)
+
+4. INICIAR:
+   - Si el panel tiene un botón "Reinstall" o "Install Dependencies", úsalo primero.
+   - Luego dale a "Start".
+   - Deberías ver en la consola: "🤖 Bot iniciado como..." y "📡 Conectado a Supabase".
+
+¡Listo! El bot escuchará automáticamente cuando se cree una tarjeta en el panel web y avisará en Discord.

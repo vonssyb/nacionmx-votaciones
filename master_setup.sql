@@ -116,6 +116,18 @@ ON storage.objects FOR SELECT
 USING ( bucket_id = 'ledger-proofs' );
 
 -- 9. ENABLE REALTIME (Crucial for Bot to hear changes)
-PROCEED; -- Safe guard in case they run it all
-ALTER PUBLICATION supabase_realtime ADD TABLE credit_cards;
-ALTER PUBLICATION supabase_realtime ADD TABLE citizens;
+
+DO $$
+BEGIN
+    BEGIN
+        ALTER PUBLICATION supabase_realtime ADD TABLE credit_cards;
+    EXCEPTION WHEN duplicate_object THEN
+        NULL; -- Ignore if already exists
+    END;
+
+    BEGIN
+        ALTER PUBLICATION supabase_realtime ADD TABLE citizens;
+    EXCEPTION WHEN duplicate_object THEN
+        NULL; -- Ignore if already exists
+    END;
+END $$;
