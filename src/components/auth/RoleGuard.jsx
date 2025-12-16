@@ -37,42 +37,39 @@ const RoleGuard = ({ children }) => {
     useEffect(() => {
         let mounted = true;
 
-        const checkSession = async () => {
+        const checkSession = async (retries = 3) => {
             try {
                 // 1. Get Initial Session
                 const { data: { session }, error } = await supabase.auth.getSession();
 
-                if (error) throw error;
                 if (session) {
                     if (mounted) verifyDiscordRole(session);
-                } else {
-                    // Check if we are in an OAuth callback flow
-                    const hash = window.location.hash;
-                    const search = window.location.search;
+                    return;
+                }
 
-                    // Specific check for errors (Cancellation returns error_description)
-                    if (hash.includes('error') || search.includes('error')) {
-                        console.warn("OAuth Error detected (User cancelled). Redirecting to login.");
-                        if (mounted) {
-                            setLoading(false);
-                            navigate('/login');
-                        }
-                        return;
+                if (error) {
+                    console.error("Session check error:", error);
+                    // Don't throw immediately, try recovery
+                }
+
+                // Check if we are in an OAuth callback flow
+                const hash = window.location.hash;
+                const search = window.location.search;
+
+                // Specific check for errors
+                if (hash.includes('error') || search.includes('error')) {
+                    console.warn("OAuth Error detected. Redirecting to login.");
+                    if (mounted) {
+                        setLoading(false);
+                        navigate('/login');
                     }
+                    return;
+                }
 
-                    const isCallback = hash.includes('access_token') || search.includes('code');
+                const isCallback = hash.includes('access_token') || search.includes('code');
 
-                    if (!isCallback) {
-                        // Not a callback, and no session -> User is just not logged in.
-                        console.warn("No session and no callback detected. Redirecting to login.");
-                        if (mounted) {
-                            setLoading(false);
-                            navigate('/login');
-                        }
-                        return;
-                    }
-
-                    // If it IS a valid callback, we wait for the listener to fire SIGNED_IN
+                if (isCallback) {
+                    // Valid callback, wait for auth listener
                     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
                         if (event === 'SIGNED_IN' && session) {
                             if (mounted) verifyDiscordRole(session);
@@ -85,8 +82,27 @@ const RoleGuard = ({ children }) => {
                     });
                     return () => subscription.unsubscribe();
                 }
+
+                // NO Session & NO Callback -> Grace Period / Retry
+                // Sometimes Supabase takes a moment to load from LocalStorage
+                if (retries > 0) {
+                    console.log(`No session yet, retrying... (${retries} left)`);
+                    setTimeout(() => {
+                        if (mounted) checkSession(retries - 1);
+                    }, 500); // Wait 500ms and retry
+                    return;
+                }
+
+                // If retries exhausted and still no session:
+                console.warn("No session and no callback detected (after retries). Redirecting to login.");
+                console.warn("Debug URL:", window.location.href);
+                if (mounted) {
+                    setLoading(false);
+                    navigate('/login');
+                }
+
             } catch (err) {
-                console.error("Session check error:", err);
+                console.error("Critical Session Error:", err);
                 if (mounted) {
                     setLoading(false);
                     navigate('/login');
