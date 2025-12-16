@@ -26,13 +26,7 @@ const Login = () => {
         }
     };
 
-    // Temporary simulation for demo purposes if no backend configured
-    const handleDemoLogin = () => {
-        setLoading(true);
-        setTimeout(() => {
-            navigate('/dashboard');
-        }, 1000);
-    };
+    // const handleDemoLogin = ... REMOVED
 
     return (
         <div style={styles.container}>
@@ -64,10 +58,7 @@ const Login = () => {
                         )}
                     </button>
 
-                    {/* Demo button purely for development if config missing */}
-                    <button onClick={handleDemoLogin} style={styles.textLink}>
-                        (Demo: Entrar sin Auth)
-                    </button>
+
                 </div>
 
                 <div style={styles.footer}>
