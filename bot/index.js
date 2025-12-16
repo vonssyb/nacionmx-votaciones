@@ -179,9 +179,8 @@ client.on('interactionCreate', async interaction => {
     if (commandName === 'registrar-tarjeta') {
         const embed = new EmbedBuilder()
             .setTitle('🏦 Solicitar Tarjeta Nacion MX')
-            .setDescription('Para solicitar tu tarjeta, ve al canal <#1450269843600310373> y abre un ticket.')
+            .setDescription('Para solicitar tu tarjeta, ve al canal <#1450269843600310373> y abre un ticket.\n\n*El portal web es de uso exclusivo para el Staff.*')
             .setColor(0xFFD700) // Gold
-            .addFields({ name: 'Portal Web', value: 'https://nacionmx-portal.onrender.com/dashboard/bank' })
             .setFooter({ text: 'Sistema Bancario' });
 
         await interaction.reply({ embeds: [embed], ephemeral: true });
