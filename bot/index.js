@@ -338,7 +338,7 @@ client.on('interactionCreate', async interaction => {
                 .setTitle(`💳 Estado de Cuenta: ${userCard.card_type}`)
                 .setColor(0xD4AF37)
                 .addFields(
-                    { name: 'Deuda Actual', value: `$${userCard.current_debt.toLocaleString()}`, inline: true },
+                    { name: 'Deuda Actual', value: `$${userCard.current_balance.toLocaleString()}`, inline: true },
                     { name: 'Límite', value: `$${userCard.credit_limit.toLocaleString()}`, inline: true },
                     { name: 'Interés Semanal', value: `${userCard.interest_rate}%`, inline: true }
                 )
@@ -361,17 +361,17 @@ client.on('interactionCreate', async interaction => {
             if (!userCard) return interaction.editReply('❌ No tienes una tarjeta activa.');
 
             // 2. Validate Limit
-            const availableCredit = userCard.credit_limit - userCard.current_debt;
+            const availableCredit = userCard.credit_limit - userCard.current_balance;
             if (amount > availableCredit) {
                 return interaction.editReply(`❌ **Fondos Insuficientes**. \nDisponible: $${availableCredit.toLocaleString()}`);
             }
 
             // 3. Process Transaction (DB Update + UnbelievaBoat Add Money)
             // Update DB
-            const newDebt = userCard.current_debt + amount;
+            const newDebt = userCard.current_balance + amount;
             const { error: dbError } = await supabase
                 .from('credit_cards')
-                .update({ current_debt: newDebt })
+                .update({ current_balance: newDebt })
                 .eq('id', userCard.id);
 
             if (dbError) {
@@ -425,8 +425,8 @@ client.on('interactionCreate', async interaction => {
             const { data: userCard } = await supabase.from('credit_cards').select('*').eq('citizen_id', citizen.id).order('created_at', { ascending: false }).limit(1).maybeSingle();
             if (!userCard) return interaction.editReply('❌ No tienes una tarjeta activa.');
 
-            if (amount > userCard.current_debt) {
-                return interaction.editReply(`⚠️ Solo debes **$${userCard.current_debt.toLocaleString()}**. No puedes pagar más de lo que debes.`);
+            if (amount > userCard.current_balance) {
+                return interaction.editReply(`⚠️ Solo debes **$${userCard.current_balance.toLocaleString()}**. No puedes pagar más de lo que debes.`);
             }
 
             // 2. Take Money from UnbelievaBoat
@@ -437,10 +437,10 @@ client.on('interactionCreate', async interaction => {
             }
 
             // 3. Update DB
-            const newDebt = userCard.current_debt - amount;
+            const newDebt = userCard.current_balance - amount;
             const { error: dbError } = await supabase
                 .from('credit_cards')
-                .update({ current_debt: newDebt, last_payment_date: new Date().toISOString() })
+                .update({ current_balance: newDebt, last_payment_date: new Date().toISOString() })
                 .eq('id', userCard.id);
 
             if (dbError) {
@@ -496,7 +496,7 @@ client.on('interactionCreate', async interaction => {
                     .addFields(
                         { name: 'Tarjeta', value: userCard.card_type, inline: true },
                         { name: 'Estado', value: userCard.status, inline: true },
-                        { name: 'Deuda', value: `$${userCard.current_debt.toLocaleString()}`, inline: true },
+                        { name: 'Deuda', value: `$${userCard.current_balance.toLocaleString()}`, inline: true },
                         { name: 'Límite', value: `$${userCard.credit_limit.toLocaleString()}`, inline: true },
                         { name: 'Discord ID', value: targetUser.id, inline: true }
                     );
@@ -504,11 +504,11 @@ client.on('interactionCreate', async interaction => {
             }
 
             else if (subCmdAdmin === 'perdonar') {
-                await supabase.from('credit_cards').update({ current_debt: 0 }).eq('id', userCard.id);
+                await supabase.from('credit_cards').update({ current_balance: 0 }).eq('id', userCard.id);
                 await supabase.from('transaction_logs').insert([{
                     card_id: userCard.id,
                     discord_user_id: targetUser.id,
-                    amount: userCard.current_debt,
+                    amount: userCard.current_balance,
                     type: 'ADJUSTMENT',
                     status: 'SUCCESS',
                     metadata: { type: 'FORGIVE', by: interaction.user.tag }

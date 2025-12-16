@@ -36,7 +36,7 @@ class BillingService {
                 .from('credit_cards')
                 .select('*, profiles(discord_id, full_name)')
                 .eq('status', 'ACTIVE')
-                .gt('current_debt', 0);
+                .gt('current_balance', 0);
 
             if (error) throw error;
 
@@ -58,7 +58,7 @@ class BillingService {
             return;
         }
 
-        const debt = parseFloat(card.current_debt);
+        const debt = parseFloat(card.current_balance);
         const minPayment = debt * 0.25; // 25% Weekly minimum
 
         try {
@@ -128,7 +128,7 @@ class BillingService {
 
     async updateCardDebt(cardId, newDebt) {
         await supabase.from('credit_cards').update({
-            current_debt: newDebt,
+            current_balance: newDebt,
             last_payment_date: new Date().toISOString()
         }).eq('id', cardId);
     }
@@ -142,10 +142,10 @@ class BillingService {
 
     async applyInterest(cardId, amount) {
         // Fetch current first to add
-        const { data } = await supabase.from('credit_cards').select('current_debt').eq('id', cardId).single();
+        const { data } = await supabase.from('credit_cards').select('current_balance').eq('id', cardId).single();
         if (data) {
             await supabase.from('credit_cards').update({
-                current_debt: data.current_debt + amount
+                current_balance: data.current_balance + amount
             }).eq('id', cardId);
 
             // Log interest
