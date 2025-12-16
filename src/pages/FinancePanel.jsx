@@ -15,7 +15,7 @@ const CARD_LEVELS = [
 ];
 
 // Placeholder Webhook URL - Replace with actual URL later
-const DISCORD_WEBHOOK_URL = "";
+const DISCORD_WEBHOOK_URL = import.meta.env.VITE_DISCORD_WEBHOOK_URL || "";
 
 const FinancePanel = () => {
     const [activeTab, setActiveTab] = useState('register'); // register, list
