@@ -49,7 +49,7 @@ class UnbelievableBoatService {
             return { success: true, newBalance: response.data };
         } catch (error) {
             console.error('Error removing money:', error.response?.data || error.message);
-            return { success: false, error: error.response?.data || error.message };
+            throw new Error(error.response?.data?.message || error.message);
         }
     }
 
@@ -67,7 +67,7 @@ class UnbelievableBoatService {
             return { success: true, newBalance: response.data };
         } catch (error) {
             console.error('Error adding money:', error.response?.data || error.message);
-            return { success: false, error: error.response?.data || error.message };
+            throw new Error(error.response?.data?.message || error.message);
         }
     }
 }
