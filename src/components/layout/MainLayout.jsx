@@ -63,10 +63,7 @@ const MainLayout = () => {
                         <Users size={20} />
                         <span>Staff Hub</span>
                     </NavLink>
-                    <NavLink to="/dashboard/bolo" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-                        <Skull size={20} />
-                        <span>BOLO Board</span>
-                    </NavLink>
+
                     <NavLink to="/dashboard/applications" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
                         <FileText size={20} />
                         <span>Solicitudes</span>

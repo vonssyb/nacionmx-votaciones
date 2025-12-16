@@ -142,43 +142,12 @@ const StaffHub = () => {
             {loading ? (
                 <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>Cargando datos...</div>
             ) : (
-                <div className="staff-grid">
-                    {filteredStaff.map(member => (
-                        <div key={member.id} className="staff-card card">
-                            <div className="staff-header">
-                                <div className="staff-avatar-container">
-                                    {member.avatar_url ? (
-                                        <img src={member.avatar_url} className="staff-avatar" alt="avatar" />
-                                    ) : (
-                                        <div className="staff-avatar-placeholder">
-                                            {(member.username || '?').charAt(0).toUpperCase()}
-                                        </div>
-                                    )}
-                                    <div
-                                        className="status-indicator"
-                                        style={{ background: member.status === 'online' ? '#2ecc71' : '#7f8c8d' }}
-                                        title={member.status}
-                                    />
-                                </div>
-                                <div className="staff-identity">
-                                    <h3>{member.username || 'Sin Nombre'}</h3>
-                                    <span className="role-badge" style={{ borderColor: getRoleColor(member.role), color: getRoleColor(member.role) }}>
-                                        {member.role || 'Miembro'}
-                                    </span>
-                                </div>
-                            </div>
-                            <div className="staff-stats">
-                                <div className="mini-stat">
-                                    <span className="label">Turnos</span>
-                                    <span className="value">{member.actions}</span>
-                                </div>
-                                <div className="mini-stat">
-                                    <span className="label">Horas Totales</span>
-                                    <span className="value" style={{ color: 'var(--primary)' }}>{member.totalHours} h</span>
-                                </div>
-                            </div>
-                        </div>
-                    ))}
+                <div className="staff-sections">
+                    <StaffSection title="👑 Dueños / Co-Owners" roles={['owner', 'co_owner']} staff={filteredStaff} />
+                    <StaffSection title="🏛️ Junta Directiva" roles={['board']} staff={filteredStaff} />
+                    <StaffSection title="🛡️ Administradores" roles={['admin']} staff={filteredStaff} />
+                    <StaffSection title="👮 Staff Oficial" roles={['moderator', 'staff']} staff={filteredStaff} />
+                    <StaffSection title="🎓 Staff en Entrenamiento" roles={['training', 'developer']} staff={filteredStaff} />
                 </div>
             )}
 
@@ -339,6 +308,70 @@ const StaffHub = () => {
                     font-weight: 600;
                 }
             `}</style>
+        </div>
+    );
+};
+
+const StaffSection = ({ title, roles, staff }) => {
+    const list = staff.filter(s => roles.includes((s.role || '').toLowerCase()));
+    if (list.length === 0) return null;
+
+    const getRoleColor = (role) => {
+        if (!role) return '#95a5a6';
+        const r = role.toLowerCase();
+        if (r.includes('owner')) return '#e74c3c';
+        if (r.includes('board')) return '#8e44ad';
+        if (r.includes('admin')) return '#f1c40f';
+        if (r.includes('mod')) return '#2ecc71';
+        return '#95a5a6';
+    };
+
+    return (
+        <div className="staff-section">
+            <h2 className="section-title">{title}</h2>
+            <div className="staff-grid">
+                {list.map(member => (
+                    <div key={member.id} className="staff-card card">
+                        <div className="staff-header">
+                            <div className="staff-avatar-container">
+                                {member.avatar_url ? (
+                                    <img src={member.avatar_url} className="staff-avatar" alt="avatar" />
+                                ) : (
+                                    <div className="staff-avatar-placeholder">
+                                        {(member.username || '?').charAt(0).toUpperCase()}
+                                    </div>
+                                )}
+                                <div
+                                    className="status-indicator"
+                                    style={{ background: member.status === 'online' ? '#2ecc71' : '#7f8c8d' }}
+                                    title={member.status}
+                                />
+                            </div>
+                            <div className="staff-identity">
+                                <h3>{member.username || 'Sin Nombre'}</h3>
+                                <span className="role-badge" style={{ borderColor: getRoleColor(member.role), color: getRoleColor(member.role) }}>
+                                    {member.role || 'Miembro'}
+                                </span>
+                            </div>
+                        </div>
+                        <div className="staff-stats">
+                            <div className="mini-stat">
+                                <span className="label">Turnos</span>
+                                <span className="value">{member.actions}</span>
+                            </div>
+                            <div className="mini-stat">
+                                <span className="label">Horas Totales</span>
+                                <span className="value" style={{ color: 'var(--primary)' }}>{member.totalHours} h</span>
+                            </div>
+                            {/* ADMIN: Quick Link Button */}
+                            <div className="mini-stat">
+                                <span className="label">Discord ID</span>
+                                <span className="value" style={{ fontSize: '0.7rem', opacity: 0.7 }}>{member.discord_id ? '✅ Vinculado' : '❌ Sin Vincular'}</span>
+                            </div>
+                        </div>
+                    </div>
+                ))}
+            </div>
         </div>
     );
 };

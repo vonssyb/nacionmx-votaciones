@@ -28,7 +28,7 @@ const Dashboard = () => {
                 <Route path="shift" element={<ShiftPanel />} />
                 <Route path="new" element={<LogForm />} />
                 <Route path="staff" element={<StaffHub />} />
-                <Route path="bolo" element={<BoloBoard />} />
+
                 <Route path="applications" element={<Applications />} />
                 <Route path="bank" element={<FinancePanel />} />
                 <Route path="rules" element={<Rules />} />
