@@ -160,6 +160,11 @@ client.once('ready', async () => {
                             options: [
                                 { name: 'usuario', description: 'Usuario de Discord', type: 6, required: true }
                             ]
+                        },
+                        {
+                            name: 'debug',
+                            description: 'Diagnóstico de cuenta (Usar si fallan comandos)',
+                            type: 1
                         }
                     ]
                 }
@@ -500,6 +505,54 @@ client.on('interactionCreate', async interaction => {
                 await supabase.from('credit_cards').update({ status: 'ACTIVE' }).eq('id', userCard.id);
                 await interaction.editReply(`🔥 Tarjeta de **${profile.full_name}** ha sido **DESCONGELADA** y está Activa.`);
             }
+        }
+        else if (subCmd === 'debug') {
+            await interaction.deferReply({ ephemeral: true });
+
+            const userId = interaction.user.id;
+            const userName = interaction.user.tag;
+            let output = `🔍 **Diagnóstico de Usuario**\n`;
+            output += `Discord ID: \`${userId}\`\n`;
+            output += `Usuario: ${userName}\n\n`;
+
+            // 1. Search in Citizens with loose matching
+            // Try explicit match
+            const { data: exactMatch, error: exactError } = await supabase.from('citizens').select('*').eq('discord_id', userId).single();
+
+            if (exactMatch) {
+                output += `✅ **Ciudadano Encontrado (Match Exacto)**\n`;
+                output += `ID: ${exactMatch.id}\nNombre: ${exactMatch.full_name}\nDNI: ${exactMatch.dni}\nDiscordID en DB: \`${exactMatch.discord_id}\`\n\n`;
+
+                const { data: card } = await supabase.from('credit_cards').select('*').eq('citizen_id', exactMatch.id).single();
+                if (card) {
+                    output += `✅ **Tarjeta Encontrada**\nTipo: ${card.card_type}\nEstado: ${card.status}\n`;
+                } else {
+                    output += `⚠️ **Sin Tarjeta vinculada al ciudadano.**\n`;
+                }
+
+            } else {
+                output += `❌ **No se encontró coincidencia exacta en Citizens.**\n`;
+                if (exactError) output += `Error DB: ${exactError.message}\n`;
+
+                // Try fuzzy search or list recent to help Staff identify the correct record
+                const { data: potentials } = await supabase.from('citizens').select('full_name, discord_id').limit(5).order('created_at', { ascending: false });
+                output += `\n📋 **Últimos 5 registros (Para comparar):**\n`;
+                if (potentials) {
+                    potentials.forEach(p => {
+                        output += `- ${p.full_name}: \`${p.discord_id}\`\n`;
+                    });
+                }
+            }
+
+            // Check Profiles just in case
+            const { data: profile } = await supabase.from('profiles').select('*').eq('discord_id', userId).single();
+            if (profile) {
+                output += `\n✅ **Perfil Web Encontrado (profiles)**\nRole: ${profile.role}\n`;
+            } else {
+                output += `\n⚠️ **Sin Perfil Web (profiles)**\n`;
+            }
+
+            await interaction.editReply(output.substring(0, 1999));
         }
     }
 
