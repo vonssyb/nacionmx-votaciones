@@ -12,6 +12,7 @@ import StaffHub from './StaffHub';
 import BoloBoard from './BoloBoard';
 import Applications from './Applications';
 import FinancePanel from './FinancePanel';
+import RoleCancellation from './RoleCancellation';
 
 import RoleGuard from '../components/auth/RoleGuard';
 import ShiftPanel from './ShiftPanel';
@@ -31,6 +32,7 @@ const Dashboard = () => {
 
                 <Route path="applications" element={<Applications />} />
                 <Route path="bank" element={<FinancePanel />} />
+                <Route path="cancellations" element={<RoleCancellation />} />
                 <Route path="rules" element={<Rules />} />
                 <Route path="admin" element={<div className="page-header"><h1 className="page-title">Panel Administrativo</h1></div>} />
                 <Route path="*" element={<Navigate to="/dashboard" replace />} />

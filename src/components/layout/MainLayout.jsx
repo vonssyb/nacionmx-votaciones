@@ -63,6 +63,10 @@ const MainLayout = () => {
                         <Users size={20} />
                         <span>Staff Hub</span>
                     </NavLink>
+                    <NavLink to="/dashboard/cancellations" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+                        <LogOut size={20} />
+                        <span>Cancelar Rol</span>
+                    </NavLink>
 
                     <NavLink to="/dashboard/applications" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
                         <FileText size={20} />

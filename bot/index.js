@@ -376,7 +376,7 @@ client.on('interactionCreate', async interaction => {
 
             if (dbError) {
                 console.error(dbError);
-                return interaction.editReply('❌ Error actualizando tu saldo en base de datos.');
+                return interaction.editReply(`❌ Error actualizando tu saldo: ${dbError.message} (Código: ${dbError.code})`);
             }
 
             // Update UnbelievaBoat
