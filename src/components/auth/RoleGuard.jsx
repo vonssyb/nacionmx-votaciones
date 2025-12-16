@@ -40,8 +40,33 @@ const RoleGuard = ({ children }) => {
                 if (session) {
                     if (mounted) verifyDiscordRole(session);
                 } else {
-                    // If no session, wait for potentially incoming OAuth redirect
-                    // This listener handles the 'SIGNED_IN' event from the OAuth callback
+                    // Check if we are in an OAuth callback flow
+                    const hash = window.location.hash;
+                    const search = window.location.search;
+
+                    // Specific check for errors (Cancellation returns error_description)
+                    if (hash.includes('error') || search.includes('error')) {
+                        console.warn("OAuth Error detected (User cancelled). Redirecting to login.");
+                        if (mounted) {
+                            setLoading(false);
+                            navigate('/login');
+                        }
+                        return;
+                    }
+
+                    const isCallback = hash.includes('access_token') || search.includes('code');
+
+                    if (!isCallback) {
+                        // Not a callback, and no session -> User is just not logged in.
+                        console.warn("No session and no callback detected. Redirecting to login.");
+                        if (mounted) {
+                            setLoading(false);
+                            navigate('/login');
+                        }
+                        return;
+                    }
+
+                    // If it IS a valid callback, we wait for the listener to fire SIGNED_IN
                     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
                         if (event === 'SIGNED_IN' && session) {
                             if (mounted) verifyDiscordRole(session);
