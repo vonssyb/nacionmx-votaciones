@@ -18,6 +18,7 @@ const ubService = new UnbelievableBoatService(UB_TOKEN);
 class BillingService {
     constructor(client) {
         this.discordClient = client;
+        this.ubService = ubService;
     }
 
     startCron() {
