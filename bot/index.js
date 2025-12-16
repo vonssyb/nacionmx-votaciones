@@ -110,6 +110,58 @@ client.once('ready', async () => {
                             required: true
                         }
                     ]
+                },
+                {
+                    name: 'pagar',
+                    description: 'Abona dinero a tu tarjeta de crédito',
+                    type: 1, // SUB_COMMAND
+                    options: [
+                        {
+                            name: 'monto',
+                            description: 'Cantidad a pagar',
+                            type: 10, // NUMBER
+                            required: true
+                        }
+                    ]
+                },
+                {
+                    name: 'admin',
+                    description: 'Herramientas Administrativas de Banco (Staff)',
+                    type: 2, // SUB_COMMAND_GROUP
+                    options: [
+                        {
+                            name: 'perdonar',
+                            description: 'Perdonar la deuda de un usuario',
+                            type: 1,
+                            options: [
+                                { name: 'usuario', description: 'Usuario de Discord', type: 6, required: true }
+                            ]
+                        },
+                        {
+                            name: 'congelar',
+                            description: 'Congelar una tarjeta (No podrá usarse)',
+                            type: 1,
+                            options: [
+                                { name: 'usuario', description: 'Usuario de Discord', type: 6, required: true }
+                            ]
+                        },
+                        {
+                            name: 'descongelar',
+                            description: 'Reactivar una tarjeta congelada',
+                            type: 1,
+                            options: [
+                                { name: 'usuario', description: 'Usuario de Discord', type: 6, required: true }
+                            ]
+                        },
+                        {
+                            name: 'info',
+                            description: 'Ver información completa de un usuario',
+                            type: 1,
+                            options: [
+                                { name: 'usuario', description: 'Usuario de Discord', type: 6, required: true }
+                            ]
+                        }
+                    ]
                 }
             ]
         }
@@ -334,6 +386,121 @@ client.on('interactionCreate', async interaction => {
             }
 
             await interaction.editReply({ embeds: [embed] });
+        }
+
+        else if (subCmd === 'pagar') {
+            await interaction.deferReply({ ephemeral: true });
+            const amount = interaction.options.getNumber('monto');
+
+            if (amount <= 0) return interaction.editReply('❌ El monto debe ser mayor a 0.');
+
+            // 1. Find User & Card
+            const { data: profile } = await supabase.from('profiles').select('id, discord_id').eq('discord_id', interaction.user.id).single();
+            if (!profile) return interaction.editReply('❌ No tienes cuenta vinculada.');
+
+            const { data: userCard } = await supabase.from('credit_cards').select('*').eq('citizen_id', profile.id).eq('status', 'ACTIVE').single();
+            if (!userCard) return interaction.editReply('❌ No tienes una tarjeta activa.');
+
+            if (amount > userCard.current_debt) {
+                return interaction.editReply(`⚠️ Solo debes **$${userCard.current_debt.toLocaleString()}**. No puedes pagar más de lo que debes.`);
+            }
+
+            // 2. Take Money from UnbelievaBoat
+            const ubResult = await billingService.ubService.removeMoney(GUILD_ID, interaction.user.id, amount, `Pago Tarjeta ${userCard.card_type}`);
+
+            if (!ubResult.success) {
+                return interaction.editReply(`❌ No se pudo procesar el pago. Posiblemente no tienes fondos suficientes en efectivo.\nError: ${ubResult.error}`);
+            }
+
+            // 3. Update DB
+            const newDebt = userCard.current_debt - amount;
+            const { error: dbError } = await supabase
+                .from('credit_cards')
+                .update({ current_debt: newDebt, last_payment_date: new Date().toISOString() })
+                .eq('id', userCard.id);
+
+            if (dbError) {
+                console.error(dbError);
+                return interaction.editReply('❌ Pago recibido en efectivo, pero error al actualizar BD. Contacta a Staff.');
+            }
+
+            // 4. Log
+            await supabase.from('transaction_logs').insert([{
+                card_id: userCard.id,
+                discord_user_id: interaction.user.id,
+                amount: amount,
+                type: 'PAYMENT',
+                status: 'SUCCESS',
+                metadata: ubResult
+            }]);
+
+            // 5. Reply
+            const embed = new EmbedBuilder()
+                .setTitle('✅ Pago Exitoso')
+                .setColor(0x00FF00)
+                .setDescription(`Has abonado **$${amount.toLocaleString()}** a tu tarjeta.`)
+                .addFields(
+                    { name: 'Deuda Restante', value: `$${newDebt.toLocaleString()}`, inline: true },
+                    { name: 'Crédito Disponible', value: `$${(userCard.credit_limit - newDebt).toLocaleString()}`, inline: true }
+                )
+                .setFooter({ text: 'Sistema Financiero Nacion MX' });
+
+            await interaction.editReply({ embeds: [embed] });
+        }
+
+        else if (interaction.options.getSubcommandGroup() === 'admin') {
+            // Permission Check
+            if (!interaction.member.permissions.has('Administrator')) {
+                return interaction.reply({ content: '⛔ Solo administradores pueden usar esto.', ephemeral: true });
+            }
+
+            const subCmdAdmin = interaction.options.getSubcommand();
+            const targetUser = interaction.options.getUser('usuario');
+            await interaction.deferReply({ ephemeral: true });
+
+            // Resolve Profile
+            const { data: profile } = await supabase.from('profiles').select('id, full_name').eq('discord_id', targetUser.id).single();
+            if (!profile) return interaction.editReply('❌ Este usuario no tiene perfil vinculado.');
+
+            const { data: userCard } = await supabase.from('credit_cards').select('*').eq('citizen_id', profile.id).single();
+            if (!userCard) return interaction.editReply('❌ Este usuario no tiene tarjeta.');
+
+            if (subCmdAdmin === 'info') {
+                const embed = new EmbedBuilder()
+                    .setTitle(`📂 Info Bancaria: ${profile.full_name}`)
+                    .setColor(0x0000FF)
+                    .addFields(
+                        { name: 'Tarjeta', value: userCard.card_type, inline: true },
+                        { name: 'Estado', value: userCard.status, inline: true },
+                        { name: 'Deuda', value: `$${userCard.current_debt.toLocaleString()}`, inline: true },
+                        { name: 'Límite', value: `$${userCard.credit_limit.toLocaleString()}`, inline: true },
+                        { name: 'Discord ID', value: targetUser.id, inline: true }
+                    );
+                await interaction.editReply({ embeds: [embed] });
+            }
+
+            else if (subCmdAdmin === 'perdonar') {
+                await supabase.from('credit_cards').update({ current_debt: 0 }).eq('id', userCard.id);
+                await supabase.from('transaction_logs').insert([{
+                    card_id: userCard.id,
+                    discord_user_id: targetUser.id,
+                    amount: userCard.current_debt,
+                    type: 'ADJUSTMENT',
+                    status: 'SUCCESS',
+                    metadata: { type: 'FORGIVE', by: interaction.user.tag }
+                }]);
+                await interaction.editReply(`✅ Deuda perdonada para **${profile.full_name}**. Deuda actual: $0.`);
+            }
+
+            else if (subCmdAdmin === 'congelar') {
+                await supabase.from('credit_cards').update({ status: 'FROZEN' }).eq('id', userCard.id);
+                await interaction.editReply(`❄️ Tarjeta de **${profile.full_name}** ha sido **CONGELADA**.`);
+            }
+
+            else if (subCmdAdmin === 'descongelar') {
+                await supabase.from('credit_cards').update({ status: 'ACTIVE' }).eq('id', userCard.id);
+                await interaction.editReply(`🔥 Tarjeta de **${profile.full_name}** ha sido **DESCONGELADA** y está Activa.`);
+            }
         }
     }
 
