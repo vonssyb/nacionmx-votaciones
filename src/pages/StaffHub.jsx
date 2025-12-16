@@ -102,16 +102,16 @@ const StaffHub = () => {
                 </button>
             </div>
 
-            </div>
+
 
             <div className="staff-tabs">
-                <button 
+                <button
                     className={`tab-btn ${activeTab === 'list' ? 'active' : ''}`}
                     onClick={() => setActiveTab('list')}
                 >
                     👥 Directorio
                 </button>
-                <button 
+                <button
                     className={`tab-btn ${activeTab === 'cancellations' ? 'active' : ''}`}
                     onClick={() => setActiveTab('cancellations')}
                 >
@@ -120,68 +120,68 @@ const StaffHub = () => {
             </div>
 
             {
-        activeTab === 'list' ? (
-            <>
-                <div className="stats-grid">
-                    <div className="stat-card">
-                        <div className="stat-icon" style={{ background: 'rgba(52, 152, 219, 0.2)', color: '#3498db' }}>
-                            <Shield size={24} />
+                activeTab === 'list' ? (
+                    <>
+                        <div className="stats-grid">
+                            <div className="stat-card">
+                                <div className="stat-icon" style={{ background: 'rgba(52, 152, 219, 0.2)', color: '#3498db' }}>
+                                    <Shield size={24} />
+                                </div>
+                                <div className="stat-info">
+                                    <h3>Total Staff</h3>
+                                    <p>{stats.totalStaff}</p>
+                                </div>
+                            </div>
+                            <div className="stat-card">
+                                <div className="stat-icon" style={{ background: 'rgba(46, 204, 113, 0.2)', color: '#2ecc71' }}>
+                                    <Clock size={24} />
+                                </div>
+                                <div className="stat-info">
+                                    <h3>Activos Ahora</h3>
+                                    <p>{stats.activeNow}</p>
+                                </div>
+                            </div>
+                            <div className="stat-card">
+                                <div className="stat-icon" style={{ background: 'rgba(241, 196, 15, 0.2)', color: '#f1c40f' }}>
+                                    <Award size={24} />
+                                </div>
+                                <div className="stat-info">
+                                    <h3>Horas Totales</h3>
+                                    <p>{stats.totalHours} hrs</p>
+                                </div>
+                            </div>
                         </div>
-                        <div className="stat-info">
-                            <h3>Total Staff</h3>
-                            <p>{stats.totalStaff}</p>
-                        </div>
-                    </div>
-                    <div className="stat-card">
-                        <div className="stat-icon" style={{ background: 'rgba(46, 204, 113, 0.2)', color: '#2ecc71' }}>
-                            <Clock size={24} />
-                        </div>
-                        <div className="stat-info">
-                            <h3>Activos Ahora</h3>
-                            <p>{stats.activeNow}</p>
-                        </div>
-                    </div>
-                    <div className="stat-card">
-                        <div className="stat-icon" style={{ background: 'rgba(241, 196, 15, 0.2)', color: '#f1c40f' }}>
-                            <Award size={24} />
-                        </div>
-                        <div className="stat-info">
-                            <h3>Horas Totales</h3>
-                            <p>{stats.totalHours} hrs</p>
-                        </div>
-                    </div>
-                </div>
 
-                <div className="search-bar">
-                    <Search size={18} color="var(--text-muted)" />
-                    <input
-                        type="text"
-                        placeholder="Buscar por nombre o rol..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                    />
-                </div>
+                        <div className="search-bar">
+                            <Search size={18} color="var(--text-muted)" />
+                            <input
+                                type="text"
+                                placeholder="Buscar por nombre o rol..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                            />
+                        </div>
 
-                {loading ? (
-                    <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>Cargando datos...</div>
+                        {loading ? (
+                            <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>Cargando datos...</div>
+                        ) : (
+                            <div className="staff-sections">
+                                <StaffSection title="👑 Dueños / Co-Owners" roles={['owner', 'co_owner']} staff={filteredStaff} />
+                                <StaffSection title="🏛️ Junta Directiva" roles={['board']} staff={filteredStaff} />
+                                <StaffSection title="🛡️ Administradores" roles={['admin']} staff={filteredStaff} />
+                                <StaffSection title="👮 Staff Oficial" roles={['moderator', 'staff']} staff={filteredStaff} />
+                                <StaffSection title="🎓 Staff en Entrenamiento" roles={['training', 'developer']} staff={filteredStaff} />
+                            </div>
+                        )}
+                    </>
                 ) : (
-                    <div className="staff-sections">
-                        <StaffSection title="👑 Dueños / Co-Owners" roles={['owner', 'co_owner']} staff={filteredStaff} />
-                        <StaffSection title="🏛️ Junta Directiva" roles={['board']} staff={filteredStaff} />
-                        <StaffSection title="🛡️ Administradores" roles={['admin']} staff={filteredStaff} />
-                        <StaffSection title="👮 Staff Oficial" roles={['moderator', 'staff']} staff={filteredStaff} />
-                        <StaffSection title="🎓 Staff en Entrenamiento" roles={['training', 'developer']} staff={filteredStaff} />
-                    </div>
-                )}
-            </>
-        ) : (
-            <CancellationForm />
-        )
-    }
+                    <CancellationForm />
+                )
+            }
 
 
 
-    <style>{`
+            <style>{`
                 .page-header {
                     display: flex;
                     justify-content: space-between;
