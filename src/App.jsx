@@ -1,6 +1,7 @@
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
+import AuthCallback from './components/auth/AuthCallback';
 
 function App() {
   return (
@@ -8,8 +9,9 @@ function App() {
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/dashboard/*" element={<Dashboard />} />
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        {/* Handle Root and Wildcard with AuthCallback to catch OAuth tokens */}
+        <Route path="/" element={<AuthCallback />} />
+        <Route path="*" element={<AuthCallback />} />
       </Routes>
     </HashRouter>
   );
