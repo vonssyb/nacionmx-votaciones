@@ -97,7 +97,15 @@ client.once('ready', async () => {
                 {
                     name: 'estado',
                     description: 'Ver tu deuda y estado actual',
-                    type: 1 // SUB_COMMAND
+                    type: 1, // SUB_COMMAND
+                    options: [
+                        {
+                            name: 'privado',
+                            description: 'Ocultar respuesta (Visible solo para ti)',
+                            type: 5, // BOOLEAN
+                            required: false
+                        }
+                    ]
                 },
                 {
                     name: 'pedir-prestamo',
@@ -109,6 +117,12 @@ client.once('ready', async () => {
                             description: 'Cantidad a retirar',
                             type: 10, // NUMBER
                             required: true
+                        },
+                        {
+                            name: 'privado',
+                            description: 'Ocultar respuesta (Visible solo para ti)',
+                            type: 5, // BOOLEAN
+                            required: false
                         }
                     ]
                 },
@@ -122,6 +136,12 @@ client.once('ready', async () => {
                             description: 'Cantidad a pagar',
                             type: 10, // NUMBER
                             required: true
+                        },
+                        {
+                            name: 'privado',
+                            description: 'Ocultar respuesta (Visible solo para ti)',
+                            type: 5, // BOOLEAN
+                            required: false
                         }
                     ]
                 },
@@ -317,9 +337,10 @@ client.on('interactionCreate', async interaction => {
 
     else if (commandName === 'credito') {
         const subCmd = interaction.options.getSubcommand();
+        const isPrivate = interaction.options.getBoolean('privado') ?? false;
 
         if (subCmd === 'estado') {
-            await interaction.deferReply({ ephemeral: true });
+            await interaction.deferReply({ ephemeral: isPrivate });
 
             // FIX: Query 'citizens' table instead of 'profiles' because credit_cards are linked to citizens.
             const { data: citizen } = await supabase.from('citizens').select('id').eq('discord_id', interaction.user.id).order('created_at', { ascending: false }).limit(1).maybeSingle();
@@ -348,7 +369,7 @@ client.on('interactionCreate', async interaction => {
         }
 
         else if (subCmd === 'pedir-prestamo') {
-            await interaction.deferReply({ ephemeral: true });
+            await interaction.deferReply({ ephemeral: isPrivate });
 
             // Robust amount handling
             const amount = interaction.options.getNumber('monto') || interaction.options.getInteger('monto');
@@ -423,38 +444,52 @@ client.on('interactionCreate', async interaction => {
             } catch (err) {
                 console.error('[Loan Debug] Critical Error:', err);
                 await interaction.editReply(`❌ Error procesando solicitud: ${err.message}`);
+                await interaction.editReply({ content: `❌ Error procesando solicitud: ${err.message}`, ephemeral: isPrivate });
             }
         }
 
         else if (subCmd === 'pagar') {
-            await interaction.deferReply({ ephemeral: true });
+            await interaction.deferReply({ ephemeral: isPrivate });
 
             // Robust amount handling
             const amount = interaction.options.getNumber('monto') || interaction.options.getInteger('monto');
-            if (!amount || amount <= 0) return interaction.editReply('❌ El monto debe ser mayor a 0.');
+            if (!amount || amount <= 0) return interaction.editReply({ content: '❌ El monto debe ser mayor a 0.', ephemeral: isPrivate });
 
             try {
                 // 1. Find User (Citizen) & Card
                 // Note: removed profile join to avoid crashes
                 const { data: citizen } = await supabase.from('citizens').select('id, discord_id').eq('discord_id', interaction.user.id).order('created_at', { ascending: false }).limit(1).maybeSingle();
-                if (!citizen) return interaction.editReply('❌ No tienes cuenta vinculada (Citizen).');
+                if (!citizen) return interaction.editReply({ content: '❌ No tienes cuenta vinculada (Citizen).', ephemeral: isPrivate });
 
                 const { data: userCard } = await supabase.from('credit_cards').select('*').eq('citizen_id', citizen.id).order('created_at', { ascending: false }).limit(1).maybeSingle();
-                if (!userCard) return interaction.editReply('❌ No tienes una tarjeta activa.');
+                if (!userCard) return interaction.editReply({ content: '❌ No tienes una tarjeta activa.', ephemeral: isPrivate });
 
                 if (amount > userCard.current_balance) {
-                    return interaction.editReply(`⚠️ Solo debes **$${userCard.current_balance.toLocaleString()}**. No puedes pagar más de lo que debes.`);
+                    return interaction.editReply({ content: `⚠️ Solo debes **$${userCard.current_balance.toLocaleString()}**. No puedes pagar más de lo que debes.`, ephemeral: isPrivate });
                 }
 
-                // 2. Take Money from UnbelievaBoat
+                // 2. CHECK FUNDS FIRST (User Request)
                 try {
+                    const balance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
+                    // Check cash + bank (or just cash? usually cash is for hand payments, bank for transfers. Let's assume Total or Cash.
+                    // Discord economy bots usually prioritize Cash or Bank. Let's check Total to be safe, or check documentation/preference.
+                    // User screenshot shows Cash: 10k, Bank: 0, Total: 10k.
+                    // Let's check Total Liquid Assets.
+                    const userMoney = balance.total || (balance.cash + balance.bank);
+
+                    if (userMoney < amount) {
+                        return interaction.editReply({ content: `❌ **Fondos Insuficientes**. \nTienes: $${userMoney.toLocaleString()} \nIntentas pagar: $${amount.toLocaleString()}`, ephemeral: isPrivate });
+                    }
+
+                    // 3. Take Money from UnbelievaBoat
                     await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, amount, `Pago Tarjeta ${userCard.card_type}`);
+
                 } catch (ubError) {
                     console.error("UB Payment Error:", ubError);
-                    return interaction.editReply(`❌ No se pudo procesar el pago. Posiblemente no tienes fondos suficientes en efectivo.\nError: ${ubError.message}`);
+                    return interaction.editReply({ content: `❌ Error verificando fondos o procesando cobro: ${ubError.message}`, ephemeral: isPrivate });
                 }
 
-                // 3. Update DB
+                // 4. Update DB
                 const newDebt = userCard.current_balance - amount;
                 const { error: dbError } = await supabase
                     .from('credit_cards')
@@ -463,14 +498,14 @@ client.on('interactionCreate', async interaction => {
 
                 if (dbError) {
                     console.error(dbError);
-                    return interaction.editReply('❌ Pago recibido en efectivo, pero error al actualizar BD. Contacta a Staff.');
+                    return interaction.editReply({ content: '❌ Pago recibido en efectivo, pero error al actualizar BD. Contacta a Staff.', ephemeral: isPrivate });
                 }
 
-                await interaction.editReply(`✅ **Pago Exitoso**. \nHas pagado **$${amount.toLocaleString()}**.\nTu deuda restante es: **$${newDebt.toLocaleString()}**.`);
+                await interaction.editReply({ content: `✅ **Pago Exitoso**. \nHas pagado **$${amount.toLocaleString()}**.\nTu deuda restante es: **$${newDebt.toLocaleString()}**.`, ephemeral: isPrivate });
 
             } catch (err) {
                 console.error("Payment Critical Error:", err);
-                await interaction.editReply(`❌ Error procesando el pago: ${err.message}`);
+                await interaction.editReply({ content: `❌ Error procesando el pago: ${err.message}`, ephemeral: isPrivate });
             }
         }
 
