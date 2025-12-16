@@ -47,55 +47,64 @@ client.once('ready', async () => {
 
     const rest = new REST({ version: '10' }).setToken(DISCORD_TOKEN);
 
-    if (GUILD_ID) {
-        try {
-            console.log('Regisrando comandos Slash (/) ...');
-            const commands = [
+    const commands = [
+        {
+            name: 'ping',
+            description: 'Comprueba si el bot está vivo',
+        },
+        {
+            name: 'fichar',
+            description: 'Inicia o Termina tu turno (Entrada/Salida)',
+            options: [
                 {
-                    name: 'ping',
-                    description: 'Comprueba si el bot está vivo',
-                },
-                {
-                    name: 'fichar',
-                    description: 'Inicia o Termina tu turno (Entrada/Salida)',
-                    options: [
-                        {
-                            name: 'accion',
-                            description: 'Entrar o Salir',
-                            type: 3, // STRING
-                            required: true,
-                            choices: [
-                                { name: 'Entrar a Turno', value: 'in' },
-                                { name: 'Salir de Turno', value: 'out' }
-                            ]
-                        }
-                    ]
-                },
-                {
-                    name: 'registrar-tarjeta',
-                    description: 'Enlace para solicitar tarjeta',
-                },
-                {
-                    name: 'credito',
-                    description: 'Gestión de tu tarjeta de crédito NMX',
-                    options: [
-                        {
-                            name: 'estado',
-                            description: 'Ver tu deuda y estado actual',
-                            type: 1 // SUB_COMMAND
-                        }
+                    name: 'accion',
+                    description: 'Entrar o Salir',
+                    type: 3, // STRING
+                    required: true,
+                    choices: [
+                        { name: 'Entrar a Turno', value: 'in' },
+                        { name: 'Salir de Turno', value: 'out' }
                     ]
                 }
-            ];
+            ]
+        },
+        {
+            name: 'registrar-tarjeta',
+            description: 'Enlace para solicitar tarjeta',
+        },
+        {
+            name: 'credito',
+            description: 'Gestión de tu tarjeta de crédito NMX',
+            options: [
+                {
+                    name: 'estado',
+                    description: 'Ver tu deuda y estado actual',
+                    type: 1 // SUB_COMMAND
+                }
+            ]
+        }
+    ];
 
+    try {
+        console.log('Iniciando registro de comandos...');
+
+        if (GUILD_ID) {
+            console.log(`Registrando comandos en Servidor: ${GUILD_ID}`);
             await rest.put(
                 Routes.applicationGuildCommands(client.user.id, GUILD_ID),
                 { body: commands }
             );
-            console.log('✅ Comandos registrados correctamente.');
-        } catch (error) {
-            console.error('❌ Error registrando comandos:', error);
+            console.log('✅ Comandos (Guild) registrados correctamente.');
+        } else {
+            console.log('⚠️ GUILD_ID no encontrado. Registrando comandos GLOBALMENTE (tardará ~1 hora en aparecer).');
+            await rest.put(
+                Routes.applicationCommands(client.user.id),
+                { body: commands }
+            );
+            console.log('✅ Comandos (Globales) registrados correctamente.');
         }
+    } catch (error) {
+        console.error('❌ Error registrando comandos:', error);
     }
 
     // Start listening to Supabase changes
