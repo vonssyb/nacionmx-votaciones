@@ -11,6 +11,14 @@ const client = new Client({
     ]
 });
 
+// -- EXPRESS SERVER FOR RENDER (Keeps the bot alive) --
+const express = require('express');
+const app = express();
+const port = process.env.PORT || 3000;
+app.get('/', (req, res) => res.send('🤖 Nacion MX Bot is running!'));
+app.listen(port, () => console.log(`🌐 Web server listening on port ${port}`));
+// -----------------------------------------------------
+
 // 2. Initialize Supabase Client
 // NOTE: These should be Service Role keys if you want the bot to bypass RLS, 
 // or standard keys if RLS allows anon access. For a bot, Service Role is usually best 
