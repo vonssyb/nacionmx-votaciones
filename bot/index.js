@@ -160,13 +160,13 @@ client.once('ready', async () => {
                             options: [
                                 { name: 'usuario', description: 'Usuario de Discord', type: 6, required: true }
                             ]
-                        },
-                        {
-                            name: 'debug',
-                            description: 'Diagnóstico de cuenta (Usar si fallan comandos)',
-                            type: 1
                         }
                     ]
+                },
+                {
+                    name: 'debug',
+                    description: 'Diagnóstico de cuenta (Usar si fallan comandos)',
+                    type: 1
                 }
             ]
         }
