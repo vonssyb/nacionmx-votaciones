@@ -109,7 +109,13 @@ client.once('ready', async () => {
                         { name: 'NMX Oro ($15k)', value: 'NMX Oro' },
                         { name: 'NMX Rubí ($25k)', value: 'NMX Rubí' },
                         { name: 'NMX Black ($40k)', value: 'NMX Black' },
-                        { name: 'NMX Diamante ($60k)', value: 'NMX Diamante' }
+                        { name: 'NMX Diamante ($60k)', value: 'NMX Diamante' },
+                        { name: '--- EMPRESARIAL ---', value: 'separator1' },
+                        { name: 'NMX Business Start ($50k)', value: 'NMX Business Start' },
+                        { name: 'NMX Business Gold ($100k)', value: 'NMX Business Gold' },
+                        { name: 'NMX Business Platinum ($200k)', value: 'NMX Business Platinum' },
+                        { name: 'NMX Business Elite ($500k)', value: 'NMX Business Elite' },
+                        { name: 'NMX Corporate ($1M)', value: 'NMX Corporate' }
                     ]
                 },
                 { name: 'foto_dni', description: 'Foto del DNI/Identificación', type: 11, required: true },
