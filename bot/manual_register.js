@@ -313,9 +313,9 @@ const commands = [
                     { name: 'nombre', description: 'Nombre de la Empresa', type: 3, required: true },
                     { name: 'tipo_local', description: 'Rubro/Tipo', type: 3, required: true },
                     { name: 'logo', description: 'Logo (Imagen)', type: 11, required: true },
+                    { name: 'costo_tramite', description: 'Costo administrativo del registro', type: 10, required: true },
                     { name: 'co_dueño', description: 'Segundo dueño (Opcional)', type: 6, required: false },
                     { name: 'es_privada', description: '¿Es empresa privada? (+Impuestos)', type: 5, required: false },
-                    { name: 'costo_tramite', description: 'Costo administrativo del registro', type: 10, required: true },
                     { name: 'costo_local', description: 'Valor del inmueble (si aplica)', type: 10, required: false },
                     { name: 'costo_vehiculos', description: 'Valor de la flota (si aplica)', type: 10, required: false },
                     { name: 'vehiculos', description: 'Cantidad de vehiculos iniciales', type: 10, required: false },
@@ -325,6 +325,16 @@ const commands = [
             {
                 name: 'menu',
                 description: 'Abrir menu de gestion (Dueños)',
+                type: 1
+            },
+            {
+                name: 'lista',
+                description: 'Ver directorio de empresas',
+                type: 1
+            },
+            {
+                name: 'info',
+                description: 'Ver información de mi empresa',
                 type: 1
             },
             {
