@@ -494,7 +494,7 @@ client.on('interactionCreate', async interaction => {
                         credit_limit: stats.limit,
                         current_balance: 0,
                         interest_rate: stats.interest,
-                        status: 'ACTIVE',
+                        status: 'active',
                         next_payment_due: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
                     }]);
 
