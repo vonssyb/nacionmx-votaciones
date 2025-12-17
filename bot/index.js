@@ -56,241 +56,230 @@ client.once('ready', async () => {
         {
             name: 'fichar',
             description: 'Inicia o Termina tu turno (Entrada/Salida)',
+                {
+            name: 'vincular',
+            description: 'Vincular tu cuenta de Discord a un Ciudadano',
+            type: 1, // SUB_COMMAND
             options: [
-                {
-                    name: 'entrar',
-                    description: 'Entrar a Turno (Clock In)',
-                    type: 1 // SUB_COMMAND
-                },
-                {
-                    name: 'salir',
-                    description: 'Salir de Turno (Clock Out)',
-                    type: 1 // SUB_COMMAND
-                },
-                {
-                    name: 'vincular',
-                    description: 'Vincular tu cuenta de Discord a un Ciudadano',
-                    type: 1, // SUB_COMMAND
-                    options: [
-                        { name: 'nombre', description: 'Tu Nombre y Apellido RP (Ej: Juan Perez)', type: 3, required: true }
-                    ]
-                }
-            ]
-        },
-        {
-            name: 'estado',
-            description: 'Cambia el estado del servidor (CMD Staff)',
-            options: [
-                {
-                    name: 'seleccion',
-                    description: 'Nuevo estado del servidor',
-                    type: 3,
-                    required: true,
-                    choices: [
-                        { name: '🟢 Abierto', value: 'open' },
-                        { name: '🟠 Mantenimiento', value: 'maintenance' },
-                        { name: '🔴 Cerrado', value: 'closed' }
-                    ]
-                }
-            ]
-        },
-        {
-            name: 'registrar-tarjeta',
-            description: 'Registrar nueva tarjeta (Staff Banco)',
-            options: [
-                { name: 'usuario', description: 'Usuario de Discord', type: 6, required: true },
-                { name: 'nombre_titular', description: 'Nombre completo del titular (RP)', type: 3, required: true },
-                {
-                    name: 'tipo',
-                    description: 'Nivel de la tarjeta',
-                    type: 3,
-                    required: true,
-                    choices: [
-                        { name: 'NMX Start ($2k)', value: 'NMX Start' },
-                        { name: 'NMX Básica ($4k)', value: 'NMX Básica' },
-                        { name: 'NMX Plus ($6k)', value: 'NMX Plus' },
-                        { name: 'NMX Plata ($10k)', value: 'NMX Plata' },
-                        { name: 'NMX Oro ($15k)', value: 'NMX Oro' },
-                        { name: 'NMX Rubí ($25k)', value: 'NMX Rubí' },
-                        { name: 'NMX Black ($40k)', value: 'NMX Black' },
-                        { name: 'NMX Diamante ($60k)', value: 'NMX Diamante' }
-                    ]
-                },
-                { name: 'foto_dni', description: 'Foto del DNI/Identificación', type: 11, required: true },
-                { name: 'notas', description: 'Notas opcionales', type: 3, required: false }
-            ]
-        },
-        {
-            name: 'credito',
-            description: 'Gestión de tu tarjeta de crédito NMX',
-            options: [
-                {
-                    name: 'estado',
-                    description: 'Ver tu deuda y estado actual',
-                    type: 1, // SUB_COMMAND
-                    options: [
-                        {
-                            name: 'privado',
-                            description: 'Ocultar respuesta (Visible solo para ti)',
-                            type: 5, // BOOLEAN
-                            required: false
-                        }
-                    ]
-                },
-                {
-                    name: 'pedir-prestamo',
-                    description: 'Retira efectivo de tu tarjeta (Se suma a tu deuda)',
-                    type: 1, // SUB_COMMAND
-                    options: [
-                        {
-                            name: 'monto',
-                            description: 'Cantidad a retirar',
-                            type: 10, // NUMBER
-                            required: true
-                        },
-                        {
-                            name: 'privado',
-                            description: 'Ocultar respuesta (Visible solo para ti)',
-                            type: 5, // BOOLEAN
-                            required: false
-                        }
-                    ]
-                },
-                {
-                    name: 'pagar',
-                    description: 'Abona dinero a tu tarjeta de crédito',
-                    type: 1, // SUB_COMMAND
-                    options: [
-                        {
-                            name: 'monto',
-                            description: 'Cantidad a pagar',
-                            type: 10, // NUMBER
-                            required: true
-                        },
-                        {
-                            name: 'privado',
-                            description: 'Ocultar respuesta (Visible solo para ti)',
-                            type: 5, // BOOLEAN
-                            required: false
-                        }
-                    ]
-                },
-                {
-                    name: 'buro',
-                    description: 'Ver tu Score de Buró Financiero',
-                    type: 1
-                },
-                {
-                    name: 'admin',
-                    description: 'Herramientas Administrativas (Staff)',
-                    type: 2, // SUB_COMMAND_GROUP
-                    options: [
-                        {
-                            name: 'puntos',
-                            description: 'Modificar Score de Buró (Staff)',
-                            type: 1,
-                            options: [
-                                { name: 'usuario', description: 'Usuario afectado', type: 6, required: true },
-                                { name: 'cantidad', description: 'Puntos a sumar (o restar con -)', type: 4, required: true },
-                                { name: 'razon', description: 'Motivo del ajuste', type: 3, required: true }
-                            ]
-                        },
-                        {
-                            name: 'perdonar',
-                            description: 'Perdonar la deuda de un usuario',
-                            type: 1,
-                            options: [
-                                { name: 'usuario', description: 'Usuario de Discord', type: 6, required: true }
-                            ]
-                        },
-                        {
-                            name: 'congelar',
-                            description: 'Congelar una tarjeta (No podrá usarse)',
-                            type: 1,
-                            options: [
-                                { name: 'usuario', description: 'Usuario de Discord', type: 6, required: true }
-                            ]
-                        },
-                        {
-                            name: 'descongelar',
-                            description: 'Reactivar una tarjeta congelada',
-                            type: 1,
-                            options: [
-                                { name: 'usuario', description: 'Usuario de Discord', type: 6, required: true }
-                            ]
-                        },
-                        {
-                            name: 'info',
-                            description: 'Ver información completa de un usuario',
-                            type: 1,
-                            options: [
-                                { name: 'usuario', description: 'Usuario de Discord', type: 6, required: true }
-                            ]
-                        }
-                    ]
-                },
-                {
-                    name: 'debug',
-                    description: 'Diagnóstico de cuenta (Usar si fallan comandos)',
-                    type: 1
-                }
-            ]
-        },
-        {
-            name: 'rol',
-            description: 'Gestión de Roles y Sanciones',
-            options: [
-                {
-                    name: 'cancelar',
-                    description: 'Reportar cancelación de rol de un usuario',
-                    type: 1,
-                    options: [
-                        { name: 'usuario', description: 'Usuario sancionado (Nombre/ID)', type: 3, required: true },
-                        { name: 'razon', description: 'Motivo de la cancelación', type: 3, required: true },
-                        { name: 'ubicacion', description: 'Lugar de los hechos/arresto', type: 3, required: true },
-                        { name: 'prueba1', description: 'Evidencia principal (Imagen)', type: 11, required: true },
-                        { name: 'prueba2', description: 'Evidencia secundaria (Imagen)', type: 11 }
-                    ]
-                }
-            ]
-        },
-
-        {
-            name: 'multa',
-            description: 'Imponer una multa a un ciudadano (Policía)',
-            options: [
-                { name: 'usuario', description: 'Ciudadano a multar', type: 6, required: true },
-                { name: 'monto', description: 'Monto de la multa', type: 10, required: true },
-                { name: 'razon', description: 'Motivo de la infracción', type: 3, required: true }
+                { name: 'nombre', description: 'Tu Nombre y Apellido RP (Ej: Juan Perez)', type: 3, required: true }
             ]
         }
+    ]
+},
+    {
+        name: 'estado',
+        description: 'Cambia el estado del servidor (CMD Staff)',
+        options: [
+            {
+                name: 'seleccion',
+                description: 'Nuevo estado del servidor',
+                type: 3,
+                required: true,
+                choices: [
+                    { name: '🟢 Abierto', value: 'open' },
+                    { name: '🟠 Mantenimiento', value: 'maintenance' },
+                    { name: '🔴 Cerrado', value: 'closed' }
+                ]
+            }
+        ]
+    },
+    {
+        name: 'registrar-tarjeta',
+        description: 'Registrar nueva tarjeta (Staff Banco)',
+        options: [
+            { name: 'usuario', description: 'Usuario de Discord', type: 6, required: true },
+            { name: 'nombre_titular', description: 'Nombre completo del titular (RP)', type: 3, required: true },
+            {
+                name: 'tipo',
+                description: 'Nivel de la tarjeta',
+                type: 3,
+                required: true,
+                choices: [
+                    { name: 'NMX Start ($2k)', value: 'NMX Start' },
+                    { name: 'NMX Básica ($4k)', value: 'NMX Básica' },
+                    { name: 'NMX Plus ($6k)', value: 'NMX Plus' },
+                    { name: 'NMX Plata ($10k)', value: 'NMX Plata' },
+                    { name: 'NMX Oro ($15k)', value: 'NMX Oro' },
+                    { name: 'NMX Rubí ($25k)', value: 'NMX Rubí' },
+                    { name: 'NMX Black ($40k)', value: 'NMX Black' },
+                    { name: 'NMX Diamante ($60k)', value: 'NMX Diamante' }
+                ]
+            },
+            { name: 'foto_dni', description: 'Foto del DNI/Identificación', type: 11, required: true },
+            { name: 'notas', description: 'Notas opcionales', type: 3, required: false }
+        ]
+    },
+    {
+        name: 'credito',
+        description: 'Gestión de tu tarjeta de crédito NMX',
+        options: [
+            {
+                name: 'estado',
+                description: 'Ver tu deuda y estado actual',
+                type: 1, // SUB_COMMAND
+                options: [
+                    {
+                        name: 'privado',
+                        description: 'Ocultar respuesta (Visible solo para ti)',
+                        type: 5, // BOOLEAN
+                        required: false
+                    }
+                ]
+            },
+            {
+                name: 'pedir-prestamo',
+                description: 'Retira efectivo de tu tarjeta (Se suma a tu deuda)',
+                type: 1, // SUB_COMMAND
+                options: [
+                    {
+                        name: 'monto',
+                        description: 'Cantidad a retirar',
+                        type: 10, // NUMBER
+                        required: true
+                    },
+                    {
+                        name: 'privado',
+                        description: 'Ocultar respuesta (Visible solo para ti)',
+                        type: 5, // BOOLEAN
+                        required: false
+                    }
+                ]
+            },
+            {
+                name: 'pagar',
+                description: 'Abona dinero a tu tarjeta de crédito',
+                type: 1, // SUB_COMMAND
+                options: [
+                    {
+                        name: 'monto',
+                        description: 'Cantidad a pagar',
+                        type: 10, // NUMBER
+                        required: true
+                    },
+                    {
+                        name: 'privado',
+                        description: 'Ocultar respuesta (Visible solo para ti)',
+                        type: 5, // BOOLEAN
+                        required: false
+                    }
+                ]
+            },
+            {
+                name: 'buro',
+                description: 'Ver tu Score de Buró Financiero',
+                type: 1
+            },
+            {
+                name: 'admin',
+                description: 'Herramientas Administrativas (Staff)',
+                type: 2, // SUB_COMMAND_GROUP
+                options: [
+                    {
+                        name: 'puntos',
+                        description: 'Modificar Score de Buró (Staff)',
+                        type: 1,
+                        options: [
+                            { name: 'usuario', description: 'Usuario afectado', type: 6, required: true },
+                            { name: 'cantidad', description: 'Puntos a sumar (o restar con -)', type: 4, required: true },
+                            { name: 'razon', description: 'Motivo del ajuste', type: 3, required: true }
+                        ]
+                    },
+                    {
+                        name: 'perdonar',
+                        description: 'Perdonar la deuda de un usuario',
+                        type: 1,
+                        options: [
+                            { name: 'usuario', description: 'Usuario de Discord', type: 6, required: true }
+                        ]
+                    },
+                    {
+                        name: 'congelar',
+                        description: 'Congelar una tarjeta (No podrá usarse)',
+                        type: 1,
+                        options: [
+                            { name: 'usuario', description: 'Usuario de Discord', type: 6, required: true }
+                        ]
+                    },
+                    {
+                        name: 'descongelar',
+                        description: 'Reactivar una tarjeta congelada',
+                        type: 1,
+                        options: [
+                            { name: 'usuario', description: 'Usuario de Discord', type: 6, required: true }
+                        ]
+                    },
+                    {
+                        name: 'info',
+                        description: 'Ver información completa de un usuario',
+                        type: 1,
+                        options: [
+                            { name: 'usuario', description: 'Usuario de Discord', type: 6, required: true }
+                        ]
+                    }
+                ]
+            },
+            {
+                name: 'debug',
+                description: 'Diagnóstico de cuenta (Usar si fallan comandos)',
+                type: 1
+            }
+        ]
+    },
+    {
+        name: 'rol',
+        description: 'Gestión de Roles y Sanciones',
+        options: [
+            {
+                name: 'cancelar',
+                description: 'Reportar cancelación de rol de un usuario',
+                type: 1,
+                options: [
+                    { name: 'usuario', description: 'Usuario sancionado (Nombre/ID)', type: 3, required: true },
+                    { name: 'razon', description: 'Motivo de la cancelación', type: 3, required: true },
+                    { name: 'ubicacion', description: 'Lugar de los hechos/arresto', type: 3, required: true },
+                    { name: 'prueba1', description: 'Evidencia principal (Imagen)', type: 11, required: true },
+                    { name: 'prueba2', description: 'Evidencia secundaria (Imagen)', type: 11 }
+                ]
+            }
+        ]
+    },
+
+    {
+        name: 'multa',
+        description: 'Imponer una multa a un ciudadano (Policía)',
+        options: [
+            { name: 'usuario', description: 'Ciudadano a multar', type: 6, required: true },
+            { name: 'monto', description: 'Monto de la multa', type: 10, required: true },
+            { name: 'razon', description: 'Motivo de la infracción', type: 3, required: true }
+        ]
+    }
     ];
 
-    try {
-        console.log('Iniciando registro de comandos...');
+try {
+    console.log('Iniciando registro de comandos...');
 
-        if (GUILD_ID) {
-            console.log(`Registrando comandos en Servidor: ${GUILD_ID}`);
-            await rest.put(
-                Routes.applicationGuildCommands(client.user.id, GUILD_ID),
-                { body: commands }
-            );
-            console.log('✅ Comandos (Guild) registrados correctamente.');
-        } else {
-            console.log('⚠️ GUILD_ID no encontrado. Registrando comandos GLOBALMENTE (tardará ~1 hora en aparecer).');
-            await rest.put(
-                Routes.applicationCommands(client.user.id),
-                { body: commands }
-            );
-            console.log('✅ Comandos (Globales) registrados correctamente.');
-        }
-    } catch (error) {
-        console.error('❌ Error registrando comandos:', error);
+    if (GUILD_ID) {
+        console.log(`Registrando comandos en Servidor: ${GUILD_ID}`);
+        await rest.put(
+            Routes.applicationGuildCommands(client.user.id, GUILD_ID),
+            { body: commands }
+        );
+        console.log('✅ Comandos (Guild) registrados correctamente.');
+    } else {
+        console.log('⚠️ GUILD_ID no encontrado. Registrando comandos GLOBALMENTE (tardará ~1 hora en aparecer).');
+        await rest.put(
+            Routes.applicationCommands(client.user.id),
+            { body: commands }
+        );
+        console.log('✅ Comandos (Globales) registrados correctamente.');
     }
+} catch (error) {
+    console.error('❌ Error registrando comandos:', error);
+}
 
-    // Start listening to Supabase changes
-    subscribeToNewCards();
-    subscribeToCancellations();
+// Start listening to Supabase changes
+subscribeToNewCards();
+subscribeToCancellations();
 });
 
 // Interaction Handler (Slash Commands)
@@ -891,8 +880,149 @@ client.on('interactionCreate', async interaction => {
         }
     }
 
+    else if (commandName === 'registrar-tarjeta') {
+        await interaction.deferReply({ ephemeral: true });
 
+        // 1. Role Check (Staff Banco: 1450591546524307689)
+        // Also allow Admin for testing
+        if (!interaction.member.roles.cache.has('1450591546524307689') && !interaction.member.permissions.has('Administrator')) {
+            return interaction.editReply('⛔ No tienes permisos para registrar tarjetas (Rol Staff Banco Requerido).');
+        }
 
+        const targetUser = interaction.options.getUser('usuario');
+        if (!targetUser) return interaction.editReply('❌ Debes especificar un usuario.');
+
+        const holderName = interaction.options.getString('nombre_titular');
+        const cardType = interaction.options.getString('tipo'); // Use 'tipo' not 'tipo_tarjeta' as defined in options
+        const dniPhoto = interaction.options.getAttachment('foto_dni');
+        const notes = interaction.options.getString('notas') || 'Sin notas';
+
+        // CARD STATS MAP
+        const cardStats = {
+            'NMX Start': { limit: 15000, interest: 15, cost: 2000 },
+            'NMX Básica': { limit: 30000, interest: 12, cost: 4000 },
+            'NMX Plus': { limit: 50000, interest: 10, cost: 6000 },
+            'NMX Plata': { limit: 100000, interest: 8, cost: 10000 },
+            'NMX Oro': { limit: 250000, interest: 7, cost: 15000 },
+            'NMX Rubí': { limit: 500000, interest: 6, cost: 25000 },
+            'NMX Black': { limit: 1000000, interest: 5, cost: 40000 },
+            'NMX Diamante': { limit: 2000000, interest: 3, cost: 60000 }
+        };
+
+        const stats = cardStats[cardType || 'NMX Start'] || cardStats['NMX Start'];
+
+        // 2. Find Citizen
+        // The user said "pide foto de dni, nombre del titular".
+        let { data: citizen } = await supabase.from('citizens').select('id, full_name').eq('discord_id', targetUser.id).limit(1).maybeSingle();
+
+        if (!citizen) {
+            // Create new Citizen record if not exists
+            const { data: newCit, error: createError } = await supabase.from('citizens').insert([{
+                discord_id: targetUser.id,
+                full_name: holderName,
+                dni: 'PENDING',
+                created_at: new Date().toISOString(),
+                credit_score: 100
+            }]).select().single();
+
+            if (createError) {
+                console.error(createError);
+                return interaction.editReply('❌ Error registrando Nuevo Ciudadano en base de datos.');
+            }
+            citizen = newCit;
+        } else {
+            // Update name matches RP name provided
+            if (citizen.full_name !== holderName) {
+                await supabase.from('citizens').update({ full_name: holderName }).eq('id', citizen.id);
+            }
+        }
+
+        // 3. Send Interactive Offer
+        const offerEmbed = new EmbedBuilder()
+            .setTitle('💳 Oferta de Tarjeta de Crédito')
+            .setColor(0xD4AF37)
+            .setDescription(`Hola <@${targetUser.id}>,\nEl Banco Nacional te ofrece una tarjeta **${cardType}**.\n\n**Titular:** ${holderName}\n\n**Detalles del Contrato:**`)
+            .addFields(
+                { name: 'Límite', value: `$${stats.limit.toLocaleString()}`, inline: true },
+                { name: 'Interés Semanal', value: `${stats.interest}%`, inline: true },
+                { name: 'Costo Apertura', value: `$${stats.cost.toLocaleString()}`, inline: true },
+                { name: 'Notas', value: notes }
+            )
+            .setThumbnail(dniPhoto.url)
+            .setFooter({ text: 'Tienes 5 minutos para aceptar. Revisa los términos antes.' });
+
+        const row = new ActionRowBuilder()
+            .addComponents(
+                new ButtonBuilder().setCustomId('btn_terms').setLabel('📄 Ver Términos').setStyle(ButtonStyle.Secondary),
+                new ButtonBuilder().setCustomId('btn_accept').setLabel('✅ Aceptar y Pagar').setStyle(ButtonStyle.Success),
+                new ButtonBuilder().setCustomId('btn_reject').setLabel('❌ Rechazar').setStyle(ButtonStyle.Danger)
+            );
+
+        // Send to channel (Public)
+        const message = await interaction.channel.send({ content: `<@${targetUser.id}>`, embeds: [offerEmbed], components: [row] });
+        await interaction.editReply(`✅ Oferta enviada a <@${targetUser.id}> para tarjeta **${cardType}**.`);
+
+        // 4. Collector
+        const filter = i => i.user.id === targetUser.id;
+        const collector = message.createMessageComponentCollector({ filter, time: 300000 }); // 5 min
+
+        collector.on('collect', async i => {
+            if (i.customId === 'btn_terms') {
+                const tycEmbed = new EmbedBuilder()
+                    .setTitle('📜 Términos y Condiciones')
+                    .setColor(0x333333)
+                    .setDescription('**1. Pagos:** Semanales obligatorios (25% mín).\n**2. Intereses:** Se aplican al corte.\n**3. Impago:** Congelamiento y Buró negativo.\n**4. Uso:** Responsabilidad del titular.');
+                await i.reply({ embeds: [tycEmbed], ephemeral: true });
+            }
+            else if (i.customId === 'btn_reject') {
+                await i.update({ content: '❌ Oferta rechazada.', components: [] });
+                collector.stop();
+            }
+            else if (i.customId === 'btn_accept') {
+                await i.deferUpdate();
+                try {
+                    // Check Funds
+                    const balance = await billingService.ubService.getUserBalance(interaction.guildId, targetUser.id);
+                    const userMoney = balance.total || (balance.cash + balance.bank);
+
+                    if (userMoney < stats.cost) {
+                        return i.followUp({ content: `❌ **Fondos Insuficientes**. Tienes: $${userMoney.toLocaleString()}. Requiere: $${stats.cost.toLocaleString()}.`, ephemeral: true });
+                    }
+
+                    // Charge
+                    await billingService.ubService.removeMoney(interaction.guildId, targetUser.id, stats.cost, `Apertura ${cardType}`);
+
+                    // Create Card
+                    const { error: insertError } = await supabase.from('credit_cards').insert([{
+                        citizen_id: citizen.id,
+                        card_type: cardType,
+                        credit_limit: stats.limit,
+                        current_balance: 0,
+                        interest_rate: stats.interest,
+                        status: 'ACTIVE',
+                        next_payment_due: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+                    }]);
+
+                    if (insertError) throw new Error(insertError.message);
+
+                    // UPDATE: Include 'Registrado por' in final success message
+                    await message.edit({
+                        content: `✅ **Tarjeta Activada** para **${holderName}**. Cobro de $${stats.cost.toLocaleString()} realizado.\n👮 **Registrado por:** <@${interaction.user.id}>`,
+                        components: []
+                    });
+
+                } catch (err) {
+                    console.error(err);
+                    await i.followUp({ content: `❌ Error procesando: ${err.message}`, ephemeral: true });
+                }
+                collector.stop();
+            }
+        });
+
+        collector.on('end', collected => {
+            if (collected.size === 0) message.edit({ content: '⚠️ Oferta expirada.', components: [] });
+        });
+    }
 
     else if (commandName === 'multa') {
         await interaction.deferReply();
@@ -983,73 +1113,9 @@ client.on('interactionCreate', async interaction => {
                 .setTitle('✅ Vinculación Exitosa')
                 .setColor(0x00FF00)
                 .setDescription(`Tu cuenta de Discord ha sido vinculada correctamente al ciudadano **${targetCitizen.full_name}**.`)
-                .setFooter({ text: 'Ahora puedes usar /fichar entrar, /banco, etc.' });
+                .setFooter({ text: 'Ahora puedes usar servicios bancarios y legales.' });
 
             return interaction.editReply({ embeds: [embed] });
-        }
-
-        // --- SUBCOMMANDS: ENTRAR / SALIR ---
-        // For shift logic, we need to know WHO they are.
-        // Try to get from Citizens first (New standard)
-        let profile = null;
-        const { data: citizen } = await supabase.from('citizens').select('id, full_name').eq('discord_id', interaction.user.id).maybeSingle();
-
-        // Fallback to Profiles if Citizen not found (Legacy support)
-        if (!citizen) {
-            const { data: prof } = await supabase.from('profiles').select('id, full_name, role').eq('discord_id', interaction.user.id).maybeSingle();
-            profile = prof;
-        } else {
-            profile = citizen; // Treat citizen as profile
-        }
-
-        if (!profile) {
-            return interaction.editReply({
-                content: '❌ No estás vinculado. Usa **`/fichar vincular [Tu Nombre]`** para conectar tu personaje.',
-                components: []
-            });
-        }
-
-        // Handle Shift Action
-        const action = subCmd === 'entrar' ? 'in' : 'out';
-
-        // ... Reuse existing logic but simplified ...
-        if (action === 'entrar') {
-            // Check if already active
-            const { data: active } = await supabase.from('time_logs').select('id').eq('user_id', profile.id).eq('status', 'active').maybeSingle();
-            if (active) return interaction.editReply('⚠️ Ya tienes un turno activo. Usa `/fichar salir` primero.');
-
-            // Start Shift
-            const { error } = await supabase.from('time_logs').insert([{
-                user_id: profile.id, // Ensure time_logs links to 'id' which acts as user_id. (Ideally profiles.id and citizens.id match or are distinct. I assume time_logs.user_id FK links to profiles.id usually).
-                // ALERT: If 'citizens' IDs are different from 'profiles' IDs, this might break basic shift logging if time_logs FK is strict.
-                // Assuming time_logs.user_id is UUID.
-                clock_in: new Date().toISOString(),
-                status: 'active'
-            }]);
-            if (error) { console.error(error); return interaction.editReply('❌ Error al iniciar turno.'); }
-
-            const embed = new EmbedBuilder().setTitle('✅ Turno Iniciado').setColor(0x00FF00).setDescription(`Has entrado en servicio como **${profile.full_name}**.`).setTimestamp();
-            await interaction.editReply({ embeds: [embed] });
-            if (NOTIFICATION_CHANNEL_ID) {
-                const ch = await client.channels.fetch(NOTIFICATION_CHANNEL_ID).catch(() => null);
-                if (ch) ch.send({ embeds: [embed] });
-            }
-
-        } else if (action === 'salir') {
-            const { data: active } = await supabase.from('time_logs').select('id, clock_in').eq('user_id', profile.id).eq('status', 'active').maybeSingle();
-            if (!active) return interaction.editReply('⚠️ No tienes un turno activo para cerrar.');
-
-            const now = new Date();
-            const duration = Math.round((now - new Date(active.clock_in)) / 60000);
-
-            await supabase.from('time_logs').update({ clock_out: now.toISOString(), status: 'completed', duration_minutes: duration }).eq('id', active.id);
-
-            const embed = new EmbedBuilder().setTitle('🛑 Turno Finalizado').setColor(0xFF0000).addFields({ name: 'Oficial', value: profile.full_name }, { name: 'Duración', value: `${duration} min` }).setTimestamp();
-            await interaction.editReply({ embeds: [embed] });
-            if (NOTIFICATION_CHANNEL_ID) {
-                const ch = await client.channels.fetch(NOTIFICATION_CHANNEL_ID).catch(() => null);
-                if (ch) ch.send({ embeds: [embed] });
-            }
         }
     }
 
