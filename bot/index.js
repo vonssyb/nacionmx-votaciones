@@ -2290,7 +2290,125 @@ client.on('interactionCreate', async interaction => {
     if (!interaction.isCommand()) return;
     const { commandName } = interaction;
 
-    if (commandName === 'top-ricos') {
+    if (commandName === 'balanza') {
+        await interaction.deferReply();
+        try {
+            const cashBalance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
+            const { data: debitCard } = await supabase.from('debit_cards').select('balance').eq('discord_user_id', interaction.user.id).eq('status', 'active').maybeSingle();
+            const { data: creditCard } = await supabase.from('credit_cards').select('credit_limit, current_balance, citizens!inner(discord_id)').eq('citizens.discord_id', interaction.user.id).order('created_at', { ascending: false }).limit(1).maybeSingle();
+
+            const cash = cashBalance.bank || 0;
+            const debit = debitCard?.balance || 0;
+            const creditAvailable = creditCard ? (creditCard.credit_limit - creditCard.current_balance) : 0;
+            const creditDebt = creditCard?.current_balance || 0;
+            const totalLiquid = cash + debit + creditAvailable;
+
+            const embed = new EmbedBuilder()
+                .setTitle('💰 TU BALANZA FINANCIERA')
+                .setColor(0x00D26A)
+                .addFields(
+                    { name: '💵 EFECTIVO', value: `\`\`\`$${cash.toLocaleString()}\`\`\``, inline: true },
+                    { name: '💳 DÉBITO', value: `\`\`\`$${debit.toLocaleString()}\`\`\``, inline: true },
+                    { name: '💳 CRÉDITO', value: `\`\`\`Disponible: $${creditAvailable.toLocaleString()}\nDeuda: $${creditDebt.toLocaleString()}\`\`\``, inline: true },
+                    { name: '📊 TOTAL LÍQUIDO', value: `### $${totalLiquid.toLocaleString()}`, inline: false }
+                )
+                .setFooter({ text: 'Banco Nacional' })
+                .setTimestamp();
+
+            await interaction.editReply({ embeds: [embed] });
+        } catch (error) {
+            console.error(error);
+            await interaction.editReply('❌ Error obteniendo tu balanza.');
+        }
+    }
+
+    else if (commandName === 'debito') {
+        const subcommand = interaction.options.getSubcommand();
+
+        async function getOrCreateDebitCard(discordId) {
+            let { data: card } = await supabase.from('debit_cards').select('*').eq('discord_user_id', discordId).eq('status', 'active').maybeSingle();
+            if (!card) {
+                const { data: citizen } = await supabase.from('citizens').select('id').eq('discord_id', discordId).order('created_at', { ascending: false }).limit(1).maybeSingle();
+                const cardNumber = '4279' + Math.floor(Math.random() * 1000000000000).toString().padStart(12, '0');
+                const { data: newCard } = await supabase.from('debit_cards').insert({ discord_user_id: discordId, citizen_id: citizen?.id, card_number: cardNumber, balance: 0 }).select().single();
+                card = newCard;
+            }
+            return card;
+        }
+
+        if (subcommand === 'estado') {
+            await interaction.deferReply();
+            try {
+                const card = await getOrCreateDebitCard(interaction.user.id);
+                const embed = new EmbedBuilder().setTitle('💳 Estado Tarjeta Débito').setColor(0x00CED1).addFields({ name: 'Numero', value: `\`${card.card_number}\``, inline: false }, { name: 'Balance', value: `$${card.balance.toLocaleString()}`, inline: true }, { name: 'Estado', value: '✅ Activa', inline: true }).setTimestamp();
+                await interaction.editReply({ embeds: [embed] });
+            } catch (error) {
+                console.error(error);
+                await interaction.editReply('❌ Error consultando débito.');
+            }
+        }
+
+        else if (subcommand === 'depositar') {
+            const monto = interaction.options.getNumber('monto');
+            if (monto <= 0) return interaction.reply({ content: '❌ Monto debe ser >0.', ephemeral: true });
+            await interaction.deferReply();
+            try {
+                const cashBalance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
+                if (cashBalance.bank < monto) return interaction.editReply(`❌ Efectivo insuficiente: $${cashBalance.bank.toLocaleString()}`);
+                await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, monto, 'Depósito a débito');
+                const completionTime = new Date(Date.now() + (4 * 60 * 60 * 1000));
+                await supabase.from('pending_transfers').insert({ from_user_id: interaction.user.id, amount: monto, transfer_type: 'cash_to_debit', scheduled_completion: completionTime.toISOString() });
+                const embed = new EmbedBuilder().setTitle('⏳ Depósito Programado').setColor(0xFFA500).addFields({ name: 'Monto', value: `$${monto.toLocaleString()}`, inline: true }, { name: 'Completa', value: `<t:${Math.floor(completionTime.getTime() / 1000)}:R>`, inline: true }).setFooter({ text: 'Recibirás notificación' });
+                await interaction.editReply({ embeds: [embed] });
+            } catch (error) {
+                console.error(error);
+                await interaction.editReply('❌ Error procesando depósito.');
+            }
+        }
+
+        else if (subcommand === 'transferir') {
+            const destUser = interaction.options.getUser('destinatario');
+            const monto = interaction.options.getNumber('monto');
+            if (monto <= 0) return interaction.reply({ content: '❌ Monto >0.', ephemeral: true });
+            if (destUser.id === interaction.user.id) return interaction.reply({ content: '❌ No a ti mismo.', ephemeral: true });
+            await interaction.deferReply();
+            try {
+                const card = await getOrCreateDebitCard(interaction.user.id);
+                if (card.balance < monto) return interaction.editReply(`❌ Saldo débito insuficiente: $${card.balance.toLocaleString()}`);
+                await supabase.from('debit_cards').update({ balance: card.balance - monto }).eq('id', card.id);
+                await supabase.from('debit_transactions').insert({ debit_card_id: card.id, discord_user_id: interaction.user.id, transaction_type: 'transfer_out', amount: -monto, balance_after: card.balance - monto, related_user_id: destUser.id });
+                const completionTime = new Date(Date.now() + (5 * 60 * 1000));
+                await supabase.from('pending_transfers').insert({ from_user_id: interaction.user.id, to_user_id: destUser.id, amount: monto, transfer_type: 'debit_to_debit', scheduled_completion: completionTime.toISOString() });
+                const embed = new EmbedBuilder().setTitle('⏳ Transferencia en Proceso').setColor(0xFFA500).addFields({ name: 'Para', value: destUser.tag, inline: true }, { name: 'Monto', value: `$${monto.toLocaleString()}`, inline: true }, { name: 'Completa', value: `<t:${Math.floor(completionTime.getTime() / 1000)}:R>`, inline: false });
+                await interaction.editReply({ embeds: [embed] });
+            } catch (error) {
+                console.error(error);
+                await interaction.editReply('❌ Error en transferencia.');
+            }
+        }
+
+        else if (subcommand === 'historial') {
+            await interaction.deferReply();
+            try {
+                const { data: transactions } = await supabase.from('debit_transactions').select('*').eq('discord_user_id', interaction.user.id).order('created_at', { ascending: false }).limit(10);
+                if (!transactions || transactions.length === 0) return interaction.editReply('📭 Sin transacciones.');
+                const embed = new EmbedBuilder().setTitle('📋 Historial Débito').setColor(0x00CED1);
+                let desc = '';
+                transactions.forEach(tx => {
+                    const emoji = tx.amount > 0 ? '➕' : '➖';
+                    const type = tx.transaction_type === 'deposit' ? 'Depósito' : tx.transaction_type === 'transfer_in' ? 'Recibido' : tx.transaction_type === 'transfer_out' ? 'Enviado' : tx.transaction_type;
+                    desc += `${emoji} **${type}**: $${Math.abs(tx.amount).toLocaleString()} | Saldo: $${tx.balance_after.toLocaleString()}\n`;
+                });
+                embed.setDescription(desc);
+                await interaction.editReply({ embeds: [embed] });
+            } catch (error) {
+                console.error(error);
+                await interaction.editReply('❌ Error consultando historial.');
+            }
+        }
+    }
+
+    else if (commandName === 'top-ricos') {
         await interaction.deferReply();
 
         try {
