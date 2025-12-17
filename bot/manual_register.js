@@ -257,8 +257,19 @@ const commands = [
     },
     {
         name: 'impuestos',
-        description: 'Consulta tu estado fiscal - SAT',
-        type: 1
+        description: 'Sistema fiscal de Nacion MX',
+        options: [
+            {
+                name: 'consultar',
+                description: 'Consulta tu estado fiscal personal (SAT)',
+                type: 1
+            },
+            {
+                name: 'empresas',
+                description: 'Ver estimacion de impuestos corporativos',
+                type: 1
+            }
+        ]
     },
     {
         name: 'top-ricos',
@@ -274,17 +285,6 @@ const commands = [
         options: [
             { name: 'destinatario', description: 'Usuario a transferir', type: 6, required: true },
             { name: 'monto', description: 'Cantidad a enviar', type: 10, required: true }
-        ]
-    },
-    {
-        name: 'impuestos',
-        description: 'Sistema fiscal de Nacion MX',
-        options: [
-            {
-                name: 'empresas',
-                description: 'Ver estimacion de impuestos corporativos',
-                type: 1
-            }
         ]
     },
     {
