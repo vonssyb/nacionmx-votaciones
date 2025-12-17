@@ -390,6 +390,12 @@ client.once('ready', async () => {
             }
 
             // Register Guild Commands (Overwrite)
+            // DISABLED ON RENDER DUE TO IP BLOCK / TIMEOUTS
+            // RUN `node bot/manual_register.js` LOCALLY TO UPDATE COMMANDS
+            console.log('⚠️ AUTO-REGISTRO DESACTIVADO: Se omite la carga de comandos para evitar Timeouts en Render.');
+            console.log('   -> Ejecuta `node bot/manual_register.js` en tu PC si necesitas actualizar comandos.');
+
+            /*
             console.log(`✨ Registrando SOLO 1 COMANDO (ping) en: '${GUILD_ID}'...`);
             console.log(`🔑 Client ID: ${client.user.id}`);
             // console.log('📦 Payloads:', JSON.stringify(commands, null, 2)); // Too verbose for 17 commands
@@ -409,6 +415,7 @@ client.once('ready', async () => {
                 console.error('❌ FATAL REST ERROR:', putError);
                 // Optionally Fallback to Global? catch -> log
             }
+            */
 
         } else {
             console.log('⚠️ GUILD_ID no encontrado o vacío. Registrando Globalmente (No recomendado para desarrollo).');
