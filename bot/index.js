@@ -63,7 +63,8 @@ client.once('ready', async () => {
                     type: 1, // SUB_COMMAND
                     options: [
                         { name: 'usuario', description: 'Usuario de Discord a vincular', type: 6, required: true },
-                        { name: 'opciones', description: 'Nombre | DNI (Separados por barra vertical)', type: 3, required: true }
+                        { name: 'nombre', description: 'Nombre y Apellido RP', type: 3, required: true },
+                        { name: 'dni', description: 'Foto del DNI', type: 11, required: true }
                     ]
                 }
             ]
@@ -1091,24 +1092,15 @@ client.on('interactionCreate', async interaction => {
             }
 
             const targetUser = interaction.options.getUser('usuario');
-            const inputString = interaction.options.getString('opciones'); // expect "Name | DNI"
-
-            // Allow splitting by | or , or just assume separate inputs? 
-            // The user asked "que vincules su dni con su nombre". 
-            // I'll make it smarter: Try to split by "|".
-
-            const parts = inputString.split('|').map(s => s.trim());
-            const fullName = parts[0];
-            const dni = parts.length > 1 ? parts[1] : 'PENDING';
-
-            if (!fullName) return interaction.editReply('❌ Formato incorrecto. Usa: `Nombre Apellido | DNI`');
+            const fullName = interaction.options.getString('nombre');
+            const dniPhoto = interaction.options.getAttachment('dni');
 
             // 2. Check if Citizen exists (by Discord ID)
             let { data: existingCitizen } = await supabase.from('citizens').select('*').eq('discord_id', targetUser.id).limit(1).maybeSingle();
 
             if (existingCitizen) {
                 // Update existing
-                const { error: updateError } = await supabase.from('citizens').update({ full_name: fullName, dni: dni }).eq('id', existingCitizen.id);
+                const { error: updateError } = await supabase.from('citizens').update({ full_name: fullName, dni: dniPhoto.url }).eq('id', existingCitizen.id);
                 if (updateError) return interaction.editReply(`❌ Error actualizando ciudadano: ${updateError.message}`);
 
                 const embed = new EmbedBuilder()
@@ -1117,8 +1109,9 @@ client.on('interactionCreate', async interaction => {
                     .setDescription(`Los datos de <@${targetUser.id}> han sido actualizados.`)
                     .addFields(
                         { name: 'Nombre', value: fullName, inline: true },
-                        { name: 'DNI', value: dni, inline: true }
+                        { name: 'DNI (Foto)', value: '[Ver Documento](' + dniPhoto.url + ')', inline: true }
                     )
+                    .setThumbnail(dniPhoto.url)
                     .setFooter({ text: `Vinculado por ${interaction.user.tag}` });
                 return interaction.editReply({ embeds: [embed] });
             } else {
@@ -1126,7 +1119,7 @@ client.on('interactionCreate', async interaction => {
                 const { error: createError } = await supabase.from('citizens').insert([{
                     discord_id: targetUser.id,
                     full_name: fullName,
-                    dni: dni,
+                    dni: dniPhoto.url, // Store URL
                     credit_score: 100 // Default score
                 }]);
 
@@ -1138,8 +1131,9 @@ client.on('interactionCreate', async interaction => {
                     .setDescription(`Se ha creado un nuevo registro para <@${targetUser.id}>.`)
                     .addFields(
                         { name: 'Nombre', value: fullName, inline: true },
-                        { name: 'DNI', value: dni, inline: true }
+                        { name: 'DNI (Foto)', value: '[Ver Documento](' + dniPhoto.url + ')', inline: true }
                     )
+                    .setThumbnail(dniPhoto.url)
                     .setFooter({ text: `Registrado por ${interaction.user.tag}` });
                 return interaction.editReply({ embeds: [embed] });
             }
