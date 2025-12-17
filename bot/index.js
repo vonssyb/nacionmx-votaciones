@@ -261,6 +261,10 @@ client.once('ready', async () => {
     try {
         console.log('Iniciando registro de comandos...');
 
+        // 1. Clean Global Commands to avoid duplicates
+        console.log('🧹 Limpiando comandos globales antiguos...');
+        await rest.put(Routes.applicationCommands(client.user.id), { body: [] });
+
         if (GUILD_ID) {
             console.log(`Registrando comandos en Servidor: ${GUILD_ID}`);
             await rest.put(
@@ -503,7 +507,26 @@ client.on('interactionCreate', async interaction => {
                     // Log Evidence (Optional)
                     // Could save DNI URL to evidence table if needed.
 
-                    await message.edit({ content: `✅ **Tarjeta Activada** para **${holderName}**. Cobro de $${stats.cost.toLocaleString()} realizado.`, components: [] });
+                    // UPDATE: Include 'Registrado por' in final success message
+                    const successEmbed = new EmbedBuilder()
+                        .setTitle('✅ Nueva Tarjeta Emitida')
+                        .setColor(0x00FF00) // Green
+                        .addFields(
+                            { name: 'Titular', value: holderName, inline: true },
+                            { name: 'DNI', value: citizen ? citizen.dni : 'PENDING', inline: true },
+                            { name: 'Nivel', value: cardType, inline: true },
+                            { name: 'Límite', value: `$${stats.limit.toLocaleString()}`, inline: true },
+                            { name: 'Interés', value: `${stats.interest}%`, inline: true },
+                            { name: 'Corte', value: 'Domingos 11:59PM', inline: true }
+                        )
+                        .setThumbnail(dniPhoto.url)
+                        .setFooter({ text: `Banco Nacional RP • ${new Date().toLocaleDateString('es-MX')} • Registrado por: ${interaction.user.tag}` });
+
+                    await message.edit({
+                        content: '', // Remove plain text content
+                        embeds: [successEmbed],
+                        components: []
+                    });
 
                 } catch (err) {
                     console.error(err);
