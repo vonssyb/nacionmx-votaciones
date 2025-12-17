@@ -2315,7 +2315,7 @@ client.on('interactionCreate', async interaction => {
             const { data: debitCard } = await supabase.from('debit_cards').select('balance').eq('discord_user_id', interaction.user.id).eq('status', 'active').maybeSingle();
             const { data: creditCard } = await supabase.from('credit_cards').select('credit_limit, current_balance, citizens!inner(discord_id)').eq('citizens.discord_id', interaction.user.id).order('created_at', { ascending: false }).limit(1).maybeSingle();
 
-            const cash = cashBalance.bank || 0;
+            const cash = cashBalance.cash || 0;
             const debit = debitCard?.balance || 0;
             const creditAvailable = creditCard ? (creditCard.credit_limit - creditCard.current_balance) : 0;
             const creditDebt = creditCard?.current_balance || 0;
@@ -2372,8 +2372,11 @@ client.on('interactionCreate', async interaction => {
             await interaction.deferReply();
             try {
                 const cashBalance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
-                if (cashBalance.bank < monto) return interaction.editReply(`❌ Efectivo insuficiente: $${cashBalance.bank.toLocaleString()}`);
-                await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, monto, 'Depósito a débito');
+                // Check CASH wallet, not bank
+                if ((cashBalance.cash || 0) < monto) return interaction.editReply(`❌ Efectivo insuficiente en mano: $${(cashBalance.cash || 0).toLocaleString()}`);
+
+                // Remove from CASH
+                await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, monto, 'Depósito a débito', 'cash');
                 const completionTime = new Date(Date.now() + (4 * 60 * 60 * 1000));
                 await supabase.from('pending_transfers').insert({ from_user_id: interaction.user.id, amount: monto, transfer_type: 'cash_to_debit', scheduled_completion: completionTime.toISOString() });
                 const embed = new EmbedBuilder().setTitle('⏳ Depósito Programado').setColor(0xFFA500).addFields({ name: 'Monto', value: `$${monto.toLocaleString()}`, inline: true }, { name: 'Completa', value: `<t:${Math.floor(completionTime.getTime() / 1000)}:R>`, inline: true }).setFooter({ text: 'Recibirás notificación' });

@@ -37,14 +37,19 @@ class UnbelievableBoatService {
      * The number is the amount to SET or ADD? Default is usually relative or absolute depending on flags.
      * Let's check typical behavior: Usually 'cash' adds if positive, removes if negative.
      */
-    async removeMoney(guildId, userId, amount, reason = "Cobro Banco NMX") {
+    async removeMoney(guildId, userId, amount, reason = "Cobro Banco NMX", type = 'bank') {
         try {
             // UnbelievaBoat API: Use negative value to subtract
-            // For a BANKING bot, we should modify the BANK balance, not cash.
             const payload = {
-                bank: -Math.abs(amount),
                 reason: reason
             };
+
+            // Set the correct field based on type
+            if (type === 'cash') {
+                payload.cash = -Math.abs(amount);
+            } else {
+                payload.bank = -Math.abs(amount);
+            }
 
             const response = await this.client.patch(`/guilds/${guildId}/users/${userId}`, payload);
             return { success: true, newBalance: response.data };
