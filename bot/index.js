@@ -59,10 +59,11 @@ client.once('ready', async () => {
             options: [
                 {
                     name: 'vincular',
-                    description: 'Vincular tu cuenta de Discord a un Ciudadano',
+                    description: 'Vincular ciudadano al sistema (Solo Bancarios)',
                     type: 1, // SUB_COMMAND
                     options: [
-                        { name: 'nombre', description: 'Tu Nombre y Apellido RP (Ej: Juan Perez)', type: 3, required: true }
+                        { name: 'usuario', description: 'Usuario de Discord a vincular', type: 6, required: true },
+                        { name: 'opciones', description: 'Nombre | DNI (Separados por barra vertical)', type: 3, required: true }
                     ]
                 }
             ]
@@ -1082,41 +1083,66 @@ client.on('interactionCreate', async interaction => {
         const subCmd = interaction.options.getSubcommand();
         await interaction.deferReply({ ephemeral: true });
 
-        // --- SUBCOMMAND: VINCULAR ---
+        // --- SUBCOMMAND: VINCULAR (STAFF ONLY) ---
         if (subCmd === 'vincular') {
-            const fullNameInput = interaction.options.getString('nombre');
-
-            // 1. Check if already linked
-            const { data: existing } = await supabase.from('citizens').select('id, full_name').eq('discord_id', interaction.user.id).limit(1).maybeSingle();
-            if (existing) {
-                return interaction.editReply(`✅ Ya estás vinculado como **${existing.full_name}**. No necesitas hacer nada más.`);
+            // 1. Role Check (Staff Banco: 1450591546524307689)
+            if (!interaction.member.roles.cache.has('1450591546524307689') && !interaction.member.permissions.has('Administrator')) {
+                return interaction.editReply('⛔ No tienes permisos para vincular ciudadanos (Rol Staff Banco Requerido).');
             }
 
-            // 2. Search for Citizen by Name
-            const { data: targetCitizen, error } = await supabase.from('citizens').select('id, full_name').ilike('full_name', `%${fullNameInput}%`).limit(1).maybeSingle();
+            const targetUser = interaction.options.getUser('usuario');
+            const inputString = interaction.options.getString('opciones'); // expect "Name | DNI"
 
-            if (!targetCitizen) {
-                return interaction.editReply(`❌ No encontré ningún ciudadano con el nombre "**${fullNameInput}**".\nAsegúrate de estar registrado en la Base de Datos (Panel Web) o contacta a un Admin.`);
+            // Allow splitting by | or , or just assume separate inputs? 
+            // The user asked "que vincules su dni con su nombre". 
+            // I'll make it smarter: Try to split by "|".
+
+            const parts = inputString.split('|').map(s => s.trim());
+            const fullName = parts[0];
+            const dni = parts.length > 1 ? parts[1] : 'PENDING';
+
+            if (!fullName) return interaction.editReply('❌ Formato incorrecto. Usa: `Nombre Apellido | DNI`');
+
+            // 2. Check if Citizen exists (by Discord ID)
+            let { data: existingCitizen } = await supabase.from('citizens').select('*').eq('discord_id', targetUser.id).limit(1).maybeSingle();
+
+            if (existingCitizen) {
+                // Update existing
+                const { error: updateError } = await supabase.from('citizens').update({ full_name: fullName, dni: dni }).eq('id', existingCitizen.id);
+                if (updateError) return interaction.editReply(`❌ Error actualizando ciudadano: ${updateError.message}`);
+
+                const embed = new EmbedBuilder()
+                    .setTitle('✅ Ciudadano Actualizado')
+                    .setColor(0x00FF00)
+                    .setDescription(`Los datos de <@${targetUser.id}> han sido actualizados.`)
+                    .addFields(
+                        { name: 'Nombre', value: fullName, inline: true },
+                        { name: 'DNI', value: dni, inline: true }
+                    )
+                    .setFooter({ text: `Vinculado por ${interaction.user.tag}` });
+                return interaction.editReply({ embeds: [embed] });
+            } else {
+                // Create new
+                const { error: createError } = await supabase.from('citizens').insert([{
+                    discord_id: targetUser.id,
+                    full_name: fullName,
+                    dni: dni,
+                    credit_score: 100 // Default score
+                }]);
+
+                if (createError) return interaction.editReply(`❌ Error registrando ciudadano: ${createError.message}`);
+
+                const embed = new EmbedBuilder()
+                    .setTitle('✅ Ciudadano Registrado y Vinculado')
+                    .setColor(0x00FF00)
+                    .setDescription(`Se ha creado un nuevo registro para <@${targetUser.id}>.`)
+                    .addFields(
+                        { name: 'Nombre', value: fullName, inline: true },
+                        { name: 'DNI', value: dni, inline: true }
+                    )
+                    .setFooter({ text: `Registrado por ${interaction.user.tag}` });
+                return interaction.editReply({ embeds: [embed] });
             }
-
-            // 3. Link
-            const { error: updateError } = await supabase.from('citizens').update({ discord_id: interaction.user.id }).eq('id', targetCitizen.id);
-
-            if (updateError) {
-                console.error(updateError);
-                return interaction.editReply('❌ Error vinculando cuenta. Contacta a soporte.');
-            }
-
-            // Also create/update Profile entry if needed (for legacy compatibility)
-            // But 'citizens' is the new source. We'll trust citizens.
-
-            const embed = new EmbedBuilder()
-                .setTitle('✅ Vinculación Exitosa')
-                .setColor(0x00FF00)
-                .setDescription(`Tu cuenta de Discord ha sido vinculada correctamente al ciudadano **${targetCitizen.full_name}**.`)
-                .setFooter({ text: 'Ahora puedes usar servicios bancarios y legales.' });
-
-            return interaction.editReply({ embeds: [embed] });
         }
     }
 
