@@ -510,6 +510,79 @@ const commands = [
                 ]
             }
         ]
+    },
+    {
+        name: 'licencia',
+        description: '📜 Sistema de Licencias (Staff Only)',
+        options: [
+            {
+                name: 'registrar',
+                description: 'Registrar una licencia a un ciudadano',
+                type: 1,
+                options: [
+                    {
+                        name: 'usuario',
+                        description: 'Usuario a otorgar licencia',
+                        type: 6,
+                        required: true
+                    },
+                    {
+                        name: 'tipo',
+                        description: 'Tipo de licencia',
+                        type: 3,
+                        required: true,
+                        choices: [
+                            { name: 'Licencia de Conducir ($1,200)', value: 'conducir' },
+                            { name: 'Licencia de Armas Largas ($1,500)', value: 'armas_largas' },
+                            { name: 'Licencia de Armas Cortas ($1,200)', value: 'armas_cortas' }
+                        ]
+                    }
+                ]
+            },
+            {
+                name: 'revocar',
+                description: 'Revocar licencia de un ciudadano',
+                type: 1,
+                options: [
+                    {
+                        name: 'usuario',
+                        description: 'Usuario',
+                        type: 6,
+                        required: true
+                    },
+                    {
+                        name: 'tipo',
+                        description: 'Tipo de licencia',
+                        type: 3,
+                        required: true,
+                        choices: [
+                            { name: 'Conducir', value: 'conducir' },
+                            { name: 'Armas Largas', value: 'armas_largas' },
+                            { name: 'Armas Cortas', value: 'armas_cortas' }
+                        ]
+                    },
+                    {
+                        name: 'razon',
+                        description: 'Motivo de revocación',
+                        type: 3,
+                        required: true
+                    }
+                ]
+            },
+            {
+                name: 'ver',
+                description: 'Ver licencias de un ciudadano',
+                type: 1,
+                options: [
+                    {
+                        name: 'usuario',
+                        description: 'Usuario a consultar',
+                        type: 6,
+                        required: true
+                    }
+                ]
+            }
+        ]
     }
 ];
 

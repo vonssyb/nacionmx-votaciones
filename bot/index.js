@@ -1964,6 +1964,209 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
         }
     }
 
+
+    else if (commandName === 'licencia') {
+        const subcommand = interaction.options.getSubcommand();
+
+        // Staff-only check
+        const STAFF_ROLE_ID = '1450688555503587459';
+        if (!interaction.member.roles.cache.has(STAFF_ROLE_ID) && !interaction.member.permissions.has('Administrator')) {
+            return interaction.reply({ content: '⛔ Solo el staff puede gestionar licencias.', flags: 64 });
+        }
+
+        const targetUser = interaction.options.getUser('usuario');
+        const tipo = interaction.options.getString('tipo');
+
+        const licenseData = {
+            'conducir': { name: 'Licencia de Conducir', cost: 1200, emoji: '🚗' },
+            'armas_largas': { name: 'Licencia de Armas Largas', cost: 1500, emoji: '🔫' },
+            'armas_cortas': { name: 'Licencia de Armas Cortas', cost: 1200, emoji: '🔫' }
+        };
+
+        if (subcommand === 'registrar') {
+            await interaction.deferReply({ flags: 64 });
+
+            try {
+                const license = licenseData[tipo];
+
+                // Check user balance
+                const balance = await billingService.ubService.getUserBalance(interaction.guildId, targetUser.id);
+                if (balance.bank < license.cost) {
+                    return interaction.editReply(`❌ <@${targetUser.id}> no tiene fondos suficientes.\n\n💰 Costo: $${license.cost.toLocaleString()}\n💳 Tiene: $${balance.bank.toLocaleString()}`);
+                }
+
+                // Check if already has this license
+                const { data: existing } = await supabase
+                    .from('licenses')
+                    .select('*')
+                    .eq('discord_user_id', targetUser.id)
+                    .eq('license_type', tipo)
+                    .eq('status', 'active');
+
+                if (existing && existing.length > 0) {
+                    return interaction.editReply(`⚠️ <@${targetUser.id}> ya tiene esta licencia activa.`);
+                }
+
+                // Charge user
+                await billingService.ubService.removeMoney(interaction.guildId, targetUser.id, license.cost, `Pago de ${license.name}`, 'bank');
+
+                // Register license
+                const expiryDate = new Date();
+                expiryDate.setFullYear(expiryDate.getFullYear() + 1); // 1 year validity
+
+                await supabase
+                    .from('licenses')
+                    .insert({
+                        discord_user_id: targetUser.id,
+                        license_type: tipo,
+                        license_name: license.name,
+                        issued_by: interaction.user.id,
+                        issued_at: new Date().toISOString(),
+                        expires_at: expiryDate.toISOString(),
+                        status: 'active'
+                    });
+
+                const embed = new EmbedBuilder()
+                    .setTitle(`${license.emoji} Licencia Registrada`)
+                    .setColor(0x00FF00)
+                    .setDescription(`**${license.name}** otorgada exitosamente`)
+                    .addFields(
+                        { name: '👤 Ciudadano', value: `<@${targetUser.id}>`, inline: true },
+                        { name: '💵 Costo', value: `$${license.cost.toLocaleString()}`, inline: true },
+                        { name: '📅 Válida hasta', value: `<t:${Math.floor(expiryDate.getTime() / 1000)}:D>`, inline: false },
+                        { name: '👮 Emitida por', value: interaction.user.tag, inline: true }
+                    )
+                    .setFooter({ text: 'Sistema de Licencias Nación MX' })
+                    .setTimestamp();
+
+                await interaction.editReply({ embeds: [embed] });
+
+                // Send receipt to citizen
+                try {
+                    await targetUser.send({
+                        content: `📜 **Nueva licencia registrada**`,
+                        embeds: [embed]
+                    });
+                } catch (dmError) {
+                    console.log('Could not DM citizen:', dmError.message);
+                }
+
+            } catch (error) {
+                console.error(error);
+                await interaction.editReply('❌ Error registrando licencia.');
+            }
+        }
+
+        else if (subcommand === 'revocar') {
+            await interaction.deferReply({ flags: 64 });
+
+            const razon = interaction.options.getString('razon');
+
+            try {
+                const { data: licenses } = await supabase
+                    .from('licenses')
+                    .select('*')
+                    .eq('discord_user_id', targetUser.id)
+                    .eq('license_type', tipo)
+                    .eq('status', 'active');
+
+                if (!licenses || licenses.length === 0) {
+                    return interaction.editReply(`❌ <@${targetUser.id}> no tiene esta licencia activa.`);
+                }
+
+                // Revoke license
+                await supabase
+                    .from('licenses')
+                    .update({
+                        status: 'revoked',
+                        revoked_by: interaction.user.id,
+                        revoked_at: new Date().toISOString(),
+                        revoke_reason: razon
+                    })
+                    .eq('id', licenses[0].id);
+
+                const license = licenseData[tipo];
+
+                const embed = new EmbedBuilder()
+                    .setTitle(`${license.emoji} Licencia Revocada`)
+                    .setColor(0xFF0000)
+                    .addFields(
+                        { name: '👤 Ciudadano', value: `<@${targetUser.id}>`, inline: true },
+                        { name: '📜 Licencia', value: license.name, inline: true },
+                        { name: '📝 Razón', value: razon, inline: false },
+                        { name: '👮 Revocada por', value: interaction.user.tag, inline: true }
+                    )
+                    .setTimestamp();
+
+                await interaction.editReply({ embeds: [embed] });
+
+                // Notify citizen
+                try {
+                    await targetUser.send({
+                        content: `⚠️ **Licencia Revocada**`,
+                        embeds: [embed]
+                    });
+                } catch (dmError) {
+                    console.log('Could not DM citizen:', dmError.message);
+                }
+
+            } catch (error) {
+                console.error(error);
+                await interaction.editReply('❌ Error revocando licencia.');
+            }
+        }
+
+        else if (subcommand === 'ver') {
+            await interaction.deferReply({ flags: 64 });
+
+            try {
+                const { data: licenses } = await supabase
+                    .from('licenses')
+                    .select('*')
+                    .eq('discord_user_id', targetUser.id)
+                    .order('issued_at', { ascending: false });
+
+                if (!licenses || licenses.length === 0) {
+                    return interaction.editReply(`📋 <@${targetUser.id}> no tiene licencias registradas.`);
+                }
+
+                const embed = new EmbedBuilder()
+                    .setTitle(`📜 Licencias de ${targetUser.tag}`)
+                    .setColor(0x5865F2)
+                    .setThumbnail(targetUser.displayAvatarURL());
+
+                const active = licenses.filter(l => l.status === 'active');
+                const revoked = licenses.filter(l => l.status === 'revoked');
+                const expired = licenses.filter(l => l.status === 'expired');
+
+                if (active.length > 0) {
+                    let activeText = '';
+                    active.forEach(l => {
+                        const license = licenseData[l.license_type];
+                        const expiryTimestamp = Math.floor(new Date(l.expires_at).getTime() / 1000);
+                        activeText += `${license.emoji} **${l.license_name}**\n└ Expira: <t:${expiryTimestamp}:R>\n`;
+                    });
+                    embed.addFields({ name: '✅ Activas', value: activeText, inline: false });
+                }
+
+                if (revoked.length > 0) {
+                    let revokedText = '';
+                    revoked.forEach(l => {
+                        const license = licenseData[l.license_type];
+                        revokedText += `${license.emoji} **${l.license_name}**\n└ Razón: ${l.revoke_reason}\n`;
+                    });
+                    embed.addFields({ name: '❌ Revocadas', value: revokedText, inline: false });
+                }
+
+                await interaction.editReply({ embeds: [embed] });
+
+            } catch (error) {
+                console.error(error);
+                await interaction.editReply('❌ Error consultando licencias.');
+            }
+        }
+    }
+
     else if (commandName === 'nomina') {
         const subCmd = interaction.options.getSubcommand();
 
@@ -3437,15 +3640,28 @@ client.on('interactionCreate', async interaction => {
             }
         }
         else if (subcommand === 'cobrar') {
-            // 1. Check if user belongs to a company (Owner for now, later Employees)
-            const { data: companies } = await supabase
+            // 1. Check if user belongs to a company (Owner OR Employee)
+            let { data: companies } = await supabase
                 .from('companies')
                 .select('*')
                 .contains('owner_ids', [interaction.user.id])
                 .eq('status', 'active');
 
+            // If not owner, check if employee
             if (!companies || companies.length === 0) {
-                return interaction.reply({ content: '⛔ No tienes una empresa registrada para cobrar.', ephemeral: true });
+                const { data: employeeData } = await supabase
+                    .from('company_employees')
+                    .select('company_id, companies(*)')
+                    .eq('discord_user_id', interaction.user.id)
+                    .eq('status', 'active');
+
+                if (employeeData && employeeData.length > 0) {
+                    companies = [employeeData[0].companies];
+                }
+            }
+
+            if (!companies || companies.length === 0) {
+                return interaction.reply({ content: '⛔ No estás en ninguna empresa (ni dueño ni empleado).', ephemeral: true });
             }
 
             const myCompany = companies[0]; // Use first company for now
