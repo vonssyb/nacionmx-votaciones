@@ -468,7 +468,8 @@ client.on('interactionCreate', async interaction => {
             .addFields(
                 { name: '💰 Utilidad', value: '`/credito info`: Datos de la tarjeta.\n`/credito estado`: Saldo y Deuda.\n`/transferir`: Enviar dinero.\n`/notificaciones`: Alertas DM.' },
                 { name: '📊 Rankings', value: '`/top-morosos`: Deudores públicos.\n`/top-ricos`: Mejores Scores.' },
-                { name: '👔 Finanzas', value: '`/inversion`: Plazo fijo.\n`/impuestos`: SAT.\n`/nomina`: Pagos masivos.' },
+                { name: '👔 Gestión de Nóminas (Empresas)', value: '1. `/nomina crear [nombre]`: Registra tu empresa/grupo.\n2. `/nomina agregar [grupo] [empleado] [sueldo]`: Añade personal.\n3. `/nomina pagar [grupo]`: Paga a todos con un clic.' },
+                { name: '📈 Inversiones', value: '`/inversion nueva`: Bloquea dinero por 7 días (5% ganancia).\n`/inversion estado`: Ver estatus y **Cobrar**.' },
                 { name: '👮 Staff', value: '`/registrar-tarjeta`, `/fichar vincular`, `/credito admin`' }
             )
             .setFooter({ text: 'Sistema Financiero Nacion MX' });
