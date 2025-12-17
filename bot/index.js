@@ -2565,7 +2565,7 @@ client.on('interactionCreate', async interaction => {
 
 
         if (subcommand === 'consultar') {
-            await interaction.deferReply({ ephemeral: true });
+            await interaction.deferReply({ flags: 64 }); // 64 = EPHEMERAL
             try {
                 // Get user's financial info
                 const balance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
@@ -2909,7 +2909,7 @@ client.on('interactionCreate', async interaction => {
             }
         }
         else if (subcommand === 'menu') {
-            await interaction.deferReply({ ephemeral: true });
+            await interaction.deferReply({ flags: 64 });
             try {
                 const { data: companies } = await supabase
                     .from('companies')
@@ -2999,7 +2999,7 @@ client.on('interactionCreate', async interaction => {
             });
         }
         else if (subcommand === 'lista') {
-            await interaction.deferReply({ ephemeral: true });
+            await interaction.deferReply({ flags: 64 });
             try {
                 const { data: companies, error } = await supabase
                     .from('companies')
@@ -3031,7 +3031,7 @@ client.on('interactionCreate', async interaction => {
             }
         }
         else if (subcommand === 'info') {
-            await interaction.deferReply({ ephemeral: true });
+            await interaction.deferReply({ flags: 64 });
             try {
                 // Info regarding MY company or specific company? 
                 // Usually "info" without args implies "My Company Info" or "General Info"?
