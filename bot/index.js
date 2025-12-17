@@ -293,7 +293,7 @@ client.on('interactionCreate', async interaction => {
 
     if (commandName === 'ping') {
         const ping = Date.now() - interaction.createdTimestamp;
-        await interaction.reply({ content: `🏓 Pong! Latencia: **${ping}ms**. API: **${Math.round(client.ws.ping)}ms**.`, ephemeral: true });
+        await interaction.reply({ content: `🏓 Pong! Latencia: **${ping}ms**. API: **${Math.round(client.ws.ping)}ms**.`, ephemeral: false });
     }
 
     else if (commandName === 'estado') {
@@ -302,7 +302,7 @@ client.on('interactionCreate', async interaction => {
         const PING_ROLE_ID = '1412899401000685588';
         const action = interaction.options.getString('seleccion');
 
-        await interaction.deferReply({ ephemeral: true });
+        await interaction.deferReply({ ephemeral: false });
 
         try {
             const channel = await client.channels.fetch(TARGET_CHANNEL_ID);
@@ -376,7 +376,7 @@ client.on('interactionCreate', async interaction => {
     }
 
     else if (commandName === 'registrar-tarjeta') {
-        await interaction.deferReply({ ephemeral: true });
+        await interaction.deferReply({ ephemeral: false });
 
         // 1. Role Check (Staff Banco: 1450591546524307689)
         if (!interaction.member.roles.cache.has('1450591546524307689') && !interaction.member.permissions.has('Administrator')) {
@@ -467,7 +467,7 @@ client.on('interactionCreate', async interaction => {
                     .setTitle('📜 Términos y Condiciones')
                     .setColor(0x333333)
                     .setDescription('**1. Pagos:** Semanales obligatorios (25% mín).\n**2. Intereses:** Se aplican al corte.\n**3. Impago:** Congelamiento y Buró negativo.\n**4. Uso:** Responsabilidad del titular.');
-                await i.reply({ embeds: [tycEmbed], ephemeral: true });
+                await i.reply({ embeds: [tycEmbed], ephemeral: false });
             }
             else if (i.customId === 'btn_reject') {
                 await i.update({ content: '❌ Oferta rechazada.', components: [] });
@@ -481,7 +481,7 @@ client.on('interactionCreate', async interaction => {
                     const userMoney = balance.total || (balance.cash + balance.bank);
 
                     if (userMoney < stats.cost) {
-                        return i.followUp({ content: `❌ **Fondos Insuficientes**. Tienes: $${userMoney.toLocaleString()}. Requiere: $${stats.cost.toLocaleString()}.`, ephemeral: true });
+                        return i.followUp({ content: `❌ **Fondos Insuficientes**. Tienes: $${userMoney.toLocaleString()}. Requiere: $${stats.cost.toLocaleString()}.`, ephemeral: false });
                     }
 
                     // Charge
@@ -507,7 +507,7 @@ client.on('interactionCreate', async interaction => {
 
                 } catch (err) {
                     console.error(err);
-                    await i.followUp({ content: `❌ Error procesando: ${err.message}`, ephemeral: true });
+                    await i.followUp({ content: `❌ Error procesando: ${err.message}`, ephemeral: false });
                 }
                 collector.stop();
             }
@@ -720,12 +720,12 @@ client.on('interactionCreate', async interaction => {
         else if (interaction.options.getSubcommandGroup() === 'admin') {
             // Permission Check
             if (!interaction.member.permissions.has('Administrator')) {
-                return interaction.reply({ content: '⛔ Solo administradores pueden usar esto.', ephemeral: true });
+                return interaction.reply({ content: '⛔ Solo administradores pueden usar esto.', ephemeral: false });
             }
 
             const subCmdAdmin = interaction.options.getSubcommand();
             const targetUser = interaction.options.getUser('usuario');
-            await interaction.deferReply({ ephemeral: true });
+            await interaction.deferReply({ ephemeral: false });
 
             // Resolve Profile
             const { data: profile } = await supabase.from('profiles').select('id, full_name').eq('discord_id', targetUser.id).order('created_at', { ascending: false }).limit(1).maybeSingle();
@@ -803,7 +803,7 @@ client.on('interactionCreate', async interaction => {
             }
         }
         else if (subCmd === 'debug') {
-            await interaction.deferReply({ ephemeral: true });
+            await interaction.deferReply({ ephemeral: false });
 
             const userId = interaction.user.id;
             const userName = interaction.user.tag;
@@ -855,7 +855,7 @@ client.on('interactionCreate', async interaction => {
     else if (commandName === 'rol') {
         const subCmd = interaction.options.getSubcommand();
         if (subCmd === 'cancelar') {
-            await interaction.deferReply({ ephemeral: true });
+            await interaction.deferReply({ ephemeral: false });
 
             const targetUser = interaction.options.getString('usuario');
             const reason = interaction.options.getString('razon');
@@ -884,7 +884,7 @@ client.on('interactionCreate', async interaction => {
     }
 
     else if (commandName === 'registrar-tarjeta') {
-        await interaction.deferReply({ ephemeral: true });
+        await interaction.deferReply({ ephemeral: false });
 
         // 1. Role Check (Staff Banco: 1450591546524307689)
         // Also allow Admin for testing
@@ -975,7 +975,7 @@ client.on('interactionCreate', async interaction => {
                     .setTitle('📜 Términos y Condiciones')
                     .setColor(0x333333)
                     .setDescription('**1. Pagos:** Semanales obligatorios (25% mín).\n**2. Intereses:** Se aplican al corte.\n**3. Impago:** Congelamiento y Buró negativo.\n**4. Uso:** Responsabilidad del titular.');
-                await i.reply({ embeds: [tycEmbed], ephemeral: true });
+                await i.reply({ embeds: [tycEmbed], ephemeral: false });
             }
             else if (i.customId === 'btn_reject') {
                 await i.update({ content: '❌ Oferta rechazada.', components: [] });
@@ -989,7 +989,7 @@ client.on('interactionCreate', async interaction => {
                     const userMoney = balance.total || (balance.cash + balance.bank);
 
                     if (userMoney < stats.cost) {
-                        return i.followUp({ content: `❌ **Fondos Insuficientes**. Tienes: $${userMoney.toLocaleString()}. Requiere: $${stats.cost.toLocaleString()}.`, ephemeral: true });
+                        return i.followUp({ content: `❌ **Fondos Insuficientes**. Tienes: $${userMoney.toLocaleString()}. Requiere: $${stats.cost.toLocaleString()}.`, ephemeral: false });
                     }
 
                     // Charge
@@ -1016,7 +1016,7 @@ client.on('interactionCreate', async interaction => {
 
                 } catch (err) {
                     console.error(err);
-                    await i.followUp({ content: `❌ Error procesando: ${err.message}`, ephemeral: true });
+                    await i.followUp({ content: `❌ Error procesando: ${err.message}`, ephemeral: false });
                 }
                 collector.stop();
             }
@@ -1032,7 +1032,7 @@ client.on('interactionCreate', async interaction => {
 
         // 1. Role Check (Policia: 1416867605976715363)
         if (!interaction.member.roles.cache.has('1416867605976715363') && !interaction.member.permissions.has('Administrator')) {
-            return interaction.editReply({ content: '⛔ No tienes placa de policía (Rol Requerido).', ephemeral: true });
+            return interaction.editReply({ content: '⛔ No tienes placa de policía (Rol Requerido).', ephemeral: false });
         }
 
         const targetUser = interaction.options.getUser('usuario');
@@ -1082,7 +1082,7 @@ client.on('interactionCreate', async interaction => {
 
     else if (commandName === 'fichar') {
         const subCmd = interaction.options.getSubcommand();
-        await interaction.deferReply({ ephemeral: true });
+        await interaction.deferReply({ ephemeral: false });
 
         // --- SUBCOMMAND: VINCULAR (STAFF ONLY) ---
         if (subCmd === 'vincular') {
@@ -1143,7 +1143,7 @@ client.on('interactionCreate', async interaction => {
 
     if (commandName === 'saldo') {
         // ... (Existing logic or placeholder) ...
-        await interaction.reply({ content: 'Esta función estará disponible pronto.', ephemeral: true });
+        await interaction.reply({ content: 'Esta función estará disponible pronto.', ephemeral: false });
     }
 });
 
