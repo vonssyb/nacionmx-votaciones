@@ -982,7 +982,12 @@ client.on('interactionCreate', async interaction => {
                 collector.stop();
             }
             else if (i.customId === 'btn_accept') {
-                await i.deferUpdate();
+                try {
+                    await i.deferUpdate();
+                } catch (e) {
+                    // Ignore if already deferred/replied
+                }
+
                 try {
                     // Check Funds
                     const balance = await billingService.ubService.getUserBalance(interaction.guildId, targetUser.id);
@@ -1002,7 +1007,7 @@ client.on('interactionCreate', async interaction => {
                         credit_limit: stats.limit,
                         current_balance: 0,
                         interest_rate: stats.interest,
-                        status: 'active',
+                        status: 'active', // Ensure lowercase
                         next_payment_due: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
                     }]);
 

@@ -36,7 +36,7 @@ class BillingService {
             const { data: cards, error } = await supabase
                 .from('credit_cards')
                 .select('*, profiles(discord_id, full_name)')
-                .eq('status', 'ACTIVE')
+                .eq('status', 'active')
                 .gt('current_balance', 0);
 
             if (error) throw error;
@@ -108,7 +108,7 @@ class BillingService {
                 const penalty = (debt - totalMoney) * interestRate;
                 await this.applyInterest(card.id, penalty);
 
-                this.notifyUser(discordId, `⚠️ **TARJETA BLOQUEADA**\nNo cubriste el pago mínimo de **$${minPayment.toLocaleString()}**.\nSe tomó tu saldo disponible ($${totalMoney.toLocaleString()}).\nTu tarjeta está **FROZEN** y generará intereses extra.`, false);
+                this.notifyUser(discordId, `⚠️ **TARJETA BLOQUEADA**\nNo cubriste el pago mínimo de **$${minPayment.toLocaleString()}**.\nSe tomó tu saldo disponible ($${totalMoney.toLocaleString()}).\nTu tarjeta está **frozen** y generará intereses extra.`, false);
             }
 
         } catch (err) {
@@ -136,7 +136,7 @@ class BillingService {
 
     async freezeCard(cardId) {
         await supabase.from('credit_cards').update({
-            status: 'FROZEN',
+            status: 'frozen',
             consecutive_missed_payments: 1 // Increment ideally
         }).eq('id', cardId);
     }
