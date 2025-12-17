@@ -534,7 +534,21 @@ client.on('interactionCreate', async interaction => {
                 const tycEmbed = new EmbedBuilder()
                     .setTitle('📜 Términos y Condiciones')
                     .setColor(0x333333)
-                    .setDescription('**1. Pagos:** Semanales obligatorios (25% mín).\n**2. Intereses:** Se aplican al corte.\n**3. Impago:** Congelamiento y Buró negativo.\n**4. Uso:** Responsabilidad del titular.');
+                    .setDescription(`**📜 CONTRATO DE TARJETA DE CRÉDITO - BANCO NACIONAL**
+                    
+**1. OBLIGACIÓN DE PAGO**
+El titular se compromete a realizar pagos semanales de al menos el **25% de la deuda total** antes del corte (Domingo 11:59 PM).
+
+**2. INTERESES ORDINARIOS**
+El saldo no liquidado generará un interés semanal según el nivel de la tarjeta (Ver tabla de tasas).
+
+**3. CONSECUENCIAS DE IMPAGO**
+- **1 Semana de atraso:** Reporte negativo en Buró y cobro de intereses sobre saldo vencido.
+- **2 Semanas de atraso:** Bloqueo temporal de la tarjeta y congelamiento de activos.
+- **3 Semanas de atraso:** Embargo de bienes y boletín de búsqueda policial por fraude.
+
+**4. USO DE LA TARJETA**
+Esta tarjeta es personal e intransferible. El titular es responsable de todos los cargos realizados con ella. El Banco Nacional colaborará con la policía en caso de compras ilegales.`);
                 await i.reply({ embeds: [tycEmbed], ephemeral: false });
             }
             else if (i.customId === 'btn_reject') {
