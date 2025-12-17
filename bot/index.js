@@ -767,11 +767,11 @@ client.on('interactionCreate', async interaction => {
             ];
 
             const businessCards = [
-                { name: 'Business Start', limit: '50k', interest: '2%', cost: '$8k', desc: 'Emprendedores • Crédito renovable.' },
-                { name: 'Business Gold', limit: '100k', interest: '1.5%', cost: '$15k', desc: 'Pymes • Mejor rendimiento.' },
-                { name: 'Business Platinum', limit: '200k', interest: '1.2%', cost: '$20k', desc: 'Expansión • Acceso prioritario.' },
-                { name: 'Business Elite', limit: '500k', interest: '1%', cost: '$35k', desc: 'Corp • Línea crédito flexible.' },
-                { name: 'NMX Corporate', limit: '1M', interest: '0.7%', cost: '$50k', desc: 'Industrias • Máximo beneficio fiscal.' }
+                { name: 'Business Start', limit: '50k', interest: '2%', cost: '$8k', desc: 'Emprendedores • Crédito renovable • Reportes mensuales.' },
+                { name: 'Business Gold', limit: '100k', interest: '1.5%', cost: '$15k', desc: 'Pymes • Mejor rendimiento • Cashback 1% en compras.' },
+                { name: 'Business Platinum', limit: '200k', interest: '1.2%', cost: '$20k', desc: 'Expansión • Acceso prioritario • Sin comisiones internacionales.' },
+                { name: 'Business Elite', limit: '500k', interest: '1%', cost: '$35k', desc: 'Corp • Línea crédito flexible • Seguro de viajes incluido.' },
+                { name: 'NMX Corporate', limit: '1M', interest: '0.7%', cost: '$50k', desc: 'Industrias • Máximo beneficio fiscal • Asesor financiero dedicado.' }
             ];
 
             const embed = new EmbedBuilder()
@@ -2905,6 +2905,55 @@ client.on('interactionCreate', async interaction => {
                             );
 
                             await interaction.editReply({ content: null, embeds: [finalEmbed], components: [menuRow] });
+
+                            // Send detailed welcome guide to owner via DM
+                            try {
+                                const welcomeEmbed = new EmbedBuilder()
+                                    .setTitle(`🎉 Bienvenido a ${name}`)
+                                    .setColor(0x5865F2)
+                                    .setDescription('**Tu empresa ha sido registrada exitosamente.** Aquí tienes todo lo que necesitas saber para empezar:')
+                                    .addFields(
+                                        {
+                                            name: '⚠️ URGENTE: Agrega Empleados a Nómina',
+                                            value: '```\n/empresa nomina agregar @usuario [salario] [puesto]\n```\n**Importante:** Los empleados deben estar en nómina para recibir pagos semanales automáticos.',
+                                            inline: false
+                                        },
+                                        {
+                                            name: '💼 Comandos Esenciales',
+                                            value: '```\n/empresa menu - Panel de control completo\n/empresa cobrar @cliente [monto] [concepto] - Cobrar por servicios\n/empresa nomina pagar - Pagar sueldos manualmente\n/empresa info - Ver información de tu empresa\n```',
+                                            inline: false
+                                        },
+                                        {
+                                            name: '💳 Tarjetas Empresariales',
+                                            value: 'Potencia tu empresa con una **Tarjeta Business:**\n• Líneas de crédito desde $50k hasta $1M\n• Intereses bajos (0.7% - 2%)\n• Beneficios fiscales y cashback\n\n**Solicita una ahora** usando el botón abajo.',
+                                            inline: false
+                                        },
+                                        {
+                                            name: '📊 Recordatorios',
+                                            value: '• Impuestos corporativos se cobran semanalmente\n• Empresas privadas pagan 15% vs 10% públicas\n• Mantén empleados activos para mejor rendimiento',
+                                            inline: false
+                                        }
+                                    )
+                                    .setThumbnail(logo ? logo.url : null)
+                                    .setFooter({ text: 'Sistema Empresarial Nación MX • Éxito en tu negocio' })
+                                    .setTimestamp();
+
+                                const actionRow = new ActionRowBuilder().addComponents(
+                                    new ButtonBuilder()
+                                        .setLabel('💳 Solicitar Tarjeta Business')
+                                        .setStyle(ButtonStyle.Link)
+                                        .setURL(`https://discord.com/channels/${interaction.guildId}/1450269843600310373`),
+                                    new ButtonBuilder()
+                                        .setCustomId('company_quick_hire')
+                                        .setLabel('👥 Contratar Empleado')
+                                        .setStyle(ButtonStyle.Success)
+                                );
+
+                                await ownerUser.send({ embeds: [welcomeEmbed], components: [actionRow] });
+                            } catch (dmError) {
+                                console.log('Could not send DM to owner:', dmError.message);
+                            }
+
 
                         } catch (err) {
                             console.error(err);
