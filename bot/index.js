@@ -1293,14 +1293,32 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             }
 
             else if (subCmdAdmin === 'ofrecer-upgrade') {
-                // Check user's credit score
-                const { data: citizenData } = await supabase
-                    .from('citizens')
-                    .select('id, full_name, credit_score')
-                    .eq('discord_id', targetUser.id)
+                // Robust Citizen Lookup
+                let citizenData = null;
+                // let userCard is defined in outer scope, but we might need to refresh it or specifically get the citizen from it
+
+                // 1. Try to find via Credit Card (Strongest link if they have one)
+                const { data: cardData } = await supabase
+                    .from('credit_cards')
+                    .select('*, citizens!inner(id, full_name, credit_score, discord_id)')
+                    .eq('citizens.discord_id', targetUser.id)
                     .order('created_at', { ascending: false })
                     .limit(1)
                     .maybeSingle();
+
+                if (cardData) {
+                    citizenData = cardData.citizens;
+                } else {
+                    // 2. Fallback: Find citizen directly (if they don't have a card yet)
+                    const { data: cData } = await supabase
+                        .from('citizens')
+                        .select('id, full_name, credit_score')
+                        .eq('discord_id', targetUser.id)
+                        .order('created_at', { ascending: false })
+                        .limit(1)
+                        .maybeSingle();
+                    citizenData = cData;
+                }
 
                 if (!citizenData) {
                     return interaction.editReply('❌ No tiene un ciudadano vinculado.');
