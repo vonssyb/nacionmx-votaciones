@@ -269,7 +269,7 @@ client.once('ready', async () => {
             name: 'transferir',
             description: 'Enviar dinero a otro ciudadano (Sistema SPEI)',
             options: [
-                { name: 'usuario', description: 'Destinatario', type: 6, required: true },
+                { name: 'destinatario', description: 'Ciudadano que recibirá el dinero', type: 6, required: true },
                 { name: 'monto', description: 'Cantidad a transferir', type: 10, required: true },
                 { name: 'razon', description: 'Concepto de la transferencia', type: 3, required: false }
             ]
