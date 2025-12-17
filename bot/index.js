@@ -775,7 +775,7 @@ client.on('interactionCreate', async interaction => {
                 .setDescription('El **Banco Nacional** ofrece productos financieros para personas y empresas. Revisa nuestro catálogo completo.')
                 .addFields({
                     name: '💡 Comandos Útiles',
-                    value: '>>> **`/debito estado`** - Ver saldo y cuenta.\n**`/debito depositar`** - Guardar efectivo.\n**`/debito transferir`** - Enviar dinero.\n**`/credito estado`** - Ver deuda y límite.\n**`/credito pagar`** - Abonar a tu deuda.\n**`/impuestos empresas`** - Consultar impuestos.',
+                    value: '>>> **`/balanza`** - Ver tu dinero total (Efec + Banco + Crédito).\n**`/depositar`** - Depósito general (Cualquier usuario).\n**`/transferir`** - Transferencia Débito (Requiere Tarjeta ambos).\n**`/credito estado`** - Ver deuda y límite.\n**`/credito pagar`** - Abonar a tu deuda.\n**`/impuestos`** - Consultar impuestos.',
                     inline: false
                 });
 
