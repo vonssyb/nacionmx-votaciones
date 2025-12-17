@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS companies (
     industry_type TEXT NOT NULL, -- e.g. Automotriz, Seguridad, Alimentos
     location TEXT, -- New optional field (e.g. "Calle 123, Centro")
     vehicle_count INTEGER DEFAULT 0,
+    is_private BOOLEAN DEFAULT FALSE,
     owner_ids TEXT[] DEFAULT '{}', -- Array of Discord IDs
     balance DECIMAL(15,2) DEFAULT 0,
     status TEXT DEFAULT 'active' CHECK (status IN ('active', 'suspended', 'closed')),

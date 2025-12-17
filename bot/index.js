@@ -834,7 +834,9 @@ client.on('interactionCreate', async interaction => {
 
         // CARD STATS MAP
         const cardStats = {
-            'NMX Débito': { limit: 0, interest: 0, cost: 0 },
+            'NMX Débito': { limit: 0, interest: 0, cost: 100 },
+            'NMX Débito Plus': { limit: 0, interest: 0, cost: 500 },
+            'NMX Débito Gold': { limit: 0, interest: 0, cost: 1000 },
             'NMX Start': { limit: 15000, interest: 15, cost: 2000 },
             'NMX Básica': { limit: 30000, interest: 12, cost: 4000 },
             'NMX Plus': { limit: 50000, interest: 10, cost: 6000 },
@@ -2467,6 +2469,8 @@ client.on('interactionCreate', async interaction => {
             // 2. Get Options
             const name = interaction.options.getString('nombre');
             const ownerUser = interaction.options.getUser('dueño');
+            const coOwnerUser = interaction.options.getUser('co_dueño');
+            const isPrivate = interaction.options.getBoolean('es_privada') || false;
             const logo = interaction.options.getAttachment('logo');
             const type = interaction.options.getString('tipo_local'); // e.g. Taller, Restaurante
             const vehicles = interaction.options.getInteger('vehiculos') || 0;
@@ -2499,6 +2503,8 @@ client.on('interactionCreate', async interaction => {
                     .addFields(
                         { name: '🏷️ Rubro', value: type, inline: true },
                         { name: '📍 Ubicación', value: location, inline: true },
+                        { name: '🔒 Tipo', value: isPrivate ? 'Privada (+Impuestos)' : 'Pública', inline: true },
+                        { name: '👥 Co-Dueño', value: coOwnerUser ? `<@${coOwnerUser.id}>` : 'N/A', inline: true },
                         { name: '💵 Total a Cobrar', value: `**$${totalCost.toLocaleString()}**`, inline: false },
                         { name: '🧾 Desglose', value: `> Trámite: $${tramiteCost.toLocaleString()}\n> Local: $${localCost.toLocaleString()}\n> Vehículos: $${vehicleCost.toLocaleString()}`, inline: false }
                     )
@@ -2537,16 +2543,21 @@ client.on('interactionCreate', async interaction => {
                                 await billingService.ubService.removeMoney(interaction.guildId, ownerUser.id, totalCost, `Registro Empresa: ${name}`);
                             }
 
+                            // Prepare IDs
+                            const ownerIds = [ownerUser.id];
+                            if (coOwnerUser) ownerIds.push(coOwnerUser.id);
+
                             // Create in DB
                             const newCompany = await companyService.createCompany({
                                 name: name,
                                 logo_url: logo ? logo.url : null,
                                 industry_type: type,
-                                owner_ids: [ownerUser.id],
+                                owner_ids: ownerIds, // Updated Array
                                 vehicle_count: vehicles,
                                 location: location,
                                 balance: 0,
-                                status: 'active'
+                                status: 'active',
+                                is_private: isPrivate // New boolean
                             });
 
                             // Final Success Embed
@@ -2556,7 +2567,9 @@ client.on('interactionCreate', async interaction => {
                                 .setDescription(`Empresa dada de alta exitosamente en Nación MX.\nCobro realizado al dueño por **$${totalCost.toLocaleString()}**.`)
                                 .addFields(
                                     { name: '👤 Dueño', value: `<@${ownerUser.id}>`, inline: true },
+                                    { name: '👥 Co-Dueño', value: coOwnerUser ? `<@${coOwnerUser.id}>` : 'N/A', inline: true },
                                     { name: '🏷️ Rubro', value: type, inline: true },
+                                    { name: '🔒 Privacidad', value: isPrivate ? 'Privada' : 'Pública', inline: true },
                                     { name: '📍 Ubicación', value: location, inline: true },
                                     { name: '🚗 Vehículos', value: `${vehicles}`, inline: true },
                                     { name: '💵 Costo Total', value: `$${totalCost.toLocaleString()}`, inline: false }

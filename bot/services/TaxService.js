@@ -37,11 +37,31 @@ class TaxService {
 
             const totalIncome = transactions.reduce((sum, tx) => sum + Number(tx.amount), 0);
 
+            // 2b. Check if Company is Private
+            // We need to find the company owned by this discordId
+            // Note: owner_ids is an array. We check if the array contains the discordId.
+            const { data: companies } = await this.supabase
+                .from('companies')
+                .select('is_private')
+                .contains('owner_ids', [discordId])
+                .eq('status', 'active');
+
+            let isPrivateCompany = false;
+            // If user owns multiple, and ANY is private, we apply surcharge (simplification)
+            if (companies && companies.length > 0) {
+                isPrivateCompany = companies.some(c => c.is_private);
+            }
+
             // 3. Calculate Tax Tier
             let taxRate = 0;
             if (totalIncome > 5000000) taxRate = 0.15;      // > 5M
             else if (totalIncome > 1000000) taxRate = 0.10; // 1M - 5M
             else taxRate = 0.05;                            // 0 - 1M
+
+            // 3b. Apply Surcharge
+            if (isPrivateCompany) {
+                taxRate += 0.05; // +5% for private companies
+            }
 
             const taxAmount = totalIncome * taxRate;
 
