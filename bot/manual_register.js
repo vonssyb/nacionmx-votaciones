@@ -65,6 +65,7 @@ const commands = [
                 type: 3,
                 required: true,
                 choices: [
+                    { name: 'NMX Débito (Gratis)', value: 'NMX Débito' },
                     { name: 'NMX Start ($2k)', value: 'NMX Start' },
                     { name: 'NMX Básica ($4k)', value: 'NMX Básica' },
                     { name: 'NMX Plus ($6k)', value: 'NMX Plus' },

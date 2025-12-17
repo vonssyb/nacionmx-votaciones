@@ -836,6 +836,7 @@ client.on('interactionCreate', async interaction => {
 
         // CARD STATS MAP
         const cardStats = {
+            'NMX Débito': { limit: 0, interest: 0, cost: 0 },
             'NMX Start': { limit: 15000, interest: 15, cost: 2000 },
             'NMX Básica': { limit: 30000, interest: 12, cost: 4000 },
             'NMX Plus': { limit: 50000, interest: 10, cost: 6000 },
@@ -929,46 +930,49 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                         return i.followUp({ content: `❌ **Fondos Insuficientes**. Tienes: $${userMoney.toLocaleString()}. Requiere: $${stats.cost.toLocaleString()}.`, ephemeral: false });
                     }
 
-                    // Charge
-                    await billingService.ubService.removeMoney(interaction.guildId, targetUser.id, stats.cost, `Apertura ${cardType}`);
+                    // Charge (Skip if cost is 0)
+                    if (stats.cost > 0) {
+                        await billingService.ubService.removeMoney(interaction.guildId, targetUser.id, stats.cost, `Apertura ${cardType}`);
+                    }
 
-                    // Create Card
-                    const { error: insertError } = await supabase.from('credit_cards').insert([{
-                        citizen_id: citizen.id,
-                        card_type: cardType,
-                        credit_limit: stats.limit,
-                        current_balance: 0,
-                        interest_rate: stats.interest,
-                        status: 'active',
-                        next_payment_due: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
-                    }]);
+                    // *** DEBIT CARD LOGIC ***
+                    if (cardType === 'NMX Débito') {
+                        // Check if already has logic? No, just create.
+                        const cardNumber = '4279' + Math.floor(Math.random() * 1000000000000).toString().padStart(12, '0');
+                        const { error: insertError } = await supabase.from('debit_cards').insert([{
+                            discord_user_id: targetUser.id,
+                            citizen_id: citizen.id,
+                            card_number: cardNumber,
+                            balance: 0,
+                            status: 'active'
+                        }]);
 
-                    if (insertError) throw new Error(insertError.message);
+                        if (insertError) throw new Error(insertError.message);
 
-                    // Log Evidence (Optional)
-                    // Could save DNI URL to evidence table if needed.
+                        await message.edit({
+                            content: `✅ **Cuenta de Débito Abierta** para **${holderName}**.\n💳 Número: \`${cardNumber}\`\n👮 **Registrado por:** <@${interaction.user.id}>`,
+                            components: []
+                        });
+                    } else {
+                        // *** CREDIT CARD LOGIC (Original) ***
+                        const { error: insertError } = await supabase.from('credit_cards').insert([{
+                            citizen_id: citizen.id,
+                            card_type: cardType,
+                            credit_limit: stats.limit,
+                            current_balance: 0,
+                            interest_rate: stats.interest,
+                            status: 'active',
+                            next_payment_due: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+                        }]);
 
-                    // UPDATE: Include 'Registrado por' in final success message
-                    const successEmbed = new EmbedBuilder()
-                        .setTitle('✅ Nueva Tarjeta Emitida')
-                        .setColor(0x00FF00) // Green
-                        .addFields(
-                            { name: 'Titular', value: holderName, inline: true },
-                            { name: 'DNI', value: (citizen && citizen.dni) ? citizen.dni : 'PENDING', inline: true },
-                            { name: 'Nivel', value: cardType, inline: true },
-                            { name: 'Límite', value: `$${stats.limit.toLocaleString()}`, inline: true },
-                            { name: 'Interés', value: `${stats.interest}%`, inline: true },
-                            { name: 'Corte', value: 'Domingos 11:59PM', inline: true }
-                        )
-                        .setThumbnail(dniPhoto.url)
-                        .addFields({ name: '💡 Comandos Útiles', value: '• `/credito estado`: Ver saldo y deuda.\n• `/credito pagar`: Abonar a tu tarjeta.\n• `/credito pedir-prestamo`: Retirar efectivo.' })
-                        .setFooter({ text: `Banco Nacional RP • ${new Date().toLocaleDateString('es-MX')} • Registrado por: ${interaction.user.tag}` });
+                        if (insertError) throw new Error(insertError.message);
 
-                    await message.edit({
-                        content: '', // Remove plain text content
-                        embeds: [successEmbed],
-                        components: []
-                    });
+                        // UPDATE: Include 'Registrado por' in final success message
+                        await message.edit({
+                            content: `✅ **Tarjeta Activada** para **${holderName}**. Cobro de $${stats.cost.toLocaleString()} realizado.\n👮 **Registrado por:** <@${interaction.user.id}>`,
+                            components: []
+                        });
+                    }
 
                 } catch (err) {
                     console.error(err);
@@ -1456,154 +1460,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
         }
     }
 
-    else if (commandName === 'registrar-tarjeta') {
-        await interaction.deferReply({ ephemeral: false });
 
-        // 1. Role Check (Staff Banco: 1450591546524307689)
-        // Also allow Admin for testing
-        if (!interaction.member.roles.cache.has('1450591546524307689') && !interaction.member.permissions.has('Administrator')) {
-            return interaction.editReply('⛔ No tienes permisos para registrar tarjetas (Rol Staff Banco Requerido).');
-        }
-
-        const targetUser = interaction.options.getUser('usuario');
-        if (!targetUser) return interaction.editReply('❌ Debes especificar un usuario.');
-
-        const holderName = interaction.options.getString('nombre_titular');
-        const cardType = interaction.options.getString('tipo'); // Use 'tipo' not 'tipo_tarjeta' as defined in options
-        const dniPhoto = interaction.options.getAttachment('foto_dni');
-        const notes = interaction.options.getString('notas') || 'Sin notas';
-
-        // CARD STATS MAP
-        const cardStats = {
-            'NMX Start': { limit: 15000, interest: 15, cost: 2000 },
-            'NMX Básica': { limit: 30000, interest: 12, cost: 4000 },
-            'NMX Plus': { limit: 50000, interest: 10, cost: 6000 },
-            'NMX Plata': { limit: 100000, interest: 8, cost: 10000 },
-            'NMX Oro': { limit: 250000, interest: 7, cost: 15000 },
-            'NMX Rubí': { limit: 500000, interest: 6, cost: 25000 },
-            'NMX Black': { limit: 1000000, interest: 5, cost: 40000 },
-            'NMX Diamante': { limit: 2000000, interest: 3, cost: 60000 }
-        };
-
-        const stats = cardStats[cardType || 'NMX Start'] || cardStats['NMX Start'];
-
-        // 2. Find Citizen
-        // The user said "pide foto de dni, nombre del titular".
-        let { data: citizen } = await supabase.from('citizens').select('id, full_name').eq('discord_id', targetUser.id).limit(1).maybeSingle();
-
-        if (!citizen) {
-            // Create new Citizen record if not exists
-            const { data: newCit, error: createError } = await supabase.from('citizens').insert([{
-                discord_id: targetUser.id,
-                full_name: holderName,
-                dni: 'PENDING',
-                created_at: new Date().toISOString(),
-                credit_score: 100
-            }]).select().single();
-
-            if (createError) {
-                console.error(createError);
-                return interaction.editReply('❌ Error registrando Nuevo Ciudadano en base de datos.');
-            }
-            citizen = newCit;
-        } else {
-            // Update name matches RP name provided
-            if (citizen.full_name !== holderName) {
-                await supabase.from('citizens').update({ full_name: holderName }).eq('id', citizen.id);
-            }
-        }
-
-        // 3. Send Interactive Offer
-        const offerEmbed = new EmbedBuilder()
-            .setTitle('💳 Oferta de Tarjeta de Crédito')
-            .setColor(0xD4AF37)
-            .setDescription(`Hola <@${targetUser.id}>,\nEl Banco Nacional te ofrece una tarjeta **${cardType}**.\n\n**Titular:** ${holderName}\n\n**Detalles del Contrato:**`)
-            .addFields(
-                { name: 'Límite', value: `$${stats.limit.toLocaleString()}`, inline: true },
-                { name: 'Interés Semanal', value: `${stats.interest}%`, inline: true },
-                { name: 'Costo Apertura', value: `$${stats.cost.toLocaleString()}`, inline: true },
-                { name: 'Notas', value: notes }
-            )
-            .setThumbnail(dniPhoto.url)
-            .setFooter({ text: 'Tienes 5 minutos para aceptar. Revisa los términos antes.' });
-
-        const row = new ActionRowBuilder()
-            .addComponents(
-                new ButtonBuilder().setCustomId('btn_terms').setLabel('📄 Ver Términos').setStyle(ButtonStyle.Secondary),
-                new ButtonBuilder().setCustomId('btn_accept').setLabel('✅ Aceptar y Pagar').setStyle(ButtonStyle.Success),
-                new ButtonBuilder().setCustomId('btn_reject').setLabel('❌ Rechazar').setStyle(ButtonStyle.Danger)
-            );
-
-        // Send to channel (Public)
-        const message = await interaction.channel.send({ content: `<@${targetUser.id}>`, embeds: [offerEmbed], components: [row] });
-        await interaction.editReply(`✅ Oferta enviada a <@${targetUser.id}> para tarjeta **${cardType}**.`);
-
-        // 4. Collector
-        const filter = i => i.user.id === targetUser.id;
-        const collector = message.createMessageComponentCollector({ filter, time: 300000 }); // 5 min
-
-        collector.on('collect', async i => {
-            if (i.customId === 'btn_terms') {
-                const tycEmbed = new EmbedBuilder()
-                    .setTitle('📜 Términos y Condiciones')
-                    .setColor(0x333333)
-                    .setDescription('**1. Pagos:** Semanales obligatorios (25% mín).\n**2. Intereses:** Se aplican al corte.\n**3. Impago:** Congelamiento y Buró negativo.\n**4. Uso:** Responsabilidad del titular.');
-                await i.reply({ embeds: [tycEmbed], ephemeral: false });
-            }
-            else if (i.customId === 'btn_reject') {
-                await i.update({ content: '❌ Oferta rechazada.', components: [] });
-                collector.stop();
-            }
-            else if (i.customId === 'btn_accept') {
-                try {
-                    await i.deferUpdate();
-                } catch (e) {
-                    // Ignore if already deferred/replied
-                }
-
-                try {
-                    // Check Funds
-                    const balance = await billingService.ubService.getUserBalance(interaction.guildId, targetUser.id);
-                    const userMoney = balance.total || (balance.cash + balance.bank);
-
-                    if (userMoney < stats.cost) {
-                        return i.followUp({ content: `❌ **Fondos Insuficientes**. Tienes: $${userMoney.toLocaleString()}. Requiere: $${stats.cost.toLocaleString()}.`, ephemeral: false });
-                    }
-
-                    // Charge
-                    await billingService.ubService.removeMoney(interaction.guildId, targetUser.id, stats.cost, `Apertura ${cardType}`);
-
-                    // Create Card
-                    const { error: insertError } = await supabase.from('credit_cards').insert([{
-                        citizen_id: citizen.id,
-                        card_type: cardType,
-                        credit_limit: stats.limit,
-                        current_balance: 0,
-                        interest_rate: stats.interest,
-                        status: 'active', // Ensure lowercase
-                        next_payment_due: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
-                    }]);
-
-                    if (insertError) throw new Error(insertError.message);
-
-                    // UPDATE: Include 'Registrado por' in final success message
-                    await message.edit({
-                        content: `✅ **Tarjeta Activada** para **${holderName}**. Cobro de $${stats.cost.toLocaleString()} realizado.\n👮 **Registrado por:** <@${interaction.user.id}>`,
-                        components: []
-                    });
-
-                } catch (err) {
-                    console.error(err);
-                    await i.followUp({ content: `❌ Error procesando: ${err.message}`, ephemeral: false });
-                }
-                collector.stop();
-            }
-        });
-
-        collector.on('end', collected => {
-            if (collected.size === 0) message.edit({ content: '⚠️ Oferta expirada.', components: [] });
-        });
-    }
 
     else if (commandName === 'multa') {
         await interaction.deferReply();
@@ -2343,21 +2200,16 @@ client.on('interactionCreate', async interaction => {
     else if (commandName === 'debito') {
         const subcommand = interaction.options.getSubcommand();
 
-        async function getOrCreateDebitCard(discordId) {
-            let { data: card } = await supabase.from('debit_cards').select('*').eq('discord_user_id', discordId).eq('status', 'active').maybeSingle();
-            if (!card) {
-                const { data: citizen } = await supabase.from('citizens').select('id').eq('discord_id', discordId).order('created_at', { ascending: false }).limit(1).maybeSingle();
-                const cardNumber = '4279' + Math.floor(Math.random() * 1000000000000).toString().padStart(12, '0');
-                const { data: newCard } = await supabase.from('debit_cards').insert({ discord_user_id: discordId, citizen_id: citizen?.id, card_number: cardNumber, balance: 0 }).select().single();
-                card = newCard;
-            }
+        async function getDebitCard(discordId) {
+            const { data: card } = await supabase.from('debit_cards').select('*').eq('discord_user_id', discordId).eq('status', 'active').maybeSingle();
             return card;
         }
 
         if (subcommand === 'estado') {
             await interaction.deferReply();
             try {
-                const card = await getOrCreateDebitCard(interaction.user.id);
+                const card = await getDebitCard(interaction.user.id);
+                if (!card) return interaction.editReply('❌ No tienes una tarjeta de débito activa. Visita el Banco Nacional para abrir tu cuenta con `/registrar-tarjeta`.');
                 const embed = new EmbedBuilder().setTitle('💳 Estado Tarjeta Débito').setColor(0x00CED1).addFields({ name: 'Numero', value: `\`${card.card_number}\``, inline: false }, { name: 'Balance', value: `$${card.balance.toLocaleString()}`, inline: true }, { name: 'Estado', value: '✅ Activa', inline: true }).setTimestamp();
                 await interaction.editReply({ embeds: [embed] });
             } catch (error) {
@@ -2372,6 +2224,10 @@ client.on('interactionCreate', async interaction => {
             await interaction.deferReply();
             try {
                 const cashBalance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
+
+                // Check if user has Debit Card
+                const card = await getDebitCard(interaction.user.id);
+                if (!card) return interaction.editReply('❌ No tienes una tarjeta de débito activa. Visita el Banco Nacional para abrir tu cuenta con `/registrar-tarjeta`.');
                 // Check CASH wallet, not bank
                 if ((cashBalance.cash || 0) < monto) return interaction.editReply(`❌ Efectivo insuficiente en mano: $${(cashBalance.cash || 0).toLocaleString()}`);
 
@@ -2394,7 +2250,8 @@ client.on('interactionCreate', async interaction => {
             if (destUser.id === interaction.user.id) return interaction.reply({ content: '❌ No a ti mismo.', ephemeral: true });
             await interaction.deferReply();
             try {
-                const card = await getOrCreateDebitCard(interaction.user.id);
+                const card = await getDebitCard(interaction.user.id);
+                if (!card) return interaction.editReply('❌ No tienes una tarjeta de débito activa. Visita el Banco Nacional para abrir tu cuenta con `/registrar-tarjeta`.');
                 if (card.balance < monto) return interaction.editReply(`❌ Saldo débito insuficiente: $${card.balance.toLocaleString()}`);
                 await supabase.from('debit_cards').update({ balance: card.balance - monto }).eq('id', card.id);
                 await supabase.from('debit_transactions').insert({ debit_card_id: card.id, discord_user_id: interaction.user.id, transaction_type: 'transfer_out', amount: -monto, balance_after: card.balance - monto, related_user_id: destUser.id });
