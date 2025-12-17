@@ -16,8 +16,8 @@ CREATE TABLE IF NOT EXISTS debit_cards (
     updated_at TIMESTAMP DEFAULT NOW()
 );
 
-CREATE INDEX idx_debit_cards_discord ON debit_cards(discord_user_id);
-CREATE INDEX idx_debit_cards_citizen ON debit_cards(citizen_id);
+CREATE INDEX IF NOT EXISTS idx_debit_cards_discord ON debit_cards(discord_user_id);
+CREATE INDEX IF NOT EXISTS idx_debit_cards_citizen ON debit_cards(citizen_id);
 
 -- 2. TAX CONFIGURATION TABLE
 CREATE TABLE IF NOT EXISTS tax_config (
@@ -50,9 +50,9 @@ CREATE TABLE IF NOT EXISTS tax_payments (
     created_at TIMESTAMP DEFAULT NOW()
 );
 
-CREATE INDEX idx_tax_payments_user ON tax_payments(discord_user_id);
-CREATE INDEX idx_tax_payments_status ON tax_payments(status);
-CREATE INDEX idx_tax_payments_due ON tax_payments(due_date);
+CREATE INDEX IF NOT EXISTS idx_tax_payments_user ON tax_payments(discord_user_id);
+CREATE INDEX IF NOT EXISTS idx_tax_payments_status ON tax_payments(status);
+CREATE INDEX IF NOT EXISTS idx_tax_payments_due ON tax_payments(due_date);
 
 -- 4. PENDING TRANSFERS TABLE (for delayed transactions)
 CREATE TABLE IF NOT EXISTS pending_transfers (
@@ -68,9 +68,9 @@ CREATE TABLE IF NOT EXISTS pending_transfers (
     created_at TIMESTAMP DEFAULT NOW()
 );
 
-CREATE INDEX idx_pending_transfers_from ON pending_transfers(from_user_id);
-CREATE INDEX idx_pending_transfers_scheduled ON pending_transfers(scheduled_completion);
-CREATE INDEX idx_pending_transfers_status ON pending_transfers(status, scheduled_completion);
+CREATE INDEX IF NOT EXISTS idx_pending_transfers_from ON pending_transfers(from_user_id);
+CREATE INDEX IF NOT EXISTS idx_pending_transfers_scheduled ON pending_transfers(scheduled_completion);
+CREATE INDEX IF NOT EXISTS idx_pending_transfers_status ON pending_transfers(status, scheduled_completion);
 
 -- 5. DEBIT TRANSACTIONS LOG (for audit trail)
 CREATE TABLE IF NOT EXISTS debit_transactions (
@@ -86,9 +86,9 @@ CREATE TABLE IF NOT EXISTS debit_transactions (
     created_at TIMESTAMP DEFAULT NOW()
 );
 
-CREATE INDEX idx_debit_transactions_user ON debit_transactions(discord_user_id);
-CREATE INDEX idx_debit_transactions_card ON debit_transactions(debit_card_id);
-CREATE INDEX idx_debit_transactions_type ON debit_transactions(transaction_type);
+CREATE INDEX IF NOT EXISTS idx_debit_transactions_user ON debit_transactions(discord_user_id);
+CREATE INDEX IF NOT EXISTS idx_debit_transactions_card ON debit_transactions(debit_card_id);
+CREATE INDEX IF NOT EXISTS idx_debit_transactions_type ON debit_transactions(transaction_type);
 
 -- 6. FUNCTIONS
 
@@ -109,6 +109,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS debit_cards_updated_at ON debit_cards;
 CREATE TRIGGER debit_cards_updated_at
 BEFORE UPDATE ON debit_cards
 FOR EACH ROW
@@ -122,9 +123,17 @@ ALTER TABLE pending_transfers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE debit_transactions ENABLE ROW LEVEL SECURITY;
 
 -- Allow service role full access
+-- Allow service role full access
+DROP POLICY IF EXISTS service_role_all_debit_cards ON debit_cards;
 CREATE POLICY service_role_all_debit_cards ON debit_cards FOR ALL USING (true);
+
+DROP POLICY IF EXISTS service_role_all_tax_payments ON tax_payments;
 CREATE POLICY service_role_all_tax_payments ON tax_payments FOR ALL USING (true);
+
+DROP POLICY IF EXISTS service_role_all_pending_transfers ON pending_transfers;
 CREATE POLICY service_role_all_pending_transfers ON pending_transfers FOR ALL USING (true);
+
+DROP POLICY IF EXISTS service_role_all_debit_transactions ON debit_transactions;
 CREATE POLICY service_role_all_debit_transactions ON debit_transactions FOR ALL USING (true);
 
 -- =====================================================

@@ -43,6 +43,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Trigger to auto-update timestamp
+DROP TRIGGER IF EXISTS portfolio_updated_at ON stock_portfolios;
 CREATE TRIGGER portfolio_updated_at
   BEFORE UPDATE ON stock_portfolios
   FOR EACH ROW
@@ -53,5 +54,8 @@ ALTER TABLE stock_portfolios ENABLE ROW LEVEL SECURITY;
 ALTER TABLE stock_transactions ENABLE ROW LEVEL SECURITY;
 
 -- Policies: Allow all operations (bot has service role)
+DROP POLICY IF EXISTS "Enable all for service role" ON stock_portfolios;
 CREATE POLICY "Enable all for service role" ON stock_portfolios FOR ALL USING (true);
+
+DROP POLICY IF EXISTS "Enable all for service role" ON stock_transactions;
 CREATE POLICY "Enable all for service role" ON stock_transactions FOR ALL USING (true);
