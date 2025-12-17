@@ -1279,9 +1279,25 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
         const reason = interaction.options.getString('razon');
 
         // 2. Find Citizen
-        const { data: citizen } = await supabase.from('citizens').select('id, full_name').eq('discord_id', targetUser.id).order('created_at', { ascending: false }).limit(1).maybeSingle();
+        let { data: citizen } = await supabase.from('citizens').select('id, full_name').eq('discord_id', targetUser.id).order('created_at', { ascending: false }).limit(1).maybeSingle();
 
-        if (!citizen) return interaction.editReply('❌ El usuario no es ciudadano registrado.');
+        if (!citizen) {
+            // Auto-register "John Doe" so we can fine him
+            // Use targetUser.globalName or username as fallback
+            const displayName = targetUser.globalName || targetUser.username;
+            console.log(`Auto-registering ${displayName} for fine...`);
+
+            const { data: newCit, error: createError } = await supabase.from('citizens').insert([{
+                discord_id: targetUser.id,
+                full_name: displayName,
+                dni: 'PENDING_MULTA',
+                credit_score: 50 // Penalty for not being registered? Or default 100.
+            }]).select('id, full_name').single();
+
+            if (createError || !newCit) return interaction.editReply(`❌ Error creando registro temporal: ${createError?.message}`);
+
+            citizen = newCit; // Assign to continue logic
+        }
 
         // 3. UnbelievaBoat Charge
         let status = 'UNPAID';
