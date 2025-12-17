@@ -1532,30 +1532,35 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
     }
 
     else if (commandName === 'bolsa') {
-        // Simple Stock Market Simulation
         const stocks = [
-            { symbol: 'NMX', name: 'Nación MX Oil', base: 100 },
-            { symbol: 'TQL', name: 'Tequila Coin', base: 50 },
-            { symbol: 'CRP', name: 'Crypto Cartel', base: 500 }
+            { symbol: 'BTC', name: 'Bitcoin', base: 45000, type: 'Cripto' },
+            { symbol: 'ETH', name: 'Ethereum', base: 3000, type: 'Cripto' },
+            { symbol: 'SOL', name: 'Solana', base: 100, type: 'Cripto' },
+            { symbol: 'TSLA', name: 'Tesla Inc.', base: 200, type: 'Empresa' },
+            { symbol: 'AMZN', name: 'Amazon', base: 145, type: 'Empresa' },
+            { symbol: 'PEMEX', name: 'Petróleos Mexicanos', base: 18, type: 'Empresa' },
+            { symbol: 'NMX', name: 'Nación MX Corp', base: 500, type: 'Empresa' }
         ];
 
         // Pseudo-random price based on hour
         const hour = new Date().getHours();
         const getPrice = (base, sym) => {
-            const seed = (hour * base) % 100;
-            const variance = (seed - 50) / 100; // -0.5 to 0.5
-            return Math.floor(base * (1 + variance));
+            const seed = (hour * base) % 100; // Deterministic random per hour
+            const variance = (seed - 50) / 100; // -0.5 to 0.5 (Too high? Let's reduce to 20%)
+            const cleanVariance = variance * 0.4; // +/- 20%
+            return Math.floor(base * (1 + cleanVariance));
         };
 
         const embed = new EmbedBuilder()
-            .setTitle('📈 Bolsa de Valores NMX')
+            .setTitle('📈 Bolsa de Valores & Cripto')
             .setColor(0x0000FF)
-            .setDescription(`Precios actualizados a las ${hour}:00 hrs.`);
+            .setDescription(`Precios actualizados a las ${hour}:00 hrs.`)
+            .setTimestamp();
 
         stocks.forEach(s => {
             const price = getPrice(s.base, s.symbol);
-            const trend = price > s.base ? '📈 Subiendo' : '📉 Bajando';
-            embed.addFields({ name: `${s.symbol} - ${s.name}`, value: `$${price} USD | ${trend}` });
+            const trend = price > s.base ? '📈' : '📉';
+            embed.addFields({ name: `${trend} ${s.symbol} (${s.type})`, value: `$${price.toLocaleString()} USD`, inline: true });
         });
 
         await interaction.reply({ embeds: [embed] });
