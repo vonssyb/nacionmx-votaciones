@@ -295,9 +295,21 @@ client.once('ready', async () => {
         },
         {
             name: 'inversion',
-            description: 'Invierte tu dinero a Plazo Fijo (Ganancia garantizada)',
+            description: 'Sistema de Inversión a Plazo Fijo',
             options: [
-                { name: 'monto', description: 'Cantidad a invertir (Bloqueada 7 días)', type: 10, required: true }
+                {
+                    name: 'nueva',
+                    description: 'Abrir una nueva inversión (7 días, 5% rendimiento)',
+                    type: 1,
+                    options: [
+                        { name: 'monto', description: 'Cantidad a bloquear', type: 10, required: true }
+                    ]
+                },
+                {
+                    name: 'estado',
+                    description: 'Ver mis inversiones activas y retirar ganancias',
+                    type: 1
+                }
             ]
         },
         {
@@ -306,10 +318,35 @@ client.once('ready', async () => {
         },
         {
             name: 'nomina',
-            description: 'Pago masivo de sueldos (Dueños de Negocio)',
+            description: 'Gestión de Nóminas para Empresas',
             options: [
-                { name: 'grupo', description: 'Nombre del grupo de nómina', type: 3, required: true } // Simplified for now
+                {
+                    name: 'crear',
+                    description: 'Crear un nuevo grupo de pago',
+                    type: 1,
+                    options: [{ name: 'nombre', description: 'Nombre del grupo (ej. Taller)', type: 3, required: true }]
+                },
+                {
+                    name: 'agregar',
+                    description: 'Agregar empleado al grupo',
+                    type: 1,
+                    options: [
+                        { name: 'grupo', description: 'Nombre del grupo', type: 3, required: true },
+                        { name: 'empleado', description: 'Usuario a pagar', type: 6, required: true },
+                        { name: 'sueldo', description: 'Monto a pagar', type: 10, required: true }
+                    ]
+                },
+                {
+                    name: 'pagar',
+                    description: 'Pagar a todos los empleados del grupo',
+                    type: 1,
+                    options: [{ name: 'grupo', description: 'Nombre del grupo', type: 3, required: true }]
+                }
             ]
+        },
+        {
+            name: 'bolsa',
+            description: 'Ver precios de acciones (Roleplay)',
         }
     ];
 
@@ -350,7 +387,23 @@ client.once('ready', async () => {
 
 // Interaction Handler (Slash Commands)
 client.on('interactionCreate', async interaction => {
-    if (!interaction.isCommand()) return;
+    // BUTTON: Investment Collection
+    if (interaction.isButton() && interaction.customId.startsWith('btn_collect_')) {
+        await interaction.deferReply({ ephemeral: true });
+        const invId = interaction.customId.replace('btn_collect_', '');
+
+        // Fetch Inv
+        const { data: inv } = await supabase.from('investments').select('*').eq('id', invId).single();
+        if (!inv || inv.status !== 'active') return interaction.editReply('❌ Inversión no válida o ya cobrada.');
+
+        // Payout
+        await billingService.ubService.addMoney(interaction.guildId, interaction.user.id, inv.payout_amount, `Retiro Inversión ${inv.id}`);
+        await supabase.from('investments').update({ status: 'completed' }).eq('id', invId);
+
+        await interaction.editReply(`✅ **¡Ganancia Cobrada!**\nHas recibido **$${inv.payout_amount.toLocaleString()}** en tu cuenta.`);
+    }
+
+    if (interaction.isButton()) { return; }
 
     const { commandName } = interaction;
 
@@ -1283,8 +1336,186 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
 
 
     if (commandName === 'saldo') {
-        // ... (Existing logic or placeholder) ...
         await interaction.reply({ content: 'Esta función estará disponible pronto.', ephemeral: false });
+    }
+    else if (commandName === 'inversion') {
+        const subCmd = interaction.options.getSubcommand();
+
+        if (subCmd === 'nueva') {
+            await interaction.deferReply();
+            const amount = interaction.options.getNumber('monto');
+            if (amount < 5000) return interaction.editReply('❌ La inversión mínima es de **$5,000**.');
+
+            // Check Balance
+            const balance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
+            const userMoney = balance.total || (balance.cash + balance.bank);
+
+            if (userMoney < amount) {
+                return interaction.editReply(`❌ **Fondos Insuficientes**. Tienes: $${userMoney.toLocaleString()}`);
+            }
+
+            // Remove Money
+            await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, amount, `Inversión Plazo Fijo`);
+
+            // Calculate Dates and Profit
+            const now = new Date();
+            const endDate = new Date(now.getTime() + (7 * 24 * 60 * 60 * 1000)); // 7 Days
+            const interestRate = 5; // 5% weekly
+            const payout = amount + (amount * (interestRate / 100));
+
+            // Insert DB
+            await supabase.from('investments').insert([{
+                discord_id: interaction.user.id,
+                invested_amount: amount,
+                interest_rate: interestRate,
+                start_date: now.toISOString(),
+                end_date: endDate.toISOString(),
+                payout_amount: payout,
+                status: 'active'
+            }]);
+
+            // Log
+            await supabase.from('banking_transactions').insert([{
+                sender_discord_id: interaction.user.id,
+                receiver_discord_id: null,
+                amount: amount,
+                type: 'investment',
+                description: `Apertura Plazo Fijo (7 días al ${interestRate}%)`
+            }]);
+
+            const embed = new EmbedBuilder()
+                .setTitle('📈 Inversión Exitosa')
+                .setColor(0x00FF00)
+                .setDescription(`Has invertido **$${amount.toLocaleString()}**.\n\n📅 **Vencimiento:** <t:${Math.floor(endDate.getTime() / 1000)}:R>\n💰 **Retorno Esperado:** $${payout.toLocaleString()}\n\n*El dinero está bloqueado hasta la fecha de vencimiento.*`);
+
+            await interaction.editReply({ embeds: [embed] });
+        }
+        else if (subCmd === 'estado') {
+            await interaction.deferReply();
+            const { data: investments } = await supabase.from('investments')
+                .select('*')
+                .eq('discord_id', interaction.user.id)
+                .eq('status', 'active');
+
+            if (!investments || investments.length === 0) return interaction.editReply('📉 No tienes inversiones activas.');
+
+            const embed = new EmbedBuilder()
+                .setTitle('💼 Portafolio de Inversiones')
+                .setColor(0xD4AF37);
+
+            const rows = []; // Component rows (buttons)
+
+            let desc = '';
+            for (const inv of investments) {
+                const endDate = new Date(inv.end_date);
+                const isReady = new Date() >= endDate;
+                const statusIcon = isReady ? '🟢 **DISPONIBLE**' : '🔒 Bloqueado';
+
+                desc += `**ID:** \`${inv.id.split('-')[0]}\` | Inversión: **$${inv.invested_amount.toLocaleString()}**\nRetorno: **$${inv.payout_amount.toLocaleString()}** | ${statusIcon}\nVence: <t:${Math.floor(endDate.getTime() / 1000)}:R>\n\n`;
+
+                if (isReady) {
+                    rows.push(new ActionRowBuilder().addComponents(
+                        new ButtonBuilder()
+                            .setCustomId(`btn_collect_${inv.id}`)
+                            .setLabel(`Retirar $${inv.payout_amount.toLocaleString()} (ID: ${inv.id.split('-')[0]})`)
+                            .setStyle(ButtonStyle.Success)
+                    ));
+                }
+            }
+
+            embed.setDescription(desc || 'Tus inversiones aparecerán aquí.');
+
+            // Limit buttons to 5 rows
+            await interaction.editReply({ embeds: [embed], components: rows.slice(0, 5) });
+        }
+    }
+
+    else if (commandName === 'nomina') {
+        const subCmd = interaction.options.getSubcommand();
+
+        if (subCmd === 'crear') {
+            const name = interaction.options.getString('nombre');
+            await supabase.from('payroll_groups').insert([{ owner_discord_id: interaction.user.id, name: name }]);
+            await interaction.reply(`✅ Grupo de nómina **${name}** creado.`);
+        }
+        else if (subCmd === 'agregar') {
+            const groupName = interaction.options.getString('grupo');
+            const target = interaction.options.getUser('empleado');
+            const salary = interaction.options.getNumber('sueldo');
+
+            // Find group
+            const { data: group } = await supabase.from('payroll_groups').select('id').eq('name', groupName).eq('owner_discord_id', interaction.user.id).single();
+            if (!group) return interaction.reply('❌ No encontré ese grupo o no eres el dueño.');
+
+            await supabase.from('payroll_members').upsert([{ group_id: group.id, member_discord_id: target.id, salary: salary }]);
+            await interaction.reply(`✅ **${target.username}** agregado a **${groupName}** con sueldo $${salary}.`);
+        }
+        else if (subCmd === 'pagar') {
+            await interaction.deferReply();
+            const groupName = interaction.options.getString('grupo');
+
+            const { data: group } = await supabase.from('payroll_groups').select('id').eq('name', groupName).eq('owner_discord_id', interaction.user.id).single();
+            if (!group) return interaction.editReply('❌ Grupo no encontrado.');
+
+            const { data: members } = await supabase.from('payroll_members').select('*').eq('group_id', group.id);
+            if (!members || members.length === 0) return interaction.editReply('❌ El grupo no tiene empleados.');
+
+            let total = 0;
+            members.forEach(m => total += m.salary);
+
+            // Check Balance
+            const balance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
+            const userMoney = balance.total || (balance.cash + balance.bank);
+            if (userMoney < total) return interaction.editReply(`❌ Fondos insuficientes. Necesitas **$${total.toLocaleString()}**.`);
+
+            // Process
+            let report = `💰 **Nómina Pagada: ${groupName}**\nTotal: $${total.toLocaleString()}\n\n`;
+
+            // Deduct from Owner
+            await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, total, `Pago Nómina: ${groupName}`);
+
+            // Pay Employees
+            for (const m of members) {
+                await billingService.ubService.addMoney(interaction.guildId, m.member_discord_id, m.salary, `Nómina de ${interaction.user.username}`);
+                report += `✅ <@${m.member_discord_id}>: $${m.salary.toLocaleString()}\n`;
+            }
+
+            await interaction.editReply(report);
+        }
+    }
+
+    else if (commandName === 'bolsa') {
+        // Simple Stock Market Simulation
+        const stocks = [
+            { symbol: 'NMX', name: 'Nación MX Oil', base: 100 },
+            { symbol: 'TQL', name: 'Tequila Coin', base: 50 },
+            { symbol: 'CRP', name: 'Crypto Cartel', base: 500 }
+        ];
+
+        // Pseudo-random price based on hour
+        const hour = new Date().getHours();
+        const getPrice = (base, sym) => {
+            const seed = (hour * base) % 100;
+            const variance = (seed - 50) / 100; // -0.5 to 0.5
+            return Math.floor(base * (1 + variance));
+        };
+
+        const embed = new EmbedBuilder()
+            .setTitle('📈 Bolsa de Valores NMX')
+            .setColor(0x0000FF)
+            .setDescription(`Precios actualizados a las ${hour}:00 hrs.`);
+
+        stocks.forEach(s => {
+            const price = getPrice(s.base, s.symbol);
+            const trend = price > s.base ? '📈 Subiendo' : '📉 Bajando';
+            embed.addFields({ name: `${s.symbol} - ${s.name}`, value: `$${price} USD | ${trend}` });
+        });
+
+        await interaction.reply({ embeds: [embed] });
+    }
+
+    else if (commandName === 'impuestos') {
+        await interaction.reply({ content: '🛠️ **Próximamente:** Sistema de impuestos dinámico.', ephemeral: true });
     }
 });
 
