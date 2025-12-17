@@ -88,7 +88,26 @@ client.once('ready', async () => {
         },
         {
             name: 'registrar-tarjeta',
-            description: 'Enlace para solicitar tarjeta',
+            description: 'Registrar nueva tarjeta (Staff Banco)',
+            options: [
+                { name: 'usuario', description: 'Usuario a registrar', type: 6, required: true },
+                {
+                    name: 'tipo',
+                    description: 'Nivel de la tarjeta',
+                    type: 3,
+                    required: true,
+                    choices: [
+                        { name: 'NMX Clásica', value: 'NMX Clásica' },
+                        { name: 'NMX Oro', value: 'NMX Oro' },
+                        { name: 'NMX Platino', value: 'NMX Platino' },
+                        { name: 'NMX Diamante', value: 'NMX Diamante' },
+                        { name: 'NMX Centurión', value: 'NMX Centurión' }
+                    ]
+                },
+                { name: 'limite', description: 'Límite de crédito', type: 10, required: true },
+                { name: 'interes', description: 'Tasa de interés (%)', type: 10, required: true },
+                { name: 'costo', description: 'Costo de apertura (Se cobra al aceptar)', type: 10, required: true }
+            ]
         },
         {
             name: 'credito',
@@ -382,22 +401,134 @@ client.on('interactionCreate', async interaction => {
     }
 
     else if (commandName === 'registrar-tarjeta') {
-        const embed = new EmbedBuilder()
-            .setTitle('🏦 BANCO NACIONAL RP')
-            .setDescription('¡Bienvenido al Sistema Financiero de Nación MX!\n\n💳 **SOLICITUD DE TARJETA DE CRÉDITO**\nPara adquirir una tarjeta, pagar deudas atrasadas o gestionar tu cuenta, por favor **abre un Ticket** en el panel de abajo. 🎟️\n\nUn agente bancario te atenderá para formalizar tu contrato.')
-            .addFields(
-                {
-                    name: '🤖 COMANDOS DEL SISTEMA',
-                    value: '> 💳 **`/credito estado`**\n> Consulta tu saldo, límite disponible y fecha de corte.\n> \n> 📉 **`/credito buro`**\n> Revisa tu **Score Crediticio**. ¡Mantenlo alto para mejores beneficios!\n> \n> 💸 **`/credito pedir-prestamo [monto]`**\n> Solicita un adelanto de efectivo inmediato (Sujeto a límite).\n> \n> 💰 **`/credito pagar [monto]`**\n> Abona a tu deuda utilizando tu dinero en efectivo.'
-                },
-                {
-                    name: '⚡ Nota',
-                    value: 'Recuerda vincular tu personaje primero con `/fichar`.'
-                }
-            )
+        // Same logic as /banco registrar but top-level
+        await interaction.deferReply({ ephemeral: true });
+
+        // 1. Role Check (Staff Banco: 1450591546524307689)
+        // Also allow Admin for testing
+        if (!interaction.member.roles.cache.has('1450591546524307689') && !interaction.member.permissions.has('Administrator')) {
+            return interaction.editReply('⛔ No tienes permisos para registrar tarjetas (Rol Staff Banco Requerido).');
+        }
+
+        const targetUser = interaction.options.getUser('usuario');
+        const cardType = interaction.options.getString('tipo');
+        const limit = interaction.options.getNumber('limite');
+        const interest = interaction.options.getNumber('interes');
+        const cost = interaction.options.getNumber('costo');
+
+        // 2. Find Citizen
+        const { data: citizen, error: citError } = await supabase.from('citizens').select('id, full_name').eq('discord_id', targetUser.id).order('created_at', { ascending: false }).limit(1).maybeSingle();
+
+        if (!citizen) return interaction.editReply('❌ El usuario no tiene un Ciudadano vinculado. Debe usar `/fichar` primero.');
+
+        // 3. Send Interactive Offer
+        const offerEmbed = new EmbedBuilder()
+            .setTitle('💳 Oferta de Tarjeta de Crédito')
             .setColor(0xD4AF37)
-            .setFooter({ text: 'Sistema Financiero Nación MX' });
-        await interaction.reply({ embeds: [embed] }); // Public reply so everyone can see guide? Or Ephemeral? User asked for a message "para discord", usually public guide. I will make it public now by removing ephemeral: true.
+            .setDescription(`Hola <@${targetUser.id}>,\nEl Banco Nacional te ofrece una tarjeta **${cardType}**.\n\n**Detalles del Contrato:**`)
+            .addFields(
+                { name: 'Límite', value: `$${limit.toLocaleString()}`, inline: true },
+                { name: 'Interés Semanal', value: `${interest}%`, inline: true },
+                { name: 'Costo de Apertura', value: `$${cost.toLocaleString()}`, inline: true }
+            )
+            .setFooter({ text: 'Tienes 5 minutos para aceptar. Revisa los términos antes.' });
+
+        const row = new ActionRowBuilder()
+            .addComponents(
+                new ButtonBuilder().setCustomId('btn_terms').setLabel('📄 Ver Términos').setStyle(ButtonStyle.Secondary),
+                new ButtonBuilder().setCustomId('btn_accept').setLabel('✅ Aceptar y Pagar').setStyle(ButtonStyle.Success),
+                new ButtonBuilder().setCustomId('btn_reject').setLabel('❌ Rechazar').setStyle(ButtonStyle.Danger)
+            );
+
+        // Send to channel (Public) so user can see it
+        const message = await interaction.channel.send({ content: `<@${targetUser.id}>`, embeds: [offerEmbed], components: [row] });
+        await interaction.editReply(`✅ Oferta enviada a <@${targetUser.id}>. Esperando respuesta...`);
+
+        // 4. Collector
+        const filter = i => i.user.id === targetUser.id;
+        const collector = message.createMessageComponentCollector({ filter, time: 300000 }); // 5 min
+
+        collector.on('collect', async i => {
+            if (i.customId === 'btn_terms') {
+                // Terms & Conditions Logic
+                const tycEmbed = new EmbedBuilder()
+                    .setTitle('📜 Términos y Condiciones - Banco Nacional RP')
+                    .setColor(0x333333)
+                    .setDescription(`
+**1️⃣ ACEPTACIÓN**
+Al solicitar, activar o utilizar cualquier tarjeta, aceptas estos términos automáticamente.
+
+**2️⃣ NATURALEZA DEL SISTEMA**
+• Crédito es dinero RP, no real.
+• Uso obligatorio IC y regulado OOC.
+
+**3️⃣ LÍMITES DE CRÉDITO**
+• Máximo permitido: $1,000,000 MXN RP.
+• El banco puede modificar el límite según historial.
+
+**4️⃣ CORTE Y PAGOS**
+• Corte cada 7 días. Pago mínimo: 25%.
+• Intereses semanales no negociables.
+
+**5️⃣ INCUMPLIMIENTO**
+generará recargos, congelación, reporte a Buró Financiero, embargos y restricciones.
+
+**6️⃣ BURÓ FINANCIERO RP**
+• Historial afecta acceso a créditos futuros.
+
+**9️⃣ CANCELACIÓN**
+• Banco puede cancelar por mal uso. La deuda persiste.
+                    `);
+                await i.reply({ embeds: [tycEmbed], ephemeral: true });
+            }
+            else if (i.customId === 'btn_reject') {
+                await i.update({ content: '❌ Oferta rechazada por el usuario.', components: [] });
+                collector.stop();
+            }
+            else if (i.customId === 'btn_accept') {
+                // PAYMENT & CREATION LOGIC
+                await i.deferUpdate();
+
+                try {
+                    // Check Funds
+                    const balance = await billingService.ubService.getUserBalance(interaction.guildId, targetUser.id);
+                    const userMoney = balance.total || (balance.cash + balance.bank);
+
+                    if (userMoney < cost) {
+                        return i.followUp({ content: `❌ **Fondos Insuficientes**. Tienes: $${userMoney.toLocaleString()}. Necesitas: $${cost.toLocaleString()}.`, ephemeral: true });
+                    }
+
+                    // Charge
+                    await billingService.ubService.removeMoney(interaction.guildId, targetUser.id, cost, `Apertura Tarjeta ${cardType}`);
+
+                    // Create Card
+                    const { error: insertError } = await supabase.from('credit_cards').insert([{
+                        citizen_id: citizen.id,
+                        card_type: cardType,
+                        credit_limit: limit,
+                        current_balance: 0,
+                        interest_rate: interest,
+                        status: 'ACTIVE',
+                        next_payment_due: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+                    }]);
+
+                    if (insertError) throw new Error(insertError.message);
+
+                    await message.edit({ content: `✅ **Tarjeta Activada** para <@${targetUser.id}>. Cobro de $${cost.toLocaleString()} realizado.`, components: [] });
+
+                } catch (err) {
+                    console.error(err);
+                    await i.followUp({ content: `❌ Error procesando pago/creación: ${err.message}`, ephemeral: true });
+                }
+                collector.stop();
+            }
+        });
+
+        collector.on('end', collected => {
+            if (collected.size === 0) {
+                message.edit({ content: '⚠️ La oferta expiró.', components: [] });
+            }
+        });
     }
 
     else if (commandName === 'credito') {
