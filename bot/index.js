@@ -4,7 +4,9 @@ const { Client, GatewayIntentBits, EmbedBuilder, REST, Routes, ActivityType, Act
 const { createClient } = require('@supabase/supabase-js');
 const BillingService = require('./services/BillingService');
 const TaxService = require('./services/TaxService');
+const CompanyService = require('./services/CompanyService');
 const taxService = new TaxService(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY);
+const companyService = new CompanyService(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY);
 
 // 1. Initialize Discord Client
 const client = new Client({
@@ -2426,6 +2428,69 @@ client.on('interactionCreate', async interaction => {
             } catch (error) {
                 console.error(error);
                 await interaction.editReply('❌ Error calculando impuestos.');
+            }
+        }
+    }
+
+    else if (commandName === 'empresa') {
+        const subcommand = interaction.options.getSubcommand();
+
+        if (subcommand === 'crear') {
+            await interaction.deferReply({ ephemeral: false });
+
+            // 1. Role Check (Only specific role can create)
+            const AUTHORIZED_ROLE_ID = '1450688555503587459';
+            if (!interaction.member.roles.cache.has(AUTHORIZED_ROLE_ID) && !interaction.member.permissions.has('Administrator')) {
+                return interaction.editReply('⛔ No tienes permisos para registrar empresas.');
+            }
+
+            // 2. Get Options
+            const name = interaction.options.getString('nombre');
+            const ownerUser = interaction.options.getUser('dueño');
+            const logo = interaction.options.getAttachment('logo');
+            const type = interaction.options.getString('tipo_local'); // e.g. Taller, Restaurante
+            const vehicles = interaction.options.getInteger('vehiculos') || 0;
+
+            // Optional fields
+            const location = interaction.options.getString('ubicacion') || 'No especificada';
+
+            try {
+                const newCompany = await companyService.createCompany({
+                    name: name,
+                    logo_url: logo ? logo.url : null,
+                    industry_type: type,
+                    owner_ids: [ownerUser.id],
+                    vehicle_count: vehicles,
+                    location: location,
+                    balance: 0,
+                    status: 'active'
+                });
+
+                const embed = new EmbedBuilder()
+                    .setTitle(`🏢 Nueva Empresa Registrada: ${name}`)
+                    .setColor(0x00FF00)
+                    .setDescription(`Empresa dada de alta exitosamente en Nación MX.`)
+                    .addFields(
+                        { name: 'Dueño', value: `<@${ownerUser.id}>`, inline: true },
+                        { name: 'Rubro', value: type, inline: true },
+                        { name: 'Ubicación', value: location, inline: true },
+                        { name: 'Vehículos Iniciales', value: `${vehicles}`, inline: true }
+                    )
+                    .setThumbnail(logo ? logo.url : null)
+                    .setFooter({ text: 'Sistema Empresarial Nación MX' })
+                    .setTimestamp();
+
+                // Interactive Buttons
+                const row = new ActionRowBuilder().addComponents(
+                    new ButtonBuilder().setCustomId('company_menu').setLabel('📋 Menú Empresa').setStyle(ButtonStyle.Primary),
+                    new ButtonBuilder().setCustomId('company_payroll').setLabel('👥 Nómina').setStyle(ButtonStyle.Secondary)
+                );
+
+                await interaction.editReply({ embeds: [embed], components: [row] });
+
+            } catch (error) {
+                console.error(error);
+                await interaction.editReply('❌ Error al crear la empresa en base de datos.');
             }
         }
     }

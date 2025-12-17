@@ -288,6 +288,30 @@ const commands = [
         ]
     },
     {
+        name: 'empresa',
+        description: 'Gestion de Empresas',
+        options: [
+            {
+                name: 'crear',
+                description: 'Registrar nueva empresa (Staff)',
+                type: 1,
+                options: [
+                    { name: 'dueño', description: 'Usuario Dueño', type: 6, required: true },
+                    { name: 'nombre', description: 'Nombre de la Empresa', type: 3, required: true },
+                    { name: 'tipo_local', description: 'Rubro/Tipo', type: 3, required: true },
+                    { name: 'logo', description: 'Logo (Imagen)', type: 11, required: true },
+                    { name: 'vehiculos', description: 'Cantidad de vehiculos iniciales', type: 10, required: false },
+                    { name: 'ubicacion', description: 'Ubicacion del local', type: 3, required: false }
+                ]
+            },
+            {
+                name: 'menu',
+                description: 'Abrir menu de gestion (Dueños)',
+                type: 1
+            }
+        ]
+    },
+    {
         name: 'multa',
         description: 'Imponer multa - Policia',
         options: [
