@@ -1216,13 +1216,14 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                     }
 
                     // *** DEBIT CARD LOGIC ***
-                    if (cardType === 'NMX Débito') {
+                    if (cardType.includes('Débito')) {
                         // Check if already has logic? No, just create.
                         const cardNumber = '4279' + Math.floor(Math.random() * 1000000000000).toString().padStart(12, '0');
                         const { error: insertError } = await supabase.from('debit_cards').insert([{
                             discord_user_id: targetUser.id,
                             citizen_id: citizen.id,
                             card_number: cardNumber,
+                            card_tier: cardType,
                             balance: 0,
                             status: 'active'
                         }]);
@@ -1237,10 +1238,12 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                         // *** CREDIT CARD LOGIC (Original) ***
                         const { error: insertError } = await supabase.from('credit_cards').insert([{
                             citizen_id: citizen.id,
+                            discord_id: targetUser.id,
                             card_type: cardType,
-                            credit_limit: stats.limit,
+                            card_name: cardType,
+                            card_limit: stats.limit,
                             current_balance: 0,
-                            interest_rate: stats.interest,
+                            interest_rate: stats.interest / 100,
                             status: 'active',
                             next_payment_due: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
                         }]);
