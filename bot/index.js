@@ -2836,7 +2836,57 @@ client.on('interactionCreate', async interaction => {
                 console.error(error);
                 await interaction.editReply('❌ Error inicializando el proceso.');
             }
-        } else if (subcommand === 'cobrar') {
+        }
+        else if (subcommand === 'menu') {
+            await interaction.deferReply({ ephemeral: true });
+            try {
+                const { data: companies } = await supabase
+                    .from('companies')
+                    .select('*')
+                    .contains('owner_ids', [interaction.user.id])
+                    .eq('status', 'active');
+
+                if (!companies || companies.length === 0) {
+                    return interaction.editReply('❌ No tienes una empresa registrada.');
+                }
+
+                const company = companies[0];
+
+                const embed = new EmbedBuilder()
+                    .setTitle(`🏢 ${company.name} - Panel de Control`)
+                    .setColor(0x5865F2)
+                    .setDescription(`Gestión completa de tu empresa`)
+                    .addFields(
+                        { name: '💰 Saldo', value: `$${(company.balance || 0).toLocaleString()}`, inline: true },
+                        { name: '👥 Empleados', value: `${(company.employees || []).length}`, inline: true },
+                        { name: '🚗 Vehículos', value: `${company.vehicle_count}`, inline: true },
+                        { name: '📍 Ubicación', value: company.location || 'No especificada', inline: true },
+                        { name: '🏷️ Tipo', value: company.industry_type, inline: true },
+                        { name: '🔒 Privacidad', value: company.is_private ? 'Privada' : 'Pública', inline: true }
+                    )
+                    .setThumbnail(company.logo_url)
+                    .setFooter({ text: 'Sistema Empresarial Nación MX' })
+                    .setTimestamp();
+
+                const row1 = new ActionRowBuilder().addComponents(
+                    new ButtonBuilder().setCustomId('company_hire').setLabel('👥 Contratar').setStyle(ButtonStyle.Success),
+                    new ButtonBuilder().setCustomId('company_fire').setLabel('🚫 Despedir').setStyle(ButtonStyle.Danger),
+                    new ButtonBuilder().setCustomId('company_payroll').setLabel('💵 Pagar Nómina').setStyle(ButtonStyle.Primary)
+                );
+
+                const row2 = new ActionRowBuilder().addComponents(
+                    new ButtonBuilder().setCustomId('company_withdraw').setLabel('💸 Retirar Fondos').setStyle(ButtonStyle.Secondary),
+                    new ButtonBuilder().setCustomId('company_stats').setLabel('📊 Estadísticas').setStyle(ButtonStyle.Secondary)
+                );
+
+                await interaction.editReply({ embeds: [embed], components: [row1, row2] });
+
+            } catch (error) {
+                console.error(error);
+                await interaction.editReply('❌ Error obteniendo información de la empresa.');
+            }
+        }
+        else if (subcommand === 'cobrar') {
             // 1. Check if user belongs to a company (Owner for now, later Employees)
             const { data: companies } = await supabase
                 .from('companies')
