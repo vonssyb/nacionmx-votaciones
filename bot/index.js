@@ -2563,7 +2563,78 @@ client.on('interactionCreate', async interaction => {
     else if (commandName === 'impuestos') {
         const subcommand = interaction.options.getSubcommand();
 
-        if (subcommand === 'empresas') {
+
+        if (subcommand === 'consultar') {
+            await interaction.deferReply({ ephemeral: true });
+            try {
+                // Get user's financial info
+                const balance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
+                const cash = (balance.cash || 0) + (balance.bank || 0);
+
+                // Check if has credit card
+                const { data: creditCards } = await supabase
+                    .from('credit_cards')
+                    .select('*')
+                    .eq('discord_id', interaction.user.id)
+                    .eq('status', 'active');
+
+                const hasCreditCard = creditCards && creditCards.length > 0;
+                const totalDebt = hasCreditCard ? creditCards.reduce((sum, card) => sum + (card.current_balance || 0), 0) : 0;
+
+                // Check if has debit card
+                const { data: debitCard } = await billingService.getDebitCard(interaction.user.id);
+
+                // Check if is company owner
+                const { data: companies } = await supabase
+                    .from('companies')
+                    .select('*')
+                    .contains('owner_ids', [interaction.user.id])
+                    .eq('status', 'active');
+
+                const isCompanyOwner = companies && companies.length > 0;
+                const companyName = isCompanyOwner ? companies[0].name : 'N/A';
+
+                // Determine tax status
+                let taxStatus = '✅ Al Corriente';
+                let taxDetails = 'No tienes obligaciones fiscales activas.';
+
+                if (isCompanyOwner) {
+                    const company = companies[0];
+                    if (company.is_private) {
+                        taxStatus = '⚠️ Empresa Privada - Tarifa Alta';
+                        taxDetails = 'Como empresa privada, pagas una tasa de **15%** sobre ingresos.';
+                    } else {
+                        taxStatus = '📊 Empresa Pública - Tarifa Estándar';
+                        taxDetails = 'Como empresa pública, pagas una tasa de **10%** sobre ingresos.';
+                    }
+                }
+
+                const embed = new EmbedBuilder()
+                    .setTitle('🏛️ Estado Fiscal Personal')
+                    .setColor(0x5865F2)
+                    .setDescription(`Información tributaria de <@${interaction.user.id}>`)
+                    .addFields(
+                        { name: '📊 Estado', value: taxStatus, inline: false },
+                        { name: '💼 Tipo de Contribuyente', value: isCompanyOwner ? 'Persona Moral (Empresario)' : 'Persona Física', inline: true },
+                        { name: '🏢 Empresa', value: companyName, inline: true },
+                        { name: '💰 Patrimonio Declarado', value: `$${cash.toLocaleString()}`, inline: true },
+                        { name: '📝 Detalles', value: taxDetails, inline: false }
+                    )
+                    .setFooter({ text: 'SAT Nación MX • Consulta Fiscal' })
+                    .setTimestamp();
+
+                if (totalDebt > 0) {
+                    embed.addFields({ name: '⚠️ Deuda Registrada', value: `$${totalDebt.toLocaleString()}`, inline: false });
+                }
+
+                await interaction.editReply({ embeds: [embed] });
+
+            } catch (error) {
+                console.error(error);
+                await interaction.editReply('❌ Error consultando estado fiscal.');
+            }
+        }
+        else if (subcommand === 'empresas') {
             await interaction.deferReply();
             try {
                 const result = await taxService.calculateCorporateTax(interaction.user.id);
