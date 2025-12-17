@@ -57,7 +57,6 @@ client.once('ready', async () => {
         {
             name: 'fichar',
             description: 'Inicia o Termina tu turno (Entrada/Salida)',
-            type: 1,
             options: [
                 {
                     name: 'vincular',
@@ -79,7 +78,6 @@ client.once('ready', async () => {
         {
             name: 'estado',
             description: 'Cambia el estado del servidor (CMD Staff)',
-            type: 1,
             options: [
                 {
                     name: 'seleccion',
@@ -97,7 +95,6 @@ client.once('ready', async () => {
         {
             name: 'registrar-tarjeta',
             description: 'Registrar nueva tarjeta (Staff Banco)',
-            type: 1,
             options: [
                 { name: 'usuario', description: 'Usuario de Discord', type: 6, required: true },
                 { name: 'nombre_titular', description: 'Nombre completo del titular (RP)', type: 3, required: true },
@@ -124,7 +121,6 @@ client.once('ready', async () => {
         {
             name: 'credito',
             description: 'Gestión de tu tarjeta de crédito NMX',
-            type: 1,
             options: [
                 {
                     name: 'estado',
@@ -254,7 +250,6 @@ client.once('ready', async () => {
         {
             name: 'rol',
             description: 'Gestión de Roles y Sanciones',
-            type: 1,
             options: [
                 {
                     name: 'cancelar',
@@ -274,7 +269,6 @@ client.once('ready', async () => {
         {
             name: 'multa',
             description: 'Imponer una multa a un ciudadano (Policía)',
-            type: 1,
             options: [
                 { name: 'usuario', description: 'Ciudadano a multar', type: 6, required: true },
                 { name: 'monto', description: 'Monto de la multa', type: 10, required: true },
@@ -284,7 +278,6 @@ client.once('ready', async () => {
         {
             name: 'transferir',
             description: 'Enviar dinero a otro ciudadano (Sistema SPEI)',
-            type: 1,
             options: [
                 { name: 'destinatario', description: 'Ciudadano que recibirá el dinero', type: 6, required: true },
                 { name: 'monto', description: 'Cantidad a transferir', type: 10, required: true },
@@ -299,7 +292,6 @@ client.once('ready', async () => {
         {
             name: 'notificaciones',
             description: 'Activar/Desactivar notificaciones del banco por DM',
-            type: 1,
             options: [
                 { name: 'activo', description: '¿Recibir notificaciones?', type: 5, required: true }
             ]
@@ -317,7 +309,6 @@ client.once('ready', async () => {
         {
             name: 'inversion',
             description: 'Sistema de Inversión a Plazo Fijo',
-            type: 1,
             options: [
                 {
                     name: 'nueva',
@@ -342,7 +333,6 @@ client.once('ready', async () => {
         {
             name: 'nomina',
             description: 'Gestión de Nóminas para Empresas',
-            type: 1,
             options: [
                 {
                     name: 'crear',
