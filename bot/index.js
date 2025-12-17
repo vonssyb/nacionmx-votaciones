@@ -842,7 +842,13 @@ client.on('interactionCreate', async interaction => {
             'NMX Oro': { limit: 250000, interest: 7, cost: 15000 },
             'NMX Rubí': { limit: 500000, interest: 6, cost: 25000 },
             'NMX Black': { limit: 1000000, interest: 5, cost: 40000 },
-            'NMX Diamante': { limit: 2000000, interest: 3, cost: 60000 }
+            'NMX Diamante': { limit: 2000000, interest: 3, cost: 60000 },
+            // Business Cards
+            'NMX Business Start': { limit: 50000, interest: 2, cost: 8000 },
+            'NMX Business Gold': { limit: 100000, interest: 1.5, cost: 15000 },
+            'NMX Business Platinum': { limit: 200000, interest: 1.2, cost: 20000 },
+            'NMX Business Elite': { limit: 500000, interest: 1, cost: 35000 },
+            'NMX Corporate': { limit: 1000000, interest: 0.7, cost: 50000 }
         };
 
         const stats = cardStats[cardType || 'NMX Start'] || cardStats['NMX Start'];
@@ -2477,8 +2483,7 @@ client.on('interactionCreate', async interaction => {
                 // 2.1 Calculate Total
                 const totalCost = tramiteCost + localCost + vehicleCost;
 
-                // 2.2 Charge Owner (UnbelievaBoat)
-                // Check Balance first
+                // 2.2 Pre-verification of Funds
                 const balance = await billingService.ubService.getUserBalance(interaction.guildId, ownerUser.id);
                 const userMoney = balance.total || (balance.cash + balance.bank);
 
@@ -2486,50 +2491,104 @@ client.on('interactionCreate', async interaction => {
                     return interaction.editReply(`❌ **Fondos Insuficientes**: El dueño <@${ownerUser.id}> tiene $${userMoney.toLocaleString()} pero se requieren **$${totalCost.toLocaleString()}**.`);
                 }
 
-                // Remove Money
-                if (totalCost > 0) {
-                    await billingService.ubService.removeMoney(interaction.guildId, ownerUser.id, totalCost, `Registro Empresa: ${name}`);
-                }
-
-                // 3. Create Company in Database
-                const newCompany = await companyService.createCompany({
-                    name: name,
-                    logo_url: logo ? logo.url : null,
-                    industry_type: type,
-                    owner_ids: [ownerUser.id],
-                    vehicle_count: vehicles,
-                    location: location,
-                    balance: 0,
-                    status: 'active'
-                });
-
-                const embed = new EmbedBuilder()
-                    .setTitle(`🏢 Nueva Empresa Registrada: ${name}`)
-                    .setColor(0x00FF00)
-                    .setDescription(`Empresa dada de alta exitosamente en Nación MX.\nCobro realizado al dueño por **$${totalCost.toLocaleString()}**.`)
+                // 2.3 Send Confirmation Embed
+                const confirmEmbed = new EmbedBuilder()
+                    .setTitle(`🏢 Confirmar Registro: ${name}`)
+                    .setColor(0xFFA500)
+                    .setDescription(`Estás a punto de registrar una nueva empresa y realizar el cobro correspondiente al dueño <@${ownerUser.id}>.`)
                     .addFields(
-                        { name: '👤 Dueño', value: `<@${ownerUser.id}>`, inline: true },
                         { name: '🏷️ Rubro', value: type, inline: true },
                         { name: '📍 Ubicación', value: location, inline: true },
-                        { name: '🚗 Vehículos', value: `${vehicles}`, inline: true },
-                        { name: '💵 Desglose de Costos', value: `> Trámite: **$${tramiteCost.toLocaleString()}**\n> Local: **$${localCost.toLocaleString()}**\n> Vehículos: **$${vehicleCost.toLocaleString()}**\n> **TOTAL: $${totalCost.toLocaleString()}**`, inline: false }
+                        { name: '💵 Total a Cobrar', value: `**$${totalCost.toLocaleString()}**`, inline: false },
+                        { name: '🧾 Desglose', value: `> Trámite: $${tramiteCost.toLocaleString()}\n> Local: $${localCost.toLocaleString()}\n> Vehículos: $${vehicleCost.toLocaleString()}`, inline: false }
                     )
-                    .setThumbnail(logo ? logo.url : null)
-                    .setFooter({ text: 'Sistema Empresarial Nación MX' })
-                    .setTimestamp();
+                    .setFooter({ text: 'Confirma para procesar el pago y crear la empresa.' });
 
-                // Interactive Buttons
-                const row = new ActionRowBuilder().addComponents(
-                    new ButtonBuilder().setCustomId('company_menu').setLabel('📋 Menú Empresa').setStyle(ButtonStyle.Primary),
-                    new ButtonBuilder().setCustomId('company_payroll').setLabel('👥 Nómina').setStyle(ButtonStyle.Secondary)
+                const confirmRow = new ActionRowBuilder().addComponents(
+                    new ButtonBuilder().setCustomId('confirm_company').setLabel('✅ Pagar y Crear').setStyle(ButtonStyle.Success),
+                    new ButtonBuilder().setCustomId('cancel_company').setLabel('❌ Cancelar').setStyle(ButtonStyle.Danger)
                 );
 
-                await interaction.editReply({ embeds: [embed], components: [row] });
+                const msg = await interaction.editReply({ embeds: [confirmEmbed], components: [confirmRow] });
+
+                // 3. Collector
+                const filter = i => i.user.id === interaction.user.id;
+                const collector = msg.createMessageComponentCollector({ filter, time: 60000 }); // 1 min timeout
+
+                collector.on('collect', async i => {
+                    if (i.customId === 'cancel_company') {
+                        await i.update({ content: '🚫 Operación cancelada.', embeds: [], components: [] });
+                        return collector.stop();
+                    }
+
+                    if (i.customId === 'confirm_company') {
+                        await i.deferUpdate();
+                        try {
+                            // Re-check funds (just in case)
+                            const currentBal = await billingService.ubService.getUserBalance(interaction.guildId, ownerUser.id);
+                            const currentMoney = currentBal.total || (currentBal.cash + currentBal.bank);
+
+                            if (currentMoney < totalCost) {
+                                return i.followUp({ content: '❌ Fondos insuficientes al momento del cobro.', ephemeral: true });
+                            }
+
+                            // Charge
+                            if (totalCost > 0) {
+                                await billingService.ubService.removeMoney(interaction.guildId, ownerUser.id, totalCost, `Registro Empresa: ${name}`);
+                            }
+
+                            // Create in DB
+                            const newCompany = await companyService.createCompany({
+                                name: name,
+                                logo_url: logo ? logo.url : null,
+                                industry_type: type,
+                                owner_ids: [ownerUser.id],
+                                vehicle_count: vehicles,
+                                location: location,
+                                balance: 0,
+                                status: 'active'
+                            });
+
+                            // Final Success Embed
+                            const finalEmbed = new EmbedBuilder()
+                                .setTitle(`🏢 Nueva Empresa Registrada: ${name}`)
+                                .setColor(0x00FF00)
+                                .setDescription(`Empresa dada de alta exitosamente en Nación MX.\nCobro realizado al dueño por **$${totalCost.toLocaleString()}**.`)
+                                .addFields(
+                                    { name: '👤 Dueño', value: `<@${ownerUser.id}>`, inline: true },
+                                    { name: '🏷️ Rubro', value: type, inline: true },
+                                    { name: '📍 Ubicación', value: location, inline: true },
+                                    { name: '🚗 Vehículos', value: `${vehicles}`, inline: true },
+                                    { name: '💵 Costo Total', value: `$${totalCost.toLocaleString()}`, inline: false }
+                                )
+                                .setThumbnail(logo ? logo.url : null)
+                                .setFooter({ text: 'Sistema Empresarial Nación MX' })
+                                .setTimestamp();
+
+                            const menuRow = new ActionRowBuilder().addComponents(
+                                new ButtonBuilder().setCustomId('company_menu').setLabel('📋 Menú Empresa').setStyle(ButtonStyle.Primary),
+                                new ButtonBuilder().setCustomId('company_payroll').setLabel('👥 Nómina').setStyle(ButtonStyle.Secondary)
+                            );
+
+                            await interaction.editReply({ content: null, embeds: [finalEmbed], components: [menuRow] });
+
+                        } catch (err) {
+                            console.error(err);
+                            await i.followUp({ content: '❌ Error procesando el registro.', ephemeral: true });
+                        }
+                        collector.stop();
+                    }
+                });
+
+                collector.on('end', collected => {
+                    if (collected.size === 0) interaction.editReply({ content: '⚠️ Tiempo de espera agotado.', components: [] });
+                });
 
             } catch (error) {
                 console.error(error);
-                await interaction.editReply('❌ Error al crear la empresa en base de datos.');
+                await interaction.editReply('❌ Error inicializando el proceso.');
             }
+
         }
     }
 });
