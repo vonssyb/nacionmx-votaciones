@@ -272,9 +272,19 @@ const commands = [
         name: 'transferir',
         description: 'Enviar dinero a otro ciudadano',
         options: [
-            { name: 'destinatario', description: 'Ciudadano receptor', type: 6, required: true },
-            { name: 'monto', description: 'Cantidad a transferir', type: 10, required: true },
-            { name: 'razon', description: 'Concepto', type: 3, required: false }
+            { name: 'destinatario', description: 'Usuario a transferir', type: 6, required: true },
+            { name: 'monto', description: 'Cantidad a enviar', type: 10, required: true }
+        ]
+    },
+    {
+        name: 'impuestos',
+        description: 'Sistema fiscal de Nacion MX',
+        options: [
+            {
+                name: 'empresas',
+                description: 'Ver estimacion de impuestos corporativos',
+                type: 1
+            }
         ]
     },
     {
