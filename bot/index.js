@@ -748,8 +748,14 @@ client.on('interactionCreate', async interaction => {
         if (subcommand === 'info') {
             const file = new AttachmentBuilder(path.join(__dirname, 'assets', 'banco_mexico_banner.png'));
 
+            // Debit Cards (3 tiers)
+            const debitCards = [
+                { name: 'NMX Débito', cost: '$100', desc: 'Cuenta básica con débito.' },
+                { name: 'NMX Débito Plus', cost: '$500', desc: 'Mayor límite de transferencias.' },
+                { name: 'NMX Débito Gold', cost: '$1,000', desc: 'Sin límites, cashback en compras.' }
+            ];
+
             const personalCards = [
-                { name: 'NMX Débito', limit: '0', interest: '0%', cost: 'Gratis', desc: 'Tu cuenta de ahorros diaria.' },
                 { name: 'NMX Start', limit: '15k', interest: '15%', cost: '$2k', desc: 'Ideal para iniciar historial.' },
                 { name: 'NMX Básica', limit: '30k', interest: '12%', cost: '$4k', desc: 'Gastos moderados y frecuentes.' },
                 { name: 'NMX Plus', limit: '50k', interest: '10%', cost: '$6k', desc: 'Más poder adquisitivo.' },
@@ -761,11 +767,11 @@ client.on('interactionCreate', async interaction => {
             ];
 
             const businessCards = [
-                { name: 'Business Start', limit: '50k', interest: '2%', cost: '$8k', desc: 'Emprendedores y Startups.' },
-                { name: 'Business Gold', limit: '100k', interest: '1.5%', cost: '$15k', desc: 'Pequeñas empresas.' },
-                { name: 'Business Platinum', limit: '200k', interest: '1.2%', cost: '$20k', desc: 'Negocios en expansión.' },
-                { name: 'Business Elite', limit: '500k', interest: '1%', cost: '$35k', desc: 'Corporativos consolidados.' },
-                { name: 'NMX Corporate', limit: '1M', interest: '0.7%', cost: '$50k', desc: 'Grandes industrias.' }
+                { name: 'Business Start', limit: '50k', interest: '2%', cost: '$8k', desc: 'Emprendedores • Crédito renovable.' },
+                { name: 'Business Gold', limit: '100k', interest: '1.5%', cost: '$15k', desc: 'Pymes • Mejor rendimiento.' },
+                { name: 'Business Platinum', limit: '200k', interest: '1.2%', cost: '$20k', desc: 'Expansión • Acceso prioritario.' },
+                { name: 'Business Elite', limit: '500k', interest: '1%', cost: '$35k', desc: 'Corp • Línea crédito flexible.' },
+                { name: 'NMX Corporate', limit: '1M', interest: '0.7%', cost: '$50k', desc: 'Industrias • Máximo beneficio fiscal.' }
             ];
 
             const embed = new EmbedBuilder()
@@ -780,11 +786,12 @@ client.on('interactionCreate', async interaction => {
                 });
 
 
-            // Debit Cards (New Section)
-            const debitText = `💳 **NMX Débito**
-└ Límite: **$0** (Solo tu dinero) | Costo: **Gratis** | Sin interés
-└ **Beneficios:** Protege tu efectivo, transferencias instantáneas, acepta depósitos.
-└ **Comandos:** \`/banco depositar\`, \`/transferir\``;
+            // Debit Cards Field
+            let dText = '';
+            debitCards.forEach(c => {
+                dText += `💳 **${c.name}**\n`;
+                dText += `└ Costo: **${c.cost}** | ${c.desc}\n`;
+            });
 
             // Personal Cards Field
             let pText = '';
@@ -801,7 +808,7 @@ client.on('interactionCreate', async interaction => {
             });
 
             embed.addFields(
-                { name: '🏦 Tarjeta de Débito', value: debitText, inline: false },
+                { name: '🏦 Tarjetas de Débito', value: dText, inline: false },
                 { name: '💳 Tarjetas de Crédito Personales', value: pText, inline: true },
                 { name: '🏭 Tarjetas de Crédito Empresariales', value: bText, inline: true }
             );
