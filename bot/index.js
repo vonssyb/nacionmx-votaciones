@@ -779,6 +779,13 @@ client.on('interactionCreate', async interaction => {
                     inline: false
                 });
 
+
+            // Debit Cards (New Section)
+            const debitText = `💳 **NMX Débito**
+└ Límite: **$0** (Solo tu dinero) | Costo: **Gratis** | Sin interés
+└ **Beneficios:** Protege tu efectivo, transferencias instantáneas, acepta depósitos.
+└ **Comandos:** \`/banco depositar\`, \`/transferir\``;
+
             // Personal Cards Field
             let pText = '';
             personalCards.forEach(c => {
@@ -794,8 +801,9 @@ client.on('interactionCreate', async interaction => {
             });
 
             embed.addFields(
-                { name: '💳 Tarjetas Personales', value: pText, inline: true },
-                { name: '🏭 Tarjetas Empresariales', value: bText, inline: true }
+                { name: '🏦 Tarjeta de Débito', value: debitText, inline: false },
+                { name: '💳 Tarjetas de Crédito Personales', value: pText, inline: true },
+                { name: '🏭 Tarjetas de Crédito Empresariales', value: bText, inline: true }
             );
 
             embed.setFooter({ text: 'Banco Nacional RP • Intereses semanales (Domingos) • Pagos obligatorios' });
