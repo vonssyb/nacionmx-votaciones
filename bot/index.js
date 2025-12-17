@@ -636,6 +636,214 @@ client.on('interactionCreate', async interaction => {
         await interaction.followUp({ content: `🎉 **¡Mejora Exitosa!** Tu tarjeta ahora es nivel **${newType}**. Disfruta de tu nuevo límite de $${stats.limit.toLocaleString()}.`, ephemeral: false });
     }
 
+    // EMPRESA COBRAR - Payment Buttons
+    if (interaction.isButton() && interaction.customId.startsWith('pay_')) {
+        const parts = interaction.customId.split('_');
+        const paymentMethod = parts[1]; // cash, debit, credit, cancel
+
+        if (paymentMethod === 'cancel') {
+            await interaction.update({
+                content: '❌ Pago cancelado por el cliente.',
+                embeds: [],
+                components: []
+            });
+            return;
+        }
+
+        const amount = parseFloat(parts[2]);
+        const companyId = parts[3];
+
+        await interaction.deferUpdate();
+
+        try {
+            // Get company data
+            const { data: company } = await supabase
+                .from('companies')
+                .select('*')
+                .eq('id', companyId)
+                .single();
+
+            if (!company) {
+                return interaction.followUp({ content: '❌ Empresa no encontrada.', ephemeral: true });
+            }
+
+            // Get original message to find reason
+            const originalEmbed = interaction.message.embeds[0];
+            const reason = originalEmbed.fields.find(f => f.name === '🧾 Concepto')?.value || 'Servicio';
+
+            let paymentSuccess = false;
+            let paymentDetails = '';
+            let transactionId = `TXN-${Date.now()}-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
+
+            // Process payment based on method
+            if (paymentMethod === 'cash') {
+                const balance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
+                if (balance.cash < amount) {
+                    return interaction.followUp({
+                        content: `❌ **Efectivo insuficiente**\n\nNecesitas: $${amount.toLocaleString()}\nTienes: $${balance.cash.toLocaleString()}`,
+                        ephemeral: true
+                    });
+                }
+
+                // Remove cash from client
+                await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, amount, `Pago a ${company.name}: ${reason}`, 'cash');
+
+                // Add to company balance
+                await supabase
+                    .from('companies')
+                    .update({ balance: (company.balance || 0) + amount })
+                    .eq('id', companyId);
+
+                paymentSuccess = true;
+                paymentDetails = '💵 Efectivo';
+
+            } else if (paymentMethod === 'debit') {
+                const { data: debitCard } = await billingService.getDebitCard(interaction.user.id);
+                if (!debitCard) {
+                    return interaction.followUp({
+                        content: '❌ No tienes tarjeta de débito activa.',
+                        ephemeral: true
+                    });
+                }
+
+                const balance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
+                if (balance.bank < amount) {
+                    return interaction.followUp({
+                        content: `❌ **Saldo insuficiente en débito**\n\nNecesitas: $${amount.toLocaleString()}\nTienes: $${balance.bank.toLocaleString()}`,
+                        ephemeral: true
+                    });
+                }
+
+                // Remove from client's bank (debit)
+                await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, amount, `Pago débito a ${company.name}: ${reason}`, 'bank');
+
+                // Add to company balance
+                await supabase
+                    .from('companies')
+                    .update({ balance: (company.balance || 0) + amount })
+                    .eq('id', companyId);
+
+                paymentSuccess = true;
+                paymentDetails = '💳 Tarjeta de Débito';
+
+            } else if (paymentMethod === 'credit') {
+                // Get user's credit card
+                const { data: creditCards } = await supabase
+                    .from('credit_cards')
+                    .select('*')
+                    .eq('discord_id', interaction.user.id)
+                    .eq('status', 'active')
+                    .order('card_limit', { ascending: false })
+                    .limit(1);
+
+                if (!creditCards || creditCards.length === 0) {
+                    return interaction.followUp({
+                        content: '❌ No tienes tarjetas de crédito activas.',
+                        ephemeral: true
+                    });
+                }
+
+                const card = creditCards[0];
+                const available = card.card_limit - (card.current_balance || 0);
+
+                if (available < amount) {
+                    return interaction.followUp({
+                        content: `❌ **Crédito insuficiente**\n\nDisponible: $${available.toLocaleString()}\nNecesitas: $${amount.toLocaleString()}`,
+                        ephemeral: true
+                    });
+                }
+
+                // Update credit card balance
+                await supabase
+                    .from('credit_cards')
+                    .update({
+                        current_balance: (card.current_balance || 0) + amount,
+                        last_transaction_at: new Date().toISOString()
+                    })
+                    .eq('id', card.id);
+
+                // Add to company balance
+                await supabase
+                    .from('companies')
+                    .update({ balance: (company.balance || 0) + amount })
+                    .eq('id', companyId);
+
+                paymentSuccess = true;
+                paymentDetails = `💳 Crédito (${card.card_name})`;
+            }
+
+            if (paymentSuccess) {
+                // Update message to show success
+                await interaction.editReply({
+                    content: '✅ Pago procesado exitosamente',
+                    embeds: [],
+                    components: []
+                });
+
+                // Generate digital receipt
+                const receiptEmbed = new EmbedBuilder()
+                    .setTitle('🧾 Comprobante de Pago')
+                    .setColor(0x00FF00)
+                    .setDescription(`Transacción completada exitosamente`)
+                    .addFields(
+                        { name: '🏢 Empresa', value: company.name, inline: true },
+                        { name: '👤 Cliente', value: interaction.user.tag, inline: true },
+                        { name: '📝 Concepto', value: reason, inline: false },
+                        { name: '💰 Monto', value: `$${amount.toLocaleString()}`, inline: true },
+                        { name: '💳 Método', value: paymentDetails, inline: true },
+                        { name: '🔖 ID Transacción', value: `\`${transactionId}\``, inline: false },
+                        { name: '📅 Fecha', value: `<t:${Math.floor(Date.now() / 1000)}:F>`, inline: false }
+                    )
+                    .setFooter({ text: 'Banco Nacional • Comprobante Digital' })
+                    .setTimestamp();
+
+                // Send receipt to client
+                try {
+                    await interaction.user.send({
+                        content: '📧 **Comprobante de tu pago**',
+                        embeds: [receiptEmbed]
+                    });
+                } catch (dmError) {
+                    console.log('Could not DM client receipt:', dmError.message);
+                }
+
+                // Send receipt to company owner(s)
+                for (const ownerId of company.owner_ids) {
+                    try {
+                        const owner = await client.users.fetch(ownerId);
+                        await owner.send({
+                            content: '💰 **Nueva venta registrada**',
+                            embeds: [receiptEmbed]
+                        });
+                    } catch (ownerDmError) {
+                        console.log('Could not DM owner receipt:', ownerDmError.message);
+                    }
+                }
+
+                // Log transaction (optional, if you want to track in DB)
+                await supabase
+                    .from('company_transactions')
+                    .insert({
+                        company_id: companyId,
+                        client_id: interaction.user.id,
+                        amount: amount,
+                        description: reason,
+                        payment_method: paymentMethod,
+                        transaction_id: transactionId
+                    });
+            }
+
+        } catch (error) {
+            console.error('Payment error:', error);
+            await interaction.followUp({
+                content: '❌ Error procesando el pago. Contacta a un administrador.',
+                ephemeral: true
+            });
+        }
+
+        return;
+    }
+
     if (interaction.isButton()) { return; }
 
     const { commandName } = interaction;
