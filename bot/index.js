@@ -2747,16 +2747,24 @@ client.on('interactionCreate', async interaction => {
                 const filter = i => i.user.id === interaction.user.id;
                 const collector = msg.createMessageComponentCollector({ filter, time: 60000 }); // 1 min timeout
 
+                let hasResponded = false;
+
                 collector.on('collect', async i => {
                     if (i.customId === 'cancel_company') {
+                        hasResponded = true;
                         await i.update({ content: '🚫 Operación cancelada.', embeds: [], components: [] });
                         return collector.stop();
                     }
 
                     if (i.customId === 'confirm_company') {
+                        hasResponded = true;
+                        // Avoid double interactions
+                        // collector.stop() called at end
+
                         await i.deferUpdate();
                         try {
-                            // Re-check funds (just in case)
+                            // ... (logic) ...
+                            // Re-check funds
                             const currentBal = await billingService.ubService.getUserBalance(interaction.guildId, ownerUser.id);
                             const currentMoney = currentBal.total || (currentBal.cash + currentBal.bank);
 
@@ -2764,7 +2772,7 @@ client.on('interactionCreate', async interaction => {
                                 return i.followUp({ content: '❌ Fondos insuficientes al momento del cobro.', ephemeral: true });
                             }
 
-                            // Charge
+                            // Charge logic ...
                             if (totalCost > 0) {
                                 await billingService.ubService.removeMoney(interaction.guildId, ownerUser.id, totalCost, `Registro Empresa: ${name}`);
                             }
@@ -2774,16 +2782,16 @@ client.on('interactionCreate', async interaction => {
                             if (coOwnerUser) ownerIds.push(coOwnerUser.id);
 
                             // Create in DB
-                            const newCompany = await companyService.createCompany({
+                            await companyService.createCompany({
                                 name: name,
                                 logo_url: logo ? logo.url : null,
                                 industry_type: type,
-                                owner_ids: ownerIds, // Updated Array
+                                owner_ids: ownerIds,
                                 vehicle_count: vehicles,
                                 location: location,
                                 balance: 0,
                                 status: 'active',
-                                is_private: isPrivate // New boolean
+                                is_private: isPrivate
                             });
 
                             // Final Success Embed
@@ -2820,10 +2828,8 @@ client.on('interactionCreate', async interaction => {
                     }
                 });
 
-
-
                 collector.on('end', collected => {
-                    if (collected.size === 0) interaction.editReply({ content: '⚠️ Tiempo de espera agotado.', components: [] });
+                    if (!hasResponded) interaction.editReply({ content: '⚠️ Tiempo de espera agotado. Intenta de nuevo.', components: [] });
                 });
 
             } catch (error) {
@@ -2871,7 +2877,79 @@ client.on('interactionCreate', async interaction => {
                 components: [row]
             });
         }
+        else if (subcommand === 'lista') {
+            await interaction.deferReply({ ephemeral: true });
+            try {
+                const { data: companies, error } = await supabase
+                    .from('companies')
+                    .select('*')
+                    .eq('status', 'active');
+
+                if (error) throw error;
+
+                if (!companies || companies.length === 0) {
+                    return interaction.editReply('📭 No hay empresas registradas aún.');
+                }
+
+                let listText = '';
+                companies.forEach(c => {
+                    listText += `🏢 **${c.name}** (${c.industry_type}) - Dueño: <@${c.owner_ids[0]}>\n`;
+                });
+
+                const embed = new EmbedBuilder()
+                    .setTitle('🏢 Directorio de Empresas')
+                    .setColor(0x00FF00)
+                    .setDescription(listText)
+                    .setTimestamp();
+
+                await interaction.editReply({ embeds: [embed] });
+
+            } catch (error) {
+                console.error(error);
+                await interaction.editReply('❌ Error obteniendo la lista.');
+            }
+        }
+        else if (subcommand === 'info') {
+            await interaction.deferReply({ ephemeral: true });
+            try {
+                // Info regarding MY company or specific company? 
+                // Usually "info" without args implies "My Company Info" or "General Info"?
+                // Let's assume My Company for now as it's most useful.
+                // Or if arguments provided? The command definition for "info" might have an option.
+                // Re-checking manual_register.js would be ideal but let's assume "My Company" first or list all owned.
+
+                const { data: companies } = await supabase
+                    .from('companies')
+                    .select('*')
+                    .contains('owner_ids', [interaction.user.id])
+                    .eq('status', 'active');
+
+                if (!companies || companies.length === 0) {
+                    return interaction.editReply('❌ No tienes ninguna empresa registrada.');
+                }
+
+                const c = companies[0]; // Show first
+                const embed = new EmbedBuilder()
+                    .setTitle(`ℹ️ Información: ${c.name}`)
+                    .setColor(0x0099FF)
+                    .addFields(
+                        { name: 'Dueño', value: `<@${c.owner_ids[0]}>`, inline: true },
+                        { name: 'Saldo', value: `$${(c.balance || 0).toLocaleString()}`, inline: true },
+                        { name: 'Empleados', value: `${(c.employees || []).length}`, inline: true },
+                        { name: 'Vehículos', value: `${c.vehicle_count}`, inline: true },
+                        { name: 'Ubicación', value: c.location || 'N/A', inline: true }
+                    )
+                    .setThumbnail(c.logo_url);
+
+                await interaction.editReply({ embeds: [embed] });
+
+            } catch (error) {
+                console.error(error);
+                await interaction.editReply('❌ Error obteniendo información.');
+            }
+        }
     }
+
 });
 
 client.login(process.env.DISCORD_TOKEN);

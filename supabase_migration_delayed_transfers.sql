@@ -9,5 +9,13 @@ CREATE TABLE IF NOT EXISTS pending_transfers (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Ensure column exists if table was created previously without it (Must run BEFORE index creation)
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'pending_transfers' AND column_name = 'release_date') THEN
+        ALTER TABLE pending_transfers ADD COLUMN release_date TIMESTAMP WITH TIME ZONE;
+    END IF;
+END $$;
+
 -- Index for faster cron lookup
 CREATE INDEX IF NOT EXISTS idx_pending_transfers_status_date ON pending_transfers (status, release_date);
