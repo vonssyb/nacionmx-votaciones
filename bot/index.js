@@ -369,6 +369,16 @@ client.once('ready', async () => {
         console.log('🔄 Iniciando actualización de comandos...');
 
         if (GUILD_ID) {
+            // Check if bot is actually in the guild
+            const targetGuild = client.guilds.cache.get(GUILD_ID);
+            if (!targetGuild) {
+                console.error(`❌ CRITICAL ERROR: El bot NO ESTÁ en el servidor con ID '${GUILD_ID}'.`);
+                console.error('   -> Verifica el archivo .env o invita al bot.');
+                console.error('   -> Lista de servidores donde estoy:', client.guilds.cache.map(g => `${g.name} (${g.id})`).join(', '));
+            } else {
+                console.log(`✅ Verificado: Estoy dentro del servidor '${targetGuild.name}'`);
+            }
+
             // Register Guild Commands (Overwrite)
             console.log(`✨ Registrando ${commands.length} nuevos comandos en: '${GUILD_ID}'...`);
             console.log(`🔑 Client ID: ${client.user.id}`);
