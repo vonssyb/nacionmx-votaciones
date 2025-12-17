@@ -1108,6 +1108,71 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 await supabase.from('credit_cards').update({ status: 'ACTIVE' }).eq('id', userCard.id);
                 await interaction.editReply(`🔥 Tarjeta de **${profile.full_name}** ha sido **DESCONGELADA** y está Activa.`);
             }
+
+            else if (subCmdAdmin === 'ofrecer-upgrade') {
+                // Check user's credit score
+                const { data: citizenData } = await supabase
+                    .from('citizens')
+                    .select('id, full_name, credit_score')
+                    .eq('discord_id', targetUser.id)
+                    .order('created_at', { ascending: false })
+                    .limit(1)
+                    .maybeSingle();
+
+                if (!citizenData) {
+                    return interaction.editReply('❌ No tiene un ciudadano vinculado.');
+                }
+
+                const score = citizenData.credit_score || 100;
+
+                // Require good credit score (>70) to offer upgrade
+                if (score < 70) {
+                    return interaction.editReply(`❌ **${profile.full_name}** tiene un Score de ${score}/100. Se requiere mínimo 70 puntos para ofrecer un upgrade.`);
+                }
+
+                // Card tier ladder
+                const tiers = [
+                    'NMX Start',
+                    'NMX Básica',
+                    'NMX Plus',
+                    'NMX Plata',
+                    'NMX Oro',
+                    'NMX Rubí',
+                    'NMX Black',
+                    'NMX Diamante'
+                ];
+
+                const currentTier = userCard.card_type;
+                const currentIndex = tiers.indexOf(currentTier);
+
+                if (currentIndex === -1 || currentIndex >= tiers.length - 1) {
+                    return interaction.editReply(`ℹ️ **${profile.full_name}** ya tiene la mejor tarjeta disponible: **${currentTier}**.`);
+                }
+
+                const nextTier = tiers[currentIndex + 1];
+
+                // Send DM to user
+                try {
+                    const dmEmbed = new EmbedBuilder()
+                        .setTitle('🎁 ¡Oferta Exclusiva de Banco Nacional!')
+                        .setColor(0xFFD700)
+                        .setDescription(`Estimado/a **${citizenData.full_name}**,\n\nDado tu excelente historial crediticio (Score: **${score}/100**), el Banco Nacional te ofrece una **mejora de tarjeta gratuita**.`)
+                        .addFields(
+                            { name: 'Tarjeta Actual', value: currentTier, inline: true },
+                            { name: 'Nueva Oferta', value: `✨ **${nextTier}**`, inline: true },
+                            { name: '¿Cómo Aceptar?', value: 'Contacta a un representante del banco en el servidor para activar tu nueva tarjeta.' }
+                        )
+                        .setFooter({ text: 'Felicidades por mantener un buen historial!' })
+                        .setTimestamp();
+
+                    await targetUser.send({ embeds: [dmEmbed] });
+
+                    await interaction.editReply(`✅ Oferta de upgrade enviada a **${profile.full_name}** por DM.\n\n**Tarjeta Actual:** ${currentTier}\n**Oferta:** ${nextTier}\n**Score:** ${score}/100`);
+                } catch (dmError) {
+                    console.error('Error enviando DM:', dmError);
+                    await interaction.editReply(`⚠️ Oferta aprobada pero **no se pudo enviar el DM** (el usuario tiene DMs cerrados).\n\nDile manualmente que puede mejorar de **${currentTier}** a **${nextTier}**.`);
+                }
+            }
         }
         else if (subCmd === 'debug') {
             await interaction.deferReply({ ephemeral: false });
