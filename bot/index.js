@@ -373,10 +373,18 @@ client.once('ready', async () => {
             const targetGuild = client.guilds.cache.get(GUILD_ID);
             if (!targetGuild) {
                 console.error(`❌ CRITICAL ERROR: El bot NO ESTÁ en el servidor con ID '${GUILD_ID}'.`);
-                console.error('   -> Verifica el archivo .env o invita al bot.');
-                console.error('   -> Lista de servidores donde estoy:', client.guilds.cache.map(g => `${g.name} (${g.id})`).join(', '));
+                // ... logs ...
             } else {
                 console.log(`✅ Verificado: Estoy dentro del servidor '${targetGuild.name}'`);
+            }
+
+            // TEST READ ACCESS
+            try {
+                console.log('🧐 Verificando comandos actuales en la API...');
+                const currentCommands = await rest.get(Routes.applicationGuildCommands(client.user.id, GUILD_ID));
+                console.log(`📋 El bot ya tiene ${currentCommands.length} comandos registrados en la nube.`);
+            } catch (readError) {
+                console.error('❌ ERROR DE LECTURA (Scope?):', readError);
             }
 
             // Register Guild Commands (Overwrite)
