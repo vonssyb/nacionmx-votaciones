@@ -28,6 +28,11 @@ class BillingService {
             console.log("Running Weekly Billing Cycle...");
             await this.processWeeklyPayments();
         });
+
+        // Schedule: Hourly check for pending transfers (Giros)
+        cron.schedule('0 * * * *', async () => {
+            await this.processPendingTransfers();
+        });
     }
 
     async processWeeklyPayments() {
@@ -206,6 +211,47 @@ class BillingService {
         } catch (err) {
             console.error('Error fetching debit card:', err);
             return { data: null, error: err };
+        }
+    }
+
+
+    async processPendingTransfers() {
+        console.log('🔄 Checking for pending giro transfers...');
+        try {
+            const now = new Date().toISOString();
+
+            // Fetch matured transfers
+            const { data: transfers, error } = await supabase
+                .from('pending_transfers')
+                .select('*')
+                .eq('status', 'PENDING')
+                .lte('release_date', now);
+
+            if (error) throw error;
+            if (transfers && transfers.length > 0) {
+                console.log(`💸 Processing ${transfers.length} matured transfers.`);
+
+                for (const t of transfers) {
+                    try {
+                        // Add funds to receiver (defaults to Bank in UB Service logic usually, we'll use that)
+                        await this.ubService.addMoney(GUILD_ID, t.receiver_id, parseFloat(t.amount), `Giro Recibido de ${t.sender_id}: ${t.reason}`);
+
+                        // Mark as COMPLETED
+                        await supabase
+                            .from('pending_transfers')
+                            .update({ status: 'COMPLETED' })
+                            .eq('id', t.id);
+
+                        // Notify Receiver
+                        this.notifyUser(t.receiver_id, `💰 **GIRO RECIBIDO**\nHas recibido **$${parseFloat(t.amount).toLocaleString()}** de un giro de <@${t.sender_id}>.\nConcepto: ${t.reason}`, true);
+
+                    } catch (txError) {
+                        console.error(`Error processing transfer ${t.id}:`, txError);
+                    }
+                }
+            }
+        } catch (err) {
+            console.error('Error in processPendingTransfers:', err);
         }
     }
 }

@@ -226,6 +226,15 @@ const commands = [
         ]
     },
     {
+        name: 'giro',
+        description: 'Envío de dinero diferido (24h) - Efectivo/Banco a Efectivo',
+        options: [
+            { name: 'destinatario', description: 'Usuario que recibe', type: 6, required: true },
+            { name: 'monto', description: 'Cantidad', type: 10, required: true },
+            { name: 'razon', description: 'Concepto del giro', type: 3, required: false }
+        ]
+    },
+    {
         name: 'debito',
         description: 'Gestion de Tarjeta de Debito',
         options: [

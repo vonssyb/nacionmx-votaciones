@@ -652,7 +652,7 @@ client.on('interactionCreate', async interaction => {
             .setColor(0xD4AF37) // Gold
             .setDescription('Lista de comandos del Sistema Financiero Nacional.')
             .addFields(
-                { name: '🏦 Banco & Efectivo', value: '`/banco depositar`: Deposita efectivo (A Débito o Banco).\n`/transferir`: Envía dinero a otro usuario.\n`/debito saldo`: Consulta tu tarjeta de débito.' },
+                { name: '🏦 Banco & Efectivo', value: '`/balanza`: Mis finanzas totales.\n`/depositar`: Transferencia general (Cualquier usuario).\n`/transferir`: Transferencia Débito (Requiere Tarjeta ambos).\n`/giro`: Envío de efectivo diferido (Entrega 24h).' },
                 { name: '💳 Crédito', value: '`/credito estado`: Ver deuda y fecha de corte.\n`/credito pedir-prestamo`: Retiro de efectivo (Genera deuda).\n`/credito pagar`: Abono a capital.' },
                 { name: '📈 Inversiones', value: '`/bolsa precios`: Ver mercado (MXN).\n`/bolsa comprar/vender`: Comercio de acciones.\n`/inversion nueva`: Plazo fijo (5% semanal).' },
                 { name: '🏢 Empresas (Dueños)', value: '`/empresa crear`: Registra tu negocio.\n`/empresa cobrar`: Terminal de Cobro (Cobrar a clientes).\n`/empresa nomina`: Gestión de empleados y pagos masivos.\n`/empresa menu`: Panel de control.' },
@@ -775,7 +775,7 @@ client.on('interactionCreate', async interaction => {
                 .setDescription('El **Banco Nacional** ofrece productos financieros para personas y empresas. Revisa nuestro catálogo completo.')
                 .addFields({
                     name: '💡 Comandos Útiles',
-                    value: '>>> **`/balanza`** - Ver tu dinero total (Efec + Banco + Crédito).\n**`/depositar`** - Depósito general (Cualquier usuario).\n**`/transferir`** - Transferencia Débito (Requiere Tarjeta ambos).\n**`/credito estado`** - Ver deuda y límite.\n**`/credito pagar`** - Abonar a tu deuda.\n**`/impuestos`** - Consultar impuestos.',
+                    value: '>>> **`/balanza`** - Ver tu dinero total (Efec + Banco + Crédito).\n**`/depositar`** - Depósito general (Cualquier usuario).\n**`/transferir`** - Transferencia Débito (Requiere Tarjeta ambos).\n**`/giro`** - Envío diferido (24h).\n**`/credito estado`** - Ver deuda y límite.\n**`/credito pagar`** - Abonar a tu deuda.\n**`/impuestos`** - Consultar impuestos.',
                     inline: false
                 });
 
@@ -2495,6 +2495,68 @@ client.on('interactionCreate', async interaction => {
         } catch (error) {
             console.error(error);
             await interaction.editReply('❌ Error procesando la transferencia.');
+        }
+    }
+
+    else if (commandName === 'giro') {
+        const destUser = interaction.options.getUser('destinatario');
+        const monto = interaction.options.getNumber('monto');
+        const razon = interaction.options.getString('razon') || 'Giro Postal';
+
+        if (monto <= 0) return interaction.reply({ content: '❌ El monto debe ser mayor a 0.', ephemeral: true });
+        if (destUser.id === interaction.user.id) return interaction.reply({ content: '❌ No puedes enviarte un giro a ti mismo.', ephemeral: true });
+
+        await interaction.deferReply();
+
+        try {
+            // 1. Check Sender Balance (Generic Bank/Cash)
+            const senderBalance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
+            if (senderBalance.bank < monto) {
+                return interaction.editReply(`❌ Fondos insuficientes en Banco. Tienes $${senderBalance.bank.toLocaleString()}.`);
+            }
+
+            // 2. Deduct Money Immediately
+            await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, monto, `Giro enviado a ${destUser.tag}: ${razon}`);
+
+            // 3. Create Pending Transfer (24h Delay)
+            // 24 hours from now
+            const releaseDate = new Date();
+            releaseDate.setHours(releaseDate.getHours() + 24);
+
+            const { error: dbError } = await supabase
+                .from('pending_transfers')
+                .insert({
+                    sender_id: interaction.user.id,
+                    receiver_id: destUser.id,
+                    amount: monto,
+                    reason: razon,
+                    release_date: releaseDate.toISOString(),
+                    status: 'PENDING'
+                });
+
+            if (dbError) throw dbError;
+
+            // 4. Notify
+            const embed = new EmbedBuilder()
+                .setTitle('📨 Giro Postal Enviado')
+                .setColor(0xFFA500) // Orange
+                .setDescription(`El dinero ha sido descontado y llegará al destinatario en 24 horas.`)
+                .addFields(
+                    { name: 'Para', value: destUser.tag, inline: true },
+                    { name: 'Monto', value: `$${monto.toLocaleString()}`, inline: true },
+                    { name: 'Llegada Estimada', value: releaseDate.toLocaleString('es-MX', { timeZone: 'America/Mexico_City' }), inline: false }
+                )
+                .setTimestamp();
+
+            await interaction.editReply({ embeds: [embed] });
+
+            try {
+                await destUser.send(`📨 **Aviso de Giro**: ${interaction.user.tag} te ha enviado un giro de **$${monto.toLocaleString()}**. Estará disponible mañana.`);
+            } catch (e) { /* Ignore */ }
+
+        } catch (error) {
+            console.error('Giro error:', error);
+            await interaction.editReply('❌ Error procesando el giro. (El dinero no fue descontado si ocurrió error db)');
         }
     }
 
