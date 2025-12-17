@@ -170,6 +170,44 @@ class BillingService {
             console.error("Could not DM user:", discordId);
         }
     }
+
+    /**
+     * Get Debit Card for a user
+     * @param {string} discordId 
+     * @returns {Promise<{ data: any, error: any }>}
+     */
+    async getDebitCard(discordId) {
+        // Query debit_cards via citizens table join if possible, or just look up by citizen linkage
+        // Assuming debit_cards has a direct link or we go via citizens. 
+        // Based on table structure, debit_cards usually links to citizen_id.
+        // We need to resolve discordId -> citizen -> debit_card
+
+        try {
+            // 1. Get Citizen ID
+            const { data: citizen } = await supabase
+                .from('citizens')
+                .select('id')
+                .eq('discord_id', discordId)
+                .limit(1)
+                .maybeSingle();
+
+            if (!citizen) return { data: null, error: 'Citizen not found' };
+
+            // 2. Get Debit Card
+            const { data: card, error } = await supabase
+                .from('debit_cards')
+                .select('*')
+                .eq('citizen_id', citizen.id)
+                .eq('status', 'ACTIVE') // Only active cards
+                .limit(1)
+                .maybeSingle();
+
+            return { data: card, error };
+        } catch (err) {
+            console.error('Error fetching debit card:', err);
+            return { data: null, error: err };
+        }
+    }
 }
 
 module.exports = BillingService;
