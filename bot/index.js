@@ -377,11 +377,19 @@ client.once('ready', async () => {
         if (GUILD_ID) {
             // Register Guild Commands (Overwrite)
             console.log(`✨ Registrando ${commands.length} nuevos comandos en: ${GUILD_ID}...`);
-            await rest.put(
-                Routes.applicationGuildCommands(client.user.id, GUILD_ID),
-                { body: commands }
-            );
-            console.log('✅ Comandos verificados y limpios.');
+            console.log('📦 Payloads:', JSON.stringify(commands, null, 2)); // DEBUG PAYLOAD
+
+            try {
+                await rest.put(
+                    Routes.applicationGuildCommands(client.user.id, GUILD_ID),
+                    { body: commands }
+                );
+                console.log('✅ Comandos verificados y limpios (REST PUT Success).');
+            } catch (putError) {
+                console.error('❌ FATAL REST ERROR:', JSON.stringify(putError, null, 2));
+                throw putError;
+            }
+
         } else {
             console.log('⚠️ GUILD_ID no encontrado. Registrando Globalmente (No recomendado para desarrollo).');
             await rest.put(
@@ -390,7 +398,7 @@ client.once('ready', async () => {
             );
         }
     } catch (error) {
-        console.error('❌ Error gestionando comandos:', error);
+        console.error('❌ Error gestionando comandos (General Catch):', error);
     }
 
     // Start listening to Supabase changes
