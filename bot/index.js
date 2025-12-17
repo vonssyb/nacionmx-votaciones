@@ -70,6 +70,10 @@ client.once('ready', async () => {
             ]
         },
         {
+            name: 'ayuda',
+            description: 'Muestra los comandos bancarios disponibles (Cheat Sheet)',
+        },
+        {
             name: 'estado',
             description: 'Cambia el estado del servidor (CMD Staff)',
             options: [
@@ -304,6 +308,21 @@ client.on('interactionCreate', async interaction => {
         await interaction.reply({ content: `🏓 Pong! Latencia: **${ping}ms**. API: **${Math.round(client.ws.ping)}ms**.`, ephemeral: false });
     }
 
+
+    else if (commandName === 'ayuda') {
+        const helpEmbed = new EmbedBuilder()
+            .setTitle('🏦 Comandos Bancarios (Cheat Sheet)')
+            .setColor(0xD4AF37) // Gold
+            .setDescription('Lista rápida de comandos para Banqueros y Usuarios.')
+            .addFields(
+                { name: '👮 Staff Banco', value: '`/registrar-tarjeta`: Emitir nueva tarjeta.\n`/fichar vincular`: Registrar DNI/Nombre.\n`/credito admin`: Gestionar deudas/scores.' },
+                { name: '👤 Usuarios', value: '`/credito estado`: Ver saldo y deuda.\n`/credito pagar`: Pagar deuda.\n`/credito pedir-prestamo`: Retirar dinero.\n`/credito buro`: Ver historial crediticio.' }
+            )
+            .setFooter({ text: 'Sistema Financiero Nacion MX' });
+
+        await interaction.reply({ embeds: [helpEmbed], ephemeral: false });
+    }
+
     else if (commandName === 'estado') {
         // IDs Provided by User
         const TARGET_CHANNEL_ID = '1412963363545284680';
@@ -393,6 +412,11 @@ client.on('interactionCreate', async interaction => {
 
         const targetUser = interaction.options.getUser('usuario');
         if (!targetUser) return interaction.editReply('❌ Debes especificar un usuario.');
+
+        // SECURITY: Self-Target Check
+        if (targetUser.id === interaction.user.id) {
+            return interaction.editReply('⛔ **Seguridad:** No puedes registrarte una tarjeta a ti mismo. Pide a otro banquero que lo haga.');
+        }
 
         const holderName = interaction.options.getString('nombre_titular');
         const cardType = interaction.options.getString('tipo');
@@ -512,6 +536,7 @@ client.on('interactionCreate', async interaction => {
                             { name: 'Corte', value: 'Domingos 11:59PM', inline: true }
                         )
                         .setThumbnail(dniPhoto.url)
+                        .addFields({ name: '💡 Comandos Útiles', value: '• `/credito estado`: Ver saldo y deuda.\n• `/credito pagar`: Abonar a tu tarjeta.\n• `/credito pedir-prestamo`: Retirar efectivo.' })
                         .setFooter({ text: `Banco Nacional RP • ${new Date().toLocaleDateString('es-MX')} • Registrado por: ${interaction.user.tag}` });
 
                     await message.edit({
@@ -740,6 +765,12 @@ client.on('interactionCreate', async interaction => {
 
             const subCmdAdmin = interaction.options.getSubcommand();
             const targetUser = interaction.options.getUser('usuario');
+
+            // SECURITY: Self-Target Check
+            if (targetUser.id === interaction.user.id) {
+                return interaction.reply({ content: '⛔ **Seguridad:** No puedes usar comandos administrativos sobre tu propia cuenta.', ephemeral: true });
+            }
+
             await interaction.deferReply({ ephemeral: false });
 
             // Resolve Profile
