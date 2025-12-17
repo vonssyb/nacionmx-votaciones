@@ -2,6 +2,8 @@ require('dotenv').config();
 const { Client, GatewayIntentBits, EmbedBuilder, REST, Routes, ActivityType, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { createClient } = require('@supabase/supabase-js');
 const BillingService = require('./services/BillingService');
+const TaxService = require('./services/TaxService');
+const taxService = new TaxService(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY);
 
 // 1. Initialize Discord Client
 const client = new Client({
@@ -2169,6 +2171,7 @@ client.on('interactionCreate', async interaction => {
         await interaction.deferReply();
         try {
             const cashBalance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
+            console.log(`[DEBUG] /balanza User: ${interaction.user.id} Balance Raw:`, cashBalance); // DEBUG LOG
             const { data: debitCard } = await supabase.from('debit_cards').select('balance').eq('discord_user_id', interaction.user.id).eq('status', 'active').maybeSingle();
             const { data: creditCard } = await supabase.from('credit_cards').select('credit_limit, current_balance, citizens!inner(discord_id)').eq('citizens.discord_id', interaction.user.id).order('created_at', { ascending: false }).limit(1).maybeSingle();
 
@@ -2409,6 +2412,41 @@ client.on('interactionCreate', async interaction => {
         } catch (error) {
             console.error(error);
             await interaction.editReply('❌ Error procesando la transferencia.');
+        }
+    }
+
+    else if (commandName === 'impuestos') {
+        const subcommand = interaction.options.getSubcommand();
+
+        if (subcommand === 'empresas') {
+            await interaction.deferReply();
+            try {
+                const result = await taxService.calculateCorporateTax(interaction.user.id);
+
+                if (!result.isCompany) {
+                    return interaction.editReply('❌ No eres una empresa (No detecto Tarjeta Business activa).');
+                }
+
+                const embed = new EmbedBuilder()
+                    .setTitle('🏢 IMPUESTOS CORPORATIVOS')
+                    .setColor(0x7289da)
+                    .setDescription(`Estimación fiscal basada en ingresos recientes.`)
+                    .addFields(
+                        { name: '📅 Periodo', value: result.period, inline: true },
+                        { name: '📉 Tasa Aplicable', value: `${result.rate}%`, inline: true },
+                        { name: '💰 Ingresos (30d)', value: `$${result.income.toLocaleString()}`, inline: false },
+                        { name: '🏦 Impuesto Estimado', value: `\`\`\`$${result.taxAmount.toLocaleString()}\`\`\``, inline: false },
+                        { name: '🗓️ Próximo Corte', value: result.nextPayment, inline: true }
+                    )
+                    .setFooter({ text: 'SAT Nación MX • Evita la evasión fiscal' })
+                    .setTimestamp();
+
+                await interaction.editReply({ embeds: [embed] });
+
+            } catch (error) {
+                console.error(error);
+                await interaction.editReply('❌ Error calculando impuestos.');
+            }
         }
     }
 });
