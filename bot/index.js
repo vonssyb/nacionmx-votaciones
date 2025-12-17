@@ -54,6 +54,7 @@ client.once('ready', async () => {
             description: 'Comprueba si el bot está vivo',
             type: 1
         },
+        /*
         {
             name: 'fichar',
             description: 'Inicia o Termina tu turno (Entrada/Salida)',
@@ -258,7 +259,7 @@ client.once('ready', async () => {
                     options: [
                         { name: 'usuario', description: 'Usuario sancionado (Nombre/ID)', type: 3, required: true },
                         { name: 'razon', description: 'Motivo de la cancelación', type: 3, required: true },
-                        { name: 'ubicacion', description: 'Lugar de los hechos/arresto', type: 3, required: true },
+                        { name: 'ubicacion', description: 'Lugar de los fatti/arresto', type: 3, required: true },
                         { name: 'prueba1', description: 'Evidencia principal (Imagen)', type: 11, required: true },
                         { name: 'prueba2', description: 'Evidencia secundaria (Imagen)', type: 11 }
                     ]
@@ -363,6 +364,7 @@ client.once('ready', async () => {
             description: 'Ver precios de acciones (Roleplay)',
             type: 1
         }
+        */
     ];
 
     try {
@@ -388,13 +390,13 @@ client.once('ready', async () => {
             }
 
             // Register Guild Commands (Overwrite)
-            console.log(`✨ Registrando ${commands.length} nuevos comandos en: '${GUILD_ID}'...`);
+            console.log(`✨ Registrando SOLO 1 COMANDO (ping) en: '${GUILD_ID}'...`);
             console.log(`🔑 Client ID: ${client.user.id}`);
             // console.log('📦 Payloads:', JSON.stringify(commands, null, 2)); // Too verbose for 17 commands
 
             // Timeout implementation to prevent hanging indefinitely
             const registrationTimeout = new Promise((_, reject) =>
-                setTimeout(() => reject(new Error('TIMEOUT: La conexión con Discord API tardó demasiado (>15s).')), 15000)
+                setTimeout(() => reject(new Error('TIMEOUT: La conexión con Discord API tardó demasiado (>30s).')), 30000)
             );
 
             try {
@@ -402,7 +404,7 @@ client.once('ready', async () => {
                     rest.put(Routes.applicationGuildCommands(client.user.id, GUILD_ID), { body: commands }),
                     registrationTimeout
                 ]);
-                console.log('✅ Comandos verificados y limpios (REST PUT Success).');
+                console.log('✅ Comandos (PING) verificados y limpios (REST PUT Success).');
             } catch (putError) {
                 console.error('❌ FATAL REST ERROR:', putError);
                 // Optionally Fallback to Global? catch -> log
