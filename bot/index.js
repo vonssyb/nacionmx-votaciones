@@ -259,29 +259,33 @@ client.once('ready', async () => {
     ];
 
     try {
-        console.log('Iniciando registro de comandos...');
+        console.log('🔄 Iniciando actualización de comandos...');
 
-        // 1. Clean Global Commands to avoid duplicates
-        console.log('🧹 Limpiando comandos globales antiguos...');
+        // 1. DELETE ALL Global Commands (Force Clean)
+        console.log('🗑️ Eliminando comandos globales...');
         await rest.put(Routes.applicationCommands(client.user.id), { body: [] });
 
         if (GUILD_ID) {
-            console.log(`Registrando comandos en Servidor: ${GUILD_ID}`);
+            // 2. DELETE ALL Guild Commands (Force Clean)
+            console.log(`🗑️ Eliminando comandos antiguos del servidor: ${GUILD_ID}...`);
+            await rest.put(Routes.applicationGuildCommands(client.user.id, GUILD_ID), { body: [] });
+
+            // 3. Register New Guild Commands
+            console.log(`✨ Registrando ${commands.length} nuevos comandos en: ${GUILD_ID}...`);
             await rest.put(
                 Routes.applicationGuildCommands(client.user.id, GUILD_ID),
                 { body: commands }
             );
-            console.log('✅ Comandos (Guild) registrados correctamente.');
+            console.log('✅ Comandos verificados y limpios.');
         } else {
-            console.log('⚠️ GUILD_ID no encontrado. Registrando comandos GLOBALMENTE (tardará ~1 hora en aparecer).');
+            console.log('⚠️ GUILD_ID no encontrado. Registrando Globalmente (No recomendado para desarrollo).');
             await rest.put(
                 Routes.applicationCommands(client.user.id),
                 { body: commands }
             );
-            console.log('✅ Comandos (Globales) registrados correctamente.');
         }
     } catch (error) {
-        console.error('❌ Error registrando comandos:', error);
+        console.error('❌ Error gestionando comandos:', error);
     }
 
     // Start listening to Supabase changes
