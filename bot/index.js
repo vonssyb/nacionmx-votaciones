@@ -123,6 +123,17 @@ client.once('ready', async () => {
             ]
         },
         {
+            name: 'tarjeta',
+            description: 'Informacion sobre tarjetas disponibles - Catalogo',
+            options: [
+                {
+                    name: 'info',
+                    description: 'Ver el catalogo completo de tarjetas y sus beneficios',
+                    type: 1
+                }
+            ]
+        },
+        {
             name: 'credito',
             description: 'Gestión de tu tarjeta de crédito NMX',
             options: [
@@ -629,6 +640,75 @@ client.on('interactionCreate', async interaction => {
         } catch (error) {
             console.error(error);
             await interaction.editReply('❌ Hubo un error actualizando el estado. Revisa permisos del Bot (Manage Messages/Channels).');
+        }
+    }
+
+    else if (commandName === 'tarjeta') {
+        const subcommand = interaction.options.getSubcommand();
+
+        if (subcommand === 'info') {
+            const cards = [
+                { name: 'NMX Start', limit: '2k', interest: '3%', score: '0+', desc: 'Ideal para iniciar tu historial' },
+                { name: 'NMX Básica', limit: '4k', interest: '2.5%', score: '30+', desc: 'Para gastos frecuentes' },
+                { name: 'NMX Plus', limit: '6k', interest: '2%', score: '50+', desc: 'Más liquidez para tus planes' },
+                { name: 'NMX Plata', limit: '10k', interest: '1.5%', score: '60+', desc: 'Beneficios premium' },
+                { name: 'NMX Oro', limit: '15k', interest: '1.2%', score: '70+', desc: 'Exclusividad dorada' },
+                { name: 'NMX Rubí', limit: '25k', interest: '1%', score: '80+', desc: 'Elite con privilegios' },
+                { name: 'NMX Black', limit: '40k', interest: '0.8%', score: '85+', desc: 'Máximo prestigio' },
+                { name: 'NMX Diamante', limit: '60k', interest: '0.5%', score: '90+', desc: 'La cima del lujo' }
+            ];
+
+            const businessCards = [
+                { name: 'Business Start', limit: '50k', interest: '2%', score: '70+', desc: 'Para emprendedores' },
+                { name: 'Business Gold', limit: '100k', interest: '1.5%', score: '75+', desc: 'Empresas medianas' },
+                { name: 'Business Platinum', limit: '200k', interest: '1.2%', score: '80+', desc: 'Negocios consolidados' },
+                { name: 'Business Elite', limit: '500k', interest: '1%', score: '85+', desc: 'Corporativos grandes' },
+                { name: 'Corporate', limit: '1M', interest: '0.7%', score: '90+', desc: 'Máximo poder financiero' }
+            ];
+
+            const embed = new EmbedBuilder()
+                .setTitle('💳 Catálogo de Tarjetas Banco Nacional')
+                .setColor(0xFFD700)
+                .setDescription('Encuentra la tarjeta perfecta para ti. Score requerido y beneficios incluidos.')
+                .setTimestamp();
+
+            // Personal Cards
+            let personalText = '';
+            cards.forEach(c => {
+                personalText += `**${c.name}** ($${c.limit})\n`;
+                personalText += `└ Límite: $${c.limit} | Interés: ${c.interest} | Score: ${c.score}\n`;
+                personalText += `└ ${c.desc}\n\n`;
+            });
+
+            embed.addFields({
+                name: '👤 TARJETAS PERSONALES',
+                value: personalText,
+                inline: false
+            });
+
+            // Business Cards
+            let businessText = '';
+            businessCards.forEach(c => {
+                businessText += `**${c.name}** ($${c.limit})\n`;
+                businessText += `└ Límite: $${c.limit} | Interés: ${c.interest} | Score: ${c.score}\n`;
+                businessText += `└ ${c.desc}\n\n`;
+            });
+
+            embed.addFields({
+                name: '🏢 TARJETAS EMPRESARIALES',
+                value: businessText,
+                inline: false
+            });
+
+            embed.addFields({
+                name: '📋 ¿Cómo solicitar?',
+                value: 'Contacta a un representante del banco en el servidor con tu DNI y solicitud.',
+                inline: false
+            });
+
+            embed.setFooter({ text: 'Banco Nacional RP • Todos los intereses son semanales al corte dominical' });
+
+            await interaction.reply({ embeds: [embed] });
         }
     }
 
