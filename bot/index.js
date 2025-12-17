@@ -648,17 +648,19 @@ client.on('interactionCreate', async interaction => {
 
     else if (commandName === 'ayuda') {
         const helpEmbed = new EmbedBuilder()
-            .setTitle('🏦 Comandos Bancarios (Cheat Sheet)')
+            .setTitle('🏦 Sistema Financiero Nación MX')
             .setColor(0xD4AF37) // Gold
-            .setDescription('Lista de comandos del Sistema Financiero Nacional.')
+            .setDescription('**Guía completa de comandos económicos y empresariales**')
             .addFields(
-                { name: '🏦 Banco & Efectivo', value: '`/balanza`: Mis finanzas totales.\n`/depositar`: Transferencia general (Cualquier usuario).\n`/transferir`: Transferencia Débito (Requiere Tarjeta ambos).\n`/giro`: Envío de efectivo diferido (Entrega 24h).' },
-                { name: '💳 Crédito', value: '`/credito estado`: Ver deuda y fecha de corte.\n`/credito pedir-prestamo`: Retiro de efectivo (Genera deuda).\n`/credito pagar`: Abono a capital.' },
-                { name: '📈 Inversiones', value: '`/bolsa precios`: Ver mercado (MXN).\n`/bolsa comprar/vender`: Comercio de acciones.\n`/inversion nueva`: Plazo fijo (5% semanal).' },
-                { name: '🏢 Empresas (Dueños)', value: '`/empresa crear`: Registra tu negocio.\n`/empresa cobrar`: Terminal de Cobro (Cobrar a clientes).\n`/empresa nomina`: Gestión de empleados y pagos masivos.\n`/empresa menu`: Panel de control.' },
-                { name: '📊 Extras', value: '`/top-morosos`: Ranking de deudas.\n`/top-ricos`: Ranking de millonarios.\n`/impuestos`: Tu estatus fiscal.' }
+                { name: '💰 Banco & Efectivo', value: '`/balanza` - Ver finanzas totales\n`/depositar` - Transferencia general\n`/transferir` - Transferencia con débito\n`/giro` - Envío diferido (24h)\n`/banco depositar` - Guardar en cuenta' },
+                { name: '💳 Tarjetas & Crédito', value: '`/tarjeta info` - Catálogo de tarjetas\n`/credito estado` - Ver deuda\n`/credito pedir-prestamo` - Retirar efectivo\n`/credito pagar` - Abonar deuda' },
+                { name: '🏢 Empresas', value: '`/empresa crear` - Registrar empresa\n`/empresa menu` - Panel de control\n`/empresa cobrar` - Terminal POS\n`/empresa credito` - Usar tarjeta business\n`/empresa lista` - Directorio' },
+                { name: '💼 Business (Staff)', value: '`/business vincular` - Vincular tarjeta\n`/business listar` - Ver tarjetas\n`/business cancelar` - Cancelar tarjeta' },
+                { name: '📈 Inversiones', value: '`/bolsa precios` - Ver mercado\n`/bolsa comprar/vender` - Comerciar\n`/inversion nueva` - Plazo fijo (5%)' },
+                { name: '📊 Impuestos', value: '`/impuestos consultar` - Estado fiscal\n`/impuestos empresas` - Impuestos corporativos\n`/top-morosos` - Ranking deudas' }
             )
-            .setFooter({ text: 'Sistema Financiero Nacion MX' });
+            .setFooter({ text: 'Sistema Financiero Nación MX • /tarjeta info para más detalles' })
+            .setTimestamp();
 
         await interaction.reply({ embeds: [helpEmbed], ephemeral: false });
     }
