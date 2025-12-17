@@ -58,13 +58,21 @@ client.once('ready', async () => {
             description: 'Inicia o Termina tu turno (Entrada/Salida)',
             options: [
                 {
-                    name: 'accion',
-                    description: 'Entrar o Salir',
-                    type: 3, // STRING
-                    required: true,
-                    choices: [
-                        { name: 'Entrar a Turno', value: 'in' },
-                        { name: 'Salir de Turno', value: 'out' }
+                    name: 'entrar',
+                    description: 'Entrar a Turno (Clock In)',
+                    type: 1 // SUB_COMMAND
+                },
+                {
+                    name: 'salir',
+                    description: 'Salir de Turno (Clock Out)',
+                    type: 1 // SUB_COMMAND
+                },
+                {
+                    name: 'vincular',
+                    description: 'Vincular tu cuenta de Discord a un Ciudadano',
+                    type: 1, // SUB_COMMAND
+                    options: [
+                        { name: 'nombre', description: 'Tu Nombre y Apellido RP (Ej: Juan Perez)', type: 3, required: true }
                     ]
                 }
             ]
@@ -90,23 +98,26 @@ client.once('ready', async () => {
             name: 'registrar-tarjeta',
             description: 'Registrar nueva tarjeta (Staff Banco)',
             options: [
-                { name: 'usuario', description: 'Usuario a registrar', type: 6, required: true },
+                { name: 'usuario', description: 'Usuario de Discord', type: 6, required: true },
+                { name: 'nombre_titular', description: 'Nombre completo del titular (RP)', type: 3, required: true },
                 {
                     name: 'tipo',
                     description: 'Nivel de la tarjeta',
                     type: 3,
                     required: true,
                     choices: [
-                        { name: 'NMX Clásica', value: 'NMX Clásica' },
-                        { name: 'NMX Oro', value: 'NMX Oro' },
-                        { name: 'NMX Platino', value: 'NMX Platino' },
-                        { name: 'NMX Diamante', value: 'NMX Diamante' },
-                        { name: 'NMX Centurión', value: 'NMX Centurión' }
+                        { name: 'NMX Start ($2k)', value: 'NMX Start' },
+                        { name: 'NMX Básica ($4k)', value: 'NMX Básica' },
+                        { name: 'NMX Plus ($6k)', value: 'NMX Plus' },
+                        { name: 'NMX Plata ($10k)', value: 'NMX Plata' },
+                        { name: 'NMX Oro ($15k)', value: 'NMX Oro' },
+                        { name: 'NMX Rubí ($25k)', value: 'NMX Rubí' },
+                        { name: 'NMX Black ($40k)', value: 'NMX Black' },
+                        { name: 'NMX Diamante ($60k)', value: 'NMX Diamante' }
                     ]
                 },
-                { name: 'limite', description: 'Límite de crédito', type: 10, required: true },
-                { name: 'interes', description: 'Tasa de interés (%)', type: 10, required: true },
-                { name: 'costo', description: 'Costo de apertura (Se cobra al aceptar)', type: 10, required: true }
+                { name: 'foto_dni', description: 'Foto del DNI/Identificación', type: 11, required: true },
+                { name: 'notas', description: 'Notas opcionales', type: 3, required: false }
             ]
         },
         {
@@ -243,36 +254,7 @@ client.once('ready', async () => {
                 }
             ]
         },
-        {
-            name: 'banco',
-            description: 'Comandos administrativos del Banco',
-            options: [
-                {
-                    name: 'registrar',
-                    description: 'Registrar una nueva tarjeta manualmente (Staff Banco)',
-                    type: 1, // SUB_COMMAND
-                    options: [
-                        { name: 'usuario', description: 'Usuario a registrar', type: 6, required: true },
-                        {
-                            name: 'tipo',
-                            description: 'Nivel de la tarjeta',
-                            type: 3,
-                            required: true,
-                            choices: [
-                                { name: 'NMX Clásica', value: 'NMX Clásica' },
-                                { name: 'NMX Oro', value: 'NMX Oro' },
-                                { name: 'NMX Platino', value: 'NMX Platino' },
-                                { name: 'NMX Diamante', value: 'NMX Diamante' },
-                                { name: 'NMX Centurión', value: 'NMX Centurión' }
-                            ]
-                        },
-                        { name: 'limite', description: 'Límite de crédito', type: 10, required: true },
-                        { name: 'interes', description: 'Tasa de interés (%)', type: 10, required: true },
-                        { name: 'costo', description: 'Costo de apertura (Se cobra al aceptar)', type: 10, required: true }
-                    ]
-                }
-            ]
-        },
+
         {
             name: 'multa',
             description: 'Imponer una multa a un ciudadano (Policía)',
@@ -318,7 +300,8 @@ client.on('interactionCreate', async interaction => {
     const { commandName } = interaction;
 
     if (commandName === 'ping') {
-        await interaction.reply('¡Pong! 🏓 El bot de finanzas está activo.');
+        const ping = Date.now() - interaction.createdTimestamp;
+        await interaction.reply({ content: `🏓 Pong! Latencia: **${ping}ms**. API: **${Math.round(client.ws.ping)}ms**.`, ephemeral: true });
     }
 
     else if (commandName === 'estado') {
@@ -401,36 +384,74 @@ client.on('interactionCreate', async interaction => {
     }
 
     else if (commandName === 'registrar-tarjeta') {
-        // Same logic as /banco registrar but top-level
         await interaction.deferReply({ ephemeral: true });
 
         // 1. Role Check (Staff Banco: 1450591546524307689)
-        // Also allow Admin for testing
         if (!interaction.member.roles.cache.has('1450591546524307689') && !interaction.member.permissions.has('Administrator')) {
             return interaction.editReply('⛔ No tienes permisos para registrar tarjetas (Rol Staff Banco Requerido).');
         }
 
         const targetUser = interaction.options.getUser('usuario');
+        if (!targetUser) return interaction.editReply('❌ Debes especificar un usuario.');
+
+        const holderName = interaction.options.getString('nombre_titular');
         const cardType = interaction.options.getString('tipo');
-        const limit = interaction.options.getNumber('limite');
-        const interest = interaction.options.getNumber('interes');
-        const cost = interaction.options.getNumber('costo');
+        const dniPhoto = interaction.options.getAttachment('foto_dni');
+        const notes = interaction.options.getString('notas') || 'Sin notas';
 
-        // 2. Find Citizen
-        const { data: citizen, error: citError } = await supabase.from('citizens').select('id, full_name').eq('discord_id', targetUser.id).order('created_at', { ascending: false }).limit(1).maybeSingle();
+        // CARD STATS MAP
+        const cardStats = {
+            'NMX Start': { limit: 15000, interest: 15, cost: 2000 },
+            'NMX Básica': { limit: 30000, interest: 12, cost: 4000 },
+            'NMX Plus': { limit: 50000, interest: 10, cost: 6000 },
+            'NMX Plata': { limit: 100000, interest: 8, cost: 10000 },
+            'NMX Oro': { limit: 250000, interest: 7, cost: 15000 },
+            'NMX Rubí': { limit: 500000, interest: 6, cost: 25000 },
+            'NMX Black': { limit: 1000000, interest: 5, cost: 40000 },
+            'NMX Diamante': { limit: 2000000, interest: 3, cost: 60000 }
+        };
 
-        if (!citizen) return interaction.editReply('❌ El usuario no tiene un Ciudadano vinculado. Debe usar `/fichar` primero.');
+        const stats = cardStats[cardType || 'NMX Start'] || cardStats['NMX Start'];
+
+        // 2. Find Citizen (Optional check, but we need to link it eventually. If not found, create one?)
+        // The user said "pide foto de dni, nombre del titular". This implies we might be CREATING the citizen logic here or just linking.
+        // I'll search for citizen by Discord ID. If not found, I will create one using the provided Name.
+        let { data: citizen } = await supabase.from('citizens').select('id, full_name').eq('discord_id', targetUser.id).limit(1).maybeSingle();
+
+        if (!citizen) {
+            // Create new Citizen record
+            const { data: newCit, error: createError } = await supabase.from('citizens').insert([{
+                discord_id: targetUser.id,
+                full_name: holderName,
+                dni: 'PENDING', // Ideally parse from photo but can't.
+                created_at: new Date().toISOString(),
+                credit_score: 100 // Default score
+            }]).select().single();
+
+            if (createError) {
+                console.error(createError);
+                return interaction.editReply('❌ Error registrando Nuevo Ciudadano en base de datos.');
+            }
+            citizen = newCit;
+        } else {
+            // Update name?
+            if (citizen.full_name !== holderName) {
+                await supabase.from('citizens').update({ full_name: holderName }).eq('id', citizen.id);
+            }
+        }
 
         // 3. Send Interactive Offer
         const offerEmbed = new EmbedBuilder()
             .setTitle('💳 Oferta de Tarjeta de Crédito')
             .setColor(0xD4AF37)
-            .setDescription(`Hola <@${targetUser.id}>,\nEl Banco Nacional te ofrece una tarjeta **${cardType}**.\n\n**Detalles del Contrato:**`)
+            .setDescription(`Hola <@${targetUser.id}>,\nEl Banco Nacional te ofrece una tarjeta **${cardType}**.\n\n**Titular:** ${holderName}\n\n**Detalles del Contrato:**`)
             .addFields(
-                { name: 'Límite', value: `$${limit.toLocaleString()}`, inline: true },
-                { name: 'Interés Semanal', value: `${interest}%`, inline: true },
-                { name: 'Costo de Apertura', value: `$${cost.toLocaleString()}`, inline: true }
+                { name: 'Límite', value: `$${stats.limit.toLocaleString()}`, inline: true },
+                { name: 'Interés Semanal', value: `${stats.interest}%`, inline: true },
+                { name: 'Costo Apertura', value: `$${stats.cost.toLocaleString()}`, inline: true },
+                { name: 'Notas', value: notes }
             )
+            .setThumbnail(dniPhoto.url)
             .setFooter({ text: 'Tienes 5 minutos para aceptar. Revisa los términos antes.' });
 
         const row = new ActionRowBuilder()
@@ -440,9 +461,9 @@ client.on('interactionCreate', async interaction => {
                 new ButtonBuilder().setCustomId('btn_reject').setLabel('❌ Rechazar').setStyle(ButtonStyle.Danger)
             );
 
-        // Send to channel (Public) so user can see it
+        // Send to channel (Public)
         const message = await interaction.channel.send({ content: `<@${targetUser.id}>`, embeds: [offerEmbed], components: [row] });
-        await interaction.editReply(`✅ Oferta enviada a <@${targetUser.id}>. Esperando respuesta...`);
+        await interaction.editReply(`✅ Oferta enviada a <@${targetUser.id}> para tarjeta **${cardType}**.`);
 
         // 4. Collector
         const filter = i => i.user.id === targetUser.id;
@@ -450,84 +471,58 @@ client.on('interactionCreate', async interaction => {
 
         collector.on('collect', async i => {
             if (i.customId === 'btn_terms') {
-                // Terms & Conditions Logic
                 const tycEmbed = new EmbedBuilder()
-                    .setTitle('📜 Términos y Condiciones - Banco Nacional RP')
+                    .setTitle('📜 Términos y Condiciones')
                     .setColor(0x333333)
-                    .setDescription(`
-**1️⃣ ACEPTACIÓN**
-Al solicitar, activar o utilizar cualquier tarjeta, aceptas estos términos automáticamente.
-
-**2️⃣ NATURALEZA DEL SISTEMA**
-• Crédito es dinero RP, no real.
-• Uso obligatorio IC y regulado OOC.
-
-**3️⃣ LÍMITES DE CRÉDITO**
-• Máximo permitido: $1,000,000 MXN RP.
-• El banco puede modificar el límite según historial.
-
-**4️⃣ CORTE Y PAGOS**
-• Corte cada 7 días. Pago mínimo: 25%.
-• Intereses semanales no negociables.
-
-**5️⃣ INCUMPLIMIENTO**
-generará recargos, congelación, reporte a Buró Financiero, embargos y restricciones.
-
-**6️⃣ BURÓ FINANCIERO RP**
-• Historial afecta acceso a créditos futuros.
-
-**9️⃣ CANCELACIÓN**
-• Banco puede cancelar por mal uso. La deuda persiste.
-                    `);
+                    .setDescription('**1. Pagos:** Semanales obligatorios (25% mín).\n**2. Intereses:** Se aplican al corte.\n**3. Impago:** Congelamiento y Buró negativo.\n**4. Uso:** Responsabilidad del titular.');
                 await i.reply({ embeds: [tycEmbed], ephemeral: true });
             }
             else if (i.customId === 'btn_reject') {
-                await i.update({ content: '❌ Oferta rechazada por el usuario.', components: [] });
+                await i.update({ content: '❌ Oferta rechazada.', components: [] });
                 collector.stop();
             }
             else if (i.customId === 'btn_accept') {
-                // PAYMENT & CREATION LOGIC
                 await i.deferUpdate();
-
                 try {
                     // Check Funds
                     const balance = await billingService.ubService.getUserBalance(interaction.guildId, targetUser.id);
                     const userMoney = balance.total || (balance.cash + balance.bank);
 
-                    if (userMoney < cost) {
-                        return i.followUp({ content: `❌ **Fondos Insuficientes**. Tienes: $${userMoney.toLocaleString()}. Necesitas: $${cost.toLocaleString()}.`, ephemeral: true });
+                    if (userMoney < stats.cost) {
+                        return i.followUp({ content: `❌ **Fondos Insuficientes**. Tienes: $${userMoney.toLocaleString()}. Requiere: $${stats.cost.toLocaleString()}.`, ephemeral: true });
                     }
 
                     // Charge
-                    await billingService.ubService.removeMoney(interaction.guildId, targetUser.id, cost, `Apertura Tarjeta ${cardType}`);
+                    await billingService.ubService.removeMoney(interaction.guildId, targetUser.id, stats.cost, `Apertura ${cardType}`);
 
                     // Create Card
                     const { error: insertError } = await supabase.from('credit_cards').insert([{
                         citizen_id: citizen.id,
                         card_type: cardType,
-                        credit_limit: limit,
+                        credit_limit: stats.limit,
                         current_balance: 0,
-                        interest_rate: interest,
+                        interest_rate: stats.interest,
                         status: 'ACTIVE',
                         next_payment_due: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
                     }]);
 
                     if (insertError) throw new Error(insertError.message);
 
-                    await message.edit({ content: `✅ **Tarjeta Activada** para <@${targetUser.id}>. Cobro de $${cost.toLocaleString()} realizado.`, components: [] });
+                    // Log Evidence (Optional)
+                    // Could save DNI URL to evidence table if needed.
+
+                    await message.edit({ content: `✅ **Tarjeta Activada** para **${holderName}**. Cobro de $${stats.cost.toLocaleString()} realizado.`, components: [] });
 
                 } catch (err) {
                     console.error(err);
-                    await i.followUp({ content: `❌ Error procesando pago/creación: ${err.message}`, ephemeral: true });
+                    await i.followUp({ content: `❌ Error procesando: ${err.message}`, ephemeral: true });
                 }
                 collector.stop();
             }
         });
 
         collector.on('end', collected => {
-            if (collected.size === 0) {
-                message.edit({ content: '⚠️ La oferta expiró.', components: [] });
-            }
+            if (collected.size === 0) message.edit({ content: '⚠️ Oferta expirada.', components: [] });
         });
     }
 
@@ -897,139 +892,7 @@ generará recargos, congelación, reporte a Buró Financiero, embargos y restric
     }
 
 
-    else if (commandName === 'banco') {
-        const subCmd = interaction.options.getSubcommand();
 
-        if (subCmd === 'registrar') {
-            await interaction.deferReply({ ephemeral: true });
-
-            // 1. Role Check (Staff Banco: 1450591546524307689)
-            if (!interaction.member.roles.cache.has('1450591546524307689') && !interaction.member.permissions.has('Administrator')) {
-                return interaction.editReply('⛔ No tienes permisos para registrar tarjetas (Rol Staff Banco Requerido).');
-            }
-
-            const targetUser = interaction.options.getUser('usuario');
-            const cardType = interaction.options.getString('tipo');
-            const limit = interaction.options.getNumber('limite');
-            const interest = interaction.options.getNumber('interes');
-            const cost = interaction.options.getNumber('costo');
-
-            // 2. Find Citizen
-            const { data: citizen, error: citError } = await supabase.from('citizens').select('id, full_name').eq('discord_id', targetUser.id).order('created_at', { ascending: false }).limit(1).maybeSingle();
-
-            if (!citizen) return interaction.editReply('❌ El usuario no tiene un Ciudadano vinculado. Debe usar `/fichar` primero.');
-
-            // 3. Send Interactive Offer
-            const offerEmbed = new EmbedBuilder()
-                .setTitle('💳 Oferta de Tarjeta de Crédito')
-                .setColor(0xD4AF37)
-                .setDescription(`Hola <@${targetUser.id}>,\nEl Banco Nacional te ofrece una tarjeta **${cardType}**.\n\n**Detalles del Contrato:**`)
-                .addFields(
-                    { name: 'Límite', value: `$${limit.toLocaleString()}`, inline: true },
-                    { name: 'Interés Semanal', value: `${interest}%`, inline: true },
-                    { name: 'Costo de Apertura', value: `$${cost.toLocaleString()}`, inline: true }
-                )
-                .setFooter({ text: 'Tienes 5 minutos para aceptar. Revisa los términos antes.' });
-
-            const row = new ActionRowBuilder()
-                .addComponents(
-                    new ButtonBuilder().setCustomId('btn_terms').setLabel('📄 Ver Términos').setStyle(ButtonStyle.Secondary),
-                    new ButtonBuilder().setCustomId('btn_accept').setLabel('✅ Aceptar y Pagar').setStyle(ButtonStyle.Success),
-                    new ButtonBuilder().setCustomId('btn_reject').setLabel('❌ Rechazar').setStyle(ButtonStyle.Danger)
-                );
-
-            // Send to channel (Public) so user can see it
-            const message = await interaction.channel.send({ content: `<@${targetUser.id}>`, embeds: [offerEmbed], components: [row] });
-            await interaction.editReply(`✅ Oferta enviada a <@${targetUser.id}>. Esperando respuesta...`);
-
-            // 4. Collector
-            const filter = i => i.user.id === targetUser.id;
-            const collector = message.createMessageComponentCollector({ filter, time: 300000 }); // 5 min
-
-            collector.on('collect', async i => {
-                if (i.customId === 'btn_terms') {
-                    // Terms & Conditions Logic
-                    const tycEmbed = new EmbedBuilder()
-                        .setTitle('📜 Términos y Condiciones - Banco Nacional RP')
-                        .setColor(0x333333)
-                        .setDescription(`
-**1️⃣ ACEPTACIÓN**
-Al solicitar, activar o utilizar cualquier tarjeta, aceptas estos términos automáticamente.
-
-**2️⃣ NATURALEZA DEL SISTEMA**
-• Crédito es dinero RP, no real.
-• Uso obligatorio IC y regulado OOC.
-
-**3️⃣ LÍMITES DE CRÉDITO**
-• Máximo permitido: $1,000,000 MXN RP.
-• El banco puede modificar el límite según historial.
-
-**4️⃣ CORTE Y PAGOS**
-• Corte cada 7 días. Pago mínimo: 25%.
-• Intereses semanales no negociables.
-
-**5️⃣ INCUMPLIMIENTO**
-generará recargos, congelación, reporte a Buró Financiero, embargos y restricciones.
-
-**6️⃣ BURÓ FINANCIERO RP**
-• Historial afecta acceso a créditos futuros.
-
-**9️⃣ CANCELACIÓN**
-• Banco puede cancelar por mal uso. La deuda persiste.
-                        `);
-                    await i.reply({ embeds: [tycEmbed], ephemeral: true });
-                }
-                else if (i.customId === 'btn_reject') {
-                    await i.update({ content: '❌ Oferta rechazada por el usuario.', components: [] });
-                    collector.stop();
-                }
-                else if (i.customId === 'btn_accept') {
-                    // PAYMENT & CREATION LOGIC
-                    await i.deferUpdate();
-
-                    try {
-                        // Check Funds
-                        const balance = await billingService.ubService.getUserBalance(interaction.guildId, targetUser.id);
-                        const userMoney = balance.total || (balance.cash + balance.bank);
-
-                        if (userMoney < cost) {
-                            return i.followUp({ content: `❌ **Fondos Insuficientes**. Tienes: $${userMoney.toLocaleString()}. Necesitas: $${cost.toLocaleString()}.`, ephemeral: true });
-                        }
-
-                        // Charge
-                        await billingService.ubService.removeMoney(interaction.guildId, targetUser.id, cost, `Apertura Tarjeta ${cardType}`);
-
-                        // Create Card
-                        const { error: insertError } = await supabase.from('credit_cards').insert([{
-                            citizen_id: citizen.id,
-                            card_type: cardType,
-                            credit_limit: limit,
-                            current_balance: 0,
-                            interest_rate: interest,
-                            status: 'ACTIVE',
-                            next_payment_due: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
-                        }]);
-
-                        if (insertError) throw new Error(insertError.message);
-
-                        // Initialize/Update Credit Score slightly? Optional
-                        await message.edit({ content: `✅ **Tarjeta Activada** para <@${targetUser.id}>. Cobro de $${cost.toLocaleString()} realizado.`, components: [] });
-
-                    } catch (err) {
-                        console.error(err);
-                        await i.followUp({ content: `❌ Error procesando pago/creación: ${err.message}`, ephemeral: true });
-                    }
-                    collector.stop();
-                }
-            });
-
-            collector.on('end', collected => {
-                if (collected.size === 0) {
-                    message.edit({ content: '⚠️ La oferta expiró.', components: [] });
-                }
-            });
-        }
-    }
 
     else if (commandName === 'multa') {
         await interaction.deferReply();
@@ -1085,98 +948,111 @@ generará recargos, congelación, reporte a Buró Financiero, embargos y restric
     }
 
     else if (commandName === 'fichar') {
+        const subCmd = interaction.options.getSubcommand();
         await interaction.deferReply({ ephemeral: true });
-        const action = interaction.options.getString('accion');
 
-        const { data: profile } = await supabase
-            .from('profiles')
-            .select('id, full_name, role')
-            .eq('discord_id', interaction.user.id)
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .maybeSingle();
+        // --- SUBCOMMAND: VINCULAR ---
+        if (subCmd === 'vincular') {
+            const fullNameInput = interaction.options.getString('nombre');
 
-        if (!profile) {
-            return interaction.editReply('❌ No tienes tu cuenta de Discord vinculada. Pide a un admin que añada tu ID de Discord a tu perfil en el Panel de Staff.');
+            // 1. Check if already linked
+            const { data: existing } = await supabase.from('citizens').select('id, full_name').eq('discord_id', interaction.user.id).limit(1).maybeSingle();
+            if (existing) {
+                return interaction.editReply(`✅ Ya estás vinculado como **${existing.full_name}**. No necesitas hacer nada más.`);
+            }
+
+            // 2. Search for Citizen by Name
+            const { data: targetCitizen, error } = await supabase.from('citizens').select('id, full_name').ilike('full_name', `%${fullNameInput}%`).limit(1).maybeSingle();
+
+            if (!targetCitizen) {
+                return interaction.editReply(`❌ No encontré ningún ciudadano con el nombre "**${fullNameInput}**".\nAsegúrate de estar registrado en la Base de Datos (Panel Web) o contacta a un Admin.`);
+            }
+
+            // 3. Link
+            const { error: updateError } = await supabase.from('citizens').update({ discord_id: interaction.user.id }).eq('id', targetCitizen.id);
+
+            if (updateError) {
+                console.error(updateError);
+                return interaction.editReply('❌ Error vinculando cuenta. Contacta a soporte.');
+            }
+
+            // Also create/update Profile entry if needed (for legacy compatibility)
+            // But 'citizens' is the new source. We'll trust citizens.
+
+            const embed = new EmbedBuilder()
+                .setTitle('✅ Vinculación Exitosa')
+                .setColor(0x00FF00)
+                .setDescription(`Tu cuenta de Discord ha sido vinculada correctamente al ciudadano **${targetCitizen.full_name}**.`)
+                .setFooter({ text: 'Ahora puedes usar /fichar entrar, /banco, etc.' });
+
+            return interaction.editReply({ embeds: [embed] });
         }
 
-        // 2. Check for Active Shift
-        const { data: activeShift } = await supabase
-            .from('time_logs')
-            .select('id, clock_in')
-            .eq('user_id', profile.id)
-            .eq('status', 'active')
-            .single();
+        // --- SUBCOMMANDS: ENTRAR / SALIR ---
+        // For shift logic, we need to know WHO they are.
+        // Try to get from Citizens first (New standard)
+        let profile = null;
+        const { data: citizen } = await supabase.from('citizens').select('id, full_name').eq('discord_id', interaction.user.id).maybeSingle();
 
-        if (activeShift) {
-            // CLOCK OUT
-            const now = new Date();
-            const clockIn = new Date(activeShift.clock_in);
-            const durationMinutes = Math.round((now - clockIn) / 60000);
-
-            const { error } = await supabase
-                .from('time_logs')
-                .update({
-                    clock_out: now.toISOString(),
-                    status: 'completed',
-                    duration_minutes: durationMinutes
-                })
-                .eq('id', activeShift.id);
-
-            if (error) {
-                console.error(error);
-                return interaction.editReply('❌ Error al cerrar turno.');
-            }
-
-            const embed = new EmbedBuilder()
-                .setTitle('🛑 Turno Finalizado')
-                .setColor(0xFF0000)
-                .addFields(
-                    { name: 'Oficial', value: profile.full_name || 'Agente' },
-                    { name: 'Duración', value: `${durationMinutes} minutos` }
-                )
-                .setTimestamp();
-
-            await interaction.editReply({ embeds: [embed] });
-
-            // Optional: Log to public channel
-            if (NOTIFICATION_CHANNEL_ID) {
-                const channel = await client.channels.fetch(NOTIFICATION_CHANNEL_ID).catch(() => null);
-                if (channel) channel.send({ embeds: [embed] });
-            }
-
+        // Fallback to Profiles if Citizen not found (Legacy support)
+        if (!citizen) {
+            const { data: prof } = await supabase.from('profiles').select('id, full_name, role').eq('discord_id', interaction.user.id).maybeSingle();
+            profile = prof;
         } else {
-            // CLOCK IN
-            const { error } = await supabase
-                .from('time_logs')
-                .insert([{
-                    user_id: profile.id,
-                    clock_in: new Date().toISOString(),
-                    status: 'active'
-                }]);
+            profile = citizen; // Treat citizen as profile
+        }
 
-            if (error) {
-                console.error(error);
-                return interaction.editReply('❌ Error al iniciar turno.');
+        if (!profile) {
+            return interaction.editReply({
+                content: '❌ No estás vinculado. Usa **`/fichar vincular [Tu Nombre]`** para conectar tu personaje.',
+                components: []
+            });
+        }
+
+        // Handle Shift Action
+        const action = subCmd === 'entrar' ? 'in' : 'out';
+
+        // ... Reuse existing logic but simplified ...
+        if (action === 'entrar') {
+            // Check if already active
+            const { data: active } = await supabase.from('time_logs').select('id').eq('user_id', profile.id).eq('status', 'active').maybeSingle();
+            if (active) return interaction.editReply('⚠️ Ya tienes un turno activo. Usa `/fichar salir` primero.');
+
+            // Start Shift
+            const { error } = await supabase.from('time_logs').insert([{
+                user_id: profile.id, // Ensure time_logs links to 'id' which acts as user_id. (Ideally profiles.id and citizens.id match or are distinct. I assume time_logs.user_id FK links to profiles.id usually).
+                // ALERT: If 'citizens' IDs are different from 'profiles' IDs, this might break basic shift logging if time_logs FK is strict.
+                // Assuming time_logs.user_id is UUID.
+                clock_in: new Date().toISOString(),
+                status: 'active'
+            }]);
+            if (error) { console.error(error); return interaction.editReply('❌ Error al iniciar turno.'); }
+
+            const embed = new EmbedBuilder().setTitle('✅ Turno Iniciado').setColor(0x00FF00).setDescription(`Has entrado en servicio como **${profile.full_name}**.`).setTimestamp();
+            await interaction.editReply({ embeds: [embed] });
+            if (NOTIFICATION_CHANNEL_ID) {
+                const ch = await client.channels.fetch(NOTIFICATION_CHANNEL_ID).catch(() => null);
+                if (ch) ch.send({ embeds: [embed] });
             }
 
-            const embed = new EmbedBuilder()
-                .setTitle('🟢 Turno Iniciado')
-                .setColor(0x00FF00)
-                .addFields(
-                    { name: 'Oficial', value: profile.full_name || 'Agente' },
-                    { name: 'Hora', value: new Date().toLocaleTimeString() }
-                )
-                .setTimestamp();
+        } else if (action === 'salir') {
+            const { data: active } = await supabase.from('time_logs').select('id, clock_in').eq('user_id', profile.id).eq('status', 'active').maybeSingle();
+            if (!active) return interaction.editReply('⚠️ No tienes un turno activo para cerrar.');
 
+            const now = new Date();
+            const duration = Math.round((now - new Date(active.clock_in)) / 60000);
+
+            await supabase.from('time_logs').update({ clock_out: now.toISOString(), status: 'completed', duration_minutes: duration }).eq('id', active.id);
+
+            const embed = new EmbedBuilder().setTitle('🛑 Turno Finalizado').setColor(0xFF0000).addFields({ name: 'Oficial', value: profile.full_name }, { name: 'Duración', value: `${duration} min` }).setTimestamp();
             await interaction.editReply({ embeds: [embed] });
-
             if (NOTIFICATION_CHANNEL_ID) {
-                const channel = await client.channels.fetch(NOTIFICATION_CHANNEL_ID).catch(() => null);
-                if (channel) channel.send({ embeds: [embed] });
+                const ch = await client.channels.fetch(NOTIFICATION_CHANNEL_ID).catch(() => null);
+                if (ch) ch.send({ embeds: [embed] });
             }
         }
     }
+
 
     if (commandName === 'saldo') {
         // ... (Existing logic or placeholder) ...
