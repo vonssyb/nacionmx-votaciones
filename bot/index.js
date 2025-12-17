@@ -177,6 +177,11 @@ client.once('ready', async () => {
                     type: 1
                 },
                 {
+                    name: 'info',
+                    description: 'Ver detalles del plástico (Titular, Nivel, Fecha)',
+                    type: 1
+                },
+                {
                     name: 'admin',
                     description: 'Herramientas Administrativas (Staff)',
                     type: 2, // SUB_COMMAND_GROUP
@@ -361,7 +366,7 @@ client.on('interactionCreate', async interaction => {
             .setColor(0xD4AF37) // Gold
             .setDescription('Lista de comandos del Sistema Financiero Nacional.')
             .addFields(
-                { name: '💰 Utilidad', value: '`/transferir`: Enviar dinero SPEI.\n`/movimientos`: Ver historial.\n`/notificaciones`: Activar alertas DM.\n`/credito`: Gestión de Tarjetas.' },
+                { name: '💰 Utilidad', value: '`/credito info`: Datos de la tarjeta.\n`/credito estado`: Saldo y Deuda.\n`/transferir`: Enviar dinero.\n`/notificaciones`: Alertas DM.' },
                 { name: '📊 Rankings', value: '`/top-morosos`: Deudores públicos.\n`/top-ricos`: Mejores Scores.' },
                 { name: '👔 Finanzas', value: '`/inversion`: Plazo fijo.\n`/impuestos`: SAT.\n`/nomina`: Pagos masivos.' },
                 { name: '👮 Staff', value: '`/registrar-tarjeta`, `/fichar vincular`, `/credito admin`' }
@@ -644,6 +649,29 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                     { name: 'Estado', value: score > 60 ? '✅ Excelente' : (score > 30 ? '⚠️ Regular' : '⛔ RIESGO (Acceso Limitado)') }
                 )
                 .setFooter({ text: 'Mantén un buen historial pagando tus tarjetas a tiempo.' });
+
+            await interaction.editReply({ embeds: [embed] });
+        }
+        else if (subCmd === 'info') {
+            await interaction.deferReply({ ephemeral: isPrivate });
+
+            const { data: citizen } = await supabase.from('citizens').select('id, full_name, dni').eq('discord_id', interaction.user.id).limit(1).maybeSingle();
+            if (!citizen) return interaction.editReply('❌ No tienes un ciudadano vinculado.');
+
+            const { data: userCard } = await supabase.from('credit_cards').select('*').eq('citizen_id', citizen.id).limit(1).maybeSingle();
+            if (!userCard) return interaction.editReply('❌ No tienes una tarjeta activa.');
+
+            const embed = new EmbedBuilder()
+                .setTitle(`💳 ${userCard.card_type} | Banco Nacional`)
+                .setColor(0x000000) // Classic Black/Dark
+                .addFields(
+                    { name: 'Titular', value: citizen.full_name, inline: true },
+                    { name: 'DNI', value: citizen.dni || 'N/A', inline: true },
+                    { name: 'Estado', value: userCard.status === 'active' ? '✅ Activa' : '⛔ Bloqueada', inline: true },
+                    { name: 'Emisión', value: `<t:${Math.floor(new Date(userCard.created_at).getTime() / 1000)}:D>`, inline: true },
+                    { name: 'Corte', value: 'Domingos', inline: true }
+                )
+                .setFooter({ text: `ID: ${userCard.id.split('-')[0]}...` }); // Short ID like a card number snippet
 
             await interaction.editReply({ embeds: [embed] });
         }
