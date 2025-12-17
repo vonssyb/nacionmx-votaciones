@@ -517,7 +517,7 @@ client.on('interactionCreate', async interaction => {
                         .setColor(0x00FF00) // Green
                         .addFields(
                             { name: 'Titular', value: holderName, inline: true },
-                            { name: 'DNI', value: citizen ? citizen.dni : 'PENDING', inline: true },
+                            { name: 'DNI', value: (citizen && citizen.dni) ? citizen.dni : 'PENDING', inline: true },
                             { name: 'Nivel', value: cardType, inline: true },
                             { name: 'Límite', value: `$${stats.limit.toLocaleString()}`, inline: true },
                             { name: 'Interés', value: `${stats.interest}%`, inline: true },
