@@ -31,8 +31,8 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 // 3. Configuration
 const NOTIFICATION_CHANNEL_ID = process.env.NOTIFICATION_CHANNEL_ID; // Channel to send banking logs
 const CANCELLATIONS_CHANNEL_ID = '1450610756663115879'; // Channel for Role Cancellations
-const GUILD_ID = process.env.GUILD_ID;
-const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
+const GUILD_ID = process.env.GUILD_ID ? process.env.GUILD_ID.trim() : null;
+const DISCORD_TOKEN = process.env.DISCORD_TOKEN ? process.env.DISCORD_TOKEN.trim() : null;
 
 // Initialize Billing Service
 const billingService = new BillingService(client);
@@ -54,7 +54,6 @@ client.once('ready', async () => {
             description: 'Comprueba si el bot está vivo',
             type: 1
         },
-        /*
         {
             name: 'fichar',
             description: 'Inicia o Termina tu turno (Entrada/Salida)',
@@ -71,13 +70,11 @@ client.once('ready', async () => {
                 }
             ]
         },
-        */
         {
             name: 'ayuda',
             description: 'Muestra los comandos bancarios disponibles (Cheat Sheet)',
             type: 1
         },
-        /*
         {
             name: 'estado',
             description: 'Cambia el estado del servidor (CMD Staff)',
@@ -278,7 +275,6 @@ client.once('ready', async () => {
                 { name: 'razon', description: 'Motivo de la infracción', type: 3, required: true }
             ]
         },
-        */
         {
             name: 'transferir',
             description: 'Enviar dinero a otro ciudadano (Sistema SPEI)',
@@ -288,7 +284,6 @@ client.once('ready', async () => {
                 { name: 'razon', description: 'Concepto de la transferencia', type: 3, required: false }
             ]
         },
-        /*
         {
             name: 'movimientos',
             description: 'Ver historial de tus últimas transacciones',
@@ -363,7 +358,6 @@ client.once('ready', async () => {
                 }
             ]
         },
-        */
         {
             name: 'bolsa',
             description: 'Ver precios de acciones (Roleplay)',
@@ -376,22 +370,28 @@ client.once('ready', async () => {
 
         if (GUILD_ID) {
             // Register Guild Commands (Overwrite)
-            console.log(`✨ Registrando ${commands.length} nuevos comandos en: ${GUILD_ID}...`);
-            console.log('📦 Payloads:', JSON.stringify(commands, null, 2)); // DEBUG PAYLOAD
+            console.log(`✨ Registrando ${commands.length} nuevos comandos en: '${GUILD_ID}'...`);
+            console.log(`🔑 Client ID: ${client.user.id}`);
+            // console.log('📦 Payloads:', JSON.stringify(commands, null, 2)); // Too verbose for 17 commands
+
+            // Timeout implementation to prevent hanging indefinitely
+            const registrationTimeout = new Promise((_, reject) =>
+                setTimeout(() => reject(new Error('TIMEOUT: La conexión con Discord API tardó demasiado (>15s).')), 15000)
+            );
 
             try {
-                await rest.put(
-                    Routes.applicationGuildCommands(client.user.id, GUILD_ID),
-                    { body: commands }
-                );
+                await Promise.race([
+                    rest.put(Routes.applicationGuildCommands(client.user.id, GUILD_ID), { body: commands }),
+                    registrationTimeout
+                ]);
                 console.log('✅ Comandos verificados y limpios (REST PUT Success).');
             } catch (putError) {
-                console.error('❌ FATAL REST ERROR:', JSON.stringify(putError, null, 2));
-                throw putError;
+                console.error('❌ FATAL REST ERROR:', putError);
+                // Optionally Fallback to Global? catch -> log
             }
 
         } else {
-            console.log('⚠️ GUILD_ID no encontrado. Registrando Globalmente (No recomendado para desarrollo).');
+            console.log('⚠️ GUILD_ID no encontrado o vacío. Registrando Globalmente (No recomendado para desarrollo).');
             await rest.put(
                 Routes.applicationCommands(client.user.id),
                 { body: commands }
