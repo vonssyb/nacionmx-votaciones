@@ -10,11 +10,11 @@ if (!DISCORD_TOKEN) {
     process.exit(1);
 }
 
+// REMOVED explicit 'type: 1' from root commands to prevent hangs
 const commands = [
     {
         name: 'ping',
-        description: 'Comprueba si el bot está vivo',
-        type: 1
+        description: 'Comprueba si el bot está vivo'
     },
     {
         name: 'fichar',
@@ -34,8 +34,7 @@ const commands = [
     },
     {
         name: 'ayuda',
-        description: 'Muestra los comandos bancarios disponibles (Cheat Sheet)',
-        type: 1
+        description: 'Muestra los comandos bancarios disponibles (Cheat Sheet)'
     },
     {
         name: 'estado',
@@ -138,12 +137,12 @@ const commands = [
             {
                 name: 'buro',
                 description: 'Ver tu Score de Buró Financiero',
-                type: 1
+                type: 1 // SUB_COMMAND (Required)
             },
             {
                 name: 'info',
                 description: 'Ver detalles del plástico (Titular, Nivel, Fecha)',
-                type: 1
+                type: 1 // SUB_COMMAND (Required)
             },
             {
                 name: 'admin',
@@ -205,7 +204,7 @@ const commands = [
             {
                 name: 'debug',
                 description: 'Diagnóstico de cuenta (Usar si fallan comandos)',
-                type: 1
+                type: 1 // SUB_COMMAND (Required)
             }
         ]
     },
@@ -220,7 +219,7 @@ const commands = [
                 options: [
                     { name: 'usuario', description: 'Usuario sancionado (Nombre/ID)', type: 3, required: true },
                     { name: 'razon', description: 'Motivo de la cancelación', type: 3, required: true },
-                    { name: 'ubicacion', description: 'Lugar de los hechos/arresto', type: 3, required: true },
+                    { name: 'ubicacion', description: 'Lugar de los fatti/arresto', type: 3, required: true },
                     { name: 'prueba1', description: 'Evidencia principal (Imagen)', type: 11, required: true },
                     { name: 'prueba2', description: 'Evidencia secundaria (Imagen)', type: 11 }
                 ]
@@ -248,8 +247,7 @@ const commands = [
     },
     {
         name: 'movimientos',
-        description: 'Ver historial de tus últimas transacciones',
-        type: 1
+        description: 'Ver historial de tus últimas transacciones'
     },
     {
         name: 'notificaciones',
@@ -260,13 +258,11 @@ const commands = [
     },
     {
         name: 'top-morosos',
-        description: 'Ranking de usuarios con mayor deuda en tarjetas',
-        type: 1
+        description: 'Ranking de usuarios con mayor deuda en tarjetas'
     },
     {
         name: 'top-ricos',
-        description: 'Ranking de usuarios con mejor Score Crediticio',
-        type: 1
+        description: 'Ranking de usuarios con mejor Score Crediticio'
     },
     {
         name: 'inversion',
@@ -289,8 +285,7 @@ const commands = [
     },
     {
         name: 'impuestos',
-        description: 'Consulta tu estado fiscal con el SAT',
-        type: 1
+        description: 'Consulta tu estado fiscal con el SAT'
     },
     {
         name: 'nomina',
@@ -322,8 +317,7 @@ const commands = [
     },
     {
         name: 'bolsa',
-        description: 'Ver precios de acciones (Roleplay)',
-        type: 1
+        description: 'Ver precios de acciones (Roleplay)'
     }
 ];
 
@@ -331,26 +325,27 @@ const rest = new REST({ version: '10' }).setToken(DISCORD_TOKEN);
 
 (async () => {
     try {
-        console.log(`🚀 Iniciando registro manual de ${commands.length} comandos...`);
+        console.log(`🚀 Iniciando registro manual de ${commands.length} comandos (FINAL FIX: No explicit root types)...`);
         console.log(`🎯 Client ID: ${CLIENT_ID}`);
         console.log(`🏰 Guild ID: ${GUILD_ID}`);
 
         if (GUILD_ID) {
-            console.log('📡 Enviando petición a Discord API (Guild)...');
             await rest.put(
                 Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID),
                 { body: commands }
             );
-            console.log('✅ ÉXITO: Todos los comandos han sido registrados en el servidor.');
+            console.log('✅ ÉXITO: TODOS los comandos registrados correctamente.');
         } else {
-            console.log('⚠️ Registrando Globalmente...');
             await rest.put(
                 Routes.applicationCommands(CLIENT_ID),
                 { body: commands }
             );
-            console.log('✅ ÉXITO: Comandos globales registrados.');
+            console.log('✅ ÉXITO: GLOBAL registrado.');
         }
     } catch (error) {
         console.error('❌ ERROR FATAL:', error);
+        if (error.rawError) {
+            console.dir(error.rawError, { depth: null });
+        }
     }
 })();
