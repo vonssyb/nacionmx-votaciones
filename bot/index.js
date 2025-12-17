@@ -285,6 +285,7 @@ client.once('ready', async () => {
         {
             name: 'movimientos',
             description: 'Ver historial de tus últimas transacciones',
+            type: 1
         },
         {
             name: 'notificaciones',
@@ -296,10 +297,12 @@ client.once('ready', async () => {
         {
             name: 'top-morosos',
             description: 'Ranking de usuarios con mayor deuda en tarjetas',
+            type: 1
         },
         {
             name: 'top-ricos',
             description: 'Ranking de usuarios con mejor Score Crediticio',
+            type: 1
         },
         {
             name: 'inversion',
@@ -323,6 +326,7 @@ client.once('ready', async () => {
         {
             name: 'impuestos',
             description: 'Consulta tu estado fiscal con el SAT',
+            type: 1
         },
         {
             name: 'nomina',
@@ -355,22 +359,15 @@ client.once('ready', async () => {
         {
             name: 'bolsa',
             description: 'Ver precios de acciones (Roleplay)',
+            type: 1
         }
     ];
 
     try {
         console.log('🔄 Iniciando actualización de comandos...');
 
-        // 1. DELETE ALL Global Commands (Force Clean)
-        console.log('🗑️ Eliminando comandos globales...');
-        await rest.put(Routes.applicationCommands(client.user.id), { body: [] });
-
         if (GUILD_ID) {
-            // 2. DELETE ALL Guild Commands (Force Clean)
-            console.log(`🗑️ Eliminando comandos antiguos del servidor: ${GUILD_ID}...`);
-            await rest.put(Routes.applicationGuildCommands(client.user.id, GUILD_ID), { body: [] });
-
-            // 3. Register New Guild Commands
+            // Register Guild Commands (Overwrite)
             console.log(`✨ Registrando ${commands.length} nuevos comandos en: ${GUILD_ID}...`);
             await rest.put(
                 Routes.applicationGuildCommands(client.user.id, GUILD_ID),
