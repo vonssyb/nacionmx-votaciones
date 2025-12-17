@@ -259,6 +259,52 @@ client.once('ready', async () => {
                 { name: 'monto', description: 'Monto de la multa', type: 10, required: true },
                 { name: 'razon', description: 'Motivo de la infracción', type: 3, required: true }
             ]
+        },
+        {
+            name: 'transferir',
+            description: 'Enviar dinero a otro ciudadano (Sistema SPEI)',
+            options: [
+                { name: 'usuario', description: 'Destinatario', type: 6, required: true },
+                { name: 'monto', description: 'Cantidad a transferir', type: 10, required: true },
+                { name: 'razon', description: 'Concepto de la transferencia', type: 3, required: false }
+            ]
+        },
+        {
+            name: 'movimientos',
+            description: 'Ver historial de tus últimas transacciones',
+        },
+        {
+            name: 'notificaciones',
+            description: 'Activar/Desactivar notificaciones del banco por DM',
+            options: [
+                { name: 'activo', description: '¿Recibir notificaciones?', type: 5, required: true }
+            ]
+        },
+        {
+            name: 'top-morosos',
+            description: 'Ranking de usuarios con mayor deuda en tarjetas',
+        },
+        {
+            name: 'top-ricos',
+            description: 'Ranking de usuarios con mejor Score Crediticio',
+        },
+        {
+            name: 'inversion',
+            description: 'Invierte tu dinero a Plazo Fijo (Ganancia garantizada)',
+            options: [
+                { name: 'monto', description: 'Cantidad a invertir (Bloqueada 7 días)', type: 10, required: true }
+            ]
+        },
+        {
+            name: 'impuestos',
+            description: 'Consulta tu estado fiscal con el SAT',
+        },
+        {
+            name: 'nomina',
+            description: 'Pago masivo de sueldos (Dueños de Negocio)',
+            options: [
+                { name: 'grupo', description: 'Nombre del grupo de nómina', type: 3, required: true } // Simplified for now
+            ]
         }
     ];
 
@@ -313,10 +359,12 @@ client.on('interactionCreate', async interaction => {
         const helpEmbed = new EmbedBuilder()
             .setTitle('🏦 Comandos Bancarios (Cheat Sheet)')
             .setColor(0xD4AF37) // Gold
-            .setDescription('Lista rápida de comandos para Banqueros y Usuarios.')
+            .setDescription('Lista de comandos del Sistema Financiero Nacional.')
             .addFields(
-                { name: '👮 Staff Banco', value: '`/registrar-tarjeta`: Emitir nueva tarjeta.\n`/fichar vincular`: Registrar DNI/Nombre.\n`/credito admin`: Gestionar deudas/scores.' },
-                { name: '👤 Usuarios', value: '`/credito estado`: Ver saldo y deuda.\n`/credito pagar`: Pagar deuda.\n`/credito pedir-prestamo`: Retirar dinero.\n`/credito buro`: Ver historial crediticio.' }
+                { name: '💰 Utilidad', value: '`/transferir`: Enviar dinero SPEI.\n`/movimientos`: Ver historial.\n`/notificaciones`: Activar alertas DM.\n`/credito`: Gestión de Tarjetas.' },
+                { name: '📊 Rankings', value: '`/top-morosos`: Deudores públicos.\n`/top-ricos`: Mejores Scores.' },
+                { name: '👔 Finanzas', value: '`/inversion`: Plazo fijo.\n`/impuestos`: SAT.\n`/nomina`: Pagos masivos.' },
+                { name: '👮 Staff', value: '`/registrar-tarjeta`, `/fichar vincular`, `/credito admin`' }
             )
             .setFooter({ text: 'Sistema Financiero Nacion MX' });
 
