@@ -40,8 +40,9 @@ class UnbelievableBoatService {
     async removeMoney(guildId, userId, amount, reason = "Cobro Banco NMX") {
         try {
             // UnbelievaBoat API: Use negative value to subtract
+            // For a BANKING bot, we should modify the BANK balance, not cash.
             const payload = {
-                cash: -Math.abs(amount),
+                bank: -Math.abs(amount),
                 reason: reason
             };
 
@@ -59,7 +60,7 @@ class UnbelievableBoatService {
     async addMoney(guildId, userId, amount, reason = "Préstamo Banco NMX") {
         try {
             const payload = {
-                cash: Math.abs(amount),
+                bank: Math.abs(amount),
                 reason: reason
             };
 
