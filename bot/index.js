@@ -383,10 +383,21 @@ client.on('interactionCreate', async interaction => {
 
     else if (commandName === 'registrar-tarjeta') {
         const embed = new EmbedBuilder()
-            .setTitle('💳 Solicitud de Tarjeta de Crédito')
-            .setDescription('Para tramitar tu tarjeta, por favor **abre un Ticket** en el canal <#1450269843600310373>.\n\nEl sistema web es de uso exclusivo para el Staff administrativo.')
-            .setColor(0xD4AF37);
-        await interaction.reply({ embeds: [embed], ephemeral: true });
+            .setTitle('🏦 BANCO NACIONAL RP')
+            .setDescription('¡Bienvenido al Sistema Financiero de Nación MX!\n\n💳 **SOLICITUD DE TARJETA DE CRÉDITO**\nPara adquirir una tarjeta, pagar deudas atrasadas o gestionar tu cuenta, por favor **abre un Ticket** en el panel de abajo. 🎟️\n\nUn agente bancario te atenderá para formalizar tu contrato.')
+            .addFields(
+                {
+                    name: '🤖 COMANDOS DEL SISTEMA',
+                    value: '> 💳 **`/credito estado`**\n> Consulta tu saldo, límite disponible y fecha de corte.\n> \n> 📉 **`/credito buro`**\n> Revisa tu **Score Crediticio**. ¡Mantenlo alto para mejores beneficios!\n> \n> 💸 **`/credito pedir-prestamo [monto]`**\n> Solicita un adelanto de efectivo inmediato (Sujeto a límite).\n> \n> 💰 **`/credito pagar [monto]`**\n> Abona a tu deuda utilizando tu dinero en efectivo.'
+                },
+                {
+                    name: '⚡ Nota',
+                    value: 'Recuerda vincular tu personaje primero con `/fichar`.'
+                }
+            )
+            .setColor(0xD4AF37)
+            .setFooter({ text: 'Sistema Financiero Nación MX' });
+        await interaction.reply({ embeds: [embed] }); // Public reply so everyone can see guide? Or Ephemeral? User asked for a message "para discord", usually public guide. I will make it public now by removing ephemeral: true.
     }
 
     else if (commandName === 'credito') {
