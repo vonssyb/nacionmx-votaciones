@@ -54,6 +54,7 @@ client.once('ready', async () => {
             description: 'Comprueba si el bot está vivo',
             type: 1
         },
+        /*
         {
             name: 'fichar',
             description: 'Inicia o Termina tu turno (Entrada/Salida)',
@@ -70,11 +71,13 @@ client.once('ready', async () => {
                 }
             ]
         },
+        */
         {
             name: 'ayuda',
             description: 'Muestra los comandos bancarios disponibles (Cheat Sheet)',
             type: 1
         },
+        /*
         {
             name: 'estado',
             description: 'Cambia el estado del servidor (CMD Staff)',
@@ -275,6 +278,7 @@ client.once('ready', async () => {
                 { name: 'razon', description: 'Motivo de la infracción', type: 3, required: true }
             ]
         },
+        */
         {
             name: 'transferir',
             description: 'Enviar dinero a otro ciudadano (Sistema SPEI)',
@@ -284,6 +288,7 @@ client.once('ready', async () => {
                 { name: 'razon', description: 'Concepto de la transferencia', type: 3, required: false }
             ]
         },
+        /*
         {
             name: 'movimientos',
             description: 'Ver historial de tus últimas transacciones',
@@ -358,6 +363,7 @@ client.once('ready', async () => {
                 }
             ]
         },
+        */
         {
             name: 'bolsa',
             description: 'Ver precios de acciones (Roleplay)',
