@@ -711,7 +711,7 @@ client.on('interactionCreate', async interaction => {
         if (subcommand === 'info') {
             const file = new AttachmentBuilder(path.join(__dirname, 'assets', 'banco_mexico_banner.png'));
 
-            const cardStats = [
+            const personalCards = [
                 { name: 'NMX Débito', limit: '0', interest: '0%', cost: 'Gratis', desc: 'Tu cuenta de ahorros diaria.' },
                 { name: 'NMX Start', limit: '15k', interest: '15%', cost: '$2k', desc: 'Ideal para iniciar historial.' },
                 { name: 'NMX Básica', limit: '30k', interest: '12%', cost: '$4k', desc: 'Gastos moderados y frecuentes.' },
@@ -723,29 +723,43 @@ client.on('interactionCreate', async interaction => {
                 { name: 'NMX Diamante', limit: '2M', interest: '3%', cost: '$60k', desc: 'Poder ilimitado.' }
             ];
 
+            const businessCards = [
+                { name: 'Business Start', limit: '50k', interest: '2%', cost: '$8k', desc: 'Emprendedores y Startups.' },
+                { name: 'Business Gold', limit: '100k', interest: '1.5%', cost: '$15k', desc: 'Pequeñas empresas.' },
+                { name: 'Business Platinum', limit: '200k', interest: '1.2%', cost: '$20k', desc: 'Negocios en expansión.' },
+                { name: 'Business Elite', limit: '500k', interest: '1%', cost: '$35k', desc: 'Corporativos consolidados.' },
+                { name: 'NMX Corporate', limit: '1M', interest: '0.7%', cost: '$50k', desc: 'Grandes industrias.' }
+            ];
+
             const embed = new EmbedBuilder()
                 .setTitle('Información Oficial - Banco Nacional')
                 .setColor(0x00FF00)
                 .setImage('attachment://banco_mexico_banner.png')
-                .setDescription('El **Banco Nacional** ofrece una variedad de productos financieros adaptados a tus necesidades. Revisa nuestra oferta de tarjetas y sus beneficios.')
+                .setDescription('El **Banco Nacional** ofrece productos financieros para personas y empresas. Revisa nuestro catálogo completo.')
                 .addFields({
                     name: '💡 Comandos Útiles',
                     value: '>>> **`/debito estado`** - Ver saldo y cuenta.\n**`/debito depositar`** - Guardar efectivo.\n**`/debito transferir`** - Enviar dinero.\n**`/credito estado`** - Ver deuda y límite.\n**`/credito pagar`** - Abonar a tu deuda.\n**`/impuestos empresas`** - Consultar impuestos.',
                     inline: false
                 });
 
-            let cardText = '';
-            cardStats.forEach(c => {
-                cardText += `💳 **${c.name}**\n`;
-                cardText += `└ Límite: **$${c.limit}** | Costo: **${c.cost}** | Interés: **${c.interest}**\n`;
-                cardText += `└ *${c.desc}*\n\n`;
+            // Personal Cards Field
+            let pText = '';
+            personalCards.forEach(c => {
+                pText += `👤 **${c.name}**\n`;
+                pText += `└ Límite: **$${c.limit}** | Costo: **${c.cost}** | Interés: **${c.interest}**\n`;
             });
 
-            embed.addFields({
-                name: '📋 Catálogo de Tarjetas',
-                value: cardText,
-                inline: false
+            // Business Cards Field
+            let bText = '';
+            businessCards.forEach(c => {
+                bText += `🏢 **${c.name}**\n`;
+                bText += `└ Límite: **$${c.limit}** | Costo: **${c.cost}** | Interés: **${c.interest}**\n`;
             });
+
+            embed.addFields(
+                { name: '💳 Tarjetas Personales', value: pText, inline: true },
+                { name: '🏭 Tarjetas Empresariales', value: bText, inline: true }
+            );
 
             embed.setFooter({ text: 'Banco Nacional RP • Intereses semanales (Domingos) • Pagos obligatorios' });
 
