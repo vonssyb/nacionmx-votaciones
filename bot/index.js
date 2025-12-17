@@ -1802,6 +1802,205 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
         }
     }
 
+
+    else if (commandName === 'business') {
+        const subcommand = interaction.options.getSubcommand();
+
+        // Staff-only check
+        const STAFF_ROLE_ID = '1450688555503587459'; // Same as empresa crear
+        if (!interaction.member.roles.cache.has(STAFF_ROLE_ID) && !interaction.member.permissions.has('Administrator')) {
+            return interaction.reply({ content: '⛔ Solo el staff puede gestionar tarjetas business.', flags: 64 });
+        }
+
+        if (subcommand === 'vincular') {
+            await interaction.deferReply({ flags: 64 });
+
+            const ownerUser = interaction.options.getUser('dueño');
+            const cardType = interaction.options.getString('tipo');
+
+            try {
+                // 1. Check if owner has companies
+                const { data: companies } = await supabase
+                    .from('companies')
+                    .select('*')
+                    .contains('owner_ids', [ownerUser.id])
+                    .eq('status', 'active');
+
+                if (!companies || companies.length === 0) {
+                    return interaction.editReply(`❌ <@${ownerUser.id}> no tiene empresas registradas.`);
+                }
+
+                // 2. If has multiple companies, ask which one
+                if (companies.length > 1) {
+                    const selectMenu = new StringSelectMenuBuilder()
+                        .setCustomId(`business_select_${ownerUser.id}_${cardType}`)
+                        .setPlaceholder('Selecciona la empresa')
+                        .addOptions(
+                            companies.map(c => ({
+                                label: c.name,
+                                description: `${c.industry_type} • ${c.is_private ? 'Privada' : 'Pública'}`,
+                                value: c.id
+                            }))
+                        );
+
+                    const row = new ActionRowBuilder().addComponents(selectMenu);
+
+                    return interaction.editReply({
+                        content: `📋 <@${ownerUser.id}> tiene **${companies.length} empresas**. Selecciona a cuál vincular la tarjeta:`,
+                        components: [row]
+                    });
+                }
+
+                // 3. Only one company, proceed directly
+                const company = companies[0];
+
+                // Card data map
+                const cardData = {
+                    'business_start': { name: 'Business Start', limit: 50000, interest: 0.02, cost: 8000 },
+                    'business_gold': { name: 'Business Gold', limit: 100000, interest: 0.015, cost: 15000 },
+                    'business_platinum': { name: 'Business Platinum', limit: 200000, interest: 0.012, cost: 20000 },
+                    'business_elite': { name: 'Business Elite', limit: 500000, interest: 0.01, cost: 35000 },
+                    'nmx_corporate': { name: 'NMX Corporate', limit: 1000000, interest: 0.007, cost: 50000 }
+                };
+
+                const card = cardData[cardType];
+
+                // 4. Create business credit card
+                const { error } = await supabase
+                    .from('credit_cards')
+                    .insert({
+                        discord_id: ownerUser.id,
+                        card_type: cardType,
+                        card_name: card.name,
+                        card_limit: card.limit,
+                        current_balance: 0,
+                        interest_rate: card.interest,
+                        card_cost: card.cost,
+                        status: 'active',
+                        company_id: company.id,
+                        approved_by: interaction.user.id
+                    });
+
+                if (error) throw error;
+
+                const embed = new EmbedBuilder()
+                    .setTitle('✅ Tarjeta Business Vinculada')
+                    .setColor(0x00FF00)
+                    .setDescription(`Tarjeta **${card.name}** vinculada exitosamente.`)
+                    .addFields(
+                        { name: '🏢 Empresa', value: company.name, inline: true },
+                        { name: '👤 Dueño', value: `<@${ownerUser.id}>`, inline: true },
+                        { name: '💳 Tarjeta', value: card.name, inline: true },
+                        { name: '💰 Límite', value: `$${card.limit.toLocaleString()}`, inline: true },
+                        { name: '📊 Interés', value: `${(card.interest * 100).toFixed(2)}%`, inline: true },
+                        { name: '💵 Costo', value: `$${card.cost.toLocaleString()}`, inline: true }
+                    )
+                    .setFooter({ text: `Aprobado por ${interaction.user.tag}` })
+                    .setTimestamp();
+
+                await interaction.editReply({ embeds: [embed] });
+
+                // Send DM to owner
+                try {
+                    await ownerUser.send({
+                        embeds: [new EmbedBuilder()
+                            .setTitle('🎉 Tarjeta Business Aprobada')
+                            .setColor(0x5865F2)
+                            .setDescription(`Tu solicitud de **${card.name}** ha sido aprobada y vinculada a **${company.name}**.`)
+                            .addFields(
+                                { name: '💰 Límite de Crédito', value: `$${card.limit.toLocaleString()}`, inline: true },
+                                { name: '📊 Tasa de Interés', value: `${(card.interest * 100).toFixed(2)}%`, inline: true },
+                                { name: '💼 Uso', value: 'Usa \`/empresa credito\` para solicitar fondos.', inline: false }
+                            )
+                            .setFooter({ text: 'Sistema Financiero Nación MX' })
+                        ]
+                    });
+                } catch (dmError) {
+                    console.log('Could not DM owner:', dmError.message);
+                }
+
+            } catch (error) {
+                console.error(error);
+                await interaction.editReply('❌ Error vinculando tarjeta business.');
+            }
+        }
+
+        else if (subcommand === 'listar') {
+            await interaction.deferReply({ flags: 64 });
+
+            const targetUser = interaction.options.getUser('usuario');
+
+            try {
+                const { data: cards } = await supabase
+                    .from('credit_cards')
+                    .select('*, companies(name)')
+                    .eq('discord_id', targetUser.id)
+                    .in('card_type', ['business_start', 'business_gold', 'business_platinum', 'business_elite', 'nmx_corporate'])
+                    .eq('status', 'active');
+
+                if (!cards || cards.length === 0) {
+                    return interaction.editReply(`📋 <@${targetUser.id}> no tiene tarjetas business activas.`);
+                }
+
+                const embed = new EmbedBuilder()
+                    .setTitle(`💼 Tarjetas Business de ${targetUser.tag}`)
+                    .setColor(0x5865F2)
+                    .setDescription(`Total: **${cards.length}** tarjeta(s) activa(s)`)
+                    .setThumbnail(targetUser.displayAvatarURL());
+
+                cards.forEach(card => {
+                    const companyName = card.companies ? card.companies.name : 'Sin empresa';
+                    embed.addFields({
+                        name: `💳 ${card.card_name}`,
+                        value: `🏢 Empresa: ${companyName}\n💰 Límite: $${card.card_limit.toLocaleString()}\n📊 Deuda: $${(card.current_balance || 0).toLocaleString()}\n📈 Disponible: $${(card.card_limit - (card.current_balance || 0)).toLocaleString()}`,
+                        inline: false
+                    });
+                });
+
+                await interaction.editReply({ embeds: [embed] });
+
+            } catch (error) {
+                console.error(error);
+                await interaction.editReply('❌ Error consultando tarjetas.');
+            }
+        }
+
+        else if (subcommand === 'cancelar') {
+            await interaction.deferReply({ flags: 64 });
+
+            const targetUser = interaction.options.getUser('usuario');
+            const razon = interaction.options.getString('razon');
+
+            try {
+                // Get all active business cards
+                const { data: cards } = await supabase
+                    .from('credit_cards')
+                    .select('*')
+                    .eq('discord_id', targetUser.id)
+                    .in('card_type', ['business_start', 'business_gold', 'business_platinum', 'business_elite', 'nmx_corporate'])
+                    .eq('status', 'active');
+
+                if (!cards || cards.length === 0) {
+                    return interaction.editReply(`❌ <@${targetUser.id}> no tiene tarjetas business activas.`);
+                }
+
+                // Cancel all
+                await supabase
+                    .from('credit_cards')
+                    .update({ status: 'cancelled', cancelled_at: new Date().toISOString(), cancelled_by: interaction.user.id, cancel_reason: razon })
+                    .eq('discord_id', targetUser.id)
+                    .in('card_type', ['business_start', 'business_gold', 'business_platinum', 'business_elite', 'nmx_corporate'])
+                    .eq('status', 'active');
+
+                await interaction.editReply(`✅ Se cancelaron **${cards.length}** tarjeta(s) business de <@${targetUser.id}>.\n**Razón:** ${razon}`);
+
+            } catch (error) {
+                console.error(error);
+                await interaction.editReply('❌ Error cancelando tarjetas.');
+            }
+        }
+    }
+
     else if (commandName === 'bolsa') {
         const subcommand = interaction.options.getSubcommand();
         const hour = new Date().getHours();

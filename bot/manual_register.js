@@ -437,6 +437,70 @@ const commands = [
                 options: [{ name: 'grupo', description: 'Nombre del grupo', type: 3, required: true }]
             }
         ]
+    },
+    {
+        name: 'business',
+        description: '🏦 Gestión de Tarjetas Business (Staff Only)',
+        options: [
+            {
+                name: 'vincular',
+                description: 'Vincular tarjeta business a empresa (requiere ticket activo)',
+                type: 1,
+                options: [
+                    {
+                        name: 'dueño',
+                        description: 'Usuario dueño de la empresa',
+                        type: 6,
+                        required: true
+                    },
+                    {
+                        name: 'tipo',
+                        description: 'Tipo de tarjeta business',
+                        type: 3,
+                        required: true,
+                        choices: [
+                            { name: 'Business Start ($50k - 2%)', value: 'business_start' },
+                            { name: 'Business Gold ($100k - 1.5%)', value: 'business_gold' },
+                            { name: 'Business Platinum ($200k - 1.2%)', value: 'business_platinum' },
+                            { name: 'Business Elite ($500k - 1%)', value: 'business_elite' },
+                            { name: 'NMX Corporate ($1M - 0.7%)', value: 'nmx_corporate' }
+                        ]
+                    }
+                ]
+            },
+            {
+                name: 'listar',
+                description: 'Ver tarjetas business activas de un usuario',
+                type: 1,
+                options: [
+                    {
+                        name: 'usuario',
+                        description: 'Usuario a consultar',
+                        type: 6,
+                        required: true
+                    }
+                ]
+            },
+            {
+                name: 'cancelar',
+                description: 'Cancelar tarjeta business',
+                type: 1,
+                options: [
+                    {
+                        name: 'usuario',
+                        description: 'Usuario dueño',
+                        type: 6,
+                        required: true
+                    },
+                    {
+                        name: 'razon',
+                        description: 'Motivo de cancelación',
+                        type: 3,
+                        required: true
+                    }
+                ]
+            }
+        ]
     }
 ];
 
