@@ -419,25 +419,13 @@ client.on('interactionCreate', async interaction => {
         let { data: citizen } = await supabase.from('citizens').select('id, full_name').eq('discord_id', targetUser.id).limit(1).maybeSingle();
 
         if (!citizen) {
-            // Create new Citizen record
-            const { data: newCit, error: createError } = await supabase.from('citizens').insert([{
-                discord_id: targetUser.id,
-                full_name: holderName,
-                dni: 'PENDING', // Ideally parse from photo but can't.
-                created_at: new Date().toISOString(),
-                credit_score: 100 // Default score
-            }]).select().single();
-
-            if (createError) {
-                console.error(createError);
-                return interaction.editReply('❌ Error registrando Nuevo Ciudadano en base de datos.');
-            }
-            citizen = newCit;
-        } else {
-            // Update name?
-            if (citizen.full_name !== holderName) {
-                await supabase.from('citizens').update({ full_name: holderName }).eq('id', citizen.id);
-            }
+            return interaction.editReply({
+                content: `❌ **Error:** El usuario <@${targetUser.id}> no está registrado en el censo.\n⚠️ **Acción Requerida:** Usa el comando \`/fichar vincular\` para registrar su Nombre y DNI antes de emitir una tarjeta.`
+            });
+        }
+        // Update name?
+        if (citizen.full_name !== holderName) {
+            await supabase.from('citizens').update({ full_name: holderName }).eq('id', citizen.id);
         }
 
         // 3. Send Interactive Offer
