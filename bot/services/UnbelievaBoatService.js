@@ -62,12 +62,17 @@ class UnbelievableBoatService {
     /**
      * Add money to user balance
      */
-    async addMoney(guildId, userId, amount, reason = "Préstamo Banco NMX") {
+    async addMoney(guildId, userId, amount, reason = "Préstamo Banco NMX", type = 'bank') {
         try {
             const payload = {
-                bank: Math.abs(amount),
                 reason: reason
             };
+
+            if (type === 'cash') {
+                payload.cash = Math.abs(amount);
+            } else {
+                payload.bank = Math.abs(amount);
+            }
 
             const response = await this.client.patch(`/guilds/${guildId}/users/${userId}`, payload);
             return { success: true, newBalance: response.data };

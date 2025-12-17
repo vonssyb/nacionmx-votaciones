@@ -315,6 +315,28 @@ const commands = [
                 name: 'menu',
                 description: 'Abrir menu de gestion (Dueños)',
                 type: 1
+            },
+            {
+                name: 'cobrar',
+                description: 'Cobrar por servicio o producto (POS)',
+                type: 1,
+                options: [
+                    { name: 'cliente', description: 'Usuario a cobrar', type: 6, required: true },
+                    { name: 'monto', description: 'Monto a cobrar', type: 10, required: true },
+                    { name: 'razon', description: 'Concepto del cobro', type: 3, required: true }
+                ]
+            }
+        ]
+    },
+    {
+        name: 'banco',
+        description: 'Operaciones Bancarias Generales',
+        options: [
+            {
+                name: 'depositar',
+                description: 'Depositar efectivo (Caja Fuerte o Débito si tienes)',
+                type: 1,
+                options: [{ name: 'monto', description: 'Cantidad a depositar', type: 10, required: true }]
             }
         ]
     },
