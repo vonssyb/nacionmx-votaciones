@@ -358,7 +358,42 @@ client.once('ready', async () => {
         },
         {
             name: 'bolsa',
-            description: 'Ver precios de acciones - Roleplay'
+            description: 'Sistema de Bolsa de Valores y Criptomonedas',
+            options: [
+                {
+                    name: 'precios',
+                    description: 'Ver precios actuales del mercado',
+                    type: 1
+                },
+                {
+                    name: 'comprar',
+                    description: 'Comprar acciones o criptomonedas',
+                    type: 1,
+                    options: [
+                        { name: 'symbol', description: 'Simbolo de la accion - BTC, ETH, TSLA, etc', type: 3, required: true },
+                        { name: 'cantidad', description: 'Numero de acciones a comprar', type: 10, required: true }
+                    ]
+                },
+                {
+                    name: 'vender',
+                    description: 'Vender acciones o criptomonedas',
+                    type: 1,
+                    options: [
+                        { name: 'symbol', description: 'Simbolo de la accion - BTC, ETH, TSLA, etc', type: 3, required: true },
+                        { name: 'cantidad', description: 'Numero de acciones a vender', type: 10, required: true }
+                    ]
+                },
+                {
+                    name: 'portafolio',
+                    description: 'Ver tus inversiones actuales',
+                    type: 1
+                },
+                {
+                    name: 'historial',
+                    description: 'Ver tus ultimas transacciones',
+                    type: 1
+                }
+            ]
         }
     ];
 
@@ -1584,6 +1619,8 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
     }
 
     else if (commandName === 'bolsa') {
+        const subcommand = interaction.options.getSubcommand();
+
         const stocks = [
             { symbol: 'BTC', name: 'Bitcoin', base: 45000, type: 'Cripto' },
             { symbol: 'ETH', name: 'Ethereum', base: 3000, type: 'Cripto' },
@@ -1594,28 +1631,289 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             { symbol: 'NMX', name: 'Nación MX Corp', base: 500, type: 'Empresa' }
         ];
 
-        // Pseudo-random price based on hour
         const hour = new Date().getHours();
-        const getPrice = (base, sym) => {
-            const seed = (hour * base) % 100; // Deterministic random per hour
-            const variance = (seed - 50) / 100; // -0.5 to 0.5 (Too high? Let's reduce to 20%)
-            const cleanVariance = variance * 0.4; // +/- 20%
+        const getPrice = (base) => {
+            const seed = (hour * base) % 100;
+            const variance = (seed - 50) / 100;
+            const cleanVariance = variance * 0.2; // ±10%
             return Math.floor(base * (1 + cleanVariance));
         };
 
-        const embed = new EmbedBuilder()
-            .setTitle('📈 Bolsa de Valores & Cripto')
-            .setColor(0x0000FF)
-            .setDescription(`Precios actualizados a las ${hour}:00 hrs.`)
-            .setTimestamp();
+        if (subcommand === 'precios') {
+            const embed = new EmbedBuilder()
+                .setTitle('📈 Bolsa de Valores & Cripto')
+                .setColor(0x0000FF)
+                .setDescription(`Precios actualizados a las ${hour}:00 hrs.`)
+                .setTimestamp();
 
-        stocks.forEach(s => {
-            const price = getPrice(s.base, s.symbol);
-            const trend = price > s.base ? '📈' : '📉';
-            embed.addFields({ name: `${trend} ${s.symbol} (${s.type})`, value: `$${price.toLocaleString()} USD`, inline: true });
-        });
+            stocks.forEach(s => {
+                const price = getPrice(s.base);
+                const trend = price > s.base ? '📈' : '📉';
+                embed.addFields({ name: `${trend} ${s.symbol} - ${s.name}`, value: `$${price.toLocaleString()} USD`, inline: true });
+            });
 
-        await interaction.reply({ embeds: [embed] });
+            await interaction.reply({ embeds: [embed] });
+        }
+
+        else if (subcommand === 'comprar') {
+            const symbol = interaction.options.getString('symbol').toUpperCase();
+            const cantidad = interaction.options.getNumber('cantidad');
+
+            // Validate stock exists
+            const stock = stocks.find(s => s.symbol === symbol);
+            if (!stock) {
+                return await interaction.reply({ content: `❌ Símbolo inválido. Usa: ${stocks.map(s => s.symbol).join(', ')}`, ephemeral: false });
+            }
+
+            if (cantidad <= 0) {
+                return await interaction.reply({ content: '❌ La cantidad debe ser mayor a 0.', ephemeral: false });
+            }
+
+            const currentPrice = getPrice(stock.base);
+            const totalCost = currentPrice * cantidad;
+
+            // Check user balance
+            try {
+                const balance = await unbelievaBoatService.getBalance(interaction.guildId, interaction.user.id);
+                if (balance.bank < totalCost) {
+                    return await interaction.reply({
+                        content: `❌ Fondos insuficientes. Necesitas $${totalCost.toLocaleString()} pero solo tienes $${balance.bank.toLocaleString()} en el banco.`,
+                        ephemeral: false
+                    });
+                }
+
+                // Deduct money
+                await unbelievaBoatService.removeMoney(interaction.guildId, interaction.user.id, totalCost);
+
+                // Update portfolio
+                const { data: existing } = await supabase
+                    .from('stock_portfolios')
+                    .select('*')
+                    .eq('discord_user_id', interaction.user.id)
+                    .eq('stock_symbol', symbol)
+                    .single();
+
+                if (existing) {
+                    const totalShares = existing.shares + cantidad;
+                    const newAvgPrice = ((existing.avg_buy_price * existing.shares) + (currentPrice * cantidad)) / totalShares;
+
+                    await supabase
+                        .from('stock_portfolios')
+                        .update({ shares: totalShares, avg_buy_price: newAvgPrice })
+                        .eq('discord_user_id', interaction.user.id)
+                        .eq('stock_symbol', symbol);
+                } else {
+                    await supabase
+                        .from('stock_portfolios')
+                        .insert({
+                            discord_user_id: interaction.user.id,
+                            stock_symbol: symbol,
+                            shares: cantidad,
+                            avg_buy_price: currentPrice
+                        });
+                }
+
+                // Log transaction
+                await supabase
+                    .from('stock_transactions')
+                    .insert({
+                        discord_user_id: interaction.user.id,
+                        stock_symbol: symbol,
+                        transaction_type: 'BUY',
+                        shares: cantidad,
+                        price_per_share: currentPrice,
+                        total_amount: totalCost
+                    });
+
+                const embed = new EmbedBuilder()
+                    .setTitle('✅ Compra Exitosa')
+                    .setColor(0x00FF00)
+                    .setDescription(`Has comprado **${cantidad} acciones de ${symbol}**`)
+                    .addFields(
+                        { name: 'Precio por Acción', value: `$${currentPrice.toLocaleString()}`, inline: true },
+                        { name: 'Total Pagado', value: `$${totalCost.toLocaleString()}`, inline: true },
+                        { name: 'Balance Restante', value: `$${(balance.bank - totalCost).toLocaleString()}`, inline: true }
+                    )
+                    .setTimestamp();
+
+                await interaction.reply({ embeds: [embed] });
+            } catch (error) {
+                console.error('Error comprando acciones:', error);
+                await interaction.reply({ content: '❌ Error procesando la compra. Intenta de nuevo.', ephemeral: false });
+            }
+        }
+
+        else if (subcommand === 'vender') {
+            const symbol = interaction.options.getString('symbol').toUpperCase();
+            const cantidad = interaction.options.getNumber('cantidad');
+
+            // Validate stock exists
+            const stock = stocks.find(s => s.symbol === symbol);
+            if (!stock) {
+                return await interaction.reply({ content: `❌ Símbolo inválido. Usa: ${stocks.map(s => s.symbol).join(', ')}`, ephemeral: false });
+            }
+
+            if (cantidad <= 0) {
+                return await interaction.reply({ content: '❌ La cantidad debe ser mayor a 0.', ephemeral: false });
+            }
+
+            try {
+                // Check portfolio
+                const { data: portfolio } = await supabase
+                    .from('stock_portfolios')
+                    .select('*')
+                    .eq('discord_user_id', interaction.user.id)
+                    .eq('stock_symbol', symbol)
+                    .single();
+
+                if (!portfolio || portfolio.shares < cantidad) {
+                    return await interaction.reply({
+                        content: `❌ No tienes suficientes acciones. Tienes ${portfolio?.shares || 0} de ${symbol}.`,
+                        ephemeral: false
+                    });
+                }
+
+                const currentPrice = getPrice(stock.base);
+                const totalRevenue = currentPrice * cantidad;
+                const profit = (currentPrice - portfolio.avg_buy_price) * cantidad;
+                const profitEmoji = profit >= 0 ? '📈' : '📉';
+
+                // Add money
+                await unbelievaBoatService.addMoney(interaction.guildId, interaction.user.id, totalRevenue);
+
+                // Update portfolio
+                const newShares = portfolio.shares - cantidad;
+                if (newShares === 0) {
+                    await supabase
+                        .from('stock_portfolios')
+                        .delete()
+                        .eq('discord_user_id', interaction.user.id)
+                        .eq('stock_symbol', symbol);
+                } else {
+                    await supabase
+                        .from('stock_portfolios')
+                        .update({ shares: newShares })
+                        .eq('discord_user_id', interaction.user.id)
+                        .eq('stock_symbol', symbol);
+                }
+
+                // Log transaction
+                await supabase
+                    .from('stock_transactions')
+                    .insert({
+                        discord_user_id: interaction.user.id,
+                        stock_symbol: symbol,
+                        transaction_type: 'SELL',
+                        shares: cantidad,
+                        price_per_share: currentPrice,
+                        total_amount: totalRevenue
+                    });
+
+                const embed = new EmbedBuilder()
+                    .setTitle('✅ Venta Exitosa')
+                    .setColor(profit >= 0 ? 0x00FF00 : 0xFF0000)
+                    .setDescription(`Has vendido **${cantidad} acciones de ${symbol}**`)
+                    .addFields(
+                        { name: 'Precio por Acción', value: `$${currentPrice.toLocaleString()}`, inline: true },
+                        { name: 'Total Recibido', value: `$${totalRevenue.toLocaleString()}`, inline: true },
+                        { name: `${profitEmoji} Ganancia/Pérdida`, value: `$${profit.toLocaleString()}`, inline: true }
+                    )
+                    .setTimestamp();
+
+                await interaction.reply({ embeds: [embed] });
+            } catch (error) {
+                console.error('Error vendiendo acciones:', error);
+                await interaction.reply({ content: '❌ Error procesando la venta. Intenta de nuevo.', ephemeral: false });
+            }
+        }
+
+        else if (subcommand === 'portafolio') {
+            try {
+                const { data: portfolio } = await supabase
+                    .from('stock_portfolios')
+                    .select('*')
+                    .eq('discord_user_id', interaction.user.id);
+
+                if (!portfolio || portfolio.length === 0) {
+                    return await interaction.reply({ content: '📊 Tu portafolio está vacío. Usa `/bolsa comprar` para invertir.', ephemeral: false });
+                }
+
+                const embed = new EmbedBuilder()
+                    .setTitle(`📊 Portafolio de ${interaction.user.username}`)
+                    .setColor(0xFFD700)
+                    .setTimestamp();
+
+                let totalInvested = 0;
+                let totalCurrent = 0;
+
+                portfolio.forEach(p => {
+                    const stock = stocks.find(s => s.symbol === p.stock_symbol);
+                    if (!stock) return;
+
+                    const currentPrice = getPrice(stock.base);
+                    const invested = p.avg_buy_price * p.shares;
+                    const currentValue = currentPrice * p.shares;
+                    const profitLoss = currentValue - invested;
+                    const profitEmoji = profitLoss >= 0 ? '📈' : '📉';
+
+                    totalInvested += invested;
+                    totalCurrent += currentValue;
+
+                    embed.addFields({
+                        name: `${profitEmoji} ${p.stock_symbol} (${p.shares} acciones)`,
+                        value: `Compra: $${p.avg_buy_price.toLocaleString()} | Actual: $${currentPrice.toLocaleString()}\nValor: $${currentValue.toLocaleString()} | ${profitEmoji} $${profitLoss.toLocaleString()}`,
+                        inline: false
+                    });
+                });
+
+                const totalProfit = totalCurrent - totalInvested;
+                const profitEmoji = totalProfit >= 0 ? '📈' : '📉';
+
+                embed.setDescription(`**Total Invertido:** $${totalInvested.toLocaleString()}\n**Valor Actual:** $${totalCurrent.toLocaleString()}\n**${profitEmoji} Ganancia/Pérdida Total:** $${totalProfit.toLocaleString()}`);
+
+                await interaction.reply({ embeds: [embed] });
+            } catch (error) {
+                console.error('Error mostrando portafolio:', error);
+                await interaction.reply({ content: '❌ Error obteniendo tu portafolio.', ephemeral: false });
+            }
+        }
+
+        else if (subcommand === 'historial') {
+            try {
+                const { data: transactions } = await supabase
+                    .from('stock_transactions')
+                    .select('*')
+                    .eq('discord_user_id', interaction.user.id)
+                    .order('created_at', { ascending: false })
+                    .limit(10);
+
+                if (!transactions || transactions.length === 0) {
+                    return await interaction.reply({ content: '📜 No tienes transacciones registradas.', ephemeral: false });
+                }
+
+                const embed = new EmbedBuilder()
+                    .setTitle(`📜 Historial de Transacciones`)
+                    .setColor(0x3498DB)
+                    .setDescription(`Últimas ${transactions.length} transacciones`)
+                    .setTimestamp();
+
+                transactions.forEach(t => {
+                    const typeEmoji = t.transaction_type === 'BUY' ? '🛒' : '💰';
+                    const date = new Date(t.created_at).toLocaleDateString();
+
+                    embed.addFields({
+                        name: `${typeEmoji} ${t.transaction_type} - ${t.stock_symbol}`,
+                        value: `${t.shares} acciones @ $${t.price_per_share.toLocaleString()} = $${t.total_amount.toLocaleString()}\n${date}`,
+                        inline: true
+                    });
+                });
+
+                await interaction.reply({ embeds: [embed] });
+            } catch (error) {
+                console.error('Error mostrando historial:', error);
+                await interaction.reply({ content: '❌ Error obteniendo tu historial.', ephemeral: false });
+            }
+        }
     }
 
     else if (commandName === 'impuestos') {
