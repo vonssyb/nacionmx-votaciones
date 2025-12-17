@@ -346,6 +346,15 @@ const commands = [
                     { name: 'monto', description: 'Monto a cobrar', type: 10, required: true },
                     { name: 'razon', description: 'Concepto del cobro', type: 3, required: true }
                 ]
+            },
+            {
+                name: 'credito',
+                description: 'Solicitar crédito de tarjeta business',
+                type: 1,
+                options: [
+                    { name: 'monto', description: 'Cantidad a solicitar', type: 10, required: true },
+                    { name: 'razon', description: 'Motivo de la solicitud', type: 3, required: true }
+                ]
             }
         ]
     },

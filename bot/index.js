@@ -3332,6 +3332,135 @@ client.on('interactionCreate', async interaction => {
                 await interaction.editReply('❌ Error obteniendo información.');
             }
         }
+
+        else if (subcommand === 'credito') {
+            await interaction.deferReply({ flags: 64 });
+
+            const monto = interaction.options.getNumber('monto');
+            const razon = interaction.options.getString('razon');
+
+            if (monto <= 0) {
+                return interaction.editReply('❌ El monto debe ser mayor a 0.');
+            }
+
+            try {
+                // 1. Get user's companies
+                const { data: companies } = await supabase
+                    .from('companies')
+                    .select('*')
+                    .contains('owner_ids', [interaction.user.id])
+                    .eq('status', 'active');
+
+                if (!companies || companies.length === 0) {
+                    return interaction.editReply('❌ Necesitas tener una empresa para solicitar crédito business.');
+                }
+
+                // 2. Get business credit cards
+                const { data: cards } = await supabase
+                    .from('credit_cards')
+                    .select('*, companies!inner(name)')
+                    .eq('discord_id', interaction.user.id)
+                    .in('card_type', ['business_start', 'business_gold', 'business_platinum', 'business_elite', 'nmx_corporate'])
+                    .eq('status', 'active');
+
+                if (!cards || cards.length === 0) {
+                    return interaction.editReply('❌ No tienes tarjetas business activas.\n\n**¿Cómo solicitar una?**\n1. Abre un ticket en <#1450269843600310373>\n2. Un asesor te ayudará con el proceso\n3. Recibirás tu tarjeta vinculada a tu empresa');
+                }
+
+                // 3. If multiple cards, let user choose
+                if (cards.length > 1) {
+                    const selectMenu = new StringSelectMenuBuilder()
+                        .setCustomId(`credit_select_${monto}_${razon}`)
+                        .setPlaceholder('Selecciona tarjeta business')
+                        .addOptions(
+                            cards.map(card => {
+                                const available = card.card_limit - (card.current_balance || 0);
+                                const companyName = card.companies?.name || 'Sin empresa';
+                                return {
+                                    label: `${card.card_name} - ${companyName}`,
+                                    description: `Disponible: $${available.toLocaleString()} de $${card.card_limit.toLocaleString()}`,
+                                    value: card.id,
+                                    emoji: '💳'
+                                };
+                            })
+                        );
+
+                    const row = new ActionRowBuilder().addComponents(selectMenu);
+
+                    return interaction.editReply({
+                        content: `💳 Tienes **${cards.length}** tarjetas business. Selecciona cuál usar:`,
+                        components: [row]
+                    });
+                }
+
+                // 4. Only one card, proceed
+                const card = cards[0];
+                const available = card.card_limit - (card.current_balance || 0);
+
+                if (monto > available) {
+                    return interaction.editReply(`❌ **Crédito insuficiente**\n\n💳 Tarjeta: **${card.card_name}**\n📊 Disponible: **$${available.toLocaleString()}**\n❌ Solicitado: **$${monto.toLocaleString()}**\n\nContacta a un asesor para aumentar tu límite.`);
+                }
+
+                // 5. Update card balance
+                await supabase
+                    .from('credit_cards')
+                    .update({
+                        current_balance: (card.current_balance || 0) + monto,
+                        last_transaction_at: new Date().toISOString()
+                    })
+                    .eq('id', card.id);
+
+                // 6. Add to company balance
+                const companyId = card.company_id;
+                const { data: company } = await supabase
+                    .from('companies')
+                    .select('balance')
+                    .eq('id', companyId)
+                    .single();
+
+                await supabase
+                    .from('companies')
+                    .update({ balance: (company.balance || 0) + monto })
+                    .eq('id', companyId);
+
+                // 7. Log transaction
+                await supabase
+                    .from('credit_transactions')
+                    .insert({
+                        card_id: card.id,
+                        discord_user_id: interaction.user.id,
+                        transaction_type: 'disbursement',
+                        amount: monto,
+                        description: razon,
+                        company_id: companyId
+                    });
+
+                const newBalance = (card.current_balance || 0) + monto;
+                const newAvailable = card.card_limit - newBalance;
+
+                const embed = new EmbedBuilder()
+                    .setTitle('✅ Crédito Business Aprobado')
+                    .setColor(0x00FF00)
+                    .setDescription(`Se depositaron **$${monto.toLocaleString()}** al balance de tu empresa.`)
+                    .addFields(
+                        { name: '💳 Tarjeta', value: card.card_name, inline: true },
+                        { name: '🏢 Empresa', value: card.companies?.name || 'N/A', inline: true },
+                        { name: '📝 Concepto', value: razon, inline: false },
+                        { name: '💰 Monto Solicitado', value: `$${monto.toLocaleString()}`, inline: true },
+                        { name: '📊 Nueva Deuda', value: `$${newBalance.toLocaleString()}`, inline: true },
+                        { name: '💵 Crédito Disponible', value: `$${newAvailable.toLocaleString()}`, inline: true },
+                        { name: '⚠️ Recordatorio', value: `Interés semanal: **${(card.interest_rate * 100).toFixed(2)}%**\nPaga tu deuda con \`/credito pagar\``, inline: false }
+                    )
+                    .setFooter({ text: 'Usa responsablemente tu línea de crédito' })
+                    .setTimestamp();
+
+                await interaction.editReply({ embeds: [embed] });
+
+            } catch (error) {
+                console.error(error);
+                await interaction.editReply('❌ Error procesando solicitud de crédito.');
+            }
+        }
     }
 
 });
