@@ -208,6 +208,24 @@ const commands = [
         description: 'Ver tu balanza financiera completa - Efectivo, Debito, Credito'
     },
     {
+        name: 'depositar',
+        description: 'Depositar efectivo/banco a otro usuario (Cualquier cuenta)',
+        options: [
+            { name: 'destinatario', description: 'Usuario que recibe', type: 6, required: true },
+            { name: 'monto', description: 'Cantidad', type: 10, required: true },
+            { name: 'razon', description: 'Concepto de depósito', type: 3, required: false }
+        ]
+    },
+    {
+        name: 'transferir',
+        description: 'Transferencia bancaria Débito a Débito (Requiere Tarjeta)',
+        options: [
+            { name: 'destinatario', description: 'Usuario que recibe', type: 6, required: true },
+            { name: 'monto', description: 'Cantidad', type: 10, required: true },
+            { name: 'razon', description: 'Concepto de transferencia', type: 3, required: false }
+        ]
+    },
+    {
         name: 'debito',
         description: 'Gestion de Tarjeta de Debito',
         options: [
@@ -217,15 +235,6 @@ const commands = [
                 description: 'Depositar efectivo a debito - 4 horas',
                 type: 1,
                 options: [{ name: 'monto', description: 'Cantidad', type: 10, required: true }]
-            },
-            {
-                name: 'transferir',
-                description: 'Transferir debito a debito - 5 minutos',
-                type: 1,
-                options: [
-                    { name: 'destinatario', description: 'Usuario', type: 6, required: true },
-                    { name: 'monto', description: 'Cantidad', type: 10, required: true }
-                ]
             },
             { name: 'historial', description: 'Ver transacciones', type: 1 }
         ]
@@ -281,14 +290,7 @@ const commands = [
         name: 'top-morosos',
         description: 'Ranking de los mas endeudados'
     },
-    {
-        name: 'transferir',
-        description: 'Enviar dinero a otro ciudadano',
-        options: [
-            { name: 'destinatario', description: 'Usuario a transferir', type: 6, required: true },
-            { name: 'monto', description: 'Cantidad a enviar', type: 10, required: true }
-        ]
-    },
+
     {
         name: 'empresa',
         description: 'Gestion de Empresas',

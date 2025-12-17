@@ -2383,34 +2383,34 @@ client.on('interactionCreate', async interaction => {
         }
     }
 
-    else if (commandName === 'transferir') {
+    else if (commandName === 'depositar') {
         const destUser = interaction.options.getUser('destinatario');
         const monto = interaction.options.getNumber('monto');
-        const razon = interaction.options.getString('razon') || 'Transferencia';
+        const razon = interaction.options.getString('razon') || 'Depósito Bancario';
 
         if (monto <= 0) {
             return interaction.reply({ content: '❌ El monto debe ser mayor a 0.', ephemeral: true });
         }
 
         if (destUser.id === interaction.user.id) {
-            return interaction.reply({ content: '❌ No puedes transferirte dinero a ti mismo.', ephemeral: true });
+            return interaction.reply({ content: '❌ No puedes depositarte dinero a ti mismo.', ephemeral: true });
         }
 
         await interaction.deferReply();
 
         try {
-            // Check sender balance
+            // Check sender balance (Generic UB Bank)
             const senderBalance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
             if (senderBalance.bank < monto) {
-                return interaction.editReply(`❌ Fondos insuficientes. Tienes $${senderBalance.bank.toLocaleString()} en el banco.`);
+                return interaction.editReply(`❌ Fondos insuficientes en Banco. Tienes $${senderBalance.bank.toLocaleString()}.`);
             }
 
             // Perform transfer
-            await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, monto, `Transferencia a ${destUser.tag}: ${razon}`);
-            await billingService.ubService.addMoney(interaction.guildId, destUser.id, monto, `Transferencia de ${interaction.user.tag}: ${razon}`);
+            await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, monto, `Depósito a ${destUser.tag}: ${razon}`);
+            await billingService.ubService.addMoney(interaction.guildId, destUser.id, monto, `Depósito de ${interaction.user.tag}: ${razon}`);
 
             const embed = new EmbedBuilder()
-                .setTitle('💸 Transferencia Exitosa')
+                .setTitle('🏦 Depósito Exitoso')
                 .setColor(0x00FF00)
                 .addFields(
                     { name: 'De', value: interaction.user.tag, inline: true },
@@ -2422,19 +2422,75 @@ client.on('interactionCreate', async interaction => {
 
             await interaction.editReply({ embeds: [embed] });
 
-            // Try to notify recipient
+            // Notify
             try {
                 const dmEmbed = new EmbedBuilder()
-                    .setTitle('💰 Has recibido dinero')
-                    .setDescription(`**${interaction.user.tag}** te ha transferido **$${monto.toLocaleString()}**`)
+                    .setTitle('💰 Has recibido un depósito')
+                    .setDescription(`**${interaction.user.tag}** te ha depositado **$${monto.toLocaleString()}**`)
                     .addFields({ name: 'Concepto', value: razon })
                     .setColor(0x00FF00)
                     .setTimestamp();
-
                 await destUser.send({ embeds: [dmEmbed] });
-            } catch (dmError) {
-                console.log('No se pudo notificar al receptor (DMs cerrados)');
+            } catch (dmError) { /* Ignore */ }
+
+        } catch (error) {
+            console.error(error);
+            await interaction.editReply('❌ Error procesando el depósito.');
+        }
+    }
+
+    else if (commandName === 'transferir') {
+        const destUser = interaction.options.getUser('destinatario');
+        const monto = interaction.options.getNumber('monto');
+        const razon = interaction.options.getString('razon') || 'Transferencia Débito';
+
+        if (monto <= 0) return interaction.reply({ content: '❌ El monto debe ser mayor a 0.', ephemeral: true });
+        if (destUser.id === interaction.user.id) return interaction.reply({ content: '❌ Auto-transferencia no permitida.', ephemeral: true });
+
+        await interaction.deferReply();
+
+        try {
+            // 1. Check BOTH for Debit Cards
+            const { data: senderCard } = await billingService.getDebitCard(interaction.user.id);
+            const { data: destCard } = await billingService.getDebitCard(destUser.id);
+
+            if (!senderCard) return interaction.editReply('❌ **No tienes Tarjeta de Débito**. Usa `/depositar` para transferencias en efectivo/banco genérico.');
+            if (!destCard) return interaction.editReply(`❌ **${destUser.username}** no tiene Tarjeta de Débito activa. Usa \`/depositar\`.`);
+
+            // 2. Check Balance (Bank Balance = Debit Balance in this system)
+            const senderBalance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
+            if (senderBalance.bank < monto) {
+                return interaction.editReply(`❌ Fondos insuficientes en cuenta de débito. Tienes $${senderBalance.bank.toLocaleString()}.`);
             }
+
+            // 3. Execute Transfer
+            await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, monto, `Transferencia Débito a ${destUser.tag}: ${razon}`);
+            await billingService.ubService.addMoney(interaction.guildId, destUser.id, monto, `Transferencia Débito de ${interaction.user.tag}: ${razon}`);
+
+            const embed = new EmbedBuilder()
+                .setTitle('💳 Transferencia Débito Exitosa')
+                .setColor(0x00FFFF) // Cyan for Debit
+                .setDescription(`Transferencia segura entre cuentas de débito NMX.`)
+                .addFields(
+                    { name: 'De', value: `💳 ${interaction.user.tag}`, inline: true },
+                    { name: 'Para', value: `💳 ${destUser.tag}`, inline: true },
+                    { name: 'Monto', value: `$${monto.toLocaleString()}`, inline: true },
+                    { name: 'Concepto', value: razon, inline: false }
+                )
+                .setTimestamp();
+
+            await interaction.editReply({ embeds: [embed] });
+
+            // Notify
+            try {
+                const dmEmbed = new EmbedBuilder()
+                    .setTitle('💳 Has recibido una Transferencia Débito')
+                    .setDescription(`**${interaction.user.tag}** te ha transferido **$${monto.toLocaleString()}** a tu cuenta de débito.`)
+                    .addFields({ name: 'Concepto', value: razon })
+                    .setColor(0x00FFFF)
+                    .setTimestamp();
+                await destUser.send({ embeds: [dmEmbed] });
+            } catch (dmError) { /* Ignore */ }
 
         } catch (error) {
             console.error(error);
