@@ -895,64 +895,64 @@ generará recargos, congelación, reporte a Buró Financiero, embargos y restric
             await interaction.editReply('✅ Reporte de cancelación enviado exitosamente. Se publicará en breve.');
         }
     }
-}
+
 
     else if (commandName === 'banco') {
-    const subCmd = interaction.options.getSubcommand();
+        const subCmd = interaction.options.getSubcommand();
 
-    if (subCmd === 'registrar') {
-        await interaction.deferReply({ ephemeral: true });
+        if (subCmd === 'registrar') {
+            await interaction.deferReply({ ephemeral: true });
 
-        // 1. Role Check (Staff Banco: 1450591546524307689)
-        if (!interaction.member.roles.cache.has('1450591546524307689') && !interaction.member.permissions.has('Administrator')) {
-            return interaction.editReply('⛔ No tienes permisos para registrar tarjetas (Rol Staff Banco Requerido).');
-        }
+            // 1. Role Check (Staff Banco: 1450591546524307689)
+            if (!interaction.member.roles.cache.has('1450591546524307689') && !interaction.member.permissions.has('Administrator')) {
+                return interaction.editReply('⛔ No tienes permisos para registrar tarjetas (Rol Staff Banco Requerido).');
+            }
 
-        const targetUser = interaction.options.getUser('usuario');
-        const cardType = interaction.options.getString('tipo');
-        const limit = interaction.options.getNumber('limite');
-        const interest = interaction.options.getNumber('interes');
-        const cost = interaction.options.getNumber('costo');
+            const targetUser = interaction.options.getUser('usuario');
+            const cardType = interaction.options.getString('tipo');
+            const limit = interaction.options.getNumber('limite');
+            const interest = interaction.options.getNumber('interes');
+            const cost = interaction.options.getNumber('costo');
 
-        // 2. Find Citizen
-        const { data: citizen, error: citError } = await supabase.from('citizens').select('id, full_name').eq('discord_id', targetUser.id).order('created_at', { ascending: false }).limit(1).maybeSingle();
+            // 2. Find Citizen
+            const { data: citizen, error: citError } = await supabase.from('citizens').select('id, full_name').eq('discord_id', targetUser.id).order('created_at', { ascending: false }).limit(1).maybeSingle();
 
-        if (!citizen) return interaction.editReply('❌ El usuario no tiene un Ciudadano vinculado. Debe usar `/fichar` primero.');
+            if (!citizen) return interaction.editReply('❌ El usuario no tiene un Ciudadano vinculado. Debe usar `/fichar` primero.');
 
-        // 3. Send Interactive Offer
-        const offerEmbed = new EmbedBuilder()
-            .setTitle('💳 Oferta de Tarjeta de Crédito')
-            .setColor(0xD4AF37)
-            .setDescription(`Hola <@${targetUser.id}>,\nEl Banco Nacional te ofrece una tarjeta **${cardType}**.\n\n**Detalles del Contrato:**`)
-            .addFields(
-                { name: 'Límite', value: `$${limit.toLocaleString()}`, inline: true },
-                { name: 'Interés Semanal', value: `${interest}%`, inline: true },
-                { name: 'Costo de Apertura', value: `$${cost.toLocaleString()}`, inline: true }
-            )
-            .setFooter({ text: 'Tienes 5 minutos para aceptar. Revisa los términos antes.' });
+            // 3. Send Interactive Offer
+            const offerEmbed = new EmbedBuilder()
+                .setTitle('💳 Oferta de Tarjeta de Crédito')
+                .setColor(0xD4AF37)
+                .setDescription(`Hola <@${targetUser.id}>,\nEl Banco Nacional te ofrece una tarjeta **${cardType}**.\n\n**Detalles del Contrato:**`)
+                .addFields(
+                    { name: 'Límite', value: `$${limit.toLocaleString()}`, inline: true },
+                    { name: 'Interés Semanal', value: `${interest}%`, inline: true },
+                    { name: 'Costo de Apertura', value: `$${cost.toLocaleString()}`, inline: true }
+                )
+                .setFooter({ text: 'Tienes 5 minutos para aceptar. Revisa los términos antes.' });
 
-        const row = new ActionRowBuilder()
-            .addComponents(
-                new ButtonBuilder().setCustomId('btn_terms').setLabel('📄 Ver Términos').setStyle(ButtonStyle.Secondary),
-                new ButtonBuilder().setCustomId('btn_accept').setLabel('✅ Aceptar y Pagar').setStyle(ButtonStyle.Success),
-                new ButtonBuilder().setCustomId('btn_reject').setLabel('❌ Rechazar').setStyle(ButtonStyle.Danger)
-            );
+            const row = new ActionRowBuilder()
+                .addComponents(
+                    new ButtonBuilder().setCustomId('btn_terms').setLabel('📄 Ver Términos').setStyle(ButtonStyle.Secondary),
+                    new ButtonBuilder().setCustomId('btn_accept').setLabel('✅ Aceptar y Pagar').setStyle(ButtonStyle.Success),
+                    new ButtonBuilder().setCustomId('btn_reject').setLabel('❌ Rechazar').setStyle(ButtonStyle.Danger)
+                );
 
-        // Send to channel (Public) so user can see it
-        const message = await interaction.channel.send({ content: `<@${targetUser.id}>`, embeds: [offerEmbed], components: [row] });
-        await interaction.editReply(`✅ Oferta enviada a <@${targetUser.id}>. Esperando respuesta...`);
+            // Send to channel (Public) so user can see it
+            const message = await interaction.channel.send({ content: `<@${targetUser.id}>`, embeds: [offerEmbed], components: [row] });
+            await interaction.editReply(`✅ Oferta enviada a <@${targetUser.id}>. Esperando respuesta...`);
 
-        // 4. Collector
-        const filter = i => i.user.id === targetUser.id;
-        const collector = message.createMessageComponentCollector({ filter, time: 300000 }); // 5 min
+            // 4. Collector
+            const filter = i => i.user.id === targetUser.id;
+            const collector = message.createMessageComponentCollector({ filter, time: 300000 }); // 5 min
 
-        collector.on('collect', async i => {
-            if (i.customId === 'btn_terms') {
-                // Terms & Conditions Logic
-                const tycEmbed = new EmbedBuilder()
-                    .setTitle('📜 Términos y Condiciones - Banco Nacional RP')
-                    .setColor(0x333333)
-                    .setDescription(`
+            collector.on('collect', async i => {
+                if (i.customId === 'btn_terms') {
+                    // Terms & Conditions Logic
+                    const tycEmbed = new EmbedBuilder()
+                        .setTitle('📜 Términos y Condiciones - Banco Nacional RP')
+                        .setColor(0x333333)
+                        .setDescription(`
 **1️⃣ ACEPTACIÓN**
 Al solicitar, activar o utilizar cualquier tarjeta, aceptas estos términos automáticamente.
 
@@ -977,211 +977,211 @@ generará recargos, congelación, reporte a Buró Financiero, embargos y restric
 **9️⃣ CANCELACIÓN**
 • Banco puede cancelar por mal uso. La deuda persiste.
                         `);
-                await i.reply({ embeds: [tycEmbed], ephemeral: true });
-            }
-            else if (i.customId === 'btn_reject') {
-                await i.update({ content: '❌ Oferta rechazada por el usuario.', components: [] });
-                collector.stop();
-            }
-            else if (i.customId === 'btn_accept') {
-                // PAYMENT & CREATION LOGIC
-                await i.deferUpdate();
-
-                try {
-                    // Check Funds
-                    const balance = await billingService.ubService.getUserBalance(interaction.guildId, targetUser.id);
-                    const userMoney = balance.total || (balance.cash + balance.bank);
-
-                    if (userMoney < cost) {
-                        return i.followUp({ content: `❌ **Fondos Insuficientes**. Tienes: $${userMoney.toLocaleString()}. Necesitas: $${cost.toLocaleString()}.`, ephemeral: true });
-                    }
-
-                    // Charge
-                    await billingService.ubService.removeMoney(interaction.guildId, targetUser.id, cost, `Apertura Tarjeta ${cardType}`);
-
-                    // Create Card
-                    const { error: insertError } = await supabase.from('credit_cards').insert([{
-                        citizen_id: citizen.id,
-                        card_type: cardType,
-                        credit_limit: limit,
-                        current_balance: 0,
-                        interest_rate: interest,
-                        status: 'ACTIVE',
-                        next_payment_due: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
-                    }]);
-
-                    if (insertError) throw new Error(insertError.message);
-
-                    // Initialize/Update Credit Score slightly? Optional
-                    await message.edit({ content: `✅ **Tarjeta Activada** para <@${targetUser.id}>. Cobro de $${cost.toLocaleString()} realizado.`, components: [] });
-
-                } catch (err) {
-                    console.error(err);
-                    await i.followUp({ content: `❌ Error procesando pago/creación: ${err.message}`, ephemeral: true });
+                    await i.reply({ embeds: [tycEmbed], ephemeral: true });
                 }
-                collector.stop();
-            }
-        });
+                else if (i.customId === 'btn_reject') {
+                    await i.update({ content: '❌ Oferta rechazada por el usuario.', components: [] });
+                    collector.stop();
+                }
+                else if (i.customId === 'btn_accept') {
+                    // PAYMENT & CREATION LOGIC
+                    await i.deferUpdate();
 
-        collector.on('end', collected => {
-            if (collected.size === 0) {
-                message.edit({ content: '⚠️ La oferta expiró.', components: [] });
-            }
-        });
-    }
-}
+                    try {
+                        // Check Funds
+                        const balance = await billingService.ubService.getUserBalance(interaction.guildId, targetUser.id);
+                        const userMoney = balance.total || (balance.cash + balance.bank);
 
-else if (commandName === 'multa') {
-    await interaction.deferReply();
+                        if (userMoney < cost) {
+                            return i.followUp({ content: `❌ **Fondos Insuficientes**. Tienes: $${userMoney.toLocaleString()}. Necesitas: $${cost.toLocaleString()}.`, ephemeral: true });
+                        }
 
-    // 1. Role Check (Policia: 1416867605976715363)
-    if (!interaction.member.roles.cache.has('1416867605976715363') && !interaction.member.permissions.has('Administrator')) {
-        return interaction.editReply({ content: '⛔ No tienes placa de policía (Rol Requerido).', ephemeral: true });
-    }
+                        // Charge
+                        await billingService.ubService.removeMoney(interaction.guildId, targetUser.id, cost, `Apertura Tarjeta ${cardType}`);
 
-    const targetUser = interaction.options.getUser('usuario');
-    const amount = interaction.options.getNumber('monto');
-    const reason = interaction.options.getString('razon');
+                        // Create Card
+                        const { error: insertError } = await supabase.from('credit_cards').insert([{
+                            citizen_id: citizen.id,
+                            card_type: cardType,
+                            credit_limit: limit,
+                            current_balance: 0,
+                            interest_rate: interest,
+                            status: 'ACTIVE',
+                            next_payment_due: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+                        }]);
 
-    // 2. Find Citizen
-    const { data: citizen } = await supabase.from('citizens').select('id, full_name').eq('discord_id', targetUser.id).order('created_at', { ascending: false }).limit(1).maybeSingle();
+                        if (insertError) throw new Error(insertError.message);
 
-    if (!citizen) return interaction.editReply('❌ El usuario no es ciudadano registrado.');
+                        // Initialize/Update Credit Score slightly? Optional
+                        await message.edit({ content: `✅ **Tarjeta Activada** para <@${targetUser.id}>. Cobro de $${cost.toLocaleString()} realizado.`, components: [] });
 
-    // 3. UnbelievaBoat Charge
-    let status = 'UNPAID';
-    let ubMessage = '';
+                    } catch (err) {
+                        console.error(err);
+                        await i.followUp({ content: `❌ Error procesando pago/creación: ${err.message}`, ephemeral: true });
+                    }
+                    collector.stop();
+                }
+            });
 
-    try {
-        await billingService.ubService.removeMoney(interaction.guildId, targetUser.id, amount, `Multa: ${reason}`);
-        status = 'PAID';
-    } catch (err) {
-        ubMessage = `(Fallo cobro automático: ${err.message})`;
-    }
-
-    // 4. Record Fine
-    const { error: fineError } = await supabase.from('fines').insert([{
-        citizen_id: citizen.id,
-        officer_discord_id: interaction.user.id,
-        amount: amount,
-        reason: reason,
-        status: status
-    }]);
-
-    if (fineError) console.error("Fine error", fineError);
-
-    const embed = new EmbedBuilder()
-        .setTitle(status === 'PAID' ? '⚖️ Multa Pagada' : '⚖️ Multa Registrada (Cobro Pendiente)')
-        .setColor(status === 'PAID' ? 0x00FF00 : 0xFF0000)
-        .addFields(
-            { name: 'Ciudadano', value: `<@${targetUser.id}>`, inline: true },
-            { name: 'Oficial', value: `<@${interaction.user.id}>`, inline: true },
-            { name: 'Monto', value: `$${amount.toLocaleString()}`, inline: true },
-            { name: 'Motivo', value: reason }
-        )
-        .setFooter({ text: status === 'PAID' ? 'Cobrado automáticamente de cuenta bancaria.' : 'El ciudadano no tenía fondos suficientes. Se registró deuda judicial.' });
-
-    await interaction.editReply({ embeds: [embed] });
-}
-
-else if (commandName === 'fichar') {
-    await interaction.deferReply({ ephemeral: true });
-    const action = interaction.options.getString('accion');
-
-    const { data: profile } = await supabase
-        .from('profiles')
-        .select('id, full_name, role')
-        .eq('discord_id', interaction.user.id)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-    if (!profile) {
-        return interaction.editReply('❌ No tienes tu cuenta de Discord vinculada. Pide a un admin que añada tu ID de Discord a tu perfil en el Panel de Staff.');
-    }
-
-    // 2. Check for Active Shift
-    const { data: activeShift } = await supabase
-        .from('time_logs')
-        .select('id, clock_in')
-        .eq('user_id', profile.id)
-        .eq('status', 'active')
-        .single();
-
-    if (activeShift) {
-        // CLOCK OUT
-        const now = new Date();
-        const clockIn = new Date(activeShift.clock_in);
-        const durationMinutes = Math.round((now - clockIn) / 60000);
-
-        const { error } = await supabase
-            .from('time_logs')
-            .update({
-                clock_out: now.toISOString(),
-                status: 'completed',
-                duration_minutes: durationMinutes
-            })
-            .eq('id', activeShift.id);
-
-        if (error) {
-            console.error(error);
-            return interaction.editReply('❌ Error al cerrar turno.');
+            collector.on('end', collected => {
+                if (collected.size === 0) {
+                    message.edit({ content: '⚠️ La oferta expiró.', components: [] });
+                }
+            });
         }
+    }
+
+    else if (commandName === 'multa') {
+        await interaction.deferReply();
+
+        // 1. Role Check (Policia: 1416867605976715363)
+        if (!interaction.member.roles.cache.has('1416867605976715363') && !interaction.member.permissions.has('Administrator')) {
+            return interaction.editReply({ content: '⛔ No tienes placa de policía (Rol Requerido).', ephemeral: true });
+        }
+
+        const targetUser = interaction.options.getUser('usuario');
+        const amount = interaction.options.getNumber('monto');
+        const reason = interaction.options.getString('razon');
+
+        // 2. Find Citizen
+        const { data: citizen } = await supabase.from('citizens').select('id, full_name').eq('discord_id', targetUser.id).order('created_at', { ascending: false }).limit(1).maybeSingle();
+
+        if (!citizen) return interaction.editReply('❌ El usuario no es ciudadano registrado.');
+
+        // 3. UnbelievaBoat Charge
+        let status = 'UNPAID';
+        let ubMessage = '';
+
+        try {
+            await billingService.ubService.removeMoney(interaction.guildId, targetUser.id, amount, `Multa: ${reason}`);
+            status = 'PAID';
+        } catch (err) {
+            ubMessage = `(Fallo cobro automático: ${err.message})`;
+        }
+
+        // 4. Record Fine
+        const { error: fineError } = await supabase.from('fines').insert([{
+            citizen_id: citizen.id,
+            officer_discord_id: interaction.user.id,
+            amount: amount,
+            reason: reason,
+            status: status
+        }]);
+
+        if (fineError) console.error("Fine error", fineError);
 
         const embed = new EmbedBuilder()
-            .setTitle('🛑 Turno Finalizado')
-            .setColor(0xFF0000)
+            .setTitle(status === 'PAID' ? '⚖️ Multa Pagada' : '⚖️ Multa Registrada (Cobro Pendiente)')
+            .setColor(status === 'PAID' ? 0x00FF00 : 0xFF0000)
             .addFields(
-                { name: 'Oficial', value: profile.full_name || 'Agente' },
-                { name: 'Duración', value: `${durationMinutes} minutos` }
+                { name: 'Ciudadano', value: `<@${targetUser.id}>`, inline: true },
+                { name: 'Oficial', value: `<@${interaction.user.id}>`, inline: true },
+                { name: 'Monto', value: `$${amount.toLocaleString()}`, inline: true },
+                { name: 'Motivo', value: reason }
             )
-            .setTimestamp();
+            .setFooter({ text: status === 'PAID' ? 'Cobrado automáticamente de cuenta bancaria.' : 'El ciudadano no tenía fondos suficientes. Se registró deuda judicial.' });
 
         await interaction.editReply({ embeds: [embed] });
+    }
 
-        // Optional: Log to public channel
-        if (NOTIFICATION_CHANNEL_ID) {
-            const channel = await client.channels.fetch(NOTIFICATION_CHANNEL_ID).catch(() => null);
-            if (channel) channel.send({ embeds: [embed] });
+    else if (commandName === 'fichar') {
+        await interaction.deferReply({ ephemeral: true });
+        const action = interaction.options.getString('accion');
+
+        const { data: profile } = await supabase
+            .from('profiles')
+            .select('id, full_name, role')
+            .eq('discord_id', interaction.user.id)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+        if (!profile) {
+            return interaction.editReply('❌ No tienes tu cuenta de Discord vinculada. Pide a un admin que añada tu ID de Discord a tu perfil en el Panel de Staff.');
         }
 
-    } else {
-        // CLOCK IN
-        const { error } = await supabase
+        // 2. Check for Active Shift
+        const { data: activeShift } = await supabase
             .from('time_logs')
-            .insert([{
-                user_id: profile.id,
-                clock_in: new Date().toISOString(),
-                status: 'active'
-            }]);
+            .select('id, clock_in')
+            .eq('user_id', profile.id)
+            .eq('status', 'active')
+            .single();
 
-        if (error) {
-            console.error(error);
-            return interaction.editReply('❌ Error al iniciar turno.');
-        }
+        if (activeShift) {
+            // CLOCK OUT
+            const now = new Date();
+            const clockIn = new Date(activeShift.clock_in);
+            const durationMinutes = Math.round((now - clockIn) / 60000);
 
-        const embed = new EmbedBuilder()
-            .setTitle('🟢 Turno Iniciado')
-            .setColor(0x00FF00)
-            .addFields(
-                { name: 'Oficial', value: profile.full_name || 'Agente' },
-                { name: 'Hora', value: new Date().toLocaleTimeString() }
-            )
-            .setTimestamp();
+            const { error } = await supabase
+                .from('time_logs')
+                .update({
+                    clock_out: now.toISOString(),
+                    status: 'completed',
+                    duration_minutes: durationMinutes
+                })
+                .eq('id', activeShift.id);
 
-        await interaction.editReply({ embeds: [embed] });
+            if (error) {
+                console.error(error);
+                return interaction.editReply('❌ Error al cerrar turno.');
+            }
 
-        if (NOTIFICATION_CHANNEL_ID) {
-            const channel = await client.channels.fetch(NOTIFICATION_CHANNEL_ID).catch(() => null);
-            if (channel) channel.send({ embeds: [embed] });
+            const embed = new EmbedBuilder()
+                .setTitle('🛑 Turno Finalizado')
+                .setColor(0xFF0000)
+                .addFields(
+                    { name: 'Oficial', value: profile.full_name || 'Agente' },
+                    { name: 'Duración', value: `${durationMinutes} minutos` }
+                )
+                .setTimestamp();
+
+            await interaction.editReply({ embeds: [embed] });
+
+            // Optional: Log to public channel
+            if (NOTIFICATION_CHANNEL_ID) {
+                const channel = await client.channels.fetch(NOTIFICATION_CHANNEL_ID).catch(() => null);
+                if (channel) channel.send({ embeds: [embed] });
+            }
+
+        } else {
+            // CLOCK IN
+            const { error } = await supabase
+                .from('time_logs')
+                .insert([{
+                    user_id: profile.id,
+                    clock_in: new Date().toISOString(),
+                    status: 'active'
+                }]);
+
+            if (error) {
+                console.error(error);
+                return interaction.editReply('❌ Error al iniciar turno.');
+            }
+
+            const embed = new EmbedBuilder()
+                .setTitle('🟢 Turno Iniciado')
+                .setColor(0x00FF00)
+                .addFields(
+                    { name: 'Oficial', value: profile.full_name || 'Agente' },
+                    { name: 'Hora', value: new Date().toLocaleTimeString() }
+                )
+                .setTimestamp();
+
+            await interaction.editReply({ embeds: [embed] });
+
+            if (NOTIFICATION_CHANNEL_ID) {
+                const channel = await client.channels.fetch(NOTIFICATION_CHANNEL_ID).catch(() => null);
+                if (channel) channel.send({ embeds: [embed] });
+            }
         }
     }
-}
 
-if (commandName === 'saldo') {
-    // ... (Existing logic or placeholder) ...
-    await interaction.reply({ content: 'Esta función estará disponible pronto.', ephemeral: true });
-}
+    if (commandName === 'saldo') {
+        // ... (Existing logic or placeholder) ...
+        await interaction.reply({ content: 'Esta función estará disponible pronto.', ephemeral: true });
+    }
 });
 
 function getColorForCard(type) {
