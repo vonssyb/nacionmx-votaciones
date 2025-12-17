@@ -2202,7 +2202,7 @@ client.on('interactionCreate', async interaction => {
             const { data: debitCard } = await supabase.from('debit_cards').select('balance').eq('discord_user_id', interaction.user.id).eq('status', 'active').maybeSingle();
             const { data: creditCard } = await supabase.from('credit_cards').select('credit_limit, current_balance, citizens!inner(discord_id)').eq('citizens.discord_id', interaction.user.id).order('created_at', { ascending: false }).limit(1).maybeSingle();
 
-            const cash = cashBalance.cash || 0;
+            const cash = (cashBalance.cash || 0) + (cashBalance.bank || 0);
             const debit = debitCard?.balance || 0;
             const creditAvailable = creditCard ? (creditCard.credit_limit - creditCard.current_balance) : 0;
             const creditDebt = creditCard?.current_balance || 0;
