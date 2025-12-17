@@ -130,6 +130,34 @@ client.once('ready', async () => {
                     name: 'info',
                     description: 'Ver el catalogo completo de tarjetas y sus beneficios',
                     type: 1
+                },
+                {
+                    name: 'ver',
+                    description: 'Ver detalles de una tarjeta especifica',
+                    type: 1,
+                    options: [
+                        {
+                            name: 'nombre',
+                            description: 'Nombre de la tarjeta - Ej NMX Oro',
+                            type: 3,
+                            required: true,
+                            choices: [
+                                { name: 'NMX Start', value: 'NMX Start' },
+                                { name: 'NMX Básica', value: 'NMX Básica' },
+                                { name: 'NMX Plus', value: 'NMX Plus' },
+                                { name: 'NMX Plata', value: 'NMX Plata' },
+                                { name: 'NMX Oro', value: 'NMX Oro' },
+                                { name: 'NMX Rubí', value: 'NMX Rubí' },
+                                { name: 'NMX Black', value: 'NMX Black' },
+                                { name: 'NMX Diamante', value: 'NMX Diamante' },
+                                { name: 'NMX Business Start', value: 'NMX Business Start' },
+                                { name: 'NMX Business Gold', value: 'NMX Business Gold' },
+                                { name: 'NMX Business Platinum', value: 'NMX Business Platinum' },
+                                { name: 'NMX Business Elite', value: 'NMX Business Elite' },
+                                { name: 'NMX Corporate', value: 'NMX Corporate' }
+                            ]
+                        }
+                    ]
                 }
             ]
         },
@@ -707,6 +735,50 @@ client.on('interactionCreate', async interaction => {
             });
 
             embed.setFooter({ text: 'Banco Nacional RP • Todos los intereses son semanales al corte dominical' });
+
+            await interaction.reply({ embeds: [embed] });
+        }
+
+        else if (subcommand === 'ver') {
+            const cardName = interaction.options.getString('nombre');
+
+            // Card database with detailed info
+            const allCards = {
+                'NMX Start': { limit: 2000, interest: 3, score: 0, tier: 'Inicial', benefits: ['Sin anualidad', 'App móvil incluida'], color: 0x808080 },
+                'NMX Básica': { limit: 4000, interest: 2.5, score: 30, tier: 'Básica', benefits: ['Cashback 1%', 'Seguro básico'], color: 0x4169E1 },
+                'NMX Plus': { limit: 6000, interest: 2, score: 50, tier: 'Plus', benefits: ['Cashback 2%', 'Protección de compras'], color: 0x32CD32 },
+                'NMX Plata': { limit: 10000, interest: 1.5, score: 60, tier: 'Premium', benefits: ['Cashback 3%', 'Seguro de viaje', 'Concierge'], color: 0xC0C0C0 },
+                'NMX Oro': { limit: 15000, interest: 1.2, score: 70, tier: 'Elite', benefits: ['Cashback 4%', 'Lounge aero', 'Asistencia 24/7'], color: 0xFFD700 },
+                'NMX Rubí': { limit: 25000, interest: 1, score: 80, tier: 'Elite Plus', benefits: ['Cashback 5%', 'Concierge premium', 'Eventos exclusivos'], color: 0xE0115F },
+                'NMX Black': { limit: 40000, interest: 0.8, score: 85, tier: 'Black', benefits: ['Cashback 6%', 'Prioridad máxima', 'Gestor personal'], color: 0x000000 },
+                'NMX Diamante': { limit: 60000, interest: 0.5, score: 90, tier: 'Diamante', benefits: ['Cashback 8%', 'Servicios ilimitados', 'Sin límites'], color: 0xB9F2FF },
+                'NMX Business Start': { limit: 50000, interest: 2, score: 70, tier: 'Empresarial', benefits: ['Facturación integrada', 'Control de gastos'], color: 0x1E90FF },
+                'NMX Business Gold': { limit: 100000, interest: 1.5, score: 75, tier: 'Corporativa', benefits: ['Tarjetas adicionales', 'Reportes avanzados'], color: 0xFFD700 },
+                'NMX Business Platinum': { limit: 200000, interest: 1.2, score: 80, tier: 'Corporativa Plus', benefits: [' Cuentas por pagar', 'API de integración'], color: 0xE5E4E2 },
+                'NMX Business Elite': { limit: 500000, interest: 1, score: 85, tier: 'Elite Corp', benefits: ['Línea directa CFO', 'Asesoría fiscal'], color: 0x4B0082 },
+                'NMX Corporate': { limit: 1000000, interest: 0.7, score: 90, tier: 'Corporate', benefits: ['Gestor dedicado', 'Términos personalizados', 'Liquidez ilimitada'], color: 0x800020 }
+            };
+
+            const card = allCards[cardName];
+
+            if (!card) {
+                return await interaction.reply({ content: '❌ Tarjeta no encontrada.', ephemeral: true });
+            }
+
+            const embed = new EmbedBuilder()
+                .setTitle(`💳 ${cardName}`)
+                .setColor(card.color)
+                .setDescription(`**Nivel:** ${card.tier}`)
+                .addFields(
+                    { name: '💰 Límite de Crédito', value: `$${card.limit.toLocaleString()}`, inline: true },
+                    { name: '📊 Interés Semanal', value: `${card.interest}%`, inline: true },
+                    { name: '⭐ Score Requerido', value: `${card.score}+/100`, inline: true },
+                    { name: '✨ Beneficios', value: card.benefits.map(b => `• ${b}`).join('\n'), inline: false },
+                    { name: '📅 Corte', value: 'Domingos 11:59 PM', inline: true },
+                    { name: '💡 Cómo Solicitar', value: 'Contacta al Staff del banco con tu DNI', inline: false }
+                )
+                .setFooter({ text: 'Banco Nacional RP' })
+                .setTimestamp();
 
             await interaction.reply({ embeds: [embed] });
         }
@@ -1825,7 +1897,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
 
             // Check user balance
             try {
-                const balance = await unbelievaBoatService.getBalance(interaction.guildId, interaction.user.id);
+                const balance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
                 if (balance.bank < totalCost) {
                     return await interaction.reply({
                         content: `❌ Fondos insuficientes. Necesitas $${totalCost.toLocaleString()} pero solo tienes $${balance.bank.toLocaleString()} en el banco.`,
@@ -1834,7 +1906,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 }
 
                 // Deduct money
-                await unbelievaBoatService.removeMoney(interaction.guildId, interaction.user.id, totalCost);
+                await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, totalCost, `Compra ${cantidad} ${symbol}`);
 
                 // Update portfolio
                 const { data: existing } = await supabase
@@ -2186,5 +2258,138 @@ async function subscribeToCancellations() {
         )
         .subscribe();
 }
+
+// ===== MISSING COMMAND HANDLERS =====
+
+client.on('interactionCreate', async interaction => {
+    if (!interaction.isCommand()) return;
+    const { commandName } = interaction;
+
+    if (commandName === 'top-ricos') {
+        await interaction.deferReply();
+
+        try {
+            const { data: citizens } = await supabase
+                .from('citizens')
+                .select('full_name, credit_score, discord_id')
+                .order('credit_score', { ascending: false })
+                .limit(10);
+
+            if (!citizens || citizens.length === 0) {
+                return interaction.editReply('❌ No hay datos disponibles.');
+            }
+
+            const embed = new EmbedBuilder()
+                .setTitle('🏆 Top 10 - Mejores Puntajes Crediticios')
+                .setColor(0xFFD700)
+                .setTimestamp();
+
+            let description = '';
+            citizens.forEach((c, index) => {
+                const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}.`;
+                description += `${medal} **${c.full_name}** - Score: ${c.credit_score || 100}/100\n`;
+            });
+
+            embed.setDescription(description);
+            await interaction.editReply({ embeds: [embed] });
+        } catch (error) {
+            console.error(error);
+            await interaction.editReply('❌ Error obteniendo el ranking.');
+        }
+    }
+
+    else if (commandName === 'top-morosos') {
+        await interaction.deferReply();
+
+        try {
+            const { data: debtors } = await supabase
+                .from('credit_cards')
+                .select('current_balance, card_type, citizen_id, citizens!inner(full_name, discord_id)')
+                .gt('current_balance', 0)
+                .order('current_balance', { ascending: false })
+                .limit(10);
+
+            if (!debtors || debtors.length === 0) {
+                return interaction.editReply('✅ ¡No hay deudores! Todos están al corriente.');
+            }
+
+            const embed = new EmbedBuilder()
+                .setTitle('📉 Top 10 - Mayores Deudas')
+                .setColor(0xFF0000)
+                .setTimestamp();
+
+            let description = '';
+            debtors.forEach((d, index) => {
+                description += `${index + 1}. **${d.citizens.full_name}** - $${d.current_balance.toLocaleString()} (${d.card_type})\n`;
+            });
+
+            embed.setDescription(description);
+            embed.setFooter({ text: 'Recuerda pagar tus tarjetas a tiempo' });
+            await interaction.editReply({ embeds: [embed] });
+        } catch (error) {
+            console.error(error);
+            await interaction.editReply('❌ Error obteniendo el ranking.');
+        }
+    }
+
+    else if (commandName === 'transferir') {
+        const destUser = interaction.options.getUser('destinatario');
+        const monto = interaction.options.getNumber('monto');
+        const razon = interaction.options.getString('razon') || 'Transferencia';
+
+        if (monto <= 0) {
+            return interaction.reply({ content: '❌ El monto debe ser mayor a 0.', ephemeral: true });
+        }
+
+        if (destUser.id === interaction.user.id) {
+            return interaction.reply({ content: '❌ No puedes transferirte dinero a ti mismo.', ephemeral: true });
+        }
+
+        await interaction.deferReply();
+
+        try {
+            // Check sender balance
+            const senderBalance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
+            if (senderBalance.bank < monto) {
+                return interaction.editReply(`❌ Fondos insuficientes. Tienes $${senderBalance.bank.toLocaleString()} en el banco.`);
+            }
+
+            // Perform transfer
+            await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, monto, `Transferencia a ${destUser.tag}: ${razon}`);
+            await billingService.ubService.addMoney(interaction.guildId, destUser.id, monto, `Transferencia de ${interaction.user.tag}: ${razon}`);
+
+            const embed = new EmbedBuilder()
+                .setTitle('💸 Transferencia Exitosa')
+                .setColor(0x00FF00)
+                .addFields(
+                    { name: 'De', value: interaction.user.tag, inline: true },
+                    { name: 'Para', value: destUser.tag, inline: true },
+                    { name: 'Monto', value: `$${monto.toLocaleString()}`, inline: true },
+                    { name: 'Concepto', value: razon, inline: false }
+                )
+                .setTimestamp();
+
+            await interaction.editReply({ embeds: [embed] });
+
+            // Try to notify recipient
+            try {
+                const dmEmbed = new EmbedBuilder()
+                    .setTitle('💰 Has recibido dinero')
+                    .setDescription(`**${interaction.user.tag}** te ha transferido **$${monto.toLocaleString()}**`)
+                    .addFields({ name: 'Concepto', value: razon })
+                    .setColor(0x00FF00)
+                    .setTimestamp();
+
+                await destUser.send({ embeds: [dmEmbed] });
+            } catch (dmError) {
+                console.log('No se pudo notificar al receptor (DMs cerrados)');
+            }
+
+        } catch (error) {
+            console.error(error);
+            await interaction.editReply('❌ Error procesando la transferencia.');
+        }
+    }
+});
 
 client.login(process.env.DISCORD_TOKEN);
