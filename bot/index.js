@@ -1044,18 +1044,14 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 const REQ_ID = `loan-${Date.now()}`;
                 console.log(`[Loan Debug] ${REQ_ID} Starting loan request for amount: ${amount}`);
 
-                // 1. Fetch Citizen
-                console.log(`[Loan Debug] ${REQ_ID} Fetching citizen...`);
-                // Note: removed profile join to avoid crashes if username column missing
-                const { data: citizen, error: citError } = await supabase.from('citizens').select('*').eq('discord_id', interaction.user.id).order('created_at', { ascending: false }).limit(1).maybeSingle();
-
-                if (citError) throw new Error(`Error buscando ciudadano: ${citError.message}`);
-                if (!citizen) return interaction.editReply('❌ No tienes un ciudadano vinculado. Usa `/fichar` primero.');
-
-                // 2. Fetch Card
-                console.log(`[Loan Debug] ${REQ_ID} Fetching card for citizen ${citizen.id}...`);
-                // Valid query without profiles join
-                const { data: userCard, error: cardError } = await supabase.from('credit_cards').select('*').eq('citizen_id', citizen.id).order('created_at', { ascending: false }).limit(1).maybeSingle();
+                // Fetch Card directly with citizen join to avoid lookup issues
+                const { data: userCard, error: cardError } = await supabase
+                    .from('credit_cards')
+                    .select('*, citizens!inner(id, full_name, discord_id)')
+                    .eq('citizens.discord_id', interaction.user.id)
+                    .order('created_at', { ascending: false })
+                    .limit(1)
+                    .maybeSingle();
 
                 if (cardError) throw new Error(`Error buscando tarjeta: ${cardError.message}`);
                 if (!userCard) return interaction.editReply('❌ No tienes una tarjeta activa.');
