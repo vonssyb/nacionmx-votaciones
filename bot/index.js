@@ -805,7 +805,13 @@ client.on('interactionCreate', async interaction => {
             businessCards.forEach(c => {
                 bText += `🏢 **${c.name}**\n`;
                 bText += `└ Límite: **$${c.limit}** | Costo: **${c.cost}** | Interés: **${c.interest}**\n`;
+                bText += `└ ${c.desc}\n`;
             });
+
+            bText += `\n💡 **¿Cómo solicitar?**\n`;
+            bText += `1️⃣ Abre un ticket en <#1450269843600310373>\n`;
+            bText += `2️⃣ Un asesor te ayudará con el proceso\n`;
+            bText += `3️⃣ Usa \`/empresa credito\` para usar tu línea`;
 
             embed.addFields(
                 { name: '🏦 Tarjetas de Débito', value: dText, inline: false },
