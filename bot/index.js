@@ -2628,8 +2628,8 @@ client.on('interactionCreate', async interaction => {
             }
 
             // Perform transfer
-            await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, monto, `Depósito a ${destUser.tag}: ${razon}`);
-            await billingService.ubService.addMoney(interaction.guildId, destUser.id, monto, `Depósito de ${interaction.user.tag}: ${razon}`);
+            await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, monto, `Depósito a ${destUser.tag}: ${razon}`, 'bank');
+            await billingService.ubService.addMoney(interaction.guildId, destUser.id, monto, `Depósito de ${interaction.user.tag}: ${razon}`, 'bank');
 
             const embed = new EmbedBuilder()
                 .setTitle('🏦 Depósito Exitoso')
@@ -2686,8 +2686,8 @@ client.on('interactionCreate', async interaction => {
             }
 
             // 3. Execute Transfer
-            await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, monto, `Transferencia Débito a ${destUser.tag}: ${razon}`);
-            await billingService.ubService.addMoney(interaction.guildId, destUser.id, monto, `Transferencia Débito de ${interaction.user.tag}: ${razon}`);
+            await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, monto, `Transferencia Débito a ${destUser.tag}: ${razon}`, 'bank');
+            await billingService.ubService.addMoney(interaction.guildId, destUser.id, monto, `Transferencia Débito de ${interaction.user.tag}: ${razon}`, 'bank');
 
             const embed = new EmbedBuilder()
                 .setTitle('💳 Transferencia Débito Exitosa')
@@ -2738,7 +2738,7 @@ client.on('interactionCreate', async interaction => {
             }
 
             // 2. Deduct Money Immediately
-            await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, monto, `Giro enviado a ${destUser.tag}: ${razon}`);
+            await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, monto, `Giro enviado a ${destUser.tag}: ${razon}`, 'bank');
 
             // 3. Create Pending Transfer (24h Delay)
             // 24 hours from now
