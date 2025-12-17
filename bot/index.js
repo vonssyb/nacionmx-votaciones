@@ -42,6 +42,38 @@ const DISCORD_TOKEN = process.env.DISCORD_TOKEN ? process.env.DISCORD_TOKEN.trim
 // Initialize Billing Service
 const billingService = new BillingService(client);
 
+// -- GLOBAL STOCK MARKET SYSTEM --
+let globalStocks = [
+    { symbol: 'BTC', name: 'Bitcoin', base: 850000, current: 850000, type: 'Cripto' }, // in MXN approx
+    { symbol: 'ETH', name: 'Ethereum', base: 55000, current: 55000, type: 'Cripto' },
+    { symbol: 'SOL', name: 'Solana', base: 2800, current: 2800, type: 'Cripto' },
+    { symbol: 'TSLA', name: 'Tesla Inc.', base: 4500, current: 4500, type: 'Empresa' },
+    { symbol: 'AMZN', name: 'Amazon', base: 3200, current: 3200, type: 'Empresa' },
+    { symbol: 'PEMEX', name: 'Petróleos Mexicanos', base: 18, current: 18, type: 'Empresa' },
+    { symbol: 'NMX', name: 'Nación MX Corp', base: 500, current: 500, type: 'Empresa' }
+];
+
+function updateStockPrices() {
+    console.log('📉 Actualizando precios de bolsa...');
+    globalStocks = globalStocks.map(stock => {
+        // Fluctuation: +/- 5% random
+        const variance = (Math.random() * 0.10) - 0.05;
+        const newPrice = Math.floor(stock.current * (1 + variance));
+
+        // Safety clamps (don't let it crash to 0 or explode too fast)
+        const minPrice = stock.base * 0.1;
+        const maxPrice = stock.base * 5.0;
+
+        let finalPrice = newPrice;
+        if (finalPrice < minPrice) finalPrice = Math.floor(minPrice);
+        if (finalPrice > maxPrice) finalPrice = Math.floor(maxPrice);
+
+        return { ...stock, current: finalPrice };
+    });
+    console.log('✅ Precios actualizados.');
+}
+
+
 client.once('ready', async () => {
     console.log(`🤖 Bot iniciado como ${client.user.tag}!`);
     console.log(`📡 Conectado a Supabase: ${supabaseUrl}`);
@@ -50,6 +82,11 @@ client.once('ready', async () => {
 
     // Start Auto-Billing Cron
     billingService.startCron();
+
+    // Start Stock Market Loop (Updates every 10 minutes)
+    updateStockPrices(); // Initial update
+    setInterval(updateStockPrices, 10 * 60 * 1000);
+
 
     const rest = new REST({ version: '10' }).setToken(DISCORD_TOKEN);
 
@@ -615,11 +652,11 @@ client.on('interactionCreate', async interaction => {
             .setColor(0xD4AF37) // Gold
             .setDescription('Lista de comandos del Sistema Financiero Nacional.')
             .addFields(
-                { name: '💰 Utilidad', value: '`/credito info`: Datos de la tarjeta.\n`/credito estado`: Saldo y Deuda.\n`/transferir`: Enviar dinero.\n`/notificaciones`: Alertas DM.' },
-                { name: '📊 Rankings', value: '`/top-morosos`: Deudores públicos.\n`/top-ricos`: Mejores Scores.' },
-                { name: '👔 Gestión de Nóminas (Empresas)', value: '1. `/nomina crear [nombre]`: Registra tu empresa/grupo.\n2. `/nomina agregar [grupo] [empleado] [sueldo]`: Añade personal.\n3. `/nomina pagar [grupo]`: Paga a todos con un clic.' },
-                { name: '📈 Inversiones', value: '`/inversion nueva`: Bloquea dinero por 7 días (5% ganancia).\n`/inversion estado`: Ver estatus y **Cobrar**.' },
-                { name: '👮 Staff', value: '`/registrar-tarjeta`, `/fichar vincular`, `/credito admin`' }
+                { name: '🏦 Banco & Efectivo', value: '`/banco depositar`: Deposita efectivo (A Débito o Banco).\n`/transferir`: Envía dinero a otro usuario.\n`/debito saldo`: Consulta tu tarjeta de débito.' },
+                { name: '💳 Crédito', value: '`/credito estado`: Ver deuda y fecha de corte.\n`/credito pedir-prestamo`: Retiro de efectivo (Genera deuda).\n`/credito pagar`: Abono a capital.' },
+                { name: '📈 Inversiones', value: '`/bolsa precios`: Ver mercado (MXN).\n`/bolsa comprar/vender`: Comercio de acciones.\n`/inversion nueva`: Plazo fijo (5% semanal).' },
+                { name: '🏢 Empresas (Dueños)', value: '`/empresa crear`: Registra tu negocio.\n`/empresa cobrar`: Terminal de Cobro (Cobrar a clientes).\n`/empresa nomina`: Gestión de empleados y pagos masivos.\n`/empresa menu`: Panel de control.' },
+                { name: '📊 Extras', value: '`/top-morosos`: Ranking de deudas.\n`/top-ricos`: Ranking de millonarios.\n`/impuestos`: Tu estatus fiscal.' }
             )
             .setFooter({ text: 'Sistema Financiero Nacion MX' });
 
@@ -1227,16 +1264,18 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
 
             await interaction.deferReply({ ephemeral: false });
 
-            // Resolve Profile
-            const { data: profile } = await supabase.from('profiles').select('id, full_name').eq('discord_id', targetUser.id).order('created_at', { ascending: false }).limit(1).maybeSingle();
-            if (!profile) return interaction.editReply('❌ Este usuario no tiene perfil vinculado.');
+            // Resolve Citizen (Credit Cards are linked to CITIZENS, not Profiles directly)
+            // 1. Try to find via Citizens table first
+            const { data: citizen } = await supabase.from('citizens').select('id, full_name, credit_score, discord_id').eq('discord_id', targetUser.id).order('created_at', { ascending: false }).limit(1).maybeSingle();
 
-            const { data: userCard } = await supabase.from('credit_cards').select('*').eq('citizen_id', profile.id).order('created_at', { ascending: false }).limit(1).maybeSingle();
-            if (!userCard) return interaction.editReply('❌ Este usuario no tiene tarjeta.');
+            if (!citizen) return interaction.editReply('❌ Este usuario no tiene un ciudadano vinculado (No tiene registro en el sistema financiero).');
+
+            const { data: userCard } = await supabase.from('credit_cards').select('*').eq('citizen_id', citizen.id).order('created_at', { ascending: false }).limit(1).maybeSingle();
+            if (!userCard) return interaction.editReply('❌ Este usuario no tiene tarjeta activa.');
 
             if (subCmdAdmin === 'info') {
                 const embed = new EmbedBuilder()
-                    .setTitle(`📂 Info Bancaria: ${profile.full_name}`)
+                    .setTitle(`📂 Info Bancaria: ${citizen.full_name}`)
                     .setColor(0x0000FF)
                     .addFields(
                         { name: 'Tarjeta', value: userCard.card_type, inline: true },
@@ -1289,18 +1328,19 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                     status: 'SUCCESS',
                     metadata: { type: 'FORGIVE', by: interaction.user.tag }
                 }]);
-                await interaction.editReply(`✅ Deuda perdonada para **${profile.full_name}**. Deuda actual: $0.`);
+                await interaction.editReply(`✅ Deuda perdonada para **${citizen.full_name}**. Deuda actual: $0.`);
             }
 
             else if (subCmdAdmin === 'congelar') {
                 await supabase.from('credit_cards').update({ status: 'FROZEN' }).eq('id', userCard.id);
-                await interaction.editReply(`❄️ Tarjeta de **${profile.full_name}** ha sido **CONGELADA**.`);
+                await interaction.editReply(`❄️ Tarjeta de **${citizen.full_name}** ha sido **CONGELADA**.`);
             }
 
             else if (subCmdAdmin === 'descongelar') {
                 await supabase.from('credit_cards').update({ status: 'ACTIVE' }).eq('id', userCard.id);
-                await interaction.editReply(`🔥 Tarjeta de **${profile.full_name}** ha sido **DESCONGELADA** y está Activa.`);
+                await interaction.editReply(`🔥 Tarjeta de **${citizen.full_name}** ha sido **DESCONGELADA** y está Activa.`);
             }
+
 
             else if (subCmdAdmin === 'ofrecer-upgrade') {
                 // Robust Citizen Lookup
@@ -1338,7 +1378,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
 
                 // Require good credit score (>70) to offer upgrade
                 if (score < 70) {
-                    return interaction.editReply(`❌ **${profile.full_name}** tiene un Score de ${score}/100. Se requiere mínimo 70 puntos para ofrecer un upgrade.`);
+                    return interaction.editReply(`❌ **${citizen.full_name}** tiene un Score de ${score}/100. Se requiere mínimo 70 puntos para ofrecer un upgrade.`);
                 }
 
                 // Card tier ladder
@@ -1749,36 +1789,19 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
 
     else if (commandName === 'bolsa') {
         const subcommand = interaction.options.getSubcommand();
-
-        const stocks = [
-            { symbol: 'BTC', name: 'Bitcoin', base: 45000, type: 'Cripto' },
-            { symbol: 'ETH', name: 'Ethereum', base: 3000, type: 'Cripto' },
-            { symbol: 'SOL', name: 'Solana', base: 100, type: 'Cripto' },
-            { symbol: 'TSLA', name: 'Tesla Inc.', base: 200, type: 'Empresa' },
-            { symbol: 'AMZN', name: 'Amazon', base: 145, type: 'Empresa' },
-            { symbol: 'PEMEX', name: 'Petróleos Mexicanos', base: 18, type: 'Empresa' },
-            { symbol: 'NMX', name: 'Nación MX Corp', base: 500, type: 'Empresa' }
-        ];
-
         const hour = new Date().getHours();
-        const getPrice = (base) => {
-            const seed = (hour * base) % 100;
-            const variance = (seed - 50) / 100;
-            const cleanVariance = variance * 0.2; // ±10%
-            return Math.floor(base * (1 + cleanVariance));
-        };
 
         if (subcommand === 'precios') {
             const embed = new EmbedBuilder()
                 .setTitle('📈 Bolsa de Valores & Cripto')
                 .setColor(0x0000FF)
-                .setDescription(`Precios actualizados a las ${hour}:00 hrs.`)
+                .setDescription(`Precios en tiempo real (MXN). Actualizados a las ${hour}:00 hrs.`)
                 .setTimestamp();
 
-            stocks.forEach(s => {
-                const price = getPrice(s.base);
-                const trend = price > s.base ? '📈' : '📉';
-                embed.addFields({ name: `${trend} ${s.symbol} - ${s.name}`, value: `$${price.toLocaleString()} USD`, inline: true });
+            globalStocks.forEach(s => {
+                const trend = s.current > s.base ? '📈' : '📉'; // Simple trend logic vs base
+                // For better trend, we'd compare vs prev, but base is fine for now
+                embed.addFields({ name: `${trend} ${s.symbol} - ${s.name}`, value: `$${s.current.toLocaleString()} MXN`, inline: true });
             });
 
             await interaction.reply({ embeds: [embed] });
@@ -1788,17 +1811,17 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             const symbol = interaction.options.getString('symbol').toUpperCase();
             const cantidad = interaction.options.getNumber('cantidad');
 
-            // Validate stock exists
-            const stock = stocks.find(s => s.symbol === symbol);
+            // Validate stock exists in Global
+            const stock = globalStocks.find(s => s.symbol === symbol);
             if (!stock) {
-                return await interaction.reply({ content: `❌ Símbolo inválido. Usa: ${stocks.map(s => s.symbol).join(', ')}`, ephemeral: false });
+                return await interaction.reply({ content: `❌ Símbolo inválido. Usa: ${globalStocks.map(s => s.symbol).join(', ')}`, ephemeral: false });
             }
 
             if (cantidad <= 0) {
                 return await interaction.reply({ content: '❌ La cantidad debe ser mayor a 0.', ephemeral: false });
             }
 
-            const currentPrice = getPrice(stock.base);
+            const currentPrice = stock.current;
             const totalCost = currentPrice * cantidad;
 
             // Check user balance
@@ -1806,7 +1829,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 const balance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
                 if (balance.bank < totalCost) {
                     return await interaction.reply({
-                        content: `❌ Fondos insuficientes. Necesitas $${totalCost.toLocaleString()} pero solo tienes $${balance.bank.toLocaleString()} en el banco.`,
+                        content: `❌ Fondos insuficientes. Necesitas $${totalCost.toLocaleString()} MXN pero solo tienes $${balance.bank.toLocaleString()} MXN en el banco.`,
                         ephemeral: false
                     });
                 }
@@ -1876,10 +1899,10 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             const symbol = interaction.options.getString('symbol').toUpperCase();
             const cantidad = interaction.options.getNumber('cantidad');
 
-            // Validate stock exists
-            const stock = stocks.find(s => s.symbol === symbol);
+            // Validate stock exists in Global
+            const stock = globalStocks.find(s => s.symbol === symbol);
             if (!stock) {
-                return await interaction.reply({ content: `❌ Símbolo inválido. Usa: ${stocks.map(s => s.symbol).join(', ')}`, ephemeral: false });
+                return await interaction.reply({ content: `❌ Símbolo inválido. Usa: ${globalStocks.map(s => s.symbol).join(', ')}`, ephemeral: false });
             }
 
             if (cantidad <= 0) {
@@ -1902,17 +1925,17 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                     });
                 }
 
-                const currentPrice = getPrice(stock.base);
+                const currentPrice = stock.current;
                 const totalRevenue = currentPrice * cantidad;
                 const profit = (currentPrice - portfolio.avg_buy_price) * cantidad;
                 const profitEmoji = profit >= 0 ? '📈' : '📉';
 
-                // Add money
-                await unbelievaBoatService.addMoney(interaction.guildId, interaction.user.id, totalRevenue);
+                // Add money (Use BillingService wrapper if possible, or direct UB service)
+                await billingService.ubService.addMoney(interaction.guildId, interaction.user.id, totalRevenue, `Venta ${cantidad} ${symbol}`);
 
                 // Update portfolio
                 const newShares = portfolio.shares - cantidad;
-                if (newShares === 0) {
+                if (newShares <= 0) {
                     await supabase
                         .from('stock_portfolios')
                         .delete()
@@ -1943,9 +1966,9 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                     .setColor(profit >= 0 ? 0x00FF00 : 0xFF0000)
                     .setDescription(`Has vendido **${cantidad} acciones de ${symbol}**`)
                     .addFields(
-                        { name: 'Precio por Acción', value: `$${currentPrice.toLocaleString()}`, inline: true },
-                        { name: 'Total Recibido', value: `$${totalRevenue.toLocaleString()}`, inline: true },
-                        { name: `${profitEmoji} Ganancia/Pérdida`, value: `$${profit.toLocaleString()}`, inline: true }
+                        { name: 'Precio por Acción', value: `$${currentPrice.toLocaleString()} MXN`, inline: true },
+                        { name: 'Total Recibido', value: `$${totalRevenue.toLocaleString()} MXN`, inline: true },
+                        { name: 'Ganancia/Pérdida', value: `${profitEmoji} $${Math.floor(profit).toLocaleString()} MXN`, inline: true }
                     )
                     .setTimestamp();
 
@@ -2657,7 +2680,8 @@ client.on('interactionCreate', async interaction => {
                                     { name: '🔒 Privacidad', value: isPrivate ? 'Privada' : 'Pública', inline: true },
                                     { name: '📍 Ubicación', value: location, inline: true },
                                     { name: '🚗 Vehículos', value: `${vehicles}`, inline: true },
-                                    { name: '💵 Costo Total', value: `$${totalCost.toLocaleString()}`, inline: false }
+                                    { name: '💵 Costo Total', value: `$${totalCost.toLocaleString()}`, inline: false },
+                                    { name: '📝 Siguientes Pasos (Comandos Útiles)', value: '1. Agrega empleados: `/empresa nomina agregar`\n2. Cobra a clientes: `/empresa cobrar @usuario [monto] [razon]`\n3. Paga sueldos: `/empresa nomina pagar`\n4. Panel de Control: `/empresa menu`', inline: false }
                                 )
                                 .setThumbnail(logo ? logo.url : null)
                                 .setFooter({ text: 'Sistema Empresarial Nación MX' })
