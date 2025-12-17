@@ -698,7 +698,13 @@ client.on('interactionCreate', async interaction => {
                 paymentDetails = '💵 Efectivo';
 
             } else if (paymentMethod === 'debit') {
-                const { data: debitCard } = await billingService.getDebitCard(interaction.user.id);
+                const { data: debitCard } = await supabase
+                    .from('debit_cards')
+                    .select('*')
+                    .eq('discord_user_id', interaction.user.id)
+                    .eq('status', 'active')
+                    .maybeSingle();
+
                 if (!debitCard) {
                     return interaction.followUp({
                         content: '❌ No tienes tarjeta de débito activa.',
@@ -3084,8 +3090,19 @@ client.on('interactionCreate', async interaction => {
 
         try {
             // 1. Check BOTH for Debit Cards
-            const { data: senderCard } = await billingService.getDebitCard(interaction.user.id);
-            const { data: destCard } = await billingService.getDebitCard(destUser.id);
+            const { data: senderCard } = await supabase
+                .from('debit_cards')
+                .select('*')
+                .eq('discord_user_id', interaction.user.id)
+                .eq('status', 'active')
+                .maybeSingle();
+
+            const { data: destCard } = await supabase
+                .from('debit_cards')
+                .select('*')
+                .eq('discord_user_id', destUser.id)
+                .eq('status', 'active')
+                .maybeSingle();
 
             if (!senderCard) return interaction.editReply('❌ **No tienes Tarjeta de Débito**. Usa `/depositar` para transferencias en efectivo/banco genérico.');
             if (!destCard) return interaction.editReply(`❌ **${destUser.username}** no tiene Tarjeta de Débito activa. Usa \`/depositar\`.`);
@@ -3215,7 +3232,12 @@ client.on('interactionCreate', async interaction => {
                 const totalDebt = hasCreditCard ? creditCards.reduce((sum, card) => sum + (card.current_balance || 0), 0) : 0;
 
                 // Check if has debit card
-                const { data: debitCard } = await billingService.getDebitCard(interaction.user.id);
+                const { data: debitCard } = await supabase
+                    .from('debit_cards')
+                    .select('*')
+                    .eq('discord_user_id', interaction.user.id)
+                    .eq('status', 'active')
+                    .maybeSingle();
 
                 // Check if is company owner
                 const { data: companies } = await supabase
@@ -3309,7 +3331,12 @@ client.on('interactionCreate', async interaction => {
                 if (amount <= 0) return interaction.editReply('❌ El monto debe ser mayor a 0.');
 
                 // 1. Check if user has Debit Card
-                const { data: debitCard } = await billingService.getDebitCard(interaction.user.id);
+                const { data: debitCard } = await supabase
+                    .from('debit_cards')
+                    .select('*')
+                    .eq('discord_user_id', interaction.user.id)
+                    .eq('status', 'active')
+                    .maybeSingle();
 
                 // 2. Logic
                 if (debitCard) {
