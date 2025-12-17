@@ -51,17 +51,15 @@ client.once('ready', async () => {
     const commands = [
         {
             name: 'ping',
-            description: 'Comprueba si el bot está vivo',
-            type: 1
+            description: 'Comprueba si el bot está vivo'
         },
-        /*
         {
             name: 'fichar',
-            description: 'Inicia o Termina tu turno (Entrada/Salida)',
+            description: 'Inicia o Termina tu turno - Entrada/Salida',
             options: [
                 {
                     name: 'vincular',
-                    description: 'Vincular ciudadano al sistema (Solo Bancarios)',
+                    description: 'Vincular ciudadano al sistema - Solo Bancarios',
                     type: 1, // SUB_COMMAND
                     options: [
                         { name: 'usuario', description: 'Usuario de Discord a vincular', type: 6, required: true },
@@ -73,12 +71,11 @@ client.once('ready', async () => {
         },
         {
             name: 'ayuda',
-            description: 'Muestra los comandos bancarios disponibles (Cheat Sheet)',
-            type: 1
+            description: 'Muestra los comandos bancarios disponibles - Cheat Sheet'
         },
         {
             name: 'estado',
-            description: 'Cambia el estado del servidor (CMD Staff)',
+            description: 'Cambia el estado del servidor - CMD Staff',
             options: [
                 {
                     name: 'seleccion',
@@ -95,10 +92,10 @@ client.once('ready', async () => {
         },
         {
             name: 'registrar-tarjeta',
-            description: 'Registrar nueva tarjeta (Staff Banco)',
+            description: 'Registrar nueva tarjeta - Staff Banco',
             options: [
                 { name: 'usuario', description: 'Usuario de Discord', type: 6, required: true },
-                { name: 'nombre_titular', description: 'Nombre completo del titular (RP)', type: 3, required: true },
+                { name: 'nombre_titular', description: 'Nombre completo del titular RP', type: 3, required: true },
                 {
                     name: 'tipo',
                     description: 'Nivel de la tarjeta',
@@ -130,7 +127,7 @@ client.once('ready', async () => {
                     options: [
                         {
                             name: 'privado',
-                            description: 'Ocultar respuesta (Visible solo para ti)',
+                            description: 'Ocultar respuesta - Visible solo para ti',
                             type: 5, // BOOLEAN
                             required: false
                         }
@@ -138,7 +135,7 @@ client.once('ready', async () => {
                 },
                 {
                     name: 'pedir-prestamo',
-                    description: 'Retira efectivo de tu tarjeta (Se suma a tu deuda)',
+                    description: 'Retira efectivo de tu tarjeta - Se suma a tu deuda',
                     type: 1, // SUB_COMMAND
                     options: [
                         {
@@ -149,7 +146,7 @@ client.once('ready', async () => {
                         },
                         {
                             name: 'privado',
-                            description: 'Ocultar respuesta (Visible solo para ti)',
+                            description: 'Ocultar respuesta - Visible solo para ti',
                             type: 5, // BOOLEAN
                             required: false
                         }
@@ -168,7 +165,7 @@ client.once('ready', async () => {
                         },
                         {
                             name: 'privado',
-                            description: 'Ocultar respuesta (Visible solo para ti)',
+                            description: 'Ocultar respuesta - Visible solo para ti',
                             type: 5, // BOOLEAN
                             required: false
                         }
@@ -181,21 +178,21 @@ client.once('ready', async () => {
                 },
                 {
                     name: 'info',
-                    description: 'Ver detalles del plástico (Titular, Nivel, Fecha)',
+                    description: 'Ver detalles del plástico - Titular Nivel Fecha',
                     type: 1
                 },
                 {
                     name: 'admin',
-                    description: 'Herramientas Administrativas (Staff)',
+                    description: 'Herramientas Administrativas - Staff',
                     type: 2, // SUB_COMMAND_GROUP
                     options: [
                         {
                             name: 'puntos',
-                            description: 'Modificar Score de Buró (Staff)',
+                            description: 'Modificar Score de Buró - Staff',
                             type: 1,
                             options: [
                                 { name: 'usuario', description: 'Usuario afectado', type: 6, required: true },
-                                { name: 'cantidad', description: 'Puntos a sumar (o restar con -)', type: 4, required: true },
+                                { name: 'cantidad', description: 'Puntos a sumar o restar con signo -', type: 4, required: true },
                                 { name: 'razon', description: 'Motivo del ajuste', type: 3, required: true }
                             ]
                         },
@@ -209,7 +206,7 @@ client.once('ready', async () => {
                         },
                         {
                             name: 'congelar',
-                            description: 'Congelar una tarjeta (No podrá usarse)',
+                            description: 'Congelar una tarjeta - No podrá usarse',
                             type: 1,
                             options: [
                                 { name: 'usuario', description: 'Usuario de Discord', type: 6, required: true }
@@ -233,7 +230,7 @@ client.once('ready', async () => {
                         },
                         {
                             name: 'ofrecer-upgrade',
-                            description: 'Enviar oferta de mejora de tarjeta por DM (Requiere buen Score)',
+                            description: 'Enviar oferta de mejora de tarjeta por DM - Requiere buen Score',
                             type: 1,
                             options: [
                                 { name: 'usuario', description: 'Cliente a evaluar', type: 6, required: true }
@@ -243,7 +240,7 @@ client.once('ready', async () => {
                 },
                 {
                     name: 'debug',
-                    description: 'Diagnóstico de cuenta (Usar si fallan comandos)',
+                    description: 'Diagnóstico de cuenta - Usar si fallan comandos',
                     type: 1
                 }
             ]
@@ -257,11 +254,11 @@ client.once('ready', async () => {
                     description: 'Reportar cancelación de rol de un usuario',
                     type: 1,
                     options: [
-                        { name: 'usuario', description: 'Usuario sancionado (Nombre/ID)', type: 3, required: true },
+                        { name: 'usuario', description: 'Usuario sancionado - Nombre o ID', type: 3, required: true },
                         { name: 'razon', description: 'Motivo de la cancelación', type: 3, required: true },
                         { name: 'ubicacion', description: 'Lugar de los fatti/arresto', type: 3, required: true },
-                        { name: 'prueba1', description: 'Evidencia principal (Imagen)', type: 11, required: true },
-                        { name: 'prueba2', description: 'Evidencia secundaria (Imagen)', type: 11 }
+                        { name: 'prueba1', description: 'Evidencia principal - Imagen', type: 11, required: true },
+                        { name: 'prueba2', description: 'Evidencia secundaria - Imagen', type: 11 }
                     ]
                 }
             ]
@@ -269,7 +266,7 @@ client.once('ready', async () => {
 
         {
             name: 'multa',
-            description: 'Imponer una multa a un ciudadano (Policía)',
+            description: 'Imponer una multa a un ciudadano - Policía',
             options: [
                 { name: 'usuario', description: 'Ciudadano a multar', type: 6, required: true },
                 { name: 'monto', description: 'Monto de la multa', type: 10, required: true },
@@ -278,7 +275,7 @@ client.once('ready', async () => {
         },
         {
             name: 'transferir',
-            description: 'Enviar dinero a otro ciudadano (Sistema SPEI)',
+            description: 'Enviar dinero a otro ciudadano - Sistema SPEI',
             options: [
                 { name: 'destinatario', description: 'Ciudadano que recibirá el dinero', type: 6, required: true },
                 { name: 'monto', description: 'Cantidad a transferir', type: 10, required: true },
@@ -313,7 +310,7 @@ client.once('ready', async () => {
             options: [
                 {
                     name: 'nueva',
-                    description: 'Abrir una nueva inversión (7 días, 5% rendimiento)',
+                    description: 'Abrir una nueva inversión - 7 días con 5% rendimiento',
                     type: 1,
                     options: [
                         { name: 'monto', description: 'Cantidad a bloquear', type: 10, required: true }
@@ -339,7 +336,7 @@ client.once('ready', async () => {
                     name: 'crear',
                     description: 'Crear un nuevo grupo de pago',
                     type: 1,
-                    options: [{ name: 'nombre', description: 'Nombre del grupo (ej. Taller)', type: 3, required: true }]
+                    options: [{ name: 'nombre', description: 'Nombre del grupo como Taller', type: 3, required: true }]
                 },
                 {
                     name: 'agregar',
@@ -361,10 +358,8 @@ client.once('ready', async () => {
         },
         {
             name: 'bolsa',
-            description: 'Ver precios de acciones (Roleplay)',
-            type: 1
+            description: 'Ver precios de acciones - Roleplay'
         }
-        */
     ];
 
     try {
