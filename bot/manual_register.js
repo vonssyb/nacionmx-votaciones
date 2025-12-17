@@ -300,6 +300,9 @@ const commands = [
                     { name: 'nombre', description: 'Nombre de la Empresa', type: 3, required: true },
                     { name: 'tipo_local', description: 'Rubro/Tipo', type: 3, required: true },
                     { name: 'logo', description: 'Logo (Imagen)', type: 11, required: true },
+                    { name: 'costo_tramite', description: 'Costo administrativo del registro', type: 10, required: true },
+                    { name: 'costo_local', description: 'Valor del inmueble (si aplica)', type: 10, required: false },
+                    { name: 'costo_vehiculos', description: 'Valor de la flota (si aplica)', type: 10, required: false },
                     { name: 'vehiculos', description: 'Cantidad de vehiculos iniciales', type: 10, required: false },
                     { name: 'ubicacion', description: 'Ubicacion del local', type: 3, required: false }
                 ]

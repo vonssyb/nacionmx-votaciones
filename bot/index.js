@@ -2465,10 +2465,33 @@ client.on('interactionCreate', async interaction => {
             const type = interaction.options.getString('tipo_local'); // e.g. Taller, Restaurante
             const vehicles = interaction.options.getInteger('vehiculos') || 0;
 
+            // New Cost Fields
+            const tramiteCost = interaction.options.getNumber('costo_tramite');
+            const localCost = interaction.options.getNumber('costo_local') || 0;
+            const vehicleCost = interaction.options.getNumber('costo_vehiculos') || 0;
+
             // Optional fields
             const location = interaction.options.getString('ubicacion') || 'No especificada';
 
             try {
+                // 2.1 Calculate Total
+                const totalCost = tramiteCost + localCost + vehicleCost;
+
+                // 2.2 Charge Owner (UnbelievaBoat)
+                // Check Balance first
+                const balance = await billingService.ubService.getUserBalance(interaction.guildId, ownerUser.id);
+                const userMoney = balance.total || (balance.cash + balance.bank);
+
+                if (userMoney < totalCost) {
+                    return interaction.editReply(`❌ **Fondos Insuficientes**: El dueño <@${ownerUser.id}> tiene $${userMoney.toLocaleString()} pero se requieren **$${totalCost.toLocaleString()}**.`);
+                }
+
+                // Remove Money
+                if (totalCost > 0) {
+                    await billingService.ubService.removeMoney(interaction.guildId, ownerUser.id, totalCost, `Registro Empresa: ${name}`);
+                }
+
+                // 3. Create Company in Database
                 const newCompany = await companyService.createCompany({
                     name: name,
                     logo_url: logo ? logo.url : null,
@@ -2483,12 +2506,13 @@ client.on('interactionCreate', async interaction => {
                 const embed = new EmbedBuilder()
                     .setTitle(`🏢 Nueva Empresa Registrada: ${name}`)
                     .setColor(0x00FF00)
-                    .setDescription(`Empresa dada de alta exitosamente en Nación MX.`)
+                    .setDescription(`Empresa dada de alta exitosamente en Nación MX.\nCobro realizado al dueño por **$${totalCost.toLocaleString()}**.`)
                     .addFields(
-                        { name: 'Dueño', value: `<@${ownerUser.id}>`, inline: true },
-                        { name: 'Rubro', value: type, inline: true },
-                        { name: 'Ubicación', value: location, inline: true },
-                        { name: 'Vehículos Iniciales', value: `${vehicles}`, inline: true }
+                        { name: '👤 Dueño', value: `<@${ownerUser.id}>`, inline: true },
+                        { name: '🏷️ Rubro', value: type, inline: true },
+                        { name: '📍 Ubicación', value: location, inline: true },
+                        { name: '🚗 Vehículos', value: `${vehicles}`, inline: true },
+                        { name: '💵 Desglose de Costos', value: `> Trámite: **$${tramiteCost.toLocaleString()}**\n> Local: **$${localCost.toLocaleString()}**\n> Vehículos: **$${vehicleCost.toLocaleString()}**\n> **TOTAL: $${totalCost.toLocaleString()}**`, inline: false }
                     )
                     .setThumbnail(logo ? logo.url : null)
                     .setFooter({ text: 'Sistema Empresarial Nación MX' })
