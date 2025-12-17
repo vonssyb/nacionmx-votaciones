@@ -2215,7 +2215,7 @@ client.on('interactionCreate', async interaction => {
                     { name: '💵 EFECTIVO', value: `\`\`\`$${cash.toLocaleString()}\`\`\``, inline: true },
                     { name: '💳 DÉBITO', value: `\`\`\`$${debit.toLocaleString()}\`\`\``, inline: true },
                     { name: '💳 CRÉDITO', value: `\`\`\`Disponible: $${creditAvailable.toLocaleString()}\nDeuda: $${creditDebt.toLocaleString()}\`\`\``, inline: true },
-                    { name: '📊 TOTAL LÍQUIDO', value: `### $${totalLiquid.toLocaleString()}`, inline: false }
+                    { name: '📊 TOTAL LÍQUIDO', value: `\`\`\`diff\n+ $${totalLiquid.toLocaleString()}\n\`\`\``, inline: false }
                 )
                 .setFooter({ text: 'Banco Nacional' })
                 .setTimestamp();
