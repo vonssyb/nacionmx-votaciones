@@ -439,6 +439,35 @@ client.once('ready', async () => {
                     type: 1
                 }
             ]
+        },
+        {
+            name: 'balanza',
+            description: 'Ver tu balanza financiera completa'
+        },
+        {
+            name: 'debito',
+            description: 'Gestion de Tarjeta de Debito',
+            options: [
+                { name: 'estado', description: 'Ver balance debito', type: 1 },
+                {
+                    name: 'depositar',
+                    description: 'Depositar efectivo a debito - Tarda 4 horas',
+                    type: 1,
+                    options: [
+                        { name: 'monto', description: 'Cantidad', type: 10, required: true }
+                    ]
+                },
+                {
+                    name: 'transferir',
+                    description: 'Transferir debito a debito - Tarda 5 minutos',
+                    type: 1,
+                    options: [
+                        { name: 'destinatario', description: 'Usuario', type: 6, required: true },
+                        { name: 'monto', description: 'Cantidad', type: 10, required: true }
+                    ]
+                },
+                { name: 'historial', description: 'Ver transacciones', type: 1 }
+            ]
         }
     ];
 
