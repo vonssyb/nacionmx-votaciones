@@ -1314,7 +1314,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
 
             await interaction.editReply({ embeds: [embed] });
         }
-        else if (subCmd === 'info') {
+        else if (subCmd === 'info' && interaction.options.getSubcommandGroup() !== 'admin') {
             await interaction.deferReply({ ephemeral: isPrivate });
 
             const { data: citizen } = await supabase.from('citizens').select('id, full_name, dni').eq('discord_id', interaction.user.id).limit(1).maybeSingle();
