@@ -1648,16 +1648,18 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 }
 
                 // Card tier ladder
-                const tiers = [
-                    'NMX Start',
-                    'NMX Básica',
-                    'NMX Plus',
-                    'NMX Plata',
-                    'NMX Oro',
-                    'NMX Rubí',
-                    'NMX Black',
-                    'NMX Diamante'
-                ];
+                // Card tier ladder & Stats
+                const cardStats = {
+                    'NMX Start': { limit: 15000, interest: 15, cost: 2000 },
+                    'NMX Básica': { limit: 30000, interest: 12, cost: 4000 },
+                    'NMX Plus': { limit: 50000, interest: 10, cost: 6000 },
+                    'NMX Plata': { limit: 100000, interest: 8, cost: 10000 },
+                    'NMX Oro': { limit: 250000, interest: 7, cost: 15000 },
+                    'NMX Rubí': { limit: 500000, interest: 6, cost: 25000 },
+                    'NMX Black': { limit: 1000000, interest: 5, cost: 40000 },
+                    'NMX Diamante': { limit: 2000000, interest: 3, cost: 60000 }
+                };
+                const tiers = Object.keys(cardStats);
 
                 const currentTier = userCard.card_type;
                 const currentIndex = tiers.indexOf(currentTier);
@@ -1667,23 +1669,35 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 }
 
                 const nextTier = tiers[currentIndex + 1];
+                const nextStats = cardStats[nextTier];
+
+                // Button for User to Accept
+                const upgradeRow = new ActionRowBuilder().addComponents(
+                    new ButtonBuilder()
+                        .setCustomId(`btn_upgrade_${targetUser.id}_${nextTier.replace(/ /g, '_')}`)
+                        .setLabel(`Aceptar y Pagar $${nextStats.cost.toLocaleString()}`)
+                        .setStyle(ButtonStyle.Success)
+                        .setEmoji('💳')
+                );
 
                 // Send Offer to Channel Publicly (Ticket)
                 const offerEmbed = new EmbedBuilder()
                     .setTitle('🎁 ¡Oferta Exclusiva de Banco Nacional!')
                     .setColor(0xFFD700)
-                    .setDescription(`Estimado/a <@${targetUser.id}>,\n\nDado tu excelente historial crediticio (Score: **${score}/100**), el Banco Nacional te ofrece una **mejora de tarjeta gratuita**.`)
+                    .setDescription(`Estimado/a <@${targetUser.id}>,\n\nDado tu excelente historial crediticio (Score: **${score}/100**), el Banco Nacional te ofrece una **mejora de tarjeta**.\n\n**Beneficios:**\n✅ Nuevo Límite: $${nextStats.limit.toLocaleString()}\n✅ Tasa Interés: ${nextStats.interest}%`)
                     .addFields(
                         { name: 'Tarjeta Actual', value: currentTier, inline: true },
                         { name: 'Nueva Oferta', value: `✨ **${nextTier}**`, inline: true },
-                        { name: 'Ejecutivo Asignado', value: '<@1451291919320748275>', inline: true }
+                        { name: 'Coste Mejora', value: `$${nextStats.cost.toLocaleString()}`, inline: true },
+                        { name: 'Ejecutivo Asignado', value: '<@1451291919320748275>', inline: false }
                     )
-                    .setFooter({ text: 'Felicidades por mantener un buen historial!' })
+                    .setFooter({ text: 'Pulsa el botón para aceptar la mejora inmediata.' })
                     .setTimestamp();
 
                 await interaction.editReply({
                     content: `🔔 Atención <@${targetUser.id}>`,
-                    embeds: [offerEmbed]
+                    embeds: [offerEmbed],
+                    components: [upgradeRow]
                 });
             }
         }
@@ -2861,9 +2875,84 @@ async function subscribeToCancellations() {
         .subscribe();
 }
 
+// ===== BUTTON HANDLERS =====
+async function handleUpgradeButton(interaction) {
+    await interaction.deferReply({ ephemeral: true });
+
+    const parts = interaction.customId.split('_');
+    const targetUserId = parts[2];
+    const tierName = parts.slice(3).join(' ');
+
+    if (interaction.user.id !== targetUserId) {
+        return interaction.editReply('⛔ Esta oferta no es para ti.');
+    }
+
+    const cardStats = {
+        'NMX Start': { limit: 15000, interest: 15, cost: 2000 },
+        'NMX Básica': { limit: 30000, interest: 12, cost: 4000 },
+        'NMX Plus': { limit: 50000, interest: 10, cost: 6000 },
+        'NMX Plata': { limit: 100000, interest: 8, cost: 10000 },
+        'NMX Oro': { limit: 250000, interest: 7, cost: 15000 },
+        'NMX Rubí': { limit: 500000, interest: 6, cost: 25000 },
+        'NMX Black': { limit: 1000000, interest: 5, cost: 40000 },
+        'NMX Diamante': { limit: 2000000, interest: 3, cost: 60000 }
+    };
+
+    const stats = cardStats[tierName];
+    if (!stats) return interaction.editReply('❌ Error: Tarjeta desconocida.');
+
+    const cost = stats.cost;
+    const balance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
+    const userMoney = balance.total || (balance.cash + balance.bank);
+
+    if (userMoney < cost) {
+        return interaction.editReply(`❌ **Fondos Insuficientes**. Tienes $${userMoney.toLocaleString()} y el upgrade cuesta **$${cost.toLocaleString()}**.`);
+    }
+
+    const { data: currentCard } = await supabase.from('credit_cards')
+        .select('*')
+        .eq('discord_id', interaction.user.id)
+        .eq('status', 'active')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+    if (!currentCard) return interaction.editReply('❌ No tienes una tarjeta activa para mejorar.');
+    if (currentCard.card_type === tierName) return interaction.editReply('ℹ️ Ya tienes esta tarjeta.');
+
+    await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, cost, `Upgrade Tarjeta ${tierName}`, 'bank');
+
+    const { error } = await supabase.from('credit_cards').update({
+        card_type: tierName,
+        card_limit: stats.limit,
+        credit_limit: stats.limit
+    }).eq('id', currentCard.id);
+
+    if (error) {
+        console.error('Upgrade Error:', error);
+        return interaction.editReply('❌ Error actualizando base de datos.');
+    }
+
+    const successEmbed = new EmbedBuilder()
+        .setTitle('🎉 ¡Mejora Exitosa!')
+        .setColor(0x00FF00)
+        .setDescription(`Has mejorado tu tarjeta a **${tierName}**.\n\nNuevo Límite: $${stats.limit.toLocaleString()}\nCosto Pagado: $${cost.toLocaleString()}`)
+        .setTimestamp();
+
+    await interaction.editReply({ embeds: [successEmbed] });
+    await interaction.message.edit({ components: [] });
+}
+
 // ===== MISSING COMMAND HANDLERS =====
 
 client.on('interactionCreate', async interaction => {
+    if (interaction.isButton()) {
+        if (interaction.customId.startsWith('btn_upgrade_')) {
+            await handleUpgradeButton(interaction);
+        }
+        return;
+    }
+
     if (!interaction.isCommand()) return;
     const { commandName } = interaction;
 
