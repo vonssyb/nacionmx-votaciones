@@ -3327,8 +3327,8 @@ client.on('interactionCreate', async interaction => {
         const subcommand = interaction.options.getSubcommand();
 
         if (subcommand === 'depositar') {
-            await interaction.deferReply();
             try {
+                await interaction.deferReply();
                 const amount = interaction.options.getNumber('monto');
                 if (amount <= 0) return interaction.editReply('❌ El monto debe ser mayor a 0.');
 
@@ -3938,6 +3938,15 @@ client.on('interactionCreate', async interaction => {
         }
 
     }
+});
+
+// Global Error Handlers to prevent crash
+process.on('unhandledRejection', error => {
+    console.error('Unhandled promise rejection:', error);
+});
+
+process.on('uncaughtException', error => {
+    console.error('Uncaught exception:', error);
 });
 
 client.login(process.env.DISCORD_TOKEN);
