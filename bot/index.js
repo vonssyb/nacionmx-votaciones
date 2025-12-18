@@ -3333,7 +3333,19 @@ client.on('interactionCreate', async interaction => {
                 const amount = interaction.options.getNumber('monto');
                 if (amount <= 0) return interaction.editReply('❌ El monto debe ser mayor a 0.');
 
-                // 1. Check if user has Debit Card
+                // Get user balance
+                const balance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
+
+                // Try cash first, then bank
+                const availableCash = balance.cash || 0;
+                const availableBank = balance.bank || 0;
+                const total = availableCash + availableBank;
+
+                if (total < amount) {
+                    return interaction.editReply(`❌ **Fondos insuficientes**\n\n💵 Efectivo: $${availableCash.toLocaleString()}\n🏦 Banco: $${availableBank.toLocaleString()}\n📊 Total: $${total.toLocaleString()}\n❌ Necesitas: $${amount.toLocaleString()}`);
+                }
+
+                // Check if user has Debit Card
                 const { data: debitCard } = await supabase
                     .from('debit_cards')
                     .select('*')
@@ -3341,589 +3353,675 @@ client.on('interactionCreate', async interaction => {
                     .eq('status', 'active')
                     .maybeSingle();
 
-                // 2. Logic
                 if (debitCard) {
-                    // HAS DEBIT -> Use existing debit deposit logic (Cash -> Debit)
-                    // Reusing logic via direct UB Service call to keep it clean
-                    const balance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
-                    const cash = balance.total || (balance.cash + balance.bank); // Simplified check, strictly should be cash
+                    // HAS DEBIT CARD → Deposit to debit card balance
 
-                    // We need strictly CASH for deposit
-                    const rawCash = balance.cash;
-                    if (rawCash < amount) return interaction.editReply(`❌ No tienes suficiente efectivo. Tienes: $${rawCash.toLocaleString()}`);
+                    // Try to use cash first, then bank
+                    let sourceWallet = 'cash';
+                    if (availableCash >= amount) {
+                        await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, amount, 'Depósito a tarjeta débito', 'cash');
+                    } else {
+                        // Not enough cash, use bank
+                        sourceWallet = 'bank';
+                        await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, amount, 'Depósito a tarjeta débito', 'bank');
+                    }
 
-                    await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, amount, 'Depósito a Tarjeta Débito (Cash -> Debit)');
-                    await billingService.depositToDebitCard(debitCard.card_number, amount, interaction.user.id);
+                    // Update debit card balance in Supabase
+                    const newBalance = (debitCard.balance || 0) + amount;
+                    await supabase
+                        .from('debit_cards')
+                        .update({ balance: newBalance })
+                        .eq('id', debitCard.id);
+
+                    // Log transaction
+                    await supabase
+                        .from('debit_transactions')
+                        .insert({
+                            debit_card_id: debitCard.id,
+                            discord_user_id: interaction.user.id,
+                            transaction_type: 'deposit',
+                            amount: amount,
+                            balance_after: newBalance
+                        });
 
                     const embed = new EmbedBuilder()
-                        .setTitle('💳 Depósito Exitoso (Vía Débito)')
+                        .setTitle('💳 Depósito a Tarjeta Débito')
                         .setColor(0x00FF00)
-                        .setDescription(`Se han depositado **$${amount.toLocaleString()}** en tu tarjeta de débito NMX.\n> **Método:** Efectivo -> Tarjeta`)
+                        .setDescription(`Se depositaron **$${amount.toLocaleString()}** a tu tarjeta de débito.`)
+                        .addFields(
+                            { name: '🔄 Origen', value: sourceWallet === 'cash' ? '💵 Efectivo' : '🏦 Banco', inline: true },
+                            { name: '💰 Nuevo Balance Débito', value: `$${newBalance.toLocaleString()}`, inline: true }
+                        )
                         .setTimestamp();
 
                     return interaction.editReply({ embeds: [embed] });
 
                 } else {
-                    // NO DEBIT -> Use standard bank deposit (Cash -> Bank)
-                    // UnbelievaBoat handles this natively usually, but we do it via API
-                    try {
-                        const result = await billingService.ubService.depositMoney(interaction.guildId, interaction.user.id, amount);
-                        // Note: depositMoney function might need to be verified in service, usually UB has deposit/withdraw endpoints or we simulate it
-                        // If UB Service doesn't have deposit, we use removeMoney (Cash) + addMoney (Bank)? 
-                        // Check UnbelievaBoatService first. assuming deposit logic works effectively as 'deposit to bank'
-                        // Actually, UB API usually just has 'user balance editing'. 
-                        // Ideally, we move Cash -> Bank. 
-                        // Logic: Remove Cash, Add Bank.
+                    // NO DEBIT CARD → Just move from cash to bank (if they have cash)
 
-                        const balance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
-                        if (balance.cash < amount) return interaction.editReply(`❌ No tienes suficiente efectivo. Tienes: $${balance.cash.toLocaleString()}`);
-
-                        // Atomic-ish Transaction
-                        await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, amount); // Removes from Cash? Default is usually Bank. We need to be specific.
-                        // WAIT: UB removeMoney usually defaults to Bank? Or Cash?
-                        // If we want to simulate Deposit, we assume user invokes command holding Cash.
-                        // Let's assume standard behavior: Remove from Cash, Add to Bank.
-                        // But for now, since UB doesn't expose 'Deposit' via simple API easily without specific endpoint, 
-                        // We will simplfy: User *has* to have a Debit card to be "Banked" in this RP, OR we just tell them they need a card.
-                        // User request said: "uno que sea deposito sin tener ambos tarjeta de debito" -> So they want to deposit to Bank even without card.
-
-                        // Fix: UnbelievaBoatService needs 'deposit' method or we adjust balance manually.
-                        // Since I can't read UB Service right now without breaking flow, I'll use a Safe Assumption:
-                        // 1. Remove Cash
-                        // 2. Add Bank
-                        // However, UB API updates usually handle 'cash' and 'bank' fields. 
-                        // Let's assume 'deposit' implies Bank. 
-
-                        // For now, I will use "bank" as the target for addMoney if possible. 
-                        // I will perform: Remove Cash -> Add Bank.
-
-                        // NOTE: UnbelievaBoatService.js 'removeMoney' defaults to bank if not specified? 
-                        // I will look at UnbelievaBoatService.js briefly first to be safe.
-
-                        // ... Resuming flow ... 
-                        // I'll execute a check first.
-                    } catch (err) {
-                        return interaction.editReply('❌ Error comunicando con el banco.');
+                    if (availableCash < amount) {
+                        return interaction.editReply(`❌ No tienes tarjeta de débito y no tienes suficiente efectivo para depositar al banco.\n\n💵 Efectivo disponible: $${availableCash.toLocaleString()}\n💡 **Solución:** Solicita una tarjeta de débito con un banquero usando \`/registrar-tarjeta\``);
                     }
+
+                    // Move cash → bank
+                    await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, amount, 'Depósito a banco', 'cash');
+                    await billingService.ubService.addMoney(interaction.guildId, interaction.user.id, amount, 'Depósito recibido', 'bank');
+
+                    const embed = new EmbedBuilder()
+                        .setTitle('🏦 Depósito al Banco')
+                        .setColor(0x5865F2)
+                        .setDescription(`Se depositaron **$${amount.toLocaleString()}** de tu efectivo al banco.`)
+                        .addFields(
+                            { name: '💵 Efectivo Restante', value: `$${(availableCash - amount).toLocaleString()}`, inline: true },
+                            { name: '🏦 Nuevo Balance Banco', value: `$${(availableBank + amount).toLocaleString()}`, inline: true }
+                        )
+                        .setFooter({ text: '💡 Abre una tarjeta de débito para más funciones' })
+                        .setTimestamp();
+
+                    return interaction.editReply({ embeds: [embed] });
                 }
 
             } catch (error) {
-                console.error(error);
-                await interaction.editReply('❌ Error procesando el depósito.');
+                console.error('Error en /banco depositar:', error);
+                await interaction.editReply('❌ Error procesando el depósito. Contacta a un administrador.');
             }
         }
-    }
+        await interaction.deferReply();
+        try {
+            const amount = interaction.options.getNumber('monto');
+            if (amount <= 0) return interaction.editReply('❌ El monto debe ser mayor a 0.');
 
-    else if (commandName === 'empresa') {
-        const subcommand = interaction.options.getSubcommand();
+            // 1. Check if user has Debit Card
+            const { data: debitCard } = await supabase
+                .from('debit_cards')
+                .select('*')
+                .eq('discord_user_id', interaction.user.id)
+                .eq('status', 'active')
+                .maybeSingle();
 
-        if (subcommand === 'crear') {
-            await interaction.deferReply({ ephemeral: false });
+            // 2. Logic
+            if (debitCard) {
+                // HAS DEBIT -> Use existing debit deposit logic (Cash -> Debit)
+                // Reusing logic via direct UB Service call to keep it clean
+                const balance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
+                const cash = balance.total || (balance.cash + balance.bank); // Simplified check, strictly should be cash
 
-            // 1. Role Check (Only specific role can create)
-            const AUTHORIZED_ROLE_ID = '1450688555503587459';
-            if (!interaction.member.roles.cache.has(AUTHORIZED_ROLE_ID) && !interaction.member.permissions.has('Administrator')) {
-                return interaction.editReply('⛔ No tienes permisos para registrar empresas.');
-            }
+                // We need strictly CASH for deposit
+                const rawCash = balance.cash;
+                if (rawCash < amount) return interaction.editReply(`❌ No tienes suficiente efectivo. Tienes: $${rawCash.toLocaleString()}`);
 
-            // 2. Get Options
-            const name = interaction.options.getString('nombre');
-            const ownerUser = interaction.options.getUser('dueño');
-            const coOwnerUser = interaction.options.getUser('co_dueño');
-            const isPrivate = interaction.options.getBoolean('es_privada') || false;
-            const logo = interaction.options.getAttachment('logo');
-            const type = interaction.options.getString('tipo_local'); // e.g. Taller, Restaurante
-            const vehicles = interaction.options.getInteger('vehiculos') || 0;
-
-            // New Cost Fields
-            const tramiteCost = interaction.options.getNumber('costo_tramite');
-            const localCost = interaction.options.getNumber('costo_local') || 0;
-            const vehicleCost = interaction.options.getNumber('costo_vehiculos') || 0;
-
-            // Optional fields
-            const location = interaction.options.getString('ubicacion') || 'No especificada';
-
-            try {
-                // 2.1 Calculate Total
-                const totalCost = tramiteCost + localCost + vehicleCost;
-
-                // 2.2 Pre-verification of Funds
-                const balance = await billingService.ubService.getUserBalance(interaction.guildId, ownerUser.id);
-                const userMoney = balance.total || (balance.cash + balance.bank);
-
-                if (userMoney < totalCost) {
-                    return interaction.editReply(`❌ **Fondos Insuficientes**: El dueño <@${ownerUser.id}> tiene $${userMoney.toLocaleString()} pero se requieren **$${totalCost.toLocaleString()}**.`);
-                }
-
-                // 2.3 Send Confirmation Embed
-                const confirmEmbed = new EmbedBuilder()
-                    .setTitle(`🏢 Confirmar Registro: ${name}`)
-                    .setColor(0xFFA500)
-                    .setDescription(`Estás a punto de registrar una nueva empresa y realizar el cobro correspondiente al dueño <@${ownerUser.id}>.`)
-                    .addFields(
-                        { name: '🏷️ Rubro', value: type, inline: true },
-                        { name: '📍 Ubicación', value: location, inline: true },
-                        { name: '🔒 Tipo', value: isPrivate ? 'Privada (+Impuestos)' : 'Pública', inline: true },
-                        { name: '👥 Co-Dueño', value: coOwnerUser ? `<@${coOwnerUser.id}>` : 'N/A', inline: true },
-                        { name: '💵 Total a Cobrar', value: `**$${totalCost.toLocaleString()}**`, inline: false },
-                        { name: '🧾 Desglose', value: `> Trámite: $${tramiteCost.toLocaleString()}\n> Local: $${localCost.toLocaleString()}\n> Vehículos: $${vehicleCost.toLocaleString()}`, inline: false }
-                    )
-                    .setFooter({ text: 'Confirma para procesar el pago y crear la empresa.' });
-
-                const confirmRow = new ActionRowBuilder().addComponents(
-                    new ButtonBuilder().setCustomId('confirm_company').setLabel('✅ Pagar y Crear').setStyle(ButtonStyle.Success),
-                    new ButtonBuilder().setCustomId('cancel_company').setLabel('❌ Cancelar').setStyle(ButtonStyle.Danger)
-                );
-
-                const msg = await interaction.editReply({ embeds: [confirmEmbed], components: [confirmRow] });
-
-                // 3. Collector
-                const filter = i => i.user.id === interaction.user.id;
-                const collector = msg.createMessageComponentCollector({ filter, time: 60000 }); // 1 min timeout
-
-                let hasResponded = false;
-
-                collector.on('collect', async i => {
-                    if (i.customId === 'cancel_company') {
-                        hasResponded = true;
-                        await i.update({ content: '🚫 Operación cancelada.', embeds: [], components: [] });
-                        return collector.stop();
-                    }
-
-                    if (i.customId === 'confirm_company') {
-                        hasResponded = true;
-                        // Avoid double interactions
-                        // collector.stop() called at end
-
-                        await i.deferUpdate();
-                        try {
-                            // ... (logic) ...
-                            // Re-check funds
-                            const currentBal = await billingService.ubService.getUserBalance(interaction.guildId, ownerUser.id);
-                            const currentMoney = currentBal.total || (currentBal.cash + currentBal.bank);
-
-                            if (currentMoney < totalCost) {
-                                return i.followUp({ content: '❌ Fondos insuficientes al momento del cobro.', ephemeral: true });
-                            }
-
-                            // Charge logic ...
-                            if (totalCost > 0) {
-                                await billingService.ubService.removeMoney(interaction.guildId, ownerUser.id, totalCost, `Registro Empresa: ${name}`);
-                            }
-
-                            // Prepare IDs
-                            const ownerIds = [ownerUser.id];
-                            if (coOwnerUser) ownerIds.push(coOwnerUser.id);
-
-                            // Create in DB
-                            await companyService.createCompany({
-                                name: name,
-                                logo_url: logo ? logo.url : null,
-                                industry_type: type,
-                                owner_ids: ownerIds,
-                                vehicle_count: vehicles,
-                                location: location,
-                                balance: 0,
-                                status: 'active',
-                                is_private: isPrivate
-                            });
-
-                            // Final Success Embed
-                            const finalEmbed = new EmbedBuilder()
-                                .setTitle(`🏢 Nueva Empresa Registrada: ${name}`)
-                                .setColor(0x00FF00)
-                                .setDescription(`Empresa dada de alta exitosamente en Nación MX.\nCobro realizado al dueño por **$${totalCost.toLocaleString()}**.`)
-                                .addFields(
-                                    { name: '👤 Dueño', value: `<@${ownerUser.id}>`, inline: true },
-                                    { name: '👥 Co-Dueño', value: coOwnerUser ? `<@${coOwnerUser.id}>` : 'N/A', inline: true },
-                                    { name: '🏷️ Rubro', value: type, inline: true },
-                                    { name: '🔒 Privacidad', value: isPrivate ? 'Privada' : 'Pública', inline: true },
-                                    { name: '📍 Ubicación', value: location, inline: true },
-                                    { name: '🚗 Vehículos', value: `${vehicles}`, inline: true },
-                                    { name: '💵 Costo Total', value: `$${totalCost.toLocaleString()}`, inline: false },
-                                    { name: '📝 Siguientes Pasos (Comandos Útiles)', value: '1. Agrega empleados: `/empresa nomina agregar`\n2. Cobra a clientes: `/empresa cobrar @usuario [monto] [razon]`\n3. Paga sueldos: `/empresa nomina pagar`\n4. Panel de Control: `/empresa menu`', inline: false }
-                                )
-                                .setThumbnail(logo ? logo.url : null)
-                                .setFooter({ text: 'Sistema Empresarial Nación MX' })
-                                .setTimestamp();
-
-                            const menuRow = new ActionRowBuilder().addComponents(
-                                new ButtonBuilder().setCustomId('company_menu').setLabel('📋 Menú Empresa').setStyle(ButtonStyle.Primary),
-                                new ButtonBuilder().setCustomId('company_payroll').setLabel('👥 Nómina').setStyle(ButtonStyle.Secondary)
-                            );
-
-                            await interaction.editReply({ content: null, embeds: [finalEmbed], components: [menuRow] });
-
-                            // Send detailed welcome guide to owner via DM
-                            try {
-                                const welcomeEmbed = new EmbedBuilder()
-                                    .setTitle(`🎉 Bienvenido a ${name}`)
-                                    .setColor(0x5865F2)
-                                    .setDescription('**Tu empresa ha sido registrada exitosamente.** Aquí tienes todo lo que necesitas saber para empezar:')
-                                    .addFields(
-                                        {
-                                            name: '⚠️ URGENTE: Agrega Empleados a Nómina',
-                                            value: '```\n/empresa nomina agregar @usuario [salario] [puesto]\n```\n**Importante:** Los empleados deben estar en nómina para recibir pagos semanales automáticos.',
-                                            inline: false
-                                        },
-                                        {
-                                            name: '💼 Comandos Esenciales',
-                                            value: '```\n/empresa menu - Panel de control completo\n/empresa cobrar @cliente [monto] [concepto] - Cobrar por servicios\n/empresa nomina pagar - Pagar sueldos manualmente\n/empresa info - Ver información de tu empresa\n```',
-                                            inline: false
-                                        },
-                                        {
-                                            name: '💳 Tarjetas Empresariales',
-                                            value: 'Potencia tu empresa con una **Tarjeta Business:**\n• Líneas de crédito desde $50k hasta $1M\n• Intereses bajos (0.7% - 2%)\n• Beneficios fiscales y cashback\n\n**Solicita una ahora** usando el botón abajo.',
-                                            inline: false
-                                        },
-                                        {
-                                            name: '📊 Recordatorios',
-                                            value: '• Impuestos corporativos se cobran semanalmente\n• Empresas privadas pagan 15% vs 10% públicas\n• Mantén empleados activos para mejor rendimiento',
-                                            inline: false
-                                        }
-                                    )
-                                    .setThumbnail(logo ? logo.url : null)
-                                    .setFooter({ text: 'Sistema Empresarial Nación MX • Éxito en tu negocio' })
-                                    .setTimestamp();
-
-                                const actionRow = new ActionRowBuilder().addComponents(
-                                    new ButtonBuilder()
-                                        .setLabel('💳 Solicitar Tarjeta Business')
-                                        .setStyle(ButtonStyle.Link)
-                                        .setURL(`https://discord.com/channels/${interaction.guildId}/1450269843600310373`),
-                                    new ButtonBuilder()
-                                        .setCustomId('company_quick_hire')
-                                        .setLabel('👥 Contratar Empleado')
-                                        .setStyle(ButtonStyle.Success)
-                                );
-
-                                await ownerUser.send({ embeds: [welcomeEmbed], components: [actionRow] });
-                            } catch (dmError) {
-                                console.log('Could not send DM to owner:', dmError.message);
-                            }
-
-
-                        } catch (err) {
-                            console.error(err);
-                            await i.followUp({ content: '❌ Error procesando el registro.', ephemeral: true });
-                        }
-                        collector.stop();
-                    }
-                });
-
-                collector.on('end', collected => {
-                    if (!hasResponded) interaction.editReply({ content: '⚠️ Tiempo de espera agotado. Intenta de nuevo.', components: [] });
-                });
-
-            } catch (error) {
-                console.error(error);
-                await interaction.editReply('❌ Error inicializando el proceso.');
-            }
-        }
-        else if (subcommand === 'menu') {
-            await interaction.deferReply({ flags: 64 });
-            try {
-                const { data: companies } = await supabase
-                    .from('companies')
-                    .select('*')
-                    .contains('owner_ids', [interaction.user.id])
-                    .eq('status', 'active');
-
-                if (!companies || companies.length === 0) {
-                    return interaction.editReply('❌ No tienes una empresa registrada.');
-                }
-
-                const company = companies[0];
+                await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, amount, 'Depósito a Tarjeta Débito (Cash -> Debit)');
+                await billingService.depositToDebitCard(debitCard.card_number, amount, interaction.user.id);
 
                 const embed = new EmbedBuilder()
-                    .setTitle(`🏢 ${company.name} - Panel de Control`)
-                    .setColor(0x5865F2)
-                    .setDescription(`Gestión completa de tu empresa`)
-                    .addFields(
-                        { name: '💰 Saldo', value: `$${(company.balance || 0).toLocaleString()}`, inline: true },
-                        { name: '👥 Empleados', value: `${(company.employees || []).length}`, inline: true },
-                        { name: '🚗 Vehículos', value: `${company.vehicle_count}`, inline: true },
-                        { name: '📍 Ubicación', value: company.location || 'No especificada', inline: true },
-                        { name: '🏷️ Tipo', value: company.industry_type, inline: true },
-                        { name: '🔒 Privacidad', value: company.is_private ? 'Privada' : 'Pública', inline: true }
-                    )
-                    .setThumbnail(company.logo_url)
-                    .setFooter({ text: 'Sistema Empresarial Nación MX' })
+                    .setTitle('💳 Depósito Exitoso (Vía Débito)')
+                    .setColor(0x00FF00)
+                    .setDescription(`Se han depositado **$${amount.toLocaleString()}** en tu tarjeta de débito NMX.\n> **Método:** Efectivo -> Tarjeta`)
                     .setTimestamp();
 
-                const row1 = new ActionRowBuilder().addComponents(
-                    new ButtonBuilder().setCustomId('company_hire').setLabel('👥 Contratar').setStyle(ButtonStyle.Success),
-                    new ButtonBuilder().setCustomId('company_fire').setLabel('🚫 Despedir').setStyle(ButtonStyle.Danger),
-                    new ButtonBuilder().setCustomId('company_payroll').setLabel('💵 Pagar Nómina').setStyle(ButtonStyle.Primary)
-                );
+                return interaction.editReply({ embeds: [embed] });
 
-                const row2 = new ActionRowBuilder().addComponents(
-                    new ButtonBuilder().setCustomId('company_withdraw').setLabel('💸 Retirar Fondos').setStyle(ButtonStyle.Secondary),
-                    new ButtonBuilder().setCustomId('company_stats').setLabel('📊 Estadísticas').setStyle(ButtonStyle.Secondary)
-                );
+            } else {
+                // NO DEBIT -> Use standard bank deposit (Cash -> Bank)
+                // UnbelievaBoat handles this natively usually, but we do it via API
+                try {
+                    const result = await billingService.ubService.depositMoney(interaction.guildId, interaction.user.id, amount);
+                    // Note: depositMoney function might need to be verified in service, usually UB has deposit/withdraw endpoints or we simulate it
+                    // If UB Service doesn't have deposit, we use removeMoney (Cash) + addMoney (Bank)? 
+                    // Check UnbelievaBoatService first. assuming deposit logic works effectively as 'deposit to bank'
+                    // Actually, UB API usually just has 'user balance editing'. 
+                    // Ideally, we move Cash -> Bank. 
+                    // Logic: Remove Cash, Add Bank.
 
-                await interaction.editReply({ embeds: [embed], components: [row1, row2] });
+                    const balance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
+                    if (balance.cash < amount) return interaction.editReply(`❌ No tienes suficiente efectivo. Tienes: $${balance.cash.toLocaleString()}`);
 
-            } catch (error) {
-                console.error(error);
-                await interaction.editReply('❌ Error obteniendo información de la empresa.');
+                    // Atomic-ish Transaction
+                    await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, amount); // Removes from Cash? Default is usually Bank. We need to be specific.
+                    // WAIT: UB removeMoney usually defaults to Bank? Or Cash?
+                    // If we want to simulate Deposit, we assume user invokes command holding Cash.
+                    // Let's assume standard behavior: Remove from Cash, Add to Bank.
+                    // But for now, since UB doesn't expose 'Deposit' via simple API easily without specific endpoint, 
+                    // We will simplfy: User *has* to have a Debit card to be "Banked" in this RP, OR we just tell them they need a card.
+                    // User request said: "uno que sea deposito sin tener ambos tarjeta de debito" -> So they want to deposit to Bank even without card.
+
+                    // Fix: UnbelievaBoatService needs 'deposit' method or we adjust balance manually.
+                    // Since I can't read UB Service right now without breaking flow, I'll use a Safe Assumption:
+                    // 1. Remove Cash
+                    // 2. Add Bank
+                    // However, UB API updates usually handle 'cash' and 'bank' fields. 
+                    // Let's assume 'deposit' implies Bank. 
+
+                    // For now, I will use "bank" as the target for addMoney if possible. 
+                    // I will perform: Remove Cash -> Add Bank.
+
+                    // NOTE: UnbelievaBoatService.js 'removeMoney' defaults to bank if not specified? 
+                    // I will look at UnbelievaBoatService.js briefly first to be safe.
+
+                    // ... Resuming flow ... 
+                    // I'll execute a check first.
+                } catch (err) {
+                    return interaction.editReply('❌ Error comunicando con el banco.');
+                }
             }
+
+        } catch (error) {
+            console.error(error);
+            await interaction.editReply('❌ Error procesando el depósito.');
         }
-        else if (subcommand === 'cobrar') {
-            // 1. Check if user belongs to a company (Owner OR Employee)
-            let { data: companies } = await supabase
+    }
+}
+
+    else if (commandName === 'empresa') {
+    const subcommand = interaction.options.getSubcommand();
+
+    if (subcommand === 'crear') {
+        await interaction.deferReply({ ephemeral: false });
+
+        // 1. Role Check (Only specific role can create)
+        const AUTHORIZED_ROLE_ID = '1450688555503587459';
+        if (!interaction.member.roles.cache.has(AUTHORIZED_ROLE_ID) && !interaction.member.permissions.has('Administrator')) {
+            return interaction.editReply('⛔ No tienes permisos para registrar empresas.');
+        }
+
+        // 2. Get Options
+        const name = interaction.options.getString('nombre');
+        const ownerUser = interaction.options.getUser('dueño');
+        const coOwnerUser = interaction.options.getUser('co_dueño');
+        const isPrivate = interaction.options.getBoolean('es_privada') || false;
+        const logo = interaction.options.getAttachment('logo');
+        const type = interaction.options.getString('tipo_local'); // e.g. Taller, Restaurante
+        const vehicles = interaction.options.getInteger('vehiculos') || 0;
+
+        // New Cost Fields
+        const tramiteCost = interaction.options.getNumber('costo_tramite');
+        const localCost = interaction.options.getNumber('costo_local') || 0;
+        const vehicleCost = interaction.options.getNumber('costo_vehiculos') || 0;
+
+        // Optional fields
+        const location = interaction.options.getString('ubicacion') || 'No especificada';
+
+        try {
+            // 2.1 Calculate Total
+            const totalCost = tramiteCost + localCost + vehicleCost;
+
+            // 2.2 Pre-verification of Funds
+            const balance = await billingService.ubService.getUserBalance(interaction.guildId, ownerUser.id);
+            const userMoney = balance.total || (balance.cash + balance.bank);
+
+            if (userMoney < totalCost) {
+                return interaction.editReply(`❌ **Fondos Insuficientes**: El dueño <@${ownerUser.id}> tiene $${userMoney.toLocaleString()} pero se requieren **$${totalCost.toLocaleString()}**.`);
+            }
+
+            // 2.3 Send Confirmation Embed
+            const confirmEmbed = new EmbedBuilder()
+                .setTitle(`🏢 Confirmar Registro: ${name}`)
+                .setColor(0xFFA500)
+                .setDescription(`Estás a punto de registrar una nueva empresa y realizar el cobro correspondiente al dueño <@${ownerUser.id}>.`)
+                .addFields(
+                    { name: '🏷️ Rubro', value: type, inline: true },
+                    { name: '📍 Ubicación', value: location, inline: true },
+                    { name: '🔒 Tipo', value: isPrivate ? 'Privada (+Impuestos)' : 'Pública', inline: true },
+                    { name: '👥 Co-Dueño', value: coOwnerUser ? `<@${coOwnerUser.id}>` : 'N/A', inline: true },
+                    { name: '💵 Total a Cobrar', value: `**$${totalCost.toLocaleString()}**`, inline: false },
+                    { name: '🧾 Desglose', value: `> Trámite: $${tramiteCost.toLocaleString()}\n> Local: $${localCost.toLocaleString()}\n> Vehículos: $${vehicleCost.toLocaleString()}`, inline: false }
+                )
+                .setFooter({ text: 'Confirma para procesar el pago y crear la empresa.' });
+
+            const confirmRow = new ActionRowBuilder().addComponents(
+                new ButtonBuilder().setCustomId('confirm_company').setLabel('✅ Pagar y Crear').setStyle(ButtonStyle.Success),
+                new ButtonBuilder().setCustomId('cancel_company').setLabel('❌ Cancelar').setStyle(ButtonStyle.Danger)
+            );
+
+            const msg = await interaction.editReply({ embeds: [confirmEmbed], components: [confirmRow] });
+
+            // 3. Collector
+            const filter = i => i.user.id === interaction.user.id;
+            const collector = msg.createMessageComponentCollector({ filter, time: 60000 }); // 1 min timeout
+
+            let hasResponded = false;
+
+            collector.on('collect', async i => {
+                if (i.customId === 'cancel_company') {
+                    hasResponded = true;
+                    await i.update({ content: '🚫 Operación cancelada.', embeds: [], components: [] });
+                    return collector.stop();
+                }
+
+                if (i.customId === 'confirm_company') {
+                    hasResponded = true;
+                    // Avoid double interactions
+                    // collector.stop() called at end
+
+                    await i.deferUpdate();
+                    try {
+                        // ... (logic) ...
+                        // Re-check funds
+                        const currentBal = await billingService.ubService.getUserBalance(interaction.guildId, ownerUser.id);
+                        const currentMoney = currentBal.total || (currentBal.cash + currentBal.bank);
+
+                        if (currentMoney < totalCost) {
+                            return i.followUp({ content: '❌ Fondos insuficientes al momento del cobro.', ephemeral: true });
+                        }
+
+                        // Charge logic ...
+                        if (totalCost > 0) {
+                            await billingService.ubService.removeMoney(interaction.guildId, ownerUser.id, totalCost, `Registro Empresa: ${name}`);
+                        }
+
+                        // Prepare IDs
+                        const ownerIds = [ownerUser.id];
+                        if (coOwnerUser) ownerIds.push(coOwnerUser.id);
+
+                        // Create in DB
+                        await companyService.createCompany({
+                            name: name,
+                            logo_url: logo ? logo.url : null,
+                            industry_type: type,
+                            owner_ids: ownerIds,
+                            vehicle_count: vehicles,
+                            location: location,
+                            balance: 0,
+                            status: 'active',
+                            is_private: isPrivate
+                        });
+
+                        // Final Success Embed
+                        const finalEmbed = new EmbedBuilder()
+                            .setTitle(`🏢 Nueva Empresa Registrada: ${name}`)
+                            .setColor(0x00FF00)
+                            .setDescription(`Empresa dada de alta exitosamente en Nación MX.\nCobro realizado al dueño por **$${totalCost.toLocaleString()}**.`)
+                            .addFields(
+                                { name: '👤 Dueño', value: `<@${ownerUser.id}>`, inline: true },
+                                { name: '👥 Co-Dueño', value: coOwnerUser ? `<@${coOwnerUser.id}>` : 'N/A', inline: true },
+                                { name: '🏷️ Rubro', value: type, inline: true },
+                                { name: '🔒 Privacidad', value: isPrivate ? 'Privada' : 'Pública', inline: true },
+                                { name: '📍 Ubicación', value: location, inline: true },
+                                { name: '🚗 Vehículos', value: `${vehicles}`, inline: true },
+                                { name: '💵 Costo Total', value: `$${totalCost.toLocaleString()}`, inline: false },
+                                { name: '📝 Siguientes Pasos (Comandos Útiles)', value: '1. Agrega empleados: `/empresa nomina agregar`\n2. Cobra a clientes: `/empresa cobrar @usuario [monto] [razon]`\n3. Paga sueldos: `/empresa nomina pagar`\n4. Panel de Control: `/empresa menu`', inline: false }
+                            )
+                            .setThumbnail(logo ? logo.url : null)
+                            .setFooter({ text: 'Sistema Empresarial Nación MX' })
+                            .setTimestamp();
+
+                        const menuRow = new ActionRowBuilder().addComponents(
+                            new ButtonBuilder().setCustomId('company_menu').setLabel('📋 Menú Empresa').setStyle(ButtonStyle.Primary),
+                            new ButtonBuilder().setCustomId('company_payroll').setLabel('👥 Nómina').setStyle(ButtonStyle.Secondary)
+                        );
+
+                        await interaction.editReply({ content: null, embeds: [finalEmbed], components: [menuRow] });
+
+                        // Send detailed welcome guide to owner via DM
+                        try {
+                            const welcomeEmbed = new EmbedBuilder()
+                                .setTitle(`🎉 Bienvenido a ${name}`)
+                                .setColor(0x5865F2)
+                                .setDescription('**Tu empresa ha sido registrada exitosamente.** Aquí tienes todo lo que necesitas saber para empezar:')
+                                .addFields(
+                                    {
+                                        name: '⚠️ URGENTE: Agrega Empleados a Nómina',
+                                        value: '```\n/empresa nomina agregar @usuario [salario] [puesto]\n```\n**Importante:** Los empleados deben estar en nómina para recibir pagos semanales automáticos.',
+                                        inline: false
+                                    },
+                                    {
+                                        name: '💼 Comandos Esenciales',
+                                        value: '```\n/empresa menu - Panel de control completo\n/empresa cobrar @cliente [monto] [concepto] - Cobrar por servicios\n/empresa nomina pagar - Pagar sueldos manualmente\n/empresa info - Ver información de tu empresa\n```',
+                                        inline: false
+                                    },
+                                    {
+                                        name: '💳 Tarjetas Empresariales',
+                                        value: 'Potencia tu empresa con una **Tarjeta Business:**\n• Líneas de crédito desde $50k hasta $1M\n• Intereses bajos (0.7% - 2%)\n• Beneficios fiscales y cashback\n\n**Solicita una ahora** usando el botón abajo.',
+                                        inline: false
+                                    },
+                                    {
+                                        name: '📊 Recordatorios',
+                                        value: '• Impuestos corporativos se cobran semanalmente\n• Empresas privadas pagan 15% vs 10% públicas\n• Mantén empleados activos para mejor rendimiento',
+                                        inline: false
+                                    }
+                                )
+                                .setThumbnail(logo ? logo.url : null)
+                                .setFooter({ text: 'Sistema Empresarial Nación MX • Éxito en tu negocio' })
+                                .setTimestamp();
+
+                            const actionRow = new ActionRowBuilder().addComponents(
+                                new ButtonBuilder()
+                                    .setLabel('💳 Solicitar Tarjeta Business')
+                                    .setStyle(ButtonStyle.Link)
+                                    .setURL(`https://discord.com/channels/${interaction.guildId}/1450269843600310373`),
+                                new ButtonBuilder()
+                                    .setCustomId('company_quick_hire')
+                                    .setLabel('👥 Contratar Empleado')
+                                    .setStyle(ButtonStyle.Success)
+                            );
+
+                            await ownerUser.send({ embeds: [welcomeEmbed], components: [actionRow] });
+                        } catch (dmError) {
+                            console.log('Could not send DM to owner:', dmError.message);
+                        }
+
+
+                    } catch (err) {
+                        console.error(err);
+                        await i.followUp({ content: '❌ Error procesando el registro.', ephemeral: true });
+                    }
+                    collector.stop();
+                }
+            });
+
+            collector.on('end', collected => {
+                if (!hasResponded) interaction.editReply({ content: '⚠️ Tiempo de espera agotado. Intenta de nuevo.', components: [] });
+            });
+
+        } catch (error) {
+            console.error(error);
+            await interaction.editReply('❌ Error inicializando el proceso.');
+        }
+    }
+    else if (subcommand === 'menu') {
+        await interaction.deferReply({ flags: 64 });
+        try {
+            const { data: companies } = await supabase
                 .from('companies')
                 .select('*')
                 .contains('owner_ids', [interaction.user.id])
                 .eq('status', 'active');
 
-            // If not owner, check if employee
             if (!companies || companies.length === 0) {
-                const { data: employeeData } = await supabase
-                    .from('company_employees')
-                    .select('company_id, companies(*)')
-                    .eq('discord_user_id', interaction.user.id)
-                    .eq('status', 'active');
-
-                if (employeeData && employeeData.length > 0) {
-                    companies = [employeeData[0].companies];
-                }
+                return interaction.editReply('❌ No tienes una empresa registrada.');
             }
 
-            if (!companies || companies.length === 0) {
-                return interaction.reply({ content: '⛔ No estás en ninguna empresa (ni dueño ni empleado).', ephemeral: true });
-            }
+            const company = companies[0];
 
-            const myCompany = companies[0]; // Use first company for now
-            const clientUser = interaction.options.getUser('cliente');
-            const amount = interaction.options.getNumber('monto');
-            const reason = interaction.options.getString('razon');
-
-            // 2. Create POS Embed
             const embed = new EmbedBuilder()
-                .setTitle(`💸 Cobro: ${myCompany.name}`)
-                .setDescription(`Hola <@${clientUser.id}>, **${myCompany.name}** te está cobrando por el siguiente concepto:`)
+                .setTitle(`🏢 ${company.name} - Panel de Control`)
+                .setColor(0x5865F2)
+                .setDescription(`Gestión completa de tu empresa`)
                 .addFields(
-                    { name: '🧾 Concepto', value: reason },
-                    { name: '💵 Monto', value: `$${amount.toLocaleString()}` }
+                    { name: '💰 Saldo', value: `$${(company.balance || 0).toLocaleString()}`, inline: true },
+                    { name: '👥 Empleados', value: `${(company.employees || []).length}`, inline: true },
+                    { name: '🚗 Vehículos', value: `${company.vehicle_count}`, inline: true },
+                    { name: '📍 Ubicación', value: company.location || 'No especificada', inline: true },
+                    { name: '🏷️ Tipo', value: company.industry_type, inline: true },
+                    { name: '🔒 Privacidad', value: company.is_private ? 'Privada' : 'Pública', inline: true }
                 )
-                .setColor(0xFFA500)
-                .setFooter({ text: 'Selecciona tu método de pago' });
+                .setThumbnail(company.logo_url)
+                .setFooter({ text: 'Sistema Empresarial Nación MX' })
+                .setTimestamp();
 
-            const row = new ActionRowBuilder().addComponents(
-                new ButtonBuilder().setCustomId(`pay_cash_${amount}_${myCompany.id}`).setLabel('💵 Efectivo').setStyle(ButtonStyle.Success),
-                new ButtonBuilder().setCustomId(`pay_debit_${amount}_${myCompany.id}`).setLabel('💳 Débito').setStyle(ButtonStyle.Primary),
-                new ButtonBuilder().setCustomId(`pay_credit_${amount}_${myCompany.id}`).setLabel('💳 Crédito').setStyle(ButtonStyle.Secondary),
-                new ButtonBuilder().setCustomId('pay_cancel').setLabel('❌ Rechazar').setStyle(ButtonStyle.Danger)
+            const row1 = new ActionRowBuilder().addComponents(
+                new ButtonBuilder().setCustomId('company_hire').setLabel('👥 Contratar').setStyle(ButtonStyle.Success),
+                new ButtonBuilder().setCustomId('company_fire').setLabel('🚫 Despedir').setStyle(ButtonStyle.Danger),
+                new ButtonBuilder().setCustomId('company_payroll').setLabel('💵 Pagar Nómina').setStyle(ButtonStyle.Primary)
             );
 
-            await interaction.reply({
-                content: `<@${clientUser.id}>`,
-                embeds: [embed],
-                components: [row]
-            });
-        }
-        else if (subcommand === 'lista') {
-            await interaction.deferReply({ flags: 64 });
-            try {
-                const { data: companies, error } = await supabase
-                    .from('companies')
-                    .select('*')
-                    .eq('status', 'active');
+            const row2 = new ActionRowBuilder().addComponents(
+                new ButtonBuilder().setCustomId('company_withdraw').setLabel('💸 Retirar Fondos').setStyle(ButtonStyle.Secondary),
+                new ButtonBuilder().setCustomId('company_stats').setLabel('📊 Estadísticas').setStyle(ButtonStyle.Secondary)
+            );
 
-                if (error) throw error;
+            await interaction.editReply({ embeds: [embed], components: [row1, row2] });
 
-                if (!companies || companies.length === 0) {
-                    return interaction.editReply('📭 No hay empresas registradas aún.');
-                }
-
-                let listText = '';
-                companies.forEach(c => {
-                    listText += `🏢 **${c.name}** (${c.industry_type}) - Dueño: <@${c.owner_ids[0]}>\n`;
-                });
-
-                const embed = new EmbedBuilder()
-                    .setTitle('🏢 Directorio de Empresas')
-                    .setColor(0x00FF00)
-                    .setDescription(listText)
-                    .setTimestamp();
-
-                await interaction.editReply({ embeds: [embed] });
-
-            } catch (error) {
-                console.error(error);
-                await interaction.editReply('❌ Error obteniendo la lista.');
-            }
-        }
-        else if (subcommand === 'info') {
-            await interaction.deferReply({ flags: 64 });
-            try {
-                // Info regarding MY company or specific company? 
-                // Usually "info" without args implies "My Company Info" or "General Info"?
-                // Let's assume My Company for now as it's most useful.
-                // Or if arguments provided? The command definition for "info" might have an option.
-                // Re-checking manual_register.js would be ideal but let's assume "My Company" first or list all owned.
-
-                const { data: companies } = await supabase
-                    .from('companies')
-                    .select('*')
-                    .contains('owner_ids', [interaction.user.id])
-                    .eq('status', 'active');
-
-                if (!companies || companies.length === 0) {
-                    return interaction.editReply('❌ No tienes ninguna empresa registrada.');
-                }
-
-                const c = companies[0]; // Show first
-                const embed = new EmbedBuilder()
-                    .setTitle(`ℹ️ Información: ${c.name}`)
-                    .setColor(0x0099FF)
-                    .addFields(
-                        { name: 'Dueño', value: `<@${c.owner_ids[0]}>`, inline: true },
-                        { name: 'Saldo', value: `$${(c.balance || 0).toLocaleString()}`, inline: true },
-                        { name: 'Empleados', value: `${(c.employees || []).length}`, inline: true },
-                        { name: 'Vehículos', value: `${c.vehicle_count}`, inline: true },
-                        { name: 'Ubicación', value: c.location || 'N/A', inline: true }
-                    )
-                    .setThumbnail(c.logo_url);
-
-                await interaction.editReply({ embeds: [embed] });
-
-            } catch (error) {
-                console.error(error);
-                await interaction.editReply('❌ Error obteniendo información.');
-            }
-        }
-
-        else if (subcommand === 'credito') {
-            await interaction.deferReply({ flags: 64 });
-
-            const monto = interaction.options.getNumber('monto');
-            const razon = interaction.options.getString('razon');
-
-            if (monto <= 0) {
-                return interaction.editReply('❌ El monto debe ser mayor a 0.');
-            }
-
-            try {
-                // 1. Get user's companies
-                const { data: companies } = await supabase
-                    .from('companies')
-                    .select('*')
-                    .contains('owner_ids', [interaction.user.id])
-                    .eq('status', 'active');
-
-                if (!companies || companies.length === 0) {
-                    return interaction.editReply('❌ Necesitas tener una empresa para solicitar crédito business.');
-                }
-
-                // 2. Get business credit cards
-                const { data: cards } = await supabase
-                    .from('credit_cards')
-                    .select('*, companies!inner(name)')
-                    .eq('discord_id', interaction.user.id)
-                    .in('card_type', ['business_start', 'business_gold', 'business_platinum', 'business_elite', 'nmx_corporate'])
-                    .eq('status', 'active');
-
-                if (!cards || cards.length === 0) {
-                    return interaction.editReply('❌ No tienes tarjetas business activas.\n\n**¿Cómo solicitar una?**\n1. Abre un ticket en <#1450269843600310373>\n2. Un asesor te ayudará con el proceso\n3. Recibirás tu tarjeta vinculada a tu empresa');
-                }
-
-                // 3. If multiple cards, let user choose
-                if (cards.length > 1) {
-                    const selectMenu = new StringSelectMenuBuilder()
-                        .setCustomId(`credit_select_${monto}_${razon}`)
-                        .setPlaceholder('Selecciona tarjeta business')
-                        .addOptions(
-                            cards.map(card => {
-                                const available = card.card_limit - (card.current_balance || 0);
-                                const companyName = card.companies?.name || 'Sin empresa';
-                                return {
-                                    label: `${card.card_name} - ${companyName}`,
-                                    description: `Disponible: $${available.toLocaleString()} de $${card.card_limit.toLocaleString()}`,
-                                    value: card.id,
-                                    emoji: '💳'
-                                };
-                            })
-                        );
-
-                    const row = new ActionRowBuilder().addComponents(selectMenu);
-
-                    return interaction.editReply({
-                        content: `💳 Tienes **${cards.length}** tarjetas business. Selecciona cuál usar:`,
-                        components: [row]
-                    });
-                }
-
-                // 4. Only one card, proceed
-                const card = cards[0];
-                const available = card.card_limit - (card.current_balance || 0);
-
-                if (monto > available) {
-                    return interaction.editReply(`❌ **Crédito insuficiente**\n\n💳 Tarjeta: **${card.card_name}**\n📊 Disponible: **$${available.toLocaleString()}**\n❌ Solicitado: **$${monto.toLocaleString()}**\n\nContacta a un asesor para aumentar tu límite.`);
-                }
-
-                // 5. Update card balance
-                await supabase
-                    .from('credit_cards')
-                    .update({
-                        current_balance: (card.current_balance || 0) + monto,
-                        last_transaction_at: new Date().toISOString()
-                    })
-                    .eq('id', card.id);
-
-                // 6. Add to company balance
-                const companyId = card.company_id;
-                const { data: company } = await supabase
-                    .from('companies')
-                    .select('balance')
-                    .eq('id', companyId)
-                    .single();
-
-                await supabase
-                    .from('companies')
-                    .update({ balance: (company.balance || 0) + monto })
-                    .eq('id', companyId);
-
-                // 7. Log transaction
-                await supabase
-                    .from('credit_transactions')
-                    .insert({
-                        card_id: card.id,
-                        discord_user_id: interaction.user.id,
-                        transaction_type: 'disbursement',
-                        amount: monto,
-                        description: razon,
-                        company_id: companyId
-                    });
-
-                const newBalance = (card.current_balance || 0) + monto;
-                const newAvailable = card.card_limit - newBalance;
-
-                const embed = new EmbedBuilder()
-                    .setTitle('✅ Crédito Business Aprobado')
-                    .setColor(0x00FF00)
-                    .setDescription(`Se depositaron **$${monto.toLocaleString()}** al balance de tu empresa.`)
-                    .addFields(
-                        { name: '💳 Tarjeta', value: card.card_name, inline: true },
-                        { name: '🏢 Empresa', value: card.companies?.name || 'N/A', inline: true },
-                        { name: '📝 Concepto', value: razon, inline: false },
-                        { name: '💰 Monto Solicitado', value: `$${monto.toLocaleString()}`, inline: true },
-                        { name: '📊 Nueva Deuda', value: `$${newBalance.toLocaleString()}`, inline: true },
-                        { name: '💵 Crédito Disponible', value: `$${newAvailable.toLocaleString()}`, inline: true },
-                        { name: '⚠️ Recordatorio', value: `Interés semanal: **${(card.interest_rate * 100).toFixed(2)}%**\nPaga tu deuda con \`/credito pagar\``, inline: false }
-                    )
-                    .setFooter({ text: 'Usa responsablemente tu línea de crédito' })
-                    .setTimestamp();
-
-                await interaction.editReply({ embeds: [embed] });
-
-            } catch (error) {
-                console.error(error);
-                await interaction.editReply('❌ Error procesando solicitud de crédito.');
-            }
+        } catch (error) {
+            console.error(error);
+            await interaction.editReply('❌ Error obteniendo información de la empresa.');
         }
     }
+    else if (subcommand === 'cobrar') {
+        // 1. Check if user belongs to a company (Owner OR Employee)
+        let { data: companies } = await supabase
+            .from('companies')
+            .select('*')
+            .contains('owner_ids', [interaction.user.id])
+            .eq('status', 'active');
+
+        // If not owner, check if employee
+        if (!companies || companies.length === 0) {
+            const { data: employeeData } = await supabase
+                .from('company_employees')
+                .select('company_id, companies(*)')
+                .eq('discord_user_id', interaction.user.id)
+                .eq('status', 'active');
+
+            if (employeeData && employeeData.length > 0) {
+                companies = [employeeData[0].companies];
+            }
+        }
+
+        if (!companies || companies.length === 0) {
+            return interaction.reply({ content: '⛔ No estás en ninguna empresa (ni dueño ni empleado).', ephemeral: true });
+        }
+
+        const myCompany = companies[0]; // Use first company for now
+        const clientUser = interaction.options.getUser('cliente');
+        const amount = interaction.options.getNumber('monto');
+        const reason = interaction.options.getString('razon');
+
+        // 2. Create POS Embed
+        const embed = new EmbedBuilder()
+            .setTitle(`💸 Cobro: ${myCompany.name}`)
+            .setDescription(`Hola <@${clientUser.id}>, **${myCompany.name}** te está cobrando por el siguiente concepto:`)
+            .addFields(
+                { name: '🧾 Concepto', value: reason },
+                { name: '💵 Monto', value: `$${amount.toLocaleString()}` }
+            )
+            .setColor(0xFFA500)
+            .setFooter({ text: 'Selecciona tu método de pago' });
+
+        const row = new ActionRowBuilder().addComponents(
+            new ButtonBuilder().setCustomId(`pay_cash_${amount}_${myCompany.id}`).setLabel('💵 Efectivo').setStyle(ButtonStyle.Success),
+            new ButtonBuilder().setCustomId(`pay_debit_${amount}_${myCompany.id}`).setLabel('💳 Débito').setStyle(ButtonStyle.Primary),
+            new ButtonBuilder().setCustomId(`pay_credit_${amount}_${myCompany.id}`).setLabel('💳 Crédito').setStyle(ButtonStyle.Secondary),
+            new ButtonBuilder().setCustomId('pay_cancel').setLabel('❌ Rechazar').setStyle(ButtonStyle.Danger)
+        );
+
+        await interaction.reply({
+            content: `<@${clientUser.id}>`,
+            embeds: [embed],
+            components: [row]
+        });
+    }
+    else if (subcommand === 'lista') {
+        await interaction.deferReply({ flags: 64 });
+        try {
+            const { data: companies, error } = await supabase
+                .from('companies')
+                .select('*')
+                .eq('status', 'active');
+
+            if (error) throw error;
+
+            if (!companies || companies.length === 0) {
+                return interaction.editReply('📭 No hay empresas registradas aún.');
+            }
+
+            let listText = '';
+            companies.forEach(c => {
+                listText += `🏢 **${c.name}** (${c.industry_type}) - Dueño: <@${c.owner_ids[0]}>\n`;
+            });
+
+            const embed = new EmbedBuilder()
+                .setTitle('🏢 Directorio de Empresas')
+                .setColor(0x00FF00)
+                .setDescription(listText)
+                .setTimestamp();
+
+            await interaction.editReply({ embeds: [embed] });
+
+        } catch (error) {
+            console.error(error);
+            await interaction.editReply('❌ Error obteniendo la lista.');
+        }
+    }
+    else if (subcommand === 'info') {
+        await interaction.deferReply({ flags: 64 });
+        try {
+            // Info regarding MY company or specific company? 
+            // Usually "info" without args implies "My Company Info" or "General Info"?
+            // Let's assume My Company for now as it's most useful.
+            // Or if arguments provided? The command definition for "info" might have an option.
+            // Re-checking manual_register.js would be ideal but let's assume "My Company" first or list all owned.
+
+            const { data: companies } = await supabase
+                .from('companies')
+                .select('*')
+                .contains('owner_ids', [interaction.user.id])
+                .eq('status', 'active');
+
+            if (!companies || companies.length === 0) {
+                return interaction.editReply('❌ No tienes ninguna empresa registrada.');
+            }
+
+            const c = companies[0]; // Show first
+            const embed = new EmbedBuilder()
+                .setTitle(`ℹ️ Información: ${c.name}`)
+                .setColor(0x0099FF)
+                .addFields(
+                    { name: 'Dueño', value: `<@${c.owner_ids[0]}>`, inline: true },
+                    { name: 'Saldo', value: `$${(c.balance || 0).toLocaleString()}`, inline: true },
+                    { name: 'Empleados', value: `${(c.employees || []).length}`, inline: true },
+                    { name: 'Vehículos', value: `${c.vehicle_count}`, inline: true },
+                    { name: 'Ubicación', value: c.location || 'N/A', inline: true }
+                )
+                .setThumbnail(c.logo_url);
+
+            await interaction.editReply({ embeds: [embed] });
+
+        } catch (error) {
+            console.error(error);
+            await interaction.editReply('❌ Error obteniendo información.');
+        }
+    }
+
+    else if (subcommand === 'credito') {
+        await interaction.deferReply({ flags: 64 });
+
+        const monto = interaction.options.getNumber('monto');
+        const razon = interaction.options.getString('razon');
+
+        if (monto <= 0) {
+            return interaction.editReply('❌ El monto debe ser mayor a 0.');
+        }
+
+        try {
+            // 1. Get user's companies
+            const { data: companies } = await supabase
+                .from('companies')
+                .select('*')
+                .contains('owner_ids', [interaction.user.id])
+                .eq('status', 'active');
+
+            if (!companies || companies.length === 0) {
+                return interaction.editReply('❌ Necesitas tener una empresa para solicitar crédito business.');
+            }
+
+            // 2. Get business credit cards
+            const { data: cards } = await supabase
+                .from('credit_cards')
+                .select('*, companies!inner(name)')
+                .eq('discord_id', interaction.user.id)
+                .in('card_type', ['business_start', 'business_gold', 'business_platinum', 'business_elite', 'nmx_corporate'])
+                .eq('status', 'active');
+
+            if (!cards || cards.length === 0) {
+                return interaction.editReply('❌ No tienes tarjetas business activas.\n\n**¿Cómo solicitar una?**\n1. Abre un ticket en <#1450269843600310373>\n2. Un asesor te ayudará con el proceso\n3. Recibirás tu tarjeta vinculada a tu empresa');
+            }
+
+            // 3. If multiple cards, let user choose
+            if (cards.length > 1) {
+                const selectMenu = new StringSelectMenuBuilder()
+                    .setCustomId(`credit_select_${monto}_${razon}`)
+                    .setPlaceholder('Selecciona tarjeta business')
+                    .addOptions(
+                        cards.map(card => {
+                            const available = card.card_limit - (card.current_balance || 0);
+                            const companyName = card.companies?.name || 'Sin empresa';
+                            return {
+                                label: `${card.card_name} - ${companyName}`,
+                                description: `Disponible: $${available.toLocaleString()} de $${card.card_limit.toLocaleString()}`,
+                                value: card.id,
+                                emoji: '💳'
+                            };
+                        })
+                    );
+
+                const row = new ActionRowBuilder().addComponents(selectMenu);
+
+                return interaction.editReply({
+                    content: `💳 Tienes **${cards.length}** tarjetas business. Selecciona cuál usar:`,
+                    components: [row]
+                });
+            }
+
+            // 4. Only one card, proceed
+            const card = cards[0];
+            const available = card.card_limit - (card.current_balance || 0);
+
+            if (monto > available) {
+                return interaction.editReply(`❌ **Crédito insuficiente**\n\n💳 Tarjeta: **${card.card_name}**\n📊 Disponible: **$${available.toLocaleString()}**\n❌ Solicitado: **$${monto.toLocaleString()}**\n\nContacta a un asesor para aumentar tu límite.`);
+            }
+
+            // 5. Update card balance
+            await supabase
+                .from('credit_cards')
+                .update({
+                    current_balance: (card.current_balance || 0) + monto,
+                    last_transaction_at: new Date().toISOString()
+                })
+                .eq('id', card.id);
+
+            // 6. Add to company balance
+            const companyId = card.company_id;
+            const { data: company } = await supabase
+                .from('companies')
+                .select('balance')
+                .eq('id', companyId)
+                .single();
+
+            await supabase
+                .from('companies')
+                .update({ balance: (company.balance || 0) + monto })
+                .eq('id', companyId);
+
+            // 7. Log transaction
+            await supabase
+                .from('credit_transactions')
+                .insert({
+                    card_id: card.id,
+                    discord_user_id: interaction.user.id,
+                    transaction_type: 'disbursement',
+                    amount: monto,
+                    description: razon,
+                    company_id: companyId
+                });
+
+            const newBalance = (card.current_balance || 0) + monto;
+            const newAvailable = card.card_limit - newBalance;
+
+            const embed = new EmbedBuilder()
+                .setTitle('✅ Crédito Business Aprobado')
+                .setColor(0x00FF00)
+                .setDescription(`Se depositaron **$${monto.toLocaleString()}** al balance de tu empresa.`)
+                .addFields(
+                    { name: '💳 Tarjeta', value: card.card_name, inline: true },
+                    { name: '🏢 Empresa', value: card.companies?.name || 'N/A', inline: true },
+                    { name: '📝 Concepto', value: razon, inline: false },
+                    { name: '💰 Monto Solicitado', value: `$${monto.toLocaleString()}`, inline: true },
+                    { name: '📊 Nueva Deuda', value: `$${newBalance.toLocaleString()}`, inline: true },
+                    { name: '💵 Crédito Disponible', value: `$${newAvailable.toLocaleString()}`, inline: true },
+                    { name: '⚠️ Recordatorio', value: `Interés semanal: **${(card.interest_rate * 100).toFixed(2)}%**\nPaga tu deuda con \`/credito pagar\``, inline: false }
+                )
+                .setFooter({ text: 'Usa responsablemente tu línea de crédito' })
+                .setTimestamp();
+
+            await interaction.editReply({ embeds: [embed] });
+
+        } catch (error) {
+            console.error(error);
+            await interaction.editReply('❌ Error procesando solicitud de crédito.');
+        }
+    }
+}
 
 });
 
