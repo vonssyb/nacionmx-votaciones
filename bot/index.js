@@ -1200,24 +1200,39 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                     collector.stop();
                 }
                 else if (i.customId === 'btn_accept') {
+                    const payRow = new ActionRowBuilder().addComponents(
+                        new ButtonBuilder().setCustomId('pay_cash').setLabel('💵 Efectivo').setStyle(ButtonStyle.Success),
+                        new ButtonBuilder().setCustomId('pay_bank').setLabel('🏦 Banco (UB)').setStyle(ButtonStyle.Primary),
+                        new ButtonBuilder().setCustomId('pay_debit').setLabel('💳 Débito (NMX)').setStyle(ButtonStyle.Secondary)
+                    );
+                    await i.update({ content: '💳 **Selecciona método de pago para la apertura:**', embeds: [], components: [payRow] });
+                }
+                else if (['pay_cash', 'pay_bank', 'pay_debit'].includes(i.customId)) {
                     await i.deferUpdate();
                     try {
-                        // Check Funds
-                        const balance = await billingService.ubService.getUserBalance(interaction.guildId, targetUser.id);
-                        const userMoney = balance.total || (balance.cash + balance.bank);
-
-                        if (userMoney < stats.cost) {
-                            return i.followUp({ content: `❌ **Fondos Insuficientes**. Tienes: $${userMoney.toLocaleString()}. Requiere: $${stats.cost.toLocaleString()}.`, ephemeral: false });
-                        }
-
-                        // Charge (Skip if cost is 0)
+                        // 1. Check Funds & Charge
                         if (stats.cost > 0) {
-                            await billingService.ubService.removeMoney(interaction.guildId, targetUser.id, stats.cost, `Apertura ${cardType}`);
+                            if (i.customId === 'pay_cash') {
+                                const bal = await billingService.ubService.getUserBalance(interaction.guildId, targetUser.id);
+                                if ((bal.cash || 0) < stats.cost) return i.followUp({ content: `❌ No tienes suficiente efectivo. Tienes: $${(bal.cash || 0).toLocaleString()}`, ephemeral: true });
+                                await billingService.ubService.removeMoney(interaction.guildId, targetUser.id, stats.cost, `Apertura ${cardType}`, 'cash');
+                            }
+                            else if (i.customId === 'pay_bank') {
+                                const bal = await billingService.ubService.getUserBalance(interaction.guildId, targetUser.id);
+                                if ((bal.bank || 0) < stats.cost) return i.followUp({ content: `❌ No tienes suficiente en Banco UB. Tienes: $${(bal.bank || 0).toLocaleString()}`, ephemeral: true });
+                                await billingService.ubService.removeMoney(interaction.guildId, targetUser.id, stats.cost, `Apertura ${cardType}`, 'bank');
+                            }
+                            else if (i.customId === 'pay_debit') {
+                                const { data: debitCard } = await supabase.from('debit_cards').select('*').eq('discord_user_id', targetUser.id).eq('status', 'active').maybeSingle();
+                                if (!debitCard || (debitCard.balance || 0) < stats.cost) return i.followUp({ content: `❌ No tienes tarjeta débito activa o saldo suficiente en ella.`, ephemeral: true });
+
+                                await supabase.from('debit_cards').update({ balance: debitCard.balance - stats.cost }).eq('id', debitCard.id);
+                                await supabase.from('debit_transactions').insert({ debit_card_id: debitCard.id, discord_user_id: targetUser.id, transaction_type: 'purchase', amount: stats.cost, balance_after: debitCard.balance - stats.cost, description: `Apertura ${cardType}` });
+                            }
                         }
 
                         // *** DEBIT CARD LOGIC ***
                         if (cardType.includes('Débito')) {
-                            // Check if already has logic? No, just create.
                             const cardNumber = '4279' + Math.floor(Math.random() * 1000000000000).toString().padStart(12, '0');
                             const { error: insertError } = await supabase.from('debit_cards').insert([{
                                 discord_user_id: targetUser.id,
@@ -1250,7 +1265,6 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
 
                             if (insertError) throw new Error(insertError.message);
 
-                            // UPDATE: Include 'Registrado por' in final success message
                             await message.edit({
                                 content: `✅ **Tarjeta Activada** para **${holderName}**. Cobro de $${stats.cost.toLocaleString()} realizado.\n👮 **Registrado por:** <@${interaction.user.id}>`,
                                 components: []
@@ -3513,24 +3527,37 @@ client.on('interactionCreate', async interaction => {
                         }
 
                         if (i.customId === 'confirm_company') {
-                            hasResponded = true;
-                            // Avoid double interactions
-                            // collector.stop() called at end
+                            const payRow = new ActionRowBuilder().addComponents(
+                                new ButtonBuilder().setCustomId('pay_cash').setLabel('💵 Efectivo').setStyle(ButtonStyle.Success),
+                                new ButtonBuilder().setCustomId('pay_bank').setLabel('🏦 Banco (UB)').setStyle(ButtonStyle.Primary),
+                                new ButtonBuilder().setCustomId('pay_debit').setLabel('💳 Débito (NMX)').setStyle(ButtonStyle.Secondary)
+                            );
+                            await i.update({ content: '🏢 **Selecciona método de pago:**', embeds: [], components: [payRow] });
+                            return;
+                        }
 
+                        if (['pay_cash', 'pay_bank', 'pay_debit'].includes(i.customId)) {
+                            hasResponded = true;
                             await i.deferUpdate();
                             try {
-                                // ... (logic) ...
-                                // Re-check funds
-                                const currentBal = await billingService.ubService.getUserBalance(interaction.guildId, ownerUser.id);
-                                const currentMoney = currentBal.total || (currentBal.cash + currentBal.bank);
-
-                                if (currentMoney < totalCost) {
-                                    return i.followUp({ content: '❌ Fondos insuficientes al momento del cobro.', ephemeral: true });
-                                }
-
-                                // Charge logic ...
                                 if (totalCost > 0) {
-                                    await billingService.ubService.removeMoney(interaction.guildId, ownerUser.id, totalCost, `Registro Empresa: ${name}`);
+                                    if (i.customId === 'pay_cash') {
+                                        const bal = await billingService.ubService.getUserBalance(interaction.guildId, ownerUser.id);
+                                        if ((bal.cash || 0) < totalCost) return i.followUp({ content: `❌ No tiene suficiente efectivo el dueño.`, ephemeral: true });
+                                        await billingService.ubService.removeMoney(interaction.guildId, ownerUser.id, totalCost, `Registro Empresa: ${name}`, 'cash');
+                                    }
+                                    else if (i.customId === 'pay_bank') {
+                                        const bal = await billingService.ubService.getUserBalance(interaction.guildId, ownerUser.id);
+                                        if ((bal.bank || 0) < totalCost) return i.followUp({ content: `❌ No tiene suficiente en Banco el dueño.`, ephemeral: true });
+                                        await billingService.ubService.removeMoney(interaction.guildId, ownerUser.id, totalCost, `Registro Empresa: ${name}`, 'bank');
+                                    }
+                                    else if (i.customId === 'pay_debit') {
+                                        const { data: debitCard } = await supabase.from('debit_cards').select('*').eq('discord_user_id', ownerUser.id).eq('status', 'active').maybeSingle();
+                                        if (!debitCard || (debitCard.balance || 0) < totalCost) return i.followUp({ content: `❌ El dueño no tiene tarjeta débito activa o saldo suficiente.`, ephemeral: true });
+
+                                        await supabase.from('debit_cards').update({ balance: debitCard.balance - totalCost }).eq('id', debitCard.id);
+                                        await supabase.from('debit_transactions').insert({ debit_card_id: debitCard.id, discord_user_id: ownerUser.id, transaction_type: 'purchase', amount: totalCost, balance_after: debitCard.balance - totalCost, description: `Registro Empresa: ${name}` });
+                                    }
                                 }
 
                                 // Prepare IDs
