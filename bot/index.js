@@ -1546,8 +1546,8 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                     .addFields(
                         { name: 'Tarjeta', value: userCard.card_type, inline: true },
                         { name: 'Estado', value: userCard.status, inline: true },
-                        { name: 'Deuda', value: `$${userCard.current_balance.toLocaleString()}`, inline: true },
-                        { name: 'Límite', value: `$${userCard.credit_limit.toLocaleString()}`, inline: true },
+                        { name: 'Deuda', value: `$${(userCard.current_balance || 0).toLocaleString()}`, inline: true },
+                        { name: 'Límite', value: `$${(userCard.credit_limit || 0).toLocaleString()}`, inline: true },
                         { name: 'Discord ID', value: targetUser.id, inline: true }
                     );
                 await interaction.editReply({ embeds: [embed] });
