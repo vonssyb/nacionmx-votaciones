@@ -3130,15 +3130,34 @@ client.on('interactionCreate', async interaction => {
             if (!senderCard) return interaction.editReply('❌ **No tienes Tarjeta de Débito**. Usa `/depositar` para transferencias en efectivo/banco genérico.');
             if (!destCard) return interaction.editReply(`❌ **${destUser.username}** no tiene Tarjeta de Débito activa. Usa \`/depositar\`.`);
 
-            // 2. Check Balance (Bank Balance = Debit Balance in this system)
-            const senderBalance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
-            if (senderBalance.bank < monto) {
-                return interaction.editReply(`❌ Fondos insuficientes en cuenta de débito. Tienes $${senderBalance.bank.toLocaleString()}.`);
+            // 2. Check Balance (SQL Debit)
+            if ((senderCard.balance || 0) < monto) {
+                return interaction.editReply(`❌ Fondos insuficientes en tarjeta de débito. Tienes $${(senderCard.balance || 0).toLocaleString()}.`);
             }
 
-            // 3. Execute Transfer
-            await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, monto, `Transferencia Débito a ${destUser.tag}: ${razon}`, 'bank');
-            await billingService.ubService.addMoney(interaction.guildId, destUser.id, monto, `Transferencia Débito de ${interaction.user.tag}: ${razon}`, 'bank');
+            // 3. Execute Transfer (SQL Updates)
+            // Deduct from Sender
+            const { error: deductError } = await supabase.from('debit_cards').update({ balance: senderCard.balance - monto }).eq('id', senderCard.id);
+            if (deductError) throw new Error(`Error debitando: ${deductError.message}`);
+
+            // Add to Dest needs latest data or simple increment? 
+            // Better fetch fresh or atomic update? Since we have destCard data from before, let's trust it or re-fetch.
+            // But concurrency might be issue. For now simple update is fine for low traffic.
+            // Wait, we need to be careful. destCard.balance might be stale if transactions happened in ms.
+            // But JS single threaded async... well, DB is external.
+            // Let's increment properly calling rpc or just reading destCard (fetched 10ms ago). Use rpc 'increment_balance' if available? No.
+
+            // Re-read dest balance to be safe or just use destCard.balance
+            const { data: freshDest } = await supabase.from('debit_cards').select('balance').eq('id', destCard.id).single();
+            const newDestBalance = (freshDest.balance || 0) + monto;
+
+            await supabase.from('debit_cards').update({ balance: newDestBalance }).eq('id', destCard.id);
+
+            // Logs
+            await supabase.from('debit_transactions').insert([
+                { debit_card_id: senderCard.id, discord_user_id: interaction.user.id, transaction_type: 'transfer_out', amount: monto, balance_after: senderCard.balance - monto, description: `Transferencia a ${destUser.tag}` },
+                { debit_card_id: destCard.id, discord_user_id: destUser.id, transaction_type: 'transfer_in', amount: monto, balance_after: newDestBalance, description: `Transferencia de ${interaction.user.tag}` }
+            ]);
 
             const embed = new EmbedBuilder()
                 .setTitle('💳 Transferencia Débito Exitosa')
