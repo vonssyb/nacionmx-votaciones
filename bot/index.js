@@ -866,14 +866,14 @@ client.on('interactionCreate', async interaction => {
             .setColor(0xD4AF37) // Gold
             .setDescription('**Guía completa de comandos económicos y empresariales**')
             .addFields(
-                { name: '💰 Banco & Efectivo', value: '`/balanza` - Ver finanzas totales\n`/depositar` - Transferencia general\n`/transferir` - Transferencia con débito\n`/giro` - Envío diferido (24h)\n`/banco depositar` - Guardar en cuenta' },
-                { name: '💳 Tarjetas & Crédito', value: '`/tarjeta info` - Catálogo de tarjetas\n`/credito estado` - Ver deuda\n`/credito pedir-prestamo` - Retirar efectivo\n`/credito pagar` - Abonar deuda' },
-                { name: '🏢 Empresas', value: '`/empresa crear` - Registrar empresa\n`/empresa menu` - Panel de control\n`/empresa cobrar` - Terminal POS\n`/empresa credito` - Usar tarjeta business\n`/empresa lista` - Directorio' },
-                { name: '💼 Business (Staff)', value: '`/business vincular` - Vincular tarjeta\n`/business listar` - Ver tarjetas\n`/business cancelar` - Cancelar tarjeta' },
-                { name: '📈 Inversiones', value: '`/bolsa precios` - Ver mercado\n`/bolsa comprar/vender` - Comerciar\n`/inversion nueva` - Plazo fijo (5%)' },
-                { name: '📊 Impuestos', value: '`/impuestos consultar` - Estado fiscal\n`/impuestos empresas` - Impuestos corporativos\n`/top-morosos` - Ranking deudas' }
+            .addFields(
+                { name: '💰 Banco & Efectivo', value: '`/balanza` - Ver saldo total (Cartera + Banco)\n`/banco depositar` - Cajero ATM (Efectivo a tu cuenta)\n`/depositar` - Depósito OXXO (Efectivo a cuenta de otro)\n`/transferir` - App Banco (Débito a Débito)\n`/giro` - Envío paquetería (Efectivo a Efectivo, 24h)' },
+                { name: '💳 Tarjetas & Crédito', value: '`/tarjeta info` - Ver tus tarjetas y deudas\n`/credito pedir-prestamo` - Disponer efectivo de TC\n`/credito pagar` - Pagar tarjeta\n`/credito buro` - Ver tu historial crediticio' },
+                { name: '🏢 Empresas', value: '`/empresa crear` - Registrar tu negocio\n`/empresa menu` - Panel de gestión (Empleados, Nómina)\n`/empresa cobrar` - Terminal Punto de Venta (Cobrar a clientes)\n`/empresa credito` - Solicitar crédito empresarial' },
+                { name: '📈 Inversiones', value: '`/bolsa precios` - Mercado de valores\n`/bolsa comprar/vender` - Trading de acciones\n`/inversion nueva` - Plazo fijo (Rendimiento garantizado)' },
+                { name: '📊 Impuestos & Admin', value: '`/impuestos consultar` - Estado fiscal personal\n`/top-ricos` - Ranking de millonarios\n`/top-morosos` - Lista pública de deudores' }
             )
-            .setFooter({ text: 'Sistema Financiero Nación MX • /tarjeta info para más detalles' })
+            .setFooter({ text: 'Sistema Financiero Nación MX • Uso exclusivo Roleplay' })
             .setTimestamp();
 
         await interaction.reply({ embeds: [helpEmbed], ephemeral: false });
@@ -2760,8 +2760,8 @@ async function subscribeToNewCards() {
                         { name: 'Titular', value: citizenName, inline: true },
                         { name: 'DNI', value: citizenDni, inline: true },
                         { name: 'Nivel', value: newCard.card_type, inline: true },
-                        { name: 'Límite', value: `$${newCard.credit_limit}`, inline: true },
-                        { name: 'Interés', value: `${newCard.interest_rate}%`, inline: true }
+                        { name: 'Límite', value: `$${(newCard.card_limit || newCard.credit_limit || 0).toLocaleString()}`, inline: true },
+                        { name: 'Interés', value: `${(newCard.interest_rate * 100).toFixed(2)}%`, inline: true }
                     )
                     .setFooter({ text: 'Banco Nacional RP' })
                     .setTimestamp();
