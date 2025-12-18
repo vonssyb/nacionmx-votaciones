@@ -3430,32 +3430,34 @@ client.on('interactionCreate', async interaction => {
             const subcommand = interaction.options.getSubcommand();
 
             if (subcommand === 'crear') {
-                await interaction.deferReply({ ephemeral: false });
-
-                // 1. Role Check (Only specific role can create)
-                const AUTHORIZED_ROLE_ID = '1450688555503587459';
-                if (!interaction.member.roles.cache.has(AUTHORIZED_ROLE_ID) && !interaction.member.permissions.has('Administrator')) {
-                    return interaction.editReply('⛔ No tienes permisos para registrar empresas.');
-                }
-
-                // 2. Get Options
-                const name = interaction.options.getString('nombre');
-                const ownerUser = interaction.options.getUser('dueño');
-                const coOwnerUser = interaction.options.getUser('co_dueño');
-                const isPrivate = interaction.options.getBoolean('es_privada') || false;
-                const logo = interaction.options.getAttachment('logo');
-                const type = interaction.options.getString('tipo_local'); // e.g. Taller, Restaurante
-                const vehicles = interaction.options.getNumber('vehiculos') || 0;
-
-                // New Cost Fields
-                const tramiteCost = interaction.options.getNumber('costo_tramite');
-                const localCost = interaction.options.getNumber('costo_local') || 0;
-                const vehicleCost = interaction.options.getNumber('costo_vehiculos') || 0;
-
-                // Optional fields
-                const location = interaction.options.getString('ubicacion') || 'No especificada';
-
                 try {
+                    await interaction.deferReply({ ephemeral: false });
+
+                    // 1. Role Check (Only specific role can create)
+                    const AUTHORIZED_ROLE_ID = '1450688555503587459';
+                    if (!interaction.member.roles.cache.has(AUTHORIZED_ROLE_ID) && !interaction.member.permissions.has('Administrator')) {
+                        return interaction.editReply('⛔ No tienes permisos para registrar empresas.');
+                    }
+
+                    // 2. Get Options
+                    const name = interaction.options.getString('nombre');
+                    const ownerUser = interaction.options.getUser('dueño');
+                    const coOwnerUser = interaction.options.getUser('co_dueño');
+                    const isPrivate = interaction.options.getBoolean('es_privada') || false;
+                    const logo = interaction.options.getAttachment('logo');
+                    const type = interaction.options.getString('tipo_local'); // e.g. Taller, Restaurante
+                    const vehicles = interaction.options.getNumber('vehiculos') || 0;
+
+                    // New Cost Fields
+                    const tramiteCost = interaction.options.getNumber('costo_tramite');
+                    const localCost = interaction.options.getNumber('costo_local') || 0;
+                    const vehicleCost = interaction.options.getNumber('costo_vehiculos') || 0;
+
+                    // Optional fields
+                    const location = interaction.options.getString('ubicacion') || 'No especificada';
+
+                    const location = interaction.options.getString('ubicacion') || 'No especificada';
+
                     // 2.1 Calculate Total
                     const totalCost = tramiteCost + localCost + vehicleCost;
 
