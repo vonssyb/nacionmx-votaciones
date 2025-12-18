@@ -1201,33 +1201,32 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 }
                 else if (i.customId === 'btn_accept') {
                     const payRow = new ActionRowBuilder().addComponents(
-                        new ButtonBuilder().setCustomId('pay_cash').setLabel('💵 Efectivo').setStyle(ButtonStyle.Success),
-                        new ButtonBuilder().setCustomId('pay_bank').setLabel('🏦 Banco (UB)').setStyle(ButtonStyle.Primary),
-                        new ButtonBuilder().setCustomId('pay_debit').setLabel('💳 Débito (NMX)').setStyle(ButtonStyle.Secondary)
+                        new ButtonBuilder().setCustomId('reg_pay_cash').setLabel('💵 Efectivo').setStyle(ButtonStyle.Success),
+                        new ButtonBuilder().setCustomId('reg_pay_bank').setLabel('🏦 Banco (UB)').setStyle(ButtonStyle.Primary),
+                        new ButtonBuilder().setCustomId('reg_pay_debit').setLabel('💳 Débito (NMX)').setStyle(ButtonStyle.Secondary)
                     );
                     await i.update({ content: '💳 **Selecciona método de pago para la apertura:**', embeds: [], components: [payRow] });
                 }
-                else if (['pay_cash', 'pay_bank', 'pay_debit'].includes(i.customId)) {
+                else if (['reg_pay_cash', 'reg_pay_bank', 'reg_pay_debit'].includes(i.customId)) {
                     await i.deferUpdate();
                     try {
                         // 1. Check Funds & Charge
                         if (stats.cost > 0) {
-                            if (i.customId === 'pay_cash') {
+                            if (i.customId === 'reg_pay_cash') {
                                 const bal = await billingService.ubService.getUserBalance(interaction.guildId, targetUser.id);
                                 if ((bal.cash || 0) < stats.cost) return i.followUp({ content: `❌ No tienes suficiente efectivo. Tienes: $${(bal.cash || 0).toLocaleString()}`, ephemeral: true });
                                 await billingService.ubService.removeMoney(interaction.guildId, targetUser.id, stats.cost, `Apertura ${cardType}`, 'cash');
                             }
-                            else if (i.customId === 'pay_bank') {
+                            else if (i.customId === 'reg_pay_bank') {
                                 const bal = await billingService.ubService.getUserBalance(interaction.guildId, targetUser.id);
                                 if ((bal.bank || 0) < stats.cost) return i.followUp({ content: `❌ No tienes suficiente en Banco UB. Tienes: $${(bal.bank || 0).toLocaleString()}`, ephemeral: true });
                                 await billingService.ubService.removeMoney(interaction.guildId, targetUser.id, stats.cost, `Apertura ${cardType}`, 'bank');
                             }
-                            else if (i.customId === 'pay_debit') {
-                                const { data: debitCard } = await supabase.from('debit_cards').select('*').eq('discord_user_id', targetUser.id).eq('status', 'active').maybeSingle();
-                                if (!debitCard || (debitCard.balance || 0) < stats.cost) return i.followUp({ content: `❌ No tienes tarjeta débito activa o saldo suficiente en ella.`, ephemeral: true });
-
-                                await supabase.from('debit_cards').update({ balance: debitCard.balance - stats.cost }).eq('id', debitCard.id);
-                                await supabase.from('debit_transactions').insert({ debit_card_id: debitCard.id, discord_user_id: targetUser.id, transaction_type: 'purchase', amount: stats.cost, balance_after: debitCard.balance - stats.cost, description: `Apertura ${cardType}` });
+                            else if (i.customId === 'reg_pay_debit') {
+                                // Unified with Bank
+                                const bal = await billingService.ubService.getUserBalance(interaction.guildId, targetUser.id);
+                                if ((bal.bank || 0) < stats.cost) return i.followUp({ content: `❌ No tienes suficiente en Banco/Débito.`, ephemeral: true });
+                                await billingService.ubService.removeMoney(interaction.guildId, targetUser.id, stats.cost, `Apertura ${cardType}`, 'bank');
                             }
                         }
 
@@ -1391,14 +1390,17 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 if (!userCard) return interaction.editReply('❌ No tienes una tarjeta activa.');
 
                 // 3. Validate Limit
-                const availableCredit = userCard.credit_limit - userCard.current_balance;
+                const currentBalance = userCard.current_balance || 0;
+                const creditLimit = userCard.credit_limit || 0;
+                const availableCredit = creditLimit - currentBalance;
+
                 if (amount > availableCredit) {
-                    return interaction.editReply(`❌ **Fondos Insuficientes**. \nLímite: $${userCard.credit_limit.toLocaleString()} \nDeuda: $${userCard.current_balance.toLocaleString()} \nDisponible: $${availableCredit.toLocaleString()}`);
+                    return interaction.editReply(`❌ **Fondos Insuficientes**. \nLímite: $${creditLimit.toLocaleString()} \nDeuda: $${currentBalance.toLocaleString()} \nDisponible: $${availableCredit.toLocaleString()}`);
                 }
 
                 // 4. Update DB
                 console.log(`[Loan Debug] ${REQ_ID} Updating DB...`);
-                const newDebt = userCard.current_balance + amount;
+                const newDebt = currentBalance + amount;
                 const { error: dbError } = await supabase
                     .from('credit_cards')
                     .update({ current_balance: newDebt })
@@ -2873,18 +2875,21 @@ client.on('interactionCreate', async interaction => {
 
             const cash = cashBalance.cash || 0;
             const bank = cashBalance.bank || 0;
-            const debit = debitCard?.balance || 0;
+            // Debit Card just checks if exists, balance comes from Bank
+            const hasDebit = debitCard ? true : false;
+
             const creditAvailable = creditCard ? (creditCard.credit_limit - creditCard.current_balance) : 0;
             const creditDebt = creditCard?.current_balance || 0;
-            const totalLiquid = cash + bank + debit + creditAvailable;
+
+            // Total Liquid is Cash + Bank (Debit is same as Bank) + Avail Credit
+            const totalLiquid = cash + bank + creditAvailable;
 
             const embed = new EmbedBuilder()
                 .setTitle('💰 TU BALANZA FINANCIERA')
                 .setColor(0x00D26A)
                 .addFields(
                     { name: '💵 EFECTIVO', value: `\`\`\`$${cash.toLocaleString()}\`\`\``, inline: true },
-                    { name: '🏦 BANCO', value: `\`\`\`$${bank.toLocaleString()}\`\`\``, inline: true },
-                    { name: '💳 DÉBITO', value: `\`\`\`$${debit.toLocaleString()}\`\`\``, inline: true },
+                    { name: '💳 BANCO / DÉBITO', value: `\`\`\`$${bank.toLocaleString()}\`\`\`\n${hasDebit ? '✅ Tarjeta Activa' : '❌ Sin Tarjeta'}`, inline: true },
                     { name: '💳 CRÉDITO', value: `\`\`\`Disponible: $${creditAvailable.toLocaleString()}\nDeuda: $${creditDebt.toLocaleString()}\`\`\``, inline: false },
                     { name: '📊 PATRIMONIO TOTAL', value: `\`\`\`diff\n+ $${totalLiquid.toLocaleString()}\n\`\`\``, inline: false }
                 )
@@ -3130,33 +3135,20 @@ client.on('interactionCreate', async interaction => {
             if (!senderCard) return interaction.editReply('❌ **No tienes Tarjeta de Débito**. Usa `/depositar` para transferencias en efectivo/banco genérico.');
             if (!destCard) return interaction.editReply(`❌ **${destUser.username}** no tiene Tarjeta de Débito activa. Usa \`/depositar\`.`);
 
-            // 2. Check Balance (SQL Debit)
-            if ((senderCard.balance || 0) < monto) {
-                return interaction.editReply(`❌ Fondos insuficientes en tarjeta de débito. Tienes $${(senderCard.balance || 0).toLocaleString()}.`);
+            // 2. Check Balance (UB BANK)
+            const balance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
+            if ((balance.bank || 0) < monto) {
+                return interaction.editReply(`❌ Fondos insuficientes en Banco. Tienes $${(balance.bank || 0).toLocaleString()}.`);
             }
 
-            // 3. Execute Transfer (SQL Updates)
-            // Deduct from Sender
-            const { error: deductError } = await supabase.from('debit_cards').update({ balance: senderCard.balance - monto }).eq('id', senderCard.id);
-            if (deductError) throw new Error(`Error debitando: ${deductError.message}`);
-
-            // Add to Dest needs latest data or simple increment? 
-            // Better fetch fresh or atomic update? Since we have destCard data from before, let's trust it or re-fetch.
-            // But concurrency might be issue. For now simple update is fine for low traffic.
-            // Wait, we need to be careful. destCard.balance might be stale if transactions happened in ms.
-            // But JS single threaded async... well, DB is external.
-            // Let's increment properly calling rpc or just reading destCard (fetched 10ms ago). Use rpc 'increment_balance' if available? No.
-
-            // Re-read dest balance to be safe or just use destCard.balance
-            const { data: freshDest } = await supabase.from('debit_cards').select('balance').eq('id', destCard.id).single();
-            const newDestBalance = (freshDest.balance || 0) + monto;
-
-            await supabase.from('debit_cards').update({ balance: newDestBalance }).eq('id', destCard.id);
+            // 3. Execute Transfer (UB Bank -> UB Bank)
+            await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, monto, `Transferencia a ${destUser.tag}: ${razon}`, 'bank');
+            await billingService.ubService.addMoney(interaction.guildId, destUser.id, monto, `Transferencia de ${interaction.user.tag}: ${razon}`, 'bank');
 
             // Logs
             await supabase.from('debit_transactions').insert([
-                { debit_card_id: senderCard.id, discord_user_id: interaction.user.id, transaction_type: 'transfer_out', amount: monto, balance_after: senderCard.balance - monto, description: `Transferencia a ${destUser.tag}` },
-                { debit_card_id: destCard.id, discord_user_id: destUser.id, transaction_type: 'transfer_in', amount: monto, balance_after: newDestBalance, description: `Transferencia de ${interaction.user.tag}` }
+                { debit_card_id: senderCard.id, discord_user_id: interaction.user.id, transaction_type: 'transfer_out', amount: monto, balance_after: (balance.bank - monto), description: `Transferencia a ${destUser.tag}` },
+                { debit_card_id: destCard.id, discord_user_id: destUser.id, transaction_type: 'transfer_in', amount: monto, balance_after: 0, description: `Transferencia de ${interaction.user.tag}` }
             ]);
 
             const embed = new EmbedBuilder()
@@ -3372,97 +3364,28 @@ client.on('interactionCreate', async interaction => {
                 const amount = interaction.options.getNumber('monto');
                 if (amount <= 0) return interaction.editReply('❌ El monto debe ser mayor a 0.');
 
-                // Get user balance
+                // Check Cash Only
                 const balance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
+                if ((balance.cash || 0) < amount) return interaction.editReply(`❌ No tienes suficiente efectivo. Tienes $${(balance.cash || 0).toLocaleString()}.`);
 
-                // Try cash first, then bank
-                const availableCash = balance.cash || 0;
-                const availableBank = balance.bank || 0;
-                const total = availableCash + availableBank;
+                // Execute: Cash -> Bank
+                await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, amount, 'Depósito Bancario', 'cash');
+                await billingService.ubService.addMoney(interaction.guildId, interaction.user.id, amount, 'Depósito Bancario', 'bank');
 
-                if (total < amount) {
-                    return interaction.editReply(`❌ **Fondos insuficientes**\n\n💵 Efectivo: $${availableCash.toLocaleString()}\n🏦 Banco: $${availableBank.toLocaleString()}\n📊 Total: $${total.toLocaleString()}\n❌ Necesitas: $${amount.toLocaleString()}`);
-                }
+                const embed = new EmbedBuilder()
+                    .setTitle('🏦 Depósito Exitoso')
+                    .setColor(0x00D26A)
+                    .setDescription(`Has depositado **$${amount.toLocaleString()}** en tu cuenta bancaria.`)
+                    .addFields(
+                        { name: '💵 Efectivo Restante', value: `$${((balance.cash || 0) - amount).toLocaleString()}`, inline: true },
+                        { name: '🏦 Nuevo Saldo', value: `$${((balance.bank || 0) + amount).toLocaleString()}`, inline: true }
+                    );
 
-                // Check if user has Debit Card
-                const { data: debitCard } = await supabase
-                    .from('debit_cards')
-                    .select('*')
-                    .eq('discord_user_id', interaction.user.id)
-                    .eq('status', 'active')
-                    .maybeSingle();
+                await interaction.editReply({ embeds: [embed] });
 
-                if (debitCard) {
-                    // HAS DEBIT CARD → Deposit to debit card balance
-
-                    // Try to use cash first, then bank
-                    let sourceWallet = 'cash';
-                    if (availableCash >= amount) {
-                        await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, amount, 'Depósito a tarjeta débito', 'cash');
-                    } else {
-                        // Not enough cash, use bank
-                        sourceWallet = 'bank';
-                        await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, amount, 'Depósito a tarjeta débito', 'bank');
-                    }
-
-                    // Update debit card balance in Supabase
-                    const newBalance = (debitCard.balance || 0) + amount;
-                    await supabase
-                        .from('debit_cards')
-                        .update({ balance: newBalance })
-                        .eq('id', debitCard.id);
-
-                    // Log transaction
-                    await supabase
-                        .from('debit_transactions')
-                        .insert({
-                            debit_card_id: debitCard.id,
-                            discord_user_id: interaction.user.id,
-                            transaction_type: 'deposit',
-                            amount: amount,
-                            balance_after: newBalance
-                        });
-
-                    const embed = new EmbedBuilder()
-                        .setTitle('💳 Depósito a Tarjeta Débito')
-                        .setColor(0x00FF00)
-                        .setDescription(`Se depositaron **$${amount.toLocaleString()}** a tu tarjeta de débito.`)
-                        .addFields(
-                            { name: '🔄 Origen', value: sourceWallet === 'cash' ? '💵 Efectivo' : '🏦 Banco', inline: true },
-                            { name: '💰 Nuevo Balance Débito', value: `$${newBalance.toLocaleString()}`, inline: true }
-                        )
-                        .setTimestamp();
-
-                    return interaction.editReply({ embeds: [embed] });
-
-                } else {
-                    // NO DEBIT CARD → Just move from cash to bank (if they have cash)
-
-                    if (availableCash < amount) {
-                        return interaction.editReply(`❌ No tienes tarjeta de débito y no tienes suficiente efectivo para depositar al banco.\n\n💵 Efectivo disponible: $${availableCash.toLocaleString()}\n💡 **Solución:** Solicita una tarjeta de débito con un banquero usando \`/registrar-tarjeta\``);
-                    }
-
-                    // Move cash → bank
-                    await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, amount, 'Depósito a banco', 'cash');
-                    await billingService.ubService.addMoney(interaction.guildId, interaction.user.id, amount, 'Depósito recibido', 'bank');
-
-                    const embed = new EmbedBuilder()
-                        .setTitle('🏦 Depósito al Banco')
-                        .setColor(0x5865F2)
-                        .setDescription(`Se depositaron **$${amount.toLocaleString()}** de tu efectivo al banco.`)
-                        .addFields(
-                            { name: '💵 Efectivo Restante', value: `$${(availableCash - amount).toLocaleString()}`, inline: true },
-                            { name: '🏦 Nuevo Balance Banco', value: `$${(availableBank + amount).toLocaleString()}`, inline: true }
-                        )
-                        .setFooter({ text: '💡 Abre una tarjeta de débito para más funciones' })
-                        .setTimestamp();
-
-                    return interaction.editReply({ embeds: [embed] });
-                }
-
-            } catch (error) {
-                console.error('Error en /banco depositar:', error);
-                await interaction.editReply('❌ Error procesando el depósito. Contacta a un administrador.');
+            } catch (e) {
+                console.error(e);
+                await interaction.editReply('❌ Error procesando el depósito.');
             }
         }
 
@@ -3547,35 +3470,35 @@ client.on('interactionCreate', async interaction => {
 
                         if (i.customId === 'confirm_company') {
                             const payRow = new ActionRowBuilder().addComponents(
-                                new ButtonBuilder().setCustomId('pay_cash').setLabel('💵 Efectivo').setStyle(ButtonStyle.Success),
-                                new ButtonBuilder().setCustomId('pay_bank').setLabel('🏦 Banco (UB)').setStyle(ButtonStyle.Primary),
-                                new ButtonBuilder().setCustomId('pay_debit').setLabel('💳 Débito (NMX)').setStyle(ButtonStyle.Secondary)
+                                new ButtonBuilder().setCustomId('comp_pay_cash').setLabel('💵 Efectivo').setStyle(ButtonStyle.Success),
+                                new ButtonBuilder().setCustomId('comp_pay_bank').setLabel('🏦 Banco (UB)').setStyle(ButtonStyle.Primary),
+                                new ButtonBuilder().setCustomId('comp_pay_debit').setLabel('💳 Débito (NMX)').setStyle(ButtonStyle.Secondary)
                             );
                             await i.update({ content: '🏢 **Selecciona método de pago:**', embeds: [], components: [payRow] });
                             return;
                         }
 
-                        if (['pay_cash', 'pay_bank', 'pay_debit'].includes(i.customId)) {
+                        if (['comp_pay_cash', 'comp_pay_bank', 'comp_pay_debit'].includes(i.customId)) {
                             hasResponded = true;
                             await i.deferUpdate();
                             try {
                                 if (totalCost > 0) {
-                                    if (i.customId === 'pay_cash') {
+                                    if (i.customId === 'comp_pay_cash') {
                                         const bal = await billingService.ubService.getUserBalance(interaction.guildId, ownerUser.id);
                                         if ((bal.cash || 0) < totalCost) return i.followUp({ content: `❌ No tiene suficiente efectivo el dueño.`, ephemeral: true });
                                         await billingService.ubService.removeMoney(interaction.guildId, ownerUser.id, totalCost, `Registro Empresa: ${name}`, 'cash');
                                     }
-                                    else if (i.customId === 'pay_bank') {
+                                    else if (i.customId === 'comp_pay_bank') {
                                         const bal = await billingService.ubService.getUserBalance(interaction.guildId, ownerUser.id);
                                         if ((bal.bank || 0) < totalCost) return i.followUp({ content: `❌ No tiene suficiente en Banco el dueño.`, ephemeral: true });
                                         await billingService.ubService.removeMoney(interaction.guildId, ownerUser.id, totalCost, `Registro Empresa: ${name}`, 'bank');
                                     }
-                                    else if (i.customId === 'pay_debit') {
-                                        const { data: debitCard } = await supabase.from('debit_cards').select('*').eq('discord_user_id', ownerUser.id).eq('status', 'active').maybeSingle();
-                                        if (!debitCard || (debitCard.balance || 0) < totalCost) return i.followUp({ content: `❌ El dueño no tiene tarjeta débito activa o saldo suficiente.`, ephemeral: true });
+                                    else if (i.customId === 'comp_pay_debit') {
+                                        // Unified with Bank
+                                        const bal = await billingService.ubService.getUserBalance(interaction.guildId, ownerUser.id);
+                                        if ((bal.bank || 0) < totalCost) return i.followUp({ content: `❌ No tiene suficiente saldo en Banco/Débito.`, ephemeral: true });
 
-                                        await supabase.from('debit_cards').update({ balance: debitCard.balance - totalCost }).eq('id', debitCard.id);
-                                        await supabase.from('debit_transactions').insert({ debit_card_id: debitCard.id, discord_user_id: ownerUser.id, transaction_type: 'purchase', amount: totalCost, balance_after: debitCard.balance - totalCost, description: `Registro Empresa: ${name}` });
+                                        await billingService.ubService.removeMoney(interaction.guildId, ownerUser.id, totalCost, `Registro Empresa: ${name}`, 'bank');
                                     }
                                 }
 
