@@ -3456,7 +3456,7 @@ client.on('interactionCreate', async interaction => {
                     // Optional fields
                     const location = interaction.options.getString('ubicacion') || 'No especificada';
 
-                    const location = interaction.options.getString('ubicacion') || 'No especificada';
+
 
                     // 2.1 Calculate Total
                     const totalCost = tramiteCost + localCost + vehicleCost;
