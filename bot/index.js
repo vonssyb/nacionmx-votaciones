@@ -2871,15 +2871,23 @@ client.on('interactionCreate', async interaction => {
             const cashBalance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
             console.log(`[DEBUG] /balanza User: ${interaction.user.id} Balance Raw:`, cashBalance); // DEBUG LOG
             const { data: debitCard } = await supabase.from('debit_cards').select('balance').eq('discord_user_id', interaction.user.id).eq('status', 'active').maybeSingle();
-            const { data: creditCard } = await supabase.from('credit_cards').select('credit_limit, current_balance, citizens!inner(discord_id)').eq('citizens.discord_id', interaction.user.id).order('created_at', { ascending: false }).limit(1).maybeSingle();
+            const { data: creditCards } = await supabase.from('credit_cards').select('*').eq('discord_id', interaction.user.id).eq('status', 'active');
 
             const cash = cashBalance.cash || 0;
             const bank = cashBalance.bank || 0;
             // Debit Card just checks if exists, balance comes from Bank
             const hasDebit = debitCard ? true : false;
 
-            const creditAvailable = creditCard ? (creditCard.credit_limit - creditCard.current_balance) : 0;
-            const creditDebt = creditCard?.current_balance || 0;
+            let creditAvailable = 0;
+            let creditDebt = 0;
+            if (creditCards) {
+                creditCards.forEach(c => {
+                    const limit = c.card_limit || c.credit_limit || 0;
+                    const debt = c.current_balance || 0;
+                    creditAvailable += (limit - debt);
+                    creditDebt += debt;
+                });
+            }
 
             // Total Liquid is Cash + Bank (Debit is same as Bank) + Avail Credit
             const totalLiquid = cash + bank + creditAvailable;
