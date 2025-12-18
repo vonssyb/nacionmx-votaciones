@@ -367,6 +367,12 @@ const commands = [
                 description: 'Depositar efectivo (Caja Fuerte o Débito si tienes)',
                 type: 1,
                 options: [{ name: 'monto', description: 'Cantidad a depositar', type: 10, required: true }]
+            },
+            {
+                name: 'retirar',
+                description: 'Retirar dinero de tarjeta Debito a Efectivo',
+                type: 1,
+                options: [{ name: 'monto', description: 'Cantidad a retirar', type: 10, required: true }]
             }
         ]
     },
