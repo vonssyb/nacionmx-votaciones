@@ -1530,8 +1530,14 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
 
             if (!citizen) return interaction.editReply('❌ Este usuario no tiene un ciudadano vinculado (No tiene registro en el sistema financiero).');
 
-            const { data: userCard } = await supabase.from('credit_cards').select('*').eq('citizen_id', citizen.id).order('created_at', { ascending: false }).limit(1).maybeSingle();
-            if (!userCard) return interaction.editReply('❌ Este usuario no tiene tarjeta activa.');
+            const { data: userCard } = await supabase.from('credit_cards')
+                .select('*')
+                .eq('discord_id', targetUser.id)
+                .order('created_at', { ascending: false })
+                .limit(1)
+                .maybeSingle();
+
+            if (!userCard) return interaction.editReply('❌ Este usuario no tiene tarjetas registradas.');
 
             if (subCmdAdmin === 'info') {
                 const embed = new EmbedBuilder()
