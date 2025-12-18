@@ -3446,7 +3446,7 @@ client.on('interactionCreate', async interaction => {
                 const isPrivate = interaction.options.getBoolean('es_privada') || false;
                 const logo = interaction.options.getAttachment('logo');
                 const type = interaction.options.getString('tipo_local'); // e.g. Taller, Restaurante
-                const vehicles = interaction.options.getInteger('vehiculos') || 0;
+                const vehicles = interaction.options.getNumber('vehiculos') || 0;
 
                 // New Cost Fields
                 const tramiteCost = interaction.options.getNumber('costo_tramite');
