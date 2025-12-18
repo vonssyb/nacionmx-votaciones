@@ -866,7 +866,6 @@ client.on('interactionCreate', async interaction => {
             .setColor(0xD4AF37) // Gold
             .setDescription('**Guía completa de comandos económicos y empresariales**')
             .addFields(
-            .addFields(
                 { name: '💰 Banco & Efectivo', value: '`/balanza` - Ver saldo total (Cartera + Banco)\n`/banco depositar` - Cajero ATM (Efectivo a tu cuenta)\n`/depositar` - Depósito OXXO (Efectivo a cuenta de otro)\n`/transferir` - App Banco (Débito a Débito)\n`/giro` - Envío paquetería (Efectivo a Efectivo, 24h)' },
                 { name: '💳 Tarjetas & Crédito', value: '`/tarjeta info` - Ver tus tarjetas y deudas\n`/credito pedir-prestamo` - Disponer efectivo de TC\n`/credito pagar` - Pagar tarjeta\n`/credito buro` - Ver tu historial crediticio' },
                 { name: '🏢 Empresas', value: '`/empresa crear` - Registrar tu negocio\n`/empresa menu` - Panel de gestión (Empleados, Nómina)\n`/empresa cobrar` - Terminal Punto de Venta (Cobrar a clientes)\n`/empresa credito` - Solicitar crédito empresarial' },
@@ -1999,9 +1998,18 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 const license = licenseData[tipo];
 
                 // Check user balance
+                // Check user balance (Total)
                 const balance = await billingService.ubService.getUserBalance(interaction.guildId, targetUser.id);
-                if (balance.bank < license.cost) {
-                    return interaction.editReply(`❌ <@${targetUser.id}> no tiene fondos suficientes.\n\n💰 Costo: $${license.cost.toLocaleString()}\n💳 Tiene: $${balance.bank.toLocaleString()}`);
+                const totalBalance = (balance.cash || 0) + (balance.bank || 0);
+
+                if (totalBalance < license.cost) {
+                    return interaction.editReply(`❌ <@${targetUser.id}> no tiene fondos suficientes.\n\n💰 Costo: $${license.cost.toLocaleString()}\n💵 Tiene: $${totalBalance.toLocaleString()} (Total)`);
+                }
+
+                // Determine payment source
+                let paySource = 'bank';
+                if ((balance.bank || 0) < license.cost && (balance.cash || 0) >= license.cost) {
+                    paySource = 'cash';
                 }
 
                 // Check if already has this license
@@ -2017,7 +2025,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 }
 
                 // Charge user
-                await billingService.ubService.removeMoney(interaction.guildId, targetUser.id, license.cost, `Pago de ${license.name}`, 'bank');
+                await billingService.ubService.removeMoney(interaction.guildId, targetUser.id, license.cost, `Pago de ${license.name}`, paySource);
 
                 // Register license
                 const expiryDate = new Date();
