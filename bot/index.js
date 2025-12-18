@@ -2857,20 +2857,22 @@ client.on('interactionCreate', async interaction => {
             const { data: debitCard } = await supabase.from('debit_cards').select('balance').eq('discord_user_id', interaction.user.id).eq('status', 'active').maybeSingle();
             const { data: creditCard } = await supabase.from('credit_cards').select('credit_limit, current_balance, citizens!inner(discord_id)').eq('citizens.discord_id', interaction.user.id).order('created_at', { ascending: false }).limit(1).maybeSingle();
 
-            const cash = (cashBalance.cash || 0) + (cashBalance.bank || 0);
+            const cash = cashBalance.cash || 0;
+            const bank = cashBalance.bank || 0;
             const debit = debitCard?.balance || 0;
             const creditAvailable = creditCard ? (creditCard.credit_limit - creditCard.current_balance) : 0;
             const creditDebt = creditCard?.current_balance || 0;
-            const totalLiquid = cash + debit + creditAvailable;
+            const totalLiquid = cash + bank + debit + creditAvailable;
 
             const embed = new EmbedBuilder()
                 .setTitle('💰 TU BALANZA FINANCIERA')
                 .setColor(0x00D26A)
                 .addFields(
                     { name: '💵 EFECTIVO', value: `\`\`\`$${cash.toLocaleString()}\`\`\``, inline: true },
+                    { name: '🏦 BANCO', value: `\`\`\`$${bank.toLocaleString()}\`\`\``, inline: true },
                     { name: '💳 DÉBITO', value: `\`\`\`$${debit.toLocaleString()}\`\`\``, inline: true },
-                    { name: '💳 CRÉDITO', value: `\`\`\`Disponible: $${creditAvailable.toLocaleString()}\nDeuda: $${creditDebt.toLocaleString()}\`\`\``, inline: true },
-                    { name: '📊 TOTAL LÍQUIDO', value: `\`\`\`diff\n+ $${totalLiquid.toLocaleString()}\n\`\`\``, inline: false }
+                    { name: '💳 CRÉDITO', value: `\`\`\`Disponible: $${creditAvailable.toLocaleString()}\nDeuda: $${creditDebt.toLocaleString()}\`\`\``, inline: false },
+                    { name: '📊 PATRIMONIO TOTAL', value: `\`\`\`diff\n+ $${totalLiquid.toLocaleString()}\n\`\`\``, inline: false }
                 )
                 .setFooter({ text: 'Banco Nacional' })
                 .setTimestamp();
