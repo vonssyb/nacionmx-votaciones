@@ -2890,30 +2890,7 @@ client.on('interactionCreate', async interaction => {
             }
         }
 
-        else if (subcommand === 'depositar') {
-            const monto = interaction.options.getNumber('monto');
-            if (monto <= 0) return interaction.reply({ content: '❌ Monto debe ser >0.', ephemeral: true });
-            await interaction.deferReply();
-            try {
-                const cashBalance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
 
-                // Check if user has Debit Card
-                const card = await getDebitCard(interaction.user.id);
-                if (!card) return interaction.editReply('❌ No tienes una tarjeta de débito activa. Visita el Banco Nacional para abrir tu cuenta con `/registrar-tarjeta`.');
-                // Check CASH wallet, not bank
-                if ((cashBalance.cash || 0) < monto) return interaction.editReply(`❌ Efectivo insuficiente en mano: $${(cashBalance.cash || 0).toLocaleString()}`);
-
-                // Remove from CASH
-                await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, monto, 'Depósito a débito', 'cash');
-                const completionTime = new Date(Date.now() + (4 * 60 * 60 * 1000));
-                await supabase.from('pending_transfers').insert({ from_user_id: interaction.user.id, amount: monto, transfer_type: 'cash_to_debit', scheduled_completion: completionTime.toISOString() });
-                const embed = new EmbedBuilder().setTitle('⏳ Depósito Programado').setColor(0xFFA500).addFields({ name: 'Monto', value: `$${monto.toLocaleString()}`, inline: true }, { name: 'Completa', value: `<t:${Math.floor(completionTime.getTime() / 1000)}:R>`, inline: true }).setFooter({ text: 'Recibirás notificación' });
-                await interaction.editReply({ embeds: [embed] });
-            } catch (error) {
-                console.error(error);
-                await interaction.editReply('❌ Error procesando depósito.');
-            }
-        }
 
         else if (subcommand === 'transferir') {
             const destUser = interaction.options.getUser('destinatario');
@@ -3028,52 +3005,66 @@ client.on('interactionCreate', async interaction => {
     else if (commandName === 'depositar') {
         const destUser = interaction.options.getUser('destinatario');
         const monto = interaction.options.getNumber('monto');
-        const razon = interaction.options.getString('razon') || 'Depósito Bancario';
+        const razon = interaction.options.getString('razon') || 'Depósito en Efectivo';
 
         if (monto <= 0) {
             return interaction.reply({ content: '❌ El monto debe ser mayor a 0.', ephemeral: true });
         }
 
-        if (destUser.id === interaction.user.id) {
-            return interaction.reply({ content: '❌ No puedes depositarte dinero a ti mismo.', ephemeral: true });
-        }
-
         await interaction.deferReply();
 
         try {
-            // Check sender balance (Generic UB Bank)
-            const senderBalance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
-            if (senderBalance.bank < monto) {
-                return interaction.editReply(`❌ Fondos insuficientes en Banco. Tienes $${senderBalance.bank.toLocaleString()}.`);
+            // 1. Check Sender CASH (OXXO Logic: You pay with cash)
+            const balance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
+            const cash = balance.cash || 0;
+
+            if (cash < monto) {
+                return interaction.editReply(`❌ No tienes suficiente **efectivo** en mano. Tienes: $${cash.toLocaleString()}`);
             }
 
-            // Perform transfer
-            await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, monto, `Depósito a ${destUser.tag}: ${razon}`, 'bank');
-            await billingService.ubService.addMoney(interaction.guildId, destUser.id, monto, `Depósito de ${interaction.user.tag}: ${razon}`, 'bank');
+            // 2. Check Recipient Debit Card
+            const { data: destCard } = await supabase
+                .from('debit_cards')
+                .select('*')
+                .eq('discord_user_id', destUser.id)
+                .eq('status', 'active')
+                .maybeSingle();
 
+            if (!destCard) {
+                return interaction.editReply(`❌ El destinatario ${destUser.tag} no tiene una Tarjeta de Débito NMX activa para recibir depósitos.`);
+            }
+
+            // 3. Process Logic
+            // Remove Cash from Sender instantly
+            await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, monto, `Depósito a ${destUser.tag}`, 'cash');
+
+            // Schedule Pending Transfer (4 Hours Delay)
+            const completionTime = new Date(Date.now() + (4 * 60 * 60 * 1000)); // 4 Hours
+
+            await supabase.from('pending_transfers').insert({
+                from_user_id: interaction.user.id,
+                to_user_id: destUser.id,
+                amount: monto,
+                transfer_type: 'cash_to_debit',
+                scheduled_completion: completionTime.toISOString(),
+                metadata: { reason: razon, dest_card_number: destCard.card_number }
+            });
+
+            // 4. Response
             const embed = new EmbedBuilder()
-                .setTitle('🏦 Depósito Exitoso')
-                .setColor(0x00FF00)
+                .setTitle('🏪 Depósito Realizado')
+                .setColor(0xFFA500)
+                .setDescription(`Has depositado efectivo a la cuenta de **${destUser.tag}**.`)
                 .addFields(
-                    { name: 'De', value: interaction.user.tag, inline: true },
-                    { name: 'Para', value: destUser.tag, inline: true },
-                    { name: 'Monto', value: `$${monto.toLocaleString()}`, inline: true },
-                    { name: 'Concepto', value: razon, inline: false }
+                    { name: '💸 Monto', value: `$${monto.toLocaleString()}`, inline: true },
+                    { name: '💳 Destino', value: `Tarjeta NMX *${destCard.card_number.slice(-4)}`, inline: true },
+                    { name: '⏳ Tiempo estimado', value: '4 Horas', inline: false },
+                    { name: '📝 Concepto', value: razon, inline: false }
                 )
+                .setFooter({ text: 'El dinero llegará automáticamente cuando se procese.' })
                 .setTimestamp();
 
             await interaction.editReply({ embeds: [embed] });
-
-            // Notify
-            try {
-                const dmEmbed = new EmbedBuilder()
-                    .setTitle('💰 Has recibido un depósito')
-                    .setDescription(`**${interaction.user.tag}** te ha depositado **$${monto.toLocaleString()}**`)
-                    .addFields({ name: 'Concepto', value: razon })
-                    .setColor(0x00FF00)
-                    .setTimestamp();
-                await destUser.send({ embeds: [dmEmbed] });
-            } catch (dmError) { /* Ignore */ }
 
         } catch (error) {
             console.error(error);
