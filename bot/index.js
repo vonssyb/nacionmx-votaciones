@@ -3432,6 +3432,7 @@ client.on('interactionCreate', async interaction => {
             if (subcommand === 'crear') {
                 try {
                     await interaction.deferReply({ ephemeral: false });
+                    console.log(`[DEBUG] /empresa crear started by ${interaction.user.tag}`);
 
                     // 1. Role Check (Only specific role can create)
                     const AUTHORIZED_ROLE_ID = '1450688555503587459';
@@ -3630,8 +3631,16 @@ client.on('interactionCreate', async interaction => {
                     });
 
                 } catch (error) {
-                    console.error(error);
-                    await interaction.editReply('❌ Error inicializando el proceso.');
+                    console.error('[company-create] Critical Error:', error);
+                    try {
+                        if (interaction.deferred || interaction.replied) {
+                            await interaction.editReply(`❌ Error crítico: ${error.message}`);
+                        } else {
+                            await interaction.reply(`❌ Error crítico: ${error.message}`);
+                        }
+                    } catch (e) {
+                        console.error('Final fail responding:', e);
+                    }
                 }
             }
             else if (subcommand === 'menu') {
