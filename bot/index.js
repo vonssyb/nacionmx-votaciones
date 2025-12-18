@@ -1663,32 +1663,28 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 const currentIndex = tiers.indexOf(currentTier);
 
                 if (currentIndex === -1 || currentIndex >= tiers.length - 1) {
-                    return interaction.editReply(`ℹ️ **${profile.full_name}** ya tiene la mejor tarjeta disponible: **${currentTier}**.`);
+                    return interaction.editReply(`ℹ️ **${citizenData.full_name}** ya tiene la mejor tarjeta disponible: **${currentTier}**.`);
                 }
 
                 const nextTier = tiers[currentIndex + 1];
 
-                // Send DM to user
-                try {
-                    const dmEmbed = new EmbedBuilder()
-                        .setTitle('🎁 ¡Oferta Exclusiva de Banco Nacional!')
-                        .setColor(0xFFD700)
-                        .setDescription(`Estimado/a **${citizenData.full_name}**,\n\nDado tu excelente historial crediticio (Score: **${score}/100**), el Banco Nacional te ofrece una **mejora de tarjeta gratuita**.`)
-                        .addFields(
-                            { name: 'Tarjeta Actual', value: currentTier, inline: true },
-                            { name: 'Nueva Oferta', value: `✨ **${nextTier}**`, inline: true },
-                            { name: '¿Cómo Aceptar?', value: 'Contacta a un representante del banco en el servidor para activar tu nueva tarjeta.' }
-                        )
-                        .setFooter({ text: 'Felicidades por mantener un buen historial!' })
-                        .setTimestamp();
+                // Send Offer to Channel Publicly (Ticket)
+                const offerEmbed = new EmbedBuilder()
+                    .setTitle('🎁 ¡Oferta Exclusiva de Banco Nacional!')
+                    .setColor(0xFFD700)
+                    .setDescription(`Estimado/a <@${targetUser.id}>,\n\nDado tu excelente historial crediticio (Score: **${score}/100**), el Banco Nacional te ofrece una **mejora de tarjeta gratuita**.`)
+                    .addFields(
+                        { name: 'Tarjeta Actual', value: currentTier, inline: true },
+                        { name: 'Nueva Oferta', value: `✨ **${nextTier}**`, inline: true },
+                        { name: 'Ejecutivo Asignado', value: '<@1451291919320748275>', inline: true }
+                    )
+                    .setFooter({ text: 'Felicidades por mantener un buen historial!' })
+                    .setTimestamp();
 
-                    await targetUser.send({ embeds: [dmEmbed] });
-
-                    await interaction.editReply(`✅ Oferta de upgrade enviada a **${profile.full_name}** por DM.\n\n**Tarjeta Actual:** ${currentTier}\n**Oferta:** ${nextTier}\n**Score:** ${score}/100`);
-                } catch (dmError) {
-                    console.error('Error enviando DM:', dmError);
-                    await interaction.editReply(`⚠️ Oferta aprobada pero **no se pudo enviar el DM** (el usuario tiene DMs cerrados).\n\nDile manualmente que puede mejorar de **${currentTier}** a **${nextTier}**.`);
-                }
+                await interaction.editReply({
+                    content: `🔔 Atención <@${targetUser.id}>`,
+                    embeds: [offerEmbed]
+                });
             }
         }
         else if (subCmd === 'debug') {
