@@ -4087,17 +4087,6 @@ client.on('interactionCreate', async interaction => {
         const inputMonto = interaction.options.getString('monto');
         const razon = interaction.options.getString('razon') || 'Transferencia Débito';
 
-        let monto = 0;
-        if (inputMonto.toLowerCase() === 'todo' || inputMonto.toLowerCase() === 'all') {
-            // For universal transfer, we take the max available balance to allow the user to proceed
-            // If they select a method with insufficient funds, requestPaymentMethod handles the error.
-            const bal = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
-            monto = Math.max(bal.cash || 0, bal.bank || 0);
-        } else {
-            monto = parseFloat(inputMonto);
-        }
-
-        if (isNaN(monto) || monto <= 0) return interaction.editReply({ content: '❌ El monto debe ser mayor a 0.' });
         if (destUser.id === interaction.user.id) return interaction.editReply({ content: '❌ Auto-transferencia no permitida.' });
 
         try {
