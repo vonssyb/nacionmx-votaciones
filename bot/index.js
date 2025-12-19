@@ -1,6 +1,6 @@
 require('dotenv').config();
 const path = require('path');
-const { Client, GatewayIntentBits, EmbedBuilder, REST, Routes, ActivityType, ActionRowBuilder, ButtonBuilder, ButtonStyle, AttachmentBuilder } = require('discord.js');
+const { Client, GatewayIntentBits, EmbedBuilder, REST, Routes, ActivityType, ActionRowBuilder, ButtonBuilder, ButtonStyle, AttachmentBuilder, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, ComponentType } = require('discord.js');
 const { createClient } = require('@supabase/supabase-js');
 const BillingService = require('./services/BillingService');
 const TaxService = require('./services/TaxService');
@@ -1102,23 +1102,121 @@ client.on('interactionCreate', async interaction => {
 
 
     else if (commandName === 'ayuda') {
-        const helpEmbed = new EmbedBuilder()
-            .setTitle('🏦 Sistema Financiero Nación MX')
+        const initialEmbed = new EmbedBuilder()
+            .setTitle('📘 Centro de Ayuda Nación MX')
             .setColor(0xD4AF37) // Gold
-            .setDescription('**Guía completa de comandos económicos y empresariales**')
-            .addFields(
-                { name: '💰 Banco & Efectivo', value: '`/balanza` - Ver saldo total (Efectivo + Banco + Crédito)\n`/debito estado` - Ver saldo de cuenta bancaria\n`/debito info` - Información completa de tu tarjeta\n`/debito depositar` - Depositar efectivo en banco\n`/debito retirar` - Retirar dinero del banco a efectivo\n`/depositar` - Depósito OXXO (a otros)\n`/transferir` - Transferencia bancaria\n`/giro` - Envío paquetería (24h)\n\n**👨‍💼 Ejecutivos Bancarios:**\n`/debito admin info` - Ver info completa de cliente\n`/debito admin historial` - Ver transacciones de cliente' },
-                { name: '💳 Tarjetas & Crédito', value: '`/credito info` - Ver información de tu tarjeta\n`/credito pagar` - Pagar deuda de tarjeta\n`/credito buro` - Ver historial crediticio\n\n**👨‍💼 Ejecutivos:**\n`/credito admin historial` - Análisis completo de cliente' },
-                { name: '🏢 Empresas', value: '`/empresa crear` - Registrar tu negocio\n`/empresa menu` - Panel de gestión\n`/empresa cobrar` - Terminal POS\n`/empresa credito` - Crédito empresarial' },
-                { name: '📈 Inversiones', value: '`/bolsa precios` - Mercado de valores\n`/bolsa comprar/vender` - Trading\n`/inversion nueva` - Plazo fijo\n`/bolsa portafolio` - Ver inversiones' },
-                { name: '🎰 Casino', value: '**Sistema de Fichas:**\n`/casino fichas comprar` - Comprar fichas\n`/casino fichas retirar` - Retirar a efectivo\n`/casino saldo` - Ver estadísticas\n`/casino ranking` - Top jugadores\n\n**Juegos Disponibles:**\n`/jugar slots` - Tragamonedas (100x)\n`/jugar dice` - Over/Under (10x)\n`/jugar blackjack` - 21 (2.5x)\n`/jugar ruleta` - Europea (35x)\n`/jugar caballos` - Carreras (5x)\n`/jugar crash` - Multiplicador (50x)\n`/jugar gallos` - Pelea (1.9x)\n`/jugar ruleta-rusa` - ⚠️ Alto riesgo (5x)' },
-                { name: '🚔 Policía', value: '`/multa` - Aplicar multa\n`/licencia registrar` - Registrar licencia\n`/licencia revocar` - Revocar licencia' },
-                { name: '💡 Notas', value: '• **Métodos de Pago:** Efectivo, Banco/Débito o Crédito\n• **Casino:** VIP (Black/Diamante) = +10% fichas bonus\n• **Sin tarjeta débito = Sin banco**' }
-            )
-            .setFooter({ text: 'Sistema Financiero Nación MX • Uso exclusivo Roleplay' })
-            .setTimestamp();
+            .setDescription('**Selecciona una categoría en el menú de abajo para ver los comandos disponibles.**\n\nAquí encontrarás toda la información sobre el sistema financiero, legal y de entretenimiento.')
+            .setImage('https://i.imgur.com/K3pW4kC.png') // Placeholder banner, can be updated later
+            .setFooter({ text: 'Usa el menú desplegable para navegar' });
 
-        await interaction.reply({ embeds: [helpEmbed], ephemeral: false });
+        const selectMenu = new StringSelectMenuBuilder()
+            .setCustomId('help_category')
+            .setPlaceholder('Selecciona una categoría...')
+            .addOptions(
+                new StringSelectMenuOptionBuilder().setLabel('Banco & Economía').setDescription('Débito, Transferencias, Efectivo').setValue('economy').setEmoji('🏦'),
+                new StringSelectMenuOptionBuilder().setLabel('Crédito & Deudas').setDescription('Tarjetas de Crédito, Buró, Pagos').setValue('credit').setEmoji('💳'),
+                new StringSelectMenuOptionBuilder().setLabel('Empresas & Negocios').setDescription('Gestión de Empresas, Terminal POS').setValue('business').setEmoji('🏢'),
+                new StringSelectMenuOptionBuilder().setLabel('Inversiones & Bolsa').setDescription('Acciones, Crypto, Plazos Fijos').setValue('invest').setEmoji('📈'),
+                new StringSelectMenuOptionBuilder().setLabel('Casino & Juegos').setDescription('Slots, Ruleta, Caballos, Juegos').setValue('casino').setEmoji('🎰'),
+                new StringSelectMenuOptionBuilder().setLabel('Legal & Policial').setDescription('Multas, Antecedentes, Fichajes').setValue('police').setEmoji('👮'),
+                new StringSelectMenuOptionBuilder().setLabel('Utilidades').setDescription('Ping, Balance, Notificaciones').setValue('utils').setEmoji('⚙️'),
+            );
+
+        const row = new ActionRowBuilder().addComponents(selectMenu);
+
+        const response = await interaction.reply({ embeds: [initialEmbed], components: [row], ephemeral: false });
+
+        const collector = response.createMessageComponentCollector({ componentType: ComponentType.StringSelect, time: 300000 }); // 5 mins
+
+        collector.on('collect', async i => {
+            if (i.customId !== 'help_category') return;
+
+            const category = i.values[0];
+            const newEmbed = new EmbedBuilder().setColor(0xD4AF37).setTimestamp();
+
+            switch (category) {
+                case 'economy':
+                    newEmbed.setTitle('🏦 Banco & Economía')
+                        .addFields(
+                            { name: '`/debito estado`', value: 'Ver tu saldo bancario y número de tarjeta.' },
+                            { name: '`/debito depositar`', value: 'Depositar efectivo a tu cuenta (Inmediato).' },
+                            { name: '`/debito retirar`', value: 'Retirar dinero del banco (Inmediato).' },
+                            { name: '`/debito transferir`', value: 'Transferir a otro usuario (Banco a Banco, 5 min).' },
+                            { name: '`/transferir`', value: 'Transferencia SPEI inmediata (Solo Banco).' },
+                            { name: '`/depositar`', value: 'Depósito en efectivo a terceros (OXXO, 4 horas).' },
+                            { name: '`/giro`', value: 'Envío de efectivo por paquetería (24 horas).' }
+                        );
+                    break;
+                case 'credit':
+                    newEmbed.setTitle('💳 Crédito & Deudas')
+                        .addFields(
+                            { name: '`/credito info`', value: 'Ver estado de cuenta, límite y corte.' },
+                            { name: '`/credito pagar`', value: 'Pagar deuda de tarjeta.' },
+                            { name: '`/credito buro`', value: 'Ver tu historial crediticio.' },
+                            { name: '`/top-morosos`', value: 'Ver quién debe más en el servidor.' },
+                            { name: '`/top-ricos`', value: 'Ver quién tiene mejor Score Crediticio.' }
+                        );
+                    break;
+                case 'business':
+                    newEmbed.setTitle('🏢 Empresas & Negocios')
+                        .addFields(
+                            { name: '`/empresa crear`', value: 'Registrar una nueva empresa ($50k).' },
+                            { name: '`/empresa menu`', value: 'Panel de gestión (pagar nómina, ver saldo).' },
+                            { name: '`/empresa cobrar`', value: 'Generar cobro para clientes (Terminal POS).' },
+                            { name: '`/empresa credito`', value: 'Solicitar crédito empresarial.' }
+                        );
+                    break;
+                case 'invest':
+                    newEmbed.setTitle('📈 Inversiones & Bolsa')
+                        .addFields(
+                            { name: '`/bolsa precios`', value: 'Ver precios de acciones/crypto.' },
+                            { name: '`/bolsa comprar`', value: 'Invertir en activos.' },
+                            { name: '`/bolsa vender`', value: 'Vender activos.' },
+                            { name: '`/bolsa portafolio`', value: 'Ver tus rendimientos.' },
+                            { name: '`/inversion nueva`', value: 'Abrir plazo fijo (CDT).' }
+                        );
+                    break;
+                case 'casino':
+                    newEmbed.setTitle('🎰 Casino Nación MX')
+                        .setDescription('¡Apuesta y gana! La casa (casi) nunca pierde.')
+                        .addFields(
+                            { name: '`/casino fichas comprar`', value: 'Comprar fichas (1 ficha = $1).' },
+                            { name: '`/casino fichas retirar`', value: 'Cambiar fichas por dinero.' },
+                            { name: '`/jugar slots`', value: 'Tragamonedas clásica.' },
+                            { name: '`/jugar dados`', value: 'Adivina suma (Mayor/Menor).' },
+                            { name: '`/jugar ruleta`', value: 'Ruleta (Rojo/Negro/Número).' },
+                            { name: '`/jugar crash`', value: '¡Sal antes de que explote!' },
+                            { name: '`/jugar caballos`', value: 'Carreras.' },
+                            { name: '`/jugar gallos`', value: 'Pelea de gallos.' },
+                            { name: '`/jugar rusa`', value: 'Ruleta Rusa (Peligroso).' }
+                        );
+                    break;
+                case 'police':
+                    newEmbed.setTitle('👮 Legal & Policial')
+                        .addFields(
+                            { name: '`/fichar`', value: 'Buscar antecedentes penales (Policía).' },
+                            { name: '`/multa`', value: 'Imponer multa (Policía/Juez).' },
+                            { name: '`/impuestos pagar`', value: 'Pagar impuestos pendientes.' },
+                            { name: '`/licencia registrar`', value: 'Registrar licencia de conducir.' }
+                        );
+                    break;
+                case 'utils':
+                    newEmbed.setTitle('⚙️ Utilidades')
+                        .addFields(
+                            { name: '`/balanza`', value: 'Resumen financiero total (Net Worth).' },
+                            { name: '`/notificaciones`', value: 'Activar/desactivar DMs del banco.' },
+                            { name: '`/ping`', value: 'Ver latencia del bot.' },
+                            { name: '`/rol`', value: 'Asignarse roles de trabajo.' }
+                        );
+                    break;
+            }
+
+            await i.update({ embeds: [newEmbed], components: [row] });
+        });
+
+        collector.on('end', () => {
+            // Optional: Disable on timeout
+        });
     }
 
     else if (commandName === 'estado') {
@@ -3936,7 +4034,7 @@ client.on('interactionCreate', async interaction => {
             await interaction.deferReply();
 
             try {
-                // Check if destination has debit card
+                // 1. Check if destination has debit card (Required for SPEI)
                 const { data: destCard } = await supabase
                     .from('debit_cards')
                     .select('*')
@@ -3944,50 +4042,63 @@ client.on('interactionCreate', async interaction => {
                     .eq('status', 'active')
                     .maybeSingle();
 
-                if (!destCard) return interaction.editReply(`❌ **${destUser.username}** no tiene Tarjeta de Débito activa para recibir.`);
+                if (!destCard) return interaction.editReply(`❌ **${destUser.username}** no tiene cuenta bancaria activa para recibir SPEI.`);
 
-                // Use universal payment system for sender
-                const paymentResult = await requestPaymentMethod(
-                    interaction,
-                    interaction.user.id,
-                    monto,
-                    `💸 Transferencia a ${destUser.tag}: ${razon}`
-                );
+                // 2. Check Sender Bank Balance
+                const balance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
+                const bankBalance = balance.bank || 0;
 
-                if (!paymentResult.success) {
-                    return interaction.editReply(paymentResult.error);
+                let monto = 0;
+                if (inputMonto.toLowerCase() === 'todo' || inputMonto.toLowerCase() === 'all') {
+                    monto = bankBalance;
+                } else {
+                    monto = parseFloat(inputMonto);
                 }
 
-                // Add money to destination (always to bank)
-                await billingService.ubService.addMoney(interaction.guildId, destUser.id, monto, `Transferencia de ${interaction.user.tag}: ${razon}`, 'bank');
+                if (isNaN(monto) || monto <= 0) return interaction.editReply('❌ El monto debe ser mayor a 0.');
 
-                // Log transaction
-                const { data: senderCard } = await supabase.from('debit_cards').select('id').eq('discord_user_id', interaction.user.id).eq('status', 'active').maybeSingle();
+                if (bankBalance < monto) {
+                    return interaction.editReply(`❌ Fondos insuficientes en Banco.\n\nDisponible: $${bankBalance.toLocaleString()}\nIntentas transferir: $${monto.toLocaleString()}`);
+                }
 
+                // 3. Process Transfer (Bank -> Bank Immediate)
+                await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, monto, `SPEI a ${destUser.tag}: ${razon}`, 'bank');
+                await billingService.ubService.addMoney(interaction.guildId, destUser.id, monto, `SPEI de ${interaction.user.tag}: ${razon}`, 'bank');
+
+                // 4. Log Transaction
                 await supabase.from('debit_transactions').insert([{
                     debit_card_id: destCard.id,
                     discord_user_id: destUser.id,
                     transaction_type: 'transfer_in',
                     amount: monto,
-                    description: `Transferencia de ${interaction.user.tag}`
+                    description: `SPEI de ${interaction.user.tag}`
                 }]);
 
-                const paymentMethodLabel = paymentResult.method === 'cash' ? '💵 Efectivo' : paymentResult.method === 'bank' ? '🏦 Banco/Débito' : '💳 Crédito';
-
                 const embed = new EmbedBuilder()
-                    .setTitle('💸 Transferencia Exitosa')
+                    .setTitle('🏦 Transferencia SPEI Exitosa')
                     .setColor(0x00FFFF)
-                    .setDescription(`Transferencia completada exitosamente.`)
+                    .setDescription(`Transferencia bancaria completada.`)
                     .addFields(
                         { name: 'De', value: `${interaction.user.tag}`, inline: true },
                         { name: 'Para', value: `${destUser.tag}`, inline: true },
                         { name: 'Monto', value: `$${monto.toLocaleString()}`, inline: true },
-                        { name: 'Método de Pago', value: paymentMethodLabel, inline: true },
                         { name: 'Concepto', value: razon, inline: false }
                     )
                     .setTimestamp();
 
-                await interaction.editReply({ embeds: [embed], components: [] });
+                await interaction.editReply({ embeds: [embed] });
+
+                // Notify Recipient
+                try {
+                    const dmEmbed = new EmbedBuilder()
+                        .setTitle('🏦 Has recibido un SPEI')
+                        .setDescription(`**${interaction.user.tag}** te ha transferido **$${monto.toLocaleString()}** a tu cuenta de banco.`)
+                        .addFields({ name: 'Concepto', value: razon })
+                        .setColor(0x00FFFF)
+                        .setTimestamp();
+                    await destUser.send({ embeds: [dmEmbed] });
+                } catch (dmError) { /* Ignore */ }
+
 
                 // Notify
                 try {
@@ -4027,14 +4138,23 @@ client.on('interactionCreate', async interaction => {
             await interaction.deferReply();
 
             try {
-                // 1. Check Sender Balance (Generic Bank/Cash)
+                // 1. Check Sender CASH (Giro Postal is Cash only)
                 const senderBalance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
-                if (senderBalance.bank < monto) {
-                    return interaction.editReply(`❌ Fondos insuficientes en Banco. Tienes $${senderBalance.bank.toLocaleString()}.`);
+
+                if (inputMonto.toLowerCase() === 'todo' || inputMonto.toLowerCase() === 'all') {
+                    monto = senderBalance.cash || 0;
+                } else {
+                    monto = parseFloat(inputMonto);
                 }
 
-                // 2. Deduct Money Immediately
-                await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, monto, `Giro enviado a ${destUser.tag}: ${razon}`, 'bank');
+                if (isNaN(monto) || monto <= 0) return interaction.editReply('❌ El monto debe ser mayor a 0.');
+
+                if ((senderBalance.cash || 0) < monto) {
+                    return interaction.editReply(`❌ Fondos insuficientes en Efectivo. Tienes $${(senderBalance.cash || 0).toLocaleString()}.`);
+                }
+
+                // 2. Deduct Money Immediately (Cash)
+                await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, monto, `Giro enviado a ${destUser.tag}: ${razon}`, 'cash');
 
                 // 3. Create Pending Transfer (24h Delay)
                 // 24 hours from now
