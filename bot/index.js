@@ -1474,7 +1474,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
 
             const { data: userCard } = await supabase.from('credit_cards')
                 .select('*')
-                .eq('discord_id', targetUser.id)
+                .eq('citizen_id', citizen.id)
                 .order('created_at', { ascending: false })
                 .limit(1)
                 .maybeSingle();
@@ -1505,7 +1505,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 const { data: allCards } = await supabase
                     .from('credit_cards')
                     .select('*')
-                    .eq('discord_id', targetUser.id)
+                    .eq('citizen_id', citizen.id)
                     .order('created_at', { ascending: false });
 
                 let totalCreditLimit = 0;
