@@ -579,6 +579,7 @@ client.once('ready', async () => {
                     ]
                 },
                 { name: 'saldo', description: 'Ver tus fichas y estadísticas', type: 1 },
+                { name: 'info', description: '📖 Guía completa del casino (juegos, reglas, premios)', type: 1 },
                 {
                     name: 'historial',
                     description: 'Ver tus últimas jugadas',
@@ -4886,6 +4887,50 @@ client.on('interactionCreate', async interaction => {
                     console.error(error);
                     await interaction.editReply('❌ Error cargando historial.');
                 }
+            }
+
+            // === INFO ===
+            else if (subCmd === 'info') {
+                const infoEmbed = new EmbedBuilder()
+                    .setTitle('🎰 Casino Nación MX - Guía Completa')
+                    .setColor(0xFFD700)
+                    .setDescription('**Bienvenido al Casino más emocionante de NaciónMX!**\n\n💰 Compra fichas, juega, gana y retira tus ganancias.')
+                    .addFields(
+                        {
+                            name: '💳 Sistema de Fichas',
+                            value: '`/casino fichas comprar` - Compra fichas (1:1 con tu dinero)\n`/casino fichas retirar` - Retira fichas a efectivo\n`/casino saldo` - Ver balance y estadísticas\n\n**VIP Bonus:** Tarjetas Black/Diamante obtienen +10% fichas gratis al comprar',
+                            inline: false
+                        },
+                        {
+                            name: '🎮 Juegos Disponibles',
+                            value: '**🎰 Slots** (`/jugar slots`)\n• 3 rodillos aleatorios\n• Premios: 2x, 5x, 10x, 50x, 100x (Jackpot!)\n• Apuesta mínima: 10 fichas\n\n**🎲 Dice** (`/jugar dice`)\n• Apuesta Over/Under en 1-99\n• Multiplicador dinámico según probabilidad\n• Hasta 10x si aciertas\n\n**🃏 Blackjack** (`/jugar blackjack`)\n• 21 clásico contra la casa\n• Victoria: 2x | Blackjack: 2.5x | Empate: 1x\n• Mínimo: 10 fichas',
+                            inline: false
+                        },
+                        {
+                            name: '🎡 Más Juegos',
+                            value: '**🎡 Ruleta** (`/jugar ruleta`)\n• Rojo/Negro: 2x\n• Par/Impar: 2x\n• Número exacto: 35x\n\n**🐴 Carrera de Caballos** (`/jugar caballos`)\n• Elige entre 6 caballos\n• Premio fijo: 5x\n\n**📉 Crash** (`/jugar crash`)\n• Multiplicador sube hasta 50x\n• Retiro automático aleatorio\n\n**🐓 Pelea de Gallos** (`/jugar gallos`)\n• Rojo vs Azul (Best of 5)\n• Premio: 1.9x',
+                            inline: false
+                        },
+                        {
+                            name: '💀 Juego de Alto Riesgo',
+                            value: '**💀 Ruleta Rusa** (`/jugar ruleta-rusa`)\n• ⚠️ ADVERTENCIA: Juego peligroso\n• Si sobrevives: 5x tu apuesta\n• Si pierdes: Multa 2x + Ban 1 hora del casino\n• Apuesta máxima: 100 fichas',
+                            inline: false
+                        },
+                        {
+                            name: '📊 Estadísticas',
+                            value: '`/casino ranking` - Top jugadores\n`/casino historial` - Tus últimas 10 jugadas\n\n**Filtra por juego:** `/casino historial juego:slots`',
+                            inline: false
+                        },
+                        {
+                            name: '⚠️ Reglas Importantes',
+                            value: '• Solo accesible en <#1451398359540826306>\n• Juego justo Provably Fair\n• Límites anti-trampa activos\n• Retiros siempre a EFECTIVO\n• Juega responsablemente',
+                            inline: false
+                        }
+                    )
+                    .setFooter({ text: 'Casino Nación MX | La casa siempre gana... o no? 🎲' })
+                    .setTimestamp();
+
+                await interaction.reply({ embeds: [infoEmbed] });
             }
         }
     }
