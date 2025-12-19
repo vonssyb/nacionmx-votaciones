@@ -2076,22 +2076,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             try {
                 const license = licenseData[tipo];
 
-                // Check user balance
-                // Check user balance (Total)
-                const balance = await billingService.ubService.getUserBalance(interaction.guildId, targetUser.id);
-                const totalBalance = (balance.cash || 0) + (balance.bank || 0);
-
-                if (totalBalance < license.cost) {
-                    return interaction.editReply(`❌ <@${targetUser.id}> no tiene fondos suficientes.\n\n💰 Costo: $${license.cost.toLocaleString()}\n💵 Tiene: $${totalBalance.toLocaleString()} (Total)`);
-                }
-
-                // Determine payment source
-                let paySource = 'bank';
-                if ((balance.bank || 0) < license.cost && (balance.cash || 0) >= license.cost) {
-                    paySource = 'cash';
-                }
-
-                // Check if already has this license
+                // Check if already has this license FIRST
                 const { data: existing } = await supabase
                     .from('licenses')
                     .select('*')
@@ -2103,8 +2088,17 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                     return interaction.editReply(`⚠️ <@${targetUser.id}> ya tiene esta licencia activa.`);
                 }
 
-                // Charge user
-                await billingService.ubService.removeMoney(interaction.guildId, targetUser.id, license.cost, `Pago de ${license.name}`, paySource);
+                // Use universal payment system
+                const paymentResult = await requestPaymentMethod(
+                    interaction,
+                    targetUser.id,
+                    license.cost,
+                    `${license.emoji} ${license.name}`
+                );
+
+                if (!paymentResult.success) {
+                    return interaction.editReply(paymentResult.error);
+                }
 
                 // Register license
                 const expiryDate = new Date();
@@ -2122,6 +2116,8 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                         status: 'active'
                     });
 
+                const paymentMethodLabel = paymentResult.method === 'cash' ? '💵 Efectivo' : paymentResult.method === 'bank' ? '🏦 Banco/Débito' : '💳 Crédito';
+
                 const embed = new EmbedBuilder()
                     .setTitle(`${license.emoji} Licencia Registrada`)
                     .setColor(0x00FF00)
@@ -2129,13 +2125,14 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                     .addFields(
                         { name: '👤 Ciudadano', value: `<@${targetUser.id}>`, inline: true },
                         { name: '💵 Costo', value: `$${license.cost.toLocaleString()}`, inline: true },
+                        { name: '💳 Método de Pago', value: paymentMethodLabel, inline: true },
                         { name: '📅 Válida hasta', value: `<t:${Math.floor(expiryDate.getTime() / 1000)}:D>`, inline: false },
                         { name: '👮 Emitida por', value: interaction.user.tag, inline: true }
                     )
                     .setFooter({ text: 'Sistema de Licencias Nación MX' })
                     .setTimestamp();
 
-                await interaction.editReply({ embeds: [embed] });
+                await interaction.editReply({ embeds: [embed], components: [] });
 
                 // Send receipt to citizen
                 try {
