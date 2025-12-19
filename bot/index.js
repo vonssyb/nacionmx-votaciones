@@ -3995,6 +3995,8 @@ client.on('interactionCreate', async interaction => {
     }
 
     else if (commandName === 'transferir') {
+        await interaction.deferReply(); // Defer immediately
+
         const destUser = interaction.options.getUser('destinatario');
         const inputMonto = interaction.options.getString('monto');
         const razon = interaction.options.getString('razon') || 'Transferencia Débito';
@@ -4009,10 +4011,8 @@ client.on('interactionCreate', async interaction => {
             monto = parseFloat(inputMonto);
         }
 
-        if (isNaN(monto) || monto <= 0) return interaction.reply({ content: '❌ El monto debe ser mayor a 0.', ephemeral: true });
-        if (destUser.id === interaction.user.id) return interaction.reply({ content: '❌ Auto-transferencia no permitida.', ephemeral: true });
-
-        await interaction.deferReply();
+        if (isNaN(monto) || monto <= 0) return interaction.editReply({ content: '❌ El monto debe ser mayor a 0.' });
+        if (destUser.id === interaction.user.id) return interaction.editReply({ content: '❌ Auto-transferencia no permitida.' });
 
         try {
             // 0. Security Check: Sender must have active Debit Card
@@ -4111,37 +4111,27 @@ client.on('interactionCreate', async interaction => {
     }
 
     else if (commandName === 'giro') {
+        await interaction.deferReply(); // Defer immediately
+
         const destUser = interaction.options.getUser('destinatario');
         const inputMonto = interaction.options.getString('monto');
         const razon = interaction.options.getString('razon') || 'Giro Postal';
 
-        let monto = 0;
         // Fetch balance early
         const senderBalance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
 
+        let monto = 0;
         if (inputMonto.toLowerCase() === 'todo' || inputMonto.toLowerCase() === 'all') {
-            monto = senderBalance.bank || 0;
+            monto = senderBalance.cash || 0;
         } else {
             monto = parseFloat(inputMonto);
         }
 
-        if (isNaN(monto) || monto <= 0) return interaction.reply({ content: '❌ El monto debe ser mayor a 0.', ephemeral: true });
-        if (destUser.id === interaction.user.id) return interaction.reply({ content: '❌ No puedes enviarte un giro a ti mismo.', ephemeral: true });
-
-        await interaction.deferReply();
+        if (isNaN(monto) || monto <= 0) return interaction.editReply({ content: '❌ El monto debe ser mayor a 0.' });
+        if (destUser.id === interaction.user.id) return interaction.editReply({ content: '❌ No puedes enviarte un giro a ti mismo.' });
 
         try {
-            // 1. Check Sender CASH (Giro Postal is Cash only)
-            const senderBalance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
-
-            if (inputMonto.toLowerCase() === 'todo' || inputMonto.toLowerCase() === 'all') {
-                monto = senderBalance.cash || 0;
-            } else {
-                monto = parseFloat(inputMonto);
-            }
-
-            if (isNaN(monto) || monto <= 0) return interaction.editReply('❌ El monto debe ser mayor a 0.');
-
+            // Already fetched balance above.
             if ((senderBalance.cash || 0) < monto) {
                 return interaction.editReply(`❌ Fondos insuficientes en Efectivo. Tienes $${(senderBalance.cash || 0).toLocaleString()}.`);
             }
