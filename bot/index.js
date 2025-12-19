@@ -3146,7 +3146,7 @@ async function requestPaymentMethod(interaction, userId, amount, description) {
     const cash = balance.cash || 0;
     const bank = balance.bank || 0;
 
-    const { data: creditCards } = await supabase.from('credit_cards').select('*').eq('discord_id', userId).eq('status', 'active');
+    const { data: creditCards } = await supabase.from('credit_cards').select('*').eq('discord_user_id', userId).eq('status', 'active');
 
     let creditAvailable = 0;
     if (creditCards && creditCards.length > 0) {
@@ -3310,7 +3310,7 @@ client.on('interactionCreate', async interaction => {
             const cashBalance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
             console.log(`[DEBUG] /balanza User: ${interaction.user.id} Balance Raw:`, cashBalance); // DEBUG LOG
             const { data: debitCard } = await supabase.from('debit_cards').select('balance').eq('discord_user_id', interaction.user.id).eq('status', 'active').maybeSingle();
-            const { data: creditCards } = await supabase.from('credit_cards').select('*').eq('discord_id', interaction.user.id).eq('status', 'active');
+            const { data: creditCards } = await supabase.from('credit_cards').select('*').eq('discord_user_id', interaction.user.id).eq('status', 'active');
 
             const cash = cashBalance.cash || 0;
             const bank = cashBalance.bank || 0;
