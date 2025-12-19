@@ -3681,8 +3681,7 @@ client.on('interactionCreate', async interaction => {
                     amount: monto,
                     reason: 'Transferencia Interbancaria',
                     release_date: releaseDate.toISOString(),
-                    status: 'PENDING',
-                    transfer_type: 'debit_to_debit'
+                    status: 'PENDING'
                 });
 
                 // Log transaction
@@ -4206,12 +4205,12 @@ client.on('interactionCreate', async interaction => {
             const completionTime = new Date(Date.now() + (4 * 60 * 60 * 1000)); // 4 Hours
 
             await supabase.from('pending_transfers').insert({
-                from_user_id: interaction.user.id,
-                to_user_id: destUser.id,
+                sender_id: interaction.user.id,
+                receiver_id: destUser.id,
                 amount: monto,
-                transfer_type: 'cash_to_debit',
-                scheduled_completion: completionTime.toISOString(),
-                metadata: { reason: razon, dest_card_number: destCard.card_number }
+                reason: razon,
+                release_date: completionTime.toISOString(),
+                status: 'PENDING'
             });
 
             // 4. Response
@@ -4275,9 +4274,7 @@ client.on('interactionCreate', async interaction => {
                     amount: monto,
                     reason: razon,
                     release_date: releaseDate.toISOString(),
-                    status: 'PENDING',
-                    transfer_type: 'cash_to_debit',
-                    metadata: { subtype: 'giro' }
+                    status: 'PENDING'
                 });
 
             if (dbError) {
