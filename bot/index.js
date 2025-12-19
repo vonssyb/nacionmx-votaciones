@@ -98,7 +98,8 @@ client.once('ready', async () => {
     console.log(`🤖 Bot iniciado como ${client.user.tag}!`);
     console.log(`📡 Conectado a Supabase: ${supabaseUrl}`);
 
-    client.user.setActivity('Finanzas Nacion MX', { type: ActivityType.Watching });
+    // Update Status to indicate DEBUG MODE
+    client.user.setActivity('🔴 MODO DEBUG | /ayuda', { type: ActivityType.Playing });
 
     // Start Auto-Billing Cron
     billingService.startCron();
@@ -498,6 +499,14 @@ client.once('ready', async () => {
                         { name: 'monto', description: 'Cantidad a solicitar', type: 10, required: true },
                         { name: 'razon', description: 'Uso del crédito', type: 3, required: false }
                     ]
+                },
+                {
+                    name: 'listar-usuario',
+                    description: '👮 Ver empresas de un usuario (STAFF ONLY)',
+                    type: 1,
+                    options: [
+                        { name: 'usuario', description: 'Usuario a investigar', type: 6, required: true }
+                    ]
                 }
             ]
         },
@@ -601,6 +610,11 @@ client.once('ready', async () => {
                     options: [
                         { name: 'monto', description: 'Cantidad o "todo"', type: 3, required: true }
                     ]
+                },
+                {
+                    name: 'mejorar',
+                    description: 'Subir de nivel tu tarjeta de débito',
+                    type: 1
                 },
                 { name: 'historial', description: 'Ver transacciones', type: 1 },
                 { name: 'info', description: 'Ver información completa de tu tarjeta de débito', type: 1 },
@@ -883,6 +897,7 @@ client.once('ready', async () => {
 
 // Interaction Handler (Slash Commands)
 client.on('interactionCreate', async interaction => {
+    console.log(`[DEBUG] RAW INTERACTION: ${interaction.isCommand() ? 'CMD' : 'BTN/OTHER'} ${interaction.commandName || interaction.customId}`);
     // BUTTON: Investment Collection
     if (interaction.isButton() && interaction.customId.startsWith('btn_collect_')) {
         await interaction.deferReply({ ephemeral: true });
@@ -3124,10 +3139,10 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 let totalCurrent = 0;
 
                 portfolio.forEach(p => {
-                    const stock = stocks.find(s => s.symbol === p.stock_symbol);
+                    const stock = globalStocks.find(s => s.symbol === p.stock_symbol);
                     if (!stock) return;
 
-                    const currentPrice = getPrice(stock.base);
+                    const currentPrice = stock.current;
                     const invested = p.avg_buy_price * p.shares;
                     const currentValue = currentPrice * p.shares;
                     const profitLoss = currentValue - invested;
@@ -3196,6 +3211,11 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
 
     else if (commandName === 'impuestos') {
         await interaction.reply({ content: '🛠️ **Próximamente:** Sistema de impuestos dinámico.', ephemeral: true });
+    }
+    // Check if interaction was handled; if not, pass to the second handler (Extra Commands)
+    if (!interaction.replied && !interaction.deferred) {
+        console.log(`[DEBUG] Delegating interaction ${interaction.customId || interaction.commandName} to handleExtraCommands`);
+        await handleExtraCommands(interaction);
     }
 });
 
@@ -3479,12 +3499,78 @@ async function handleUpgradeButton(interaction) {
     await interaction.message.edit({ components: [] });
 }
 
+async function handleDebitUpgradeButton(interaction) {
+    await interaction.deferReply({ ephemeral: false });
+
+    // CustomID: btn_udp_upgrade_CARDID_TIERNAME (with underscores for spaces)
+    const parts = interaction.customId.split('_');
+    // btn, udp, upgrade, cardId, tierName...
+    const cardId = parts[3];
+    const tierName = parts.slice(4).join(' ');
+
+    const debitTiersDetails = {
+        'NMX Débito': { cost: 100, max: 50000 },
+        'NMX Débito Plus': { cost: 500, max: 150000 },
+        'NMX Débito Gold': { cost: 1000, max: Infinity }
+    };
+
+    if (!debitTiersDetails[tierName]) return interaction.editReply('❌ Error: Nivel desconocido.');
+
+    const cost = debitTiersDetails[tierName].cost;
+
+    // Check Balance
+    const balance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
+    const userMoney = balance.total || (balance.cash + balance.bank);
+
+    if (userMoney < cost) {
+        return interaction.editReply(`❌ **Fondos Insuficientes**. Tienes $${userMoney.toLocaleString()} y el upgrade cuesta **$${cost.toLocaleString()}**.`);
+    }
+
+    // Deduct Money
+    await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, cost, `Upgrade Débito a ${tierName}`, 'bank');
+
+    // Update DB
+    const { error } = await supabase
+        .from('debit_cards')
+        .update({ card_tier: tierName })
+        .eq('id', cardId);
+
+    if (error) {
+        console.error('Debit Upgrade Error:', error);
+        return interaction.editReply('❌ Error actualizando la tarjeta.');
+    }
+
+    const maxBal = debitTiersDetails[tierName].max;
+    const maxBalStr = maxBal === Infinity ? 'Ilimitado' : `$${maxBal.toLocaleString()}`;
+
+    const successEmbed = new EmbedBuilder()
+        .setTitle('🎉 ¡Mejora de Débito Exitosa!')
+        .setColor(0x00CED1)
+        .setDescription(`Has mejorado tu tarjeta a **${tierName}**.`)
+        .addFields(
+            { name: '💎 Nuevo Nivel', value: tierName, inline: true },
+            { name: '💳 Nuevo Límite', value: maxBalStr, inline: true },
+            { name: '💰 Costo Pagado', value: `$${cost.toLocaleString()}`, inline: true }
+        )
+        .setFooter({ text: 'Sistema Bancario Nación MX' })
+        .setTimestamp();
+
+    await interaction.editReply({ embeds: [successEmbed] });
+
+    // Remove button from original message
+    await interaction.message.edit({ components: [] });
+}
+
 // ===== MISSING COMMAND HANDLERS =====
 
-client.on('interactionCreate', async interaction => {
+async function handleExtraCommands(interaction) {
+    console.log(`[DEBUG] handleExtraCommands received: ${interaction.customId || interaction.commandName}`);
+
     if (interaction.isButton()) {
         if (interaction.customId.startsWith('btn_upgrade_')) {
             await handleUpgradeButton(interaction);
+        } else if (interaction.customId.startsWith('btn_udp_upgrade_')) {
+            await handleDebitUpgradeButton(interaction);
         } else if (interaction.customId.startsWith('btn_cancel_upgrade_')) {
             await interaction.deferReply({ ephemeral: false });
             const userId = interaction.customId.split('_')[3];
@@ -3597,6 +3683,52 @@ client.on('interactionCreate', async interaction => {
             }
         }
         // Add this code between line 3561 (after estado closing }) and line 3563 (before depositar comment)
+
+        // === MEJORAR (Upgrade Debit Card) ===
+        else if (subcommand === 'mejorar') {
+            try {
+                const card = await getDebitCard(interaction.user.id);
+                if (!card) return interaction.editReply('❌ No tienes una tarjeta de débito activa.');
+
+                const currentTier = card.card_tier || 'NMX Débito';
+                let nextTier = null;
+
+                if (currentTier === 'NMX Débito') nextTier = 'NMX Débito Plus';
+                else if (currentTier === 'NMX Débito Plus') nextTier = 'NMX Débito Gold';
+
+                if (!nextTier) {
+                    return interaction.editReply(`✨ Tu tarjeta **${currentTier}** ya es el nivel máximo.`);
+                }
+
+                const nextStats = CARD_TIERS[nextTier];
+                const upgradeCost = nextStats.cost;
+
+                const embed = new EmbedBuilder()
+                    .setTitle('🚀 Mejora tu Tarjeta de Débito')
+                    .setColor(0x00CED1)
+                    .setDescription(`Estás a punto de mejorar tu tarjeta **${currentTier}** a **${nextTier}**.`)
+                    .addFields(
+                        { name: '🌟 Nuevo Nivel', value: nextTier, inline: true },
+                        { name: '💎 Beneficios', value: `Límite Máximo: $${nextStats.max_balance === Infinity ? 'Ilimitado' : nextStats.max_balance.toLocaleString()}`, inline: true },
+                        { name: '💰 Costo de Mejora', value: `$${upgradeCost.toLocaleString()}`, inline: false }
+                    );
+
+                const row = new ActionRowBuilder()
+                    .addComponents(
+                        new ButtonBuilder()
+                            .setCustomId(`btn_udp_upgrade_${card.id}_${nextTier.replace(/ /g, '_')}`)
+                            .setLabel(`Mejorar por $${upgradeCost}`)
+                            .setStyle(ButtonStyle.Success)
+                            .setEmoji('💳')
+                    );
+
+                await interaction.editReply({ embeds: [embed], components: [row] });
+
+            } catch (error) {
+                console.error(error);
+                await interaction.editReply('❌ Error procesando la mejora.');
+            }
+        }
 
         // === TRANSFERIR (Debit to Debit - 5 min delay) ===
         else if (subcommand === 'transferir') {
@@ -4457,6 +4589,54 @@ client.on('interactionCreate', async interaction => {
         else if (commandName === 'empresa') {
             const subcommand = interaction.options.getSubcommand();
 
+            if (subcommand === 'listar-usuario') {
+                // 1. Role Check
+                // Permissions: Administrator OR Specific Staff Role
+                const STAFF_ROLE_ID = '1450688555503587459'; // Using same role as company creator for now
+                if (!interaction.member.roles.cache.has(STAFF_ROLE_ID) && !interaction.member.permissions.has('Administrator')) {
+                    return interaction.reply({ content: '⛔ Este comando es solo para Staff.', ephemeral: true });
+                }
+
+                await interaction.deferReply();
+                const targetUser = interaction.options.getUser('usuario');
+
+                try {
+                    // Query companies where owner_ids contains the user ID
+                    const { data: companies, error } = await supabase
+                        .from('companies')
+                        .select('*')
+                        .contains('owner_ids', [targetUser.id]);
+
+                    if (error) throw error;
+
+                    if (!companies || companies.length === 0) {
+                        return interaction.editReply(`ℹ️ El usuario **${targetUser.tag}** no tiene empresas registradas.`);
+                    }
+
+                    const embed = new EmbedBuilder()
+                        .setTitle(`🏢 Empresas de ${targetUser.username}`)
+                        .setColor(0x00CED1)
+                        .setThumbnail(targetUser.displayAvatarURL())
+                        .setFooter({ text: `Total: ${companies.length} empresas` })
+                        .setTimestamp();
+
+                    companies.forEach(company => {
+                        embed.addFields({
+                            name: `${company.emoji || '🏢'} ${company.name}`,
+                            value: `**Tipo:** ${company.type}\n**Saldo:** $${(company.balance || 0).toLocaleString()}\n**ID:** \`${company.id}\``,
+                            inline: false
+                        });
+                    });
+
+                    await interaction.editReply({ embeds: [embed] });
+
+                } catch (err) {
+                    console.error('Error fetching companies:', err);
+                    await interaction.editReply('❌ Error buscando empresas.');
+                }
+                return;
+            }
+
             if (subcommand === 'crear') {
                 try {
                     await interaction.deferReply({ ephemeral: false });
@@ -4967,7 +5147,12 @@ client.on('interactionCreate', async interaction => {
 
         // ===== 🎰 CASINO SYSTEM =====
         else if (commandName === 'casino') {
-            await interaction.deferReply(); // Global Defer to prevent timeouts
+            try {
+                if (!interaction.deferred && !interaction.replied) await interaction.deferReply();
+            } catch (e) {
+                console.log('[DEBUG] Error deferring casino:', e.message);
+                return;
+            }
             const CASINO_CHANNEL_ID = '1451398359540826306';
             const CASINO_ROLE_ID = '1449951345611378841';
             const CHIP_PRICE = 100; // 1 ficha = $100
@@ -6016,7 +6201,7 @@ client.on('interactionCreate', async interaction => {
             }
         }
     }
-});
+}
 
 // Global Error Handlers to prevent crash
 process.on('unhandledRejection', error => {
