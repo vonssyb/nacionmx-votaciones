@@ -1613,7 +1613,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                             // *** CREDIT CARD LOGIC (Original) ***
                             const { error: insertError } = await supabase.from('credit_cards').insert([{
                                 citizen_id: citizen.id,
-                                discord_id: targetUser.id,
+                                discord_user_id: targetUser.id,
                                 card_type: cardType,
                                 card_name: cardType,
                                 card_limit: stats.limit,
@@ -3453,8 +3453,20 @@ client.on('interactionCreate', async interaction => {
         try {
             const cashBalance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
             console.log(`[DEBUG] /balanza User: ${interaction.user.id} Balance Raw:`, cashBalance); // DEBUG LOG
+
+            // Resolve Citizen ID for robust lookup
+            const { data: citizen } = await supabase.from('citizens').select('id').eq('discord_id', interaction.user.id).maybeSingle();
+
             const { data: debitCard } = await supabase.from('debit_cards').select('balance').eq('discord_user_id', interaction.user.id).eq('status', 'active').maybeSingle();
-            const { data: creditCards } = await supabase.from('credit_cards').select('*').eq('discord_user_id', interaction.user.id).eq('status', 'active');
+
+            // Fetch Credit Cards via Citizen ID if available, else Discord ID
+            let creditQuery = supabase.from('credit_cards').select('*').eq('status', 'active');
+            if (citizen) {
+                creditQuery = creditQuery.eq('citizen_id', citizen.id);
+            } else {
+                creditQuery = creditQuery.eq('discord_user_id', interaction.user.id);
+            }
+            const { data: creditCards } = await creditQuery;
 
             const cash = cashBalance.cash || 0;
             const bank = cashBalance.bank || 0;
