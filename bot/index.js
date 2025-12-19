@@ -526,6 +526,62 @@ client.once('ready', async () => {
                 },
                 { name: 'historial', description: 'Ver transacciones', type: 1 }
             ]
+        },
+        {
+            name: 'casino',
+            description: '🎰 Sistema de Casino Nación MX',
+            options: [
+                {
+                    name: 'fichas',
+                    description: 'Comprar o retirar fichas del casino',
+                    type: 2, // SUB_COMMAND_GROUP
+                    options: [
+                        {
+                            name: 'comprar',
+                            description: 'Comprar fichas con tu dinero',
+                            type: 1,
+                            options: [
+                                { name: 'cantidad', description: 'Cantidad de fichas (mín: 10)', type: 4, required: true, min_value: 10, max_value: 10000 }
+                            ]
+                        },
+                        {
+                            name: 'retirar',
+                            description: 'Convertir fichas a dinero',
+                            type: 1,
+                            options: [
+                                { name: 'cantidad', description: 'Cantidad de fichas a retirar', type: 4, required: true, min_value: 1 }
+                            ]
+                        }
+                    ]
+                },
+                { name: 'saldo', description: 'Ver tus fichas y estadísticas', type: 1 },
+                {
+                    name: 'historial',
+                    description: 'Ver tus últimas jugadas',
+                    type: 1,
+                    options: [
+                        { name: 'juego', description: 'Filtrar por juego específico', type: 3, required: false }
+                    ]
+                },
+                {
+                    name: 'ranking',
+                    description: 'Ver top ganadores del casino',
+                    type: 1,
+                    options: [
+                        {
+                            name: 'tipo',
+                            description: 'Tipo de ranking',
+                            type: 3,
+                            required: false,
+                            choices: [
+                                { name: 'Más Fichas', value: 'chips' },
+                                { name: 'Más Ganancias', value: 'profit' },
+                                { name: 'Más Juegos', value: 'games' }
+                            ]
+                        }
+                    ]
+                }
+            ]
         }
     ];
 
@@ -4199,6 +4255,330 @@ client.on('interactionCreate', async interaction => {
                 } catch (error) {
                     console.error(error);
                     await interaction.editReply('❌ Error procesando solicitud de crédito.');
+                }
+            }
+        }
+
+        // ===== 🎰 CASINO SYSTEM =====
+        else if (commandName === 'casino') {
+            const CASINO_CHANNEL_ID = '1451398359540826306';
+            const CASINO_ROLE_ID = '1449951345611378841';
+            const CHIP_PRICE = 100; // 1 ficha = $100
+
+            // Check if command is in casino channel
+            if (interaction.channelId !== CASINO_CHANNEL_ID) {
+                return interaction.reply({
+                    content: `🎰 Este comando solo puede usarse en <#${CASINO_CHANNEL_ID}>`,
+                    ephemeral: true
+                });
+            }
+
+            // Check if user has casino role
+            if (!interaction.member.roles.cache.has(CASINO_ROLE_ID)) {
+                return interaction.reply({
+                    content: '🚫 Necesitas el rol de Casino para jugar. Pídelo a un staff.',
+                    ephemeral: true
+                });
+            }
+
+            const subCmdGroup = interaction.options.getSubcommandGroup(false);
+            const subCmd = interaction.options.getSubcommand();
+
+            // === FICHAS COMPRAR ===
+            if (subCmdGroup === 'fichas' && subCmd === 'comprar') {
+                await interaction.deferReply();
+
+                const cantidad = interaction.options.getInteger('cantidad');
+                const costo = cantidad * CHIP_PRICE;
+
+                try {
+                    // Check VIP status (Black or Diamante cards)
+                    const { data: vipCard } = await supabase
+                        .from('credit_cards')
+                        .select('card_type')
+                        .eq('discord_user_id', interaction.user.id)
+                        .in('card_type', ['black', 'diamante'])
+                        .eq('status', 'active')
+                        .maybeSingle();
+
+                    const isVIP = !!vipCard;
+                    const bonus = isVIP ? Math.floor(cantidad * 0.1) : 0; // +10% para VIP
+                    const totalFichas = cantidad + bonus;
+
+                    // Use payment system
+                    const paymentResult = await requestPaymentMethod(
+                        interaction,
+                        interaction.user.id,
+                        costo,
+                        `🎰 Compra de ${cantidad} fichas de casino`
+                    );
+
+                    if (!paymentResult.success) {
+                        return interaction.editReply(paymentResult.error);
+                    }
+
+                    // Get or create casino account
+                    let { data: account } = await supabase
+                        .from('casino_chips')
+                        .select('*')
+                        .eq('discord_user_id', interaction.user.id)
+                        .maybeSingle();
+
+                    if (!account) {
+                        const { data: newAccount } = await supabase
+                            .from('casino_chips')
+                            .insert({
+                                discord_user_id: interaction.user.id,
+                                chips_balance: totalFichas
+                            })
+                            .select()
+                            .single();
+                        account = newAccount;
+                    } else {
+                        await supabase
+                            .from('casino_chips')
+                            .update({
+                                chips_balance: account.chips_balance + totalFichas,
+                                updated_at: new Date().toISOString()
+                            })
+                            .eq('discord_user_id', interaction.user.id);
+                    }
+
+                    const paymentLabel = paymentResult.method === 'cash' ? '💵 Efectivo' : paymentResult.method === 'bank' ? '🏦 Banco' : '💳 Crédito';
+
+                    const embed = new EmbedBuilder()
+                        .setTitle('🎰 Compra de Fichas Exitosa')
+                        .setColor(0xFFD700)
+                        .setDescription(`Has comprado fichas para el casino.`)
+                        .addFields(
+                            { name: '🎟️ Fichas Compradas', value: `${cantidad.toLocaleString()}`, inline: true },
+                            { name: '💰 Costo', value: `$${costo.toLocaleString()}`, inline: true },
+                            { name: '💳 Método', value: paymentLabel, inline: true }
+                        )
+                        .setTimestamp();
+
+                    if (bonus > 0) {
+                        embed.addFields({ name: '🌟 Bonus VIP (+10%)', value: `+${bonus} fichas gratis`, inline: false });
+                    }
+
+                    embed.addFields({ name: '💼 Saldo Total', value: `${(account.chips_balance + totalFichas).toLocaleString()} fichas`, inline: false });
+
+                    await interaction.editReply({ embeds: [embed], components: [] });
+
+                } catch (error) {
+                    console.error(error);
+                    await interaction.editReply('❌ Error comprando fichas.');
+                }
+            }
+
+            // === FICHAS RETIRAR ===
+            else if (subCmdGroup === 'fichas' && subCmd === 'retirar') {
+                await interaction.deferReply();
+
+                const cantidad = interaction.options.getInteger('cantidad');
+
+                try {
+                    const { data: account } = await supabase
+                        .from('casino_chips')
+                        .select('*')
+                        .eq('discord_user_id', interaction.user.id)
+                        .maybeSingle();
+
+                    if (!account || account.chips_balance < cantidad) {
+                        return interaction.editReply(`❌ No tienes suficientes fichas.\\n\\nTienes: ${account?.chips_balance || 0} fichas\\nIntentando retirar: ${cantidad} fichas`);
+                    }
+
+                    const dineroRecibido = cantidad * CHIP_PRICE;
+
+                    // Update chips
+                    await supabase
+                        .from('casino_chips')
+                        .update({
+                            chips_balance: account.chips_balance - cantidad,
+                            updated_at: new Date().toISOString()
+                        })
+                        .eq('discord_user_id', interaction.user.id);
+
+                    // Add money as CASH (never to bank without debit card)
+                    await billingService.ubService.addMoney(
+                        interaction.guildId,
+                        interaction.user.id,
+                        dineroRecibido,
+                        'Retiro de fichas de casino',
+                        'cash'
+                    );
+
+                    const embed = new EmbedBuilder()
+                        .setTitle('💵 Retiro de Fichas Exitoso')
+                        .setColor(0x00FF00)
+                        .setDescription('Has convertido tus fichas a efectivo.')
+                        .addFields(
+                            { name: '🎟️ Fichas Retiradas', value: `${cantidad.toLocaleString()}`, inline: true },
+                            { name: '💵 Dinero Recibido', value: `$${dineroRecibido.toLocaleString()}`, inline: true },
+                            { name: '💼 Fichas Restantes', value: `${(account.chips_balance - cantidad).toLocaleString()}`, inline: false }
+                        )
+                        .setFooter({ text: 'El dinero fue añadido a tu efectivo' })
+                        .setTimestamp();
+
+                    await interaction.editReply({ embeds: [embed] });
+
+                } catch (error) {
+                    console.error(error);
+                    await interaction.editReply('❌ Error retirando fichas.');
+                }
+            }
+
+            // === SALDO ===
+            else if (subCmd === 'saldo') {
+                await interaction.deferReply();
+
+                try {
+                    const { data: account } = await supabase
+                        .from('casino_chips')
+                        .select('*')
+                        .eq('discord_user_id', interaction.user.id)
+                        .maybeSingle();
+
+                    if (!account) {
+                        return interaction.editReply('❌ No tienes una cuenta de casino aún. Compra fichas con `/casino fichas comprar`');
+                    }
+
+                    const winRate = account.games_played > 0
+                        ? ((account.total_won / (account.total_won + account.total_lost)) * 100).toFixed(1)
+                        : '0.0';
+
+                    const netProfit = account.total_won - account.total_lost;
+                    const profitEmoji = netProfit >= 0 ? '📈' : '📉';
+
+                    const embed = new EmbedBuilder()
+                        .setTitle('🎰 Tu Cuenta del Casino')
+                        .setColor(0xFFD700)
+                        .setDescription(`Estado actual de tu cuenta`)
+                        .addFields(
+                            { name: '🎟️ Fichas Disponibles', value: `${account.chips_balance.toLocaleString()}`, inline: true },
+                            { name: '💵 Valor en Dinero', value: `$${(account.chips_balance * CHIP_PRICE).toLocaleString()}`, inline: true },
+                            { name: '\u200b', value: '\u200b', inline: true },
+                            { name: '🎮 Juegos Jugados', value: `${account.games_played.toLocaleString()}`, inline: true },
+                            { name: `${profitEmoji} Ganancia Neta`, value: `${netProfit.toLocaleString()} fichas`, inline: true },
+                            { name: '📊 Win Rate', value: `${winRate}%`, inline: true },
+                            { name: '🏆 Mayor Ganancia', value: `${account.biggest_win.toLocaleString()} fichas`, inline: true },
+                            { name: '💔 Mayor Pérdida', value: `${account.biggest_loss.toLocaleString()} fichas`, inline: true },
+                            { name: '\u200b', value: '\u200b', inline: true }
+                        )
+                        .setFooter({ text: '1 ficha = $100 MXN' })
+                        .setTimestamp();
+
+                    await interaction.editReply({ embeds: [embed] });
+
+                } catch (error) {
+                    console.error(error);
+                    await interaction.editReply('❌ Error consultando saldo.');
+                }
+            }
+
+            // === RANKING ===
+            else if (subCmd === 'ranking') {
+                await interaction.deferReply();
+
+                const tipo = interaction.options.getString('tipo') || 'chips';
+
+                try {
+                    let orderBy = 'chips_balance';
+                    let title = '💰 Top Jugadores por Fichas';
+
+                    if (tipo === 'profit') {
+                        orderBy = '(total_won - total_lost)';
+                        title = '📈 Top Jugadores por Ganancias';
+                    } else if (tipo === 'games') {
+                        orderBy = 'games_played';
+                        title = '🎮 Top Jugadores por Juegos';
+                    }
+
+                    const { data: topPlayers } = await supabase
+                        .from('casino_chips')
+                        .select('*')
+                        .order(orderBy, { ascending: false })
+                        .limit(10);
+
+                    if (!topPlayers || topPlayers.length === 0) {
+                        return interaction.editReply('❌ No hay jugadores en el ranking aún.');
+                    }
+
+                    let description = '';
+                    for (let i = 0; i < topPlayers.length; i++) {
+                        const player = topPlayers[i];
+                        const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}.`;
+                        const value = tipo === 'chips' ? player.chips_balance :
+                            tipo === 'profit' ? (player.total_won - player.total_lost) :
+                                player.games_played;
+
+                        description += `${medal} <@${player.discord_user_id}> - **${value.toLocaleString()}** ${tipo === 'games' ? 'juegos' : 'fichas'}\\n`;
+                    }
+
+                    const embed = new EmbedBuilder()
+                        .setTitle(title)
+                        .setColor(0xFFD700)
+                        .setDescription(description)
+                        .setFooter({ text: 'Casino Nación MX • Actualizado en tiempo real' })
+                        .setTimestamp();
+
+                    await interaction.editReply({ embeds: [embed] });
+
+                } catch (error) {
+                    console.error(error);
+                    await interaction.editReply('❌ Error cargando ranking.');
+                }
+            }
+
+            // === HISTORIAL ===
+            else if (subCmd === 'historial') {
+                await interaction.deferReply();
+
+                const filtroJuego = interaction.options.getString('juego');
+
+                try {
+                    let query = supabase
+                        .from('casino_history')
+                        .select('*')
+                        .eq('discord_user_id', interaction.user.id)
+                        .order('created_at', { ascending: false })
+                        .limit(10);
+
+                    if (filtroJuego) {
+                        query = query.eq('game_type', filtroJuego);
+                    }
+
+                    const { data: history } = await query;
+
+                    if (!history || history.length === 0) {
+                        return interaction.editReply('❌ No tienes historial de juegos aún.');
+                    }
+
+                    let description = '';
+                    for (const game of history) {
+                        const resultado = game.result_amount >= 0 ? '✅' : '❌';
+                        const ganancia = game.result_amount >= 0
+                            ? `+${game.result_amount.toLocaleString()}`
+                            : game.result_amount.toLocaleString();
+
+                        const fecha = new Date(game.created_at);
+                        const timestamp = `<t:${Math.floor(fecha.getTime() / 1000)}:R>`;
+
+                        description += `${resultado} **${game.game_type}** - ${ganancia} fichas (${game.multiplier}x) ${timestamp}\\n`;
+                    }
+
+                    const embed = new EmbedBuilder()
+                        .setTitle(`🎮 Historial de Juegos${filtroJuego ? ` - ${filtroJuego}` : ''}`)
+                        .setColor(0x5865F2)
+                        .setDescription(description)
+                        .setFooter({ text: 'Mostrando últimos 10 juegos' })
+                        .setTimestamp();
+
+                    await interaction.editReply({ embeds: [embed] });
+
+                } catch (error) {
+                    console.error(error);
+                    await interaction.editReply('❌ Error cargando historial.');
                 }
             }
         }
