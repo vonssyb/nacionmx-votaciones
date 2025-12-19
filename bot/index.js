@@ -3272,9 +3272,12 @@ async function requestPaymentMethod(interaction, userId, amount, description) {
         });
     }
 
+    // Check for active Debit Card
+    const debitCard = await getDebitCard(userId);
+
     const methods = [];
     if (cash >= amount) methods.push({ id: 'cash', label: `💵 Efectivo ($${cash.toLocaleString()})`, style: ButtonStyle.Success });
-    if (bank >= amount) methods.push({ id: 'bank', label: `🏦 Banco/Débito ($${bank.toLocaleString()})`, style: ButtonStyle.Primary });
+    if (bank >= amount && debitCard) methods.push({ id: 'bank', label: `🏦 Banco/Débito ($${bank.toLocaleString()})`, style: ButtonStyle.Primary });
     if (creditAvailable >= amount) methods.push({ id: 'credit', label: `💳 Crédito (Disp: $${creditAvailable.toLocaleString()})`, style: ButtonStyle.Secondary });
 
     if (methods.length === 0) {
@@ -4034,6 +4037,10 @@ client.on('interactionCreate', async interaction => {
             await interaction.deferReply();
 
             try {
+                // 0. Security Check: Sender must have active Debit Card
+                const senderCardCheck = await getDebitCard(interaction.user.id);
+                if (!senderCardCheck) return interaction.editReply('❌ **Acceso Denegado:** No tienes una Tarjeta de Débito activa. No puedes realizar transferencias bancarias.');
+
                 // 1. Check if destination has debit card (Required for SPEI)
                 const { data: destCard } = await supabase
                     .from('debit_cards')
