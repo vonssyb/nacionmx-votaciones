@@ -1859,15 +1859,20 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             citizen = newCit; // Assign to continue logic
         }
 
-        // 3. UnbelievaBoat Charge
-        let status = 'UNPAID';
-        let ubMessage = '';
+        // 3. Request Payment Method
+        const paymentResult = await requestPaymentMethod(
+            interaction,
+            targetUser.id,
+            amount,
+            `🚔 Multa: ${reason}`
+        );
 
-        try {
-            await billingService.ubService.removeMoney(interaction.guildId, targetUser.id, amount, `Multa: ${reason}`);
+        let status = 'UNPAID';
+        let paymentMethod = 'ninguno';
+
+        if (paymentResult.success) {
             status = 'PAID';
-        } catch (err) {
-            ubMessage = `(Fallo cobro automático: ${err.message})`;
+            paymentMethod = paymentResult.method;
         }
 
         // 4. Record Fine
@@ -1879,20 +1884,22 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             status: status
         }]);
 
-        if (fineError) console.error("Fine error", fineError);
+        const paymentMethodLabel = paymentMethod === 'cash' ? '💵 Efectivo' : paymentMethod === 'bank' ? '🏦 Banco/Débito' : paymentMethod === 'credit' ? '💳 Crédito' : '⏳ Pendiente';
 
         const embed = new EmbedBuilder()
-            .setTitle(status === 'PAID' ? '⚖️ Multa Pagada' : '⚖️ Multa Registrada (Cobro Pendiente)')
-            .setColor(status === 'PAID' ? 0x00FF00 : 0xFF0000)
+            .setTitle('🚔 Multa Aplicada')
+            .setColor(status === 'PAID' ? 0xFF0000 : 0xFFA500)
             .addFields(
                 { name: 'Ciudadano', value: `<@${targetUser.id}>`, inline: true },
-                { name: 'Oficial', value: `<@${interaction.user.id}>`, inline: true },
                 { name: 'Monto', value: `$${amount.toLocaleString()}`, inline: true },
-                { name: 'Motivo', value: reason }
+                { name: 'Estado', value: status === 'PAID' ? '✅ Pagado' : '⏳ Pendiente', inline: true },
+                { name: 'Método de Pago', value: paymentMethodLabel, inline: true },
+                { name: 'Motivo', value: reason, inline: false },
+                { name: 'Oficial', value: interaction.user.tag, inline: true }
             )
-            .setFooter({ text: status === 'PAID' ? 'Cobrado automáticamente de cuenta bancaria.' : 'El ciudadano no tenía fondos suficientes. Se registró deuda judicial.' });
+            .setTimestamp();
 
-        await interaction.editReply({ embeds: [embed] });
+        await interaction.editReply({ embeds: [embed], components: [] });
     }
 
     else if (commandName === 'fichar') {
@@ -3137,8 +3144,33 @@ client.on('interactionCreate', async interaction => {
             await interaction.deferReply();
             try {
                 const card = await getDebitCard(interaction.user.id);
-                if (!card) return interaction.editReply('❌ No tienes una tarjeta de débito activa. Visita el Banco Nacional para abrir tu cuenta con `/registrar-tarjeta`.');
-                const embed = new EmbedBuilder().setTitle('💳 Estado Tarjeta Débito').setColor(0x00CED1).addFields({ name: 'Numero', value: `\`${card.card_number}\``, inline: false }, { name: 'Balance', value: `$${card.balance.toLocaleString()}`, inline: true }, { name: 'Estado', value: '✅ Activa', inline: true }).setTimestamp();
+                const balance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
+                const bankBalance = balance.bank || 0;
+
+                if (!card) {
+                    // No card but has bank account
+                    const embed = new EmbedBuilder()
+                        .setTitle('🏦 Cuenta Bancaria')
+                        .setColor(0x00CED1)
+                        .setDescription('Tienes una cuenta bancaria pero no una tarjeta de débito física.')
+                        .addFields(
+                            { name: '💰 Saldo en Banco', value: `$${bankBalance.toLocaleString()}`, inline: true },
+                            { name: '📋 Estado', value: 'Cuenta Activa', inline: true }
+                        )
+                        .setFooter({ text: 'Usa /registrar-tarjeta para obtener una tarjeta física' })
+                        .setTimestamp();
+                    return interaction.editReply({ embeds: [embed] });
+                }
+
+                const embed = new EmbedBuilder()
+                    .setTitle('💳 Estado Tarjeta Débito')
+                    .setColor(0x00CED1)
+                    .addFields(
+                        { name: 'Número', value: `\`${card.card_number}\``, inline: false },
+                        { name: 'Saldo en Banco', value: `$${bankBalance.toLocaleString()}`, inline: true },
+                        { name: 'Estado', value: '✅ Activa', inline: true }
+                    )
+                    .setTimestamp();
                 await interaction.editReply({ embeds: [embed] });
             } catch (error) {
                 console.error(error);
