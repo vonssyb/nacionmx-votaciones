@@ -1090,7 +1090,7 @@ client.on('interactionCreate', async interaction => {
             .setColor(0xD4AF37) // Gold
             .setDescription('**Guía completa de comandos económicos y empresariales**')
             .addFields(
-                { name: '💰 Banco & Efectivo', value: '`/balanza` - Ver saldo total (Efectivo + Banco + Crédito)\\n`/debito estado` - Ver saldo de cuenta bancaria\\n`/debito info` - Información completa de tu tarjeta\\n`/debito retirar` - Retirar dinero del banco a efectivo\\n`/depositar` - Depósito OXXO\\n`/transferir` - Transferencia bancaria\\n`/giro` - Envío paquetería (24h)\\n\\n**👨‍💼 Ejecutivos Bancarios:**\\n`/debito admin info` - Ver info completa de cliente\\n`/debito admin historial` - Ver transacciones de cliente' },
+                { name: '💰 Banco & Efectivo', value: '`/balanza` - Ver saldo total (Efectivo + Banco + Crédito)\n`/debito estado` - Ver saldo de cuenta bancaria\n`/debito info` - Información completa de tu tarjeta\n`/debito retirar` - Retirar dinero del banco a efectivo\n`/depositar` - Depósito OXXO\n`/transferir` - Transferencia bancaria\n`/giro` - Envío paquetería (24h)\n\n**👨‍💼 Ejecutivos Bancarios:**\n`/debito admin info` - Ver info completa de cliente\n`/debito admin historial` - Ver transacciones de cliente' },
                 { name: '💳 Tarjetas & Crédito', value: '`/credito info` - Ver información de tu tarjeta\n`/credito pagar` - Pagar deuda de tarjeta\n`/credito buro` - Ver historial crediticio\n\n**👨‍💼 Ejecutivos:**\n`/credito admin historial` - Análisis completo de cliente' },
                 { name: '🏢 Empresas', value: '`/empresa crear` - Registrar tu negocio\n`/empresa menu` - Panel de gestión\n`/empresa cobrar` - Terminal POS\n`/empresa credito` - Crédito empresarial' },
                 { name: '📈 Inversiones', value: '`/bolsa precios` - Mercado de valores\n`/bolsa comprar/vender` - Trading\n`/inversion nueva` - Plazo fijo\n`/bolsa portafolio` - Ver inversiones' },
@@ -3165,7 +3165,7 @@ async function requestPaymentMethod(interaction, userId, amount, description) {
     if (methods.length === 0) {
         return {
             success: false,
-            error: `❌ **Fondos Insuficientes**\\n\\nNecesitas: $${amount.toLocaleString()}\\n\\n💵 Efectivo: $${cash.toLocaleString()}\\n🏦 Banco: $${bank.toLocaleString()}\\n💳 Crédito disponible: $${creditAvailable.toLocaleString()}`
+            error: `❌ **Fondos Insuficientes**\n\nNecesitas: $${amount.toLocaleString()}\n\n💵 Efectivo: $${cash.toLocaleString()}\n🏦 Banco: $${bank.toLocaleString()}\n💳 Crédito disponible: $${creditAvailable.toLocaleString()}`
         };
     }
 
@@ -3180,7 +3180,7 @@ async function requestPaymentMethod(interaction, userId, amount, description) {
 
     const msg = await interaction.editReply({ embeds: [embed], components: [paymentRow] });
 
-    const filter = i => i.user.id === userId && i.customId.startsWith('pay_');
+    const filter = i => i.user.id === interaction.user.id && i.customId.startsWith('pay_');
     const collector = msg.createMessageComponentCollector({ filter, time: 60000 });
 
     return new Promise((resolve) => {
@@ -3199,7 +3199,7 @@ async function requestPaymentMethod(interaction, userId, amount, description) {
                     const newDebt = currentDebt + amount;
                     await supabase.from('credit_cards').update({ current_balance: newDebt }).eq('id', selectedCard.id);
                     collector.stop();
-                    resolve({ success: true, method: 'credit', cardId: selectedCard.id, message: `✅ Pago con crédito.\\nNueva deuda: $${newDebt.toLocaleString()}` });
+                    resolve({ success: true, method: 'credit', cardId: selectedCard.id, message: `✅ Pago con crédito.\nNueva deuda: $${newDebt.toLocaleString()}` });
                 }
             } catch (error) {
                 collector.stop();
@@ -3397,7 +3397,7 @@ client.on('interactionCreate', async interaction => {
                 const bankBalance = balance.bank || 0;
 
                 if (bankBalance < monto) {
-                    return interaction.editReply(`❌ Fondos insuficientes en banco.\\n\\nDisponible: $${bankBalance.toLocaleString()}\\nIntentando retirar: $${monto.toLocaleString()}`);
+                    return interaction.editReply(`❌ Fondos insuficientes en banco.\n\nDisponible: $${bankBalance.toLocaleString()}\nIntentando retirar: $${monto.toLocaleString()}`);
                 }
 
                 // Transfer from bank to cash
@@ -3500,7 +3500,7 @@ client.on('interactionCreate', async interaction => {
                         const tipo = tx.transaction_type === 'withdrawal' ? 'Retiro' :
                             tx.transaction_type === 'deposit' ? 'Depósito' :
                                 tx.transaction_type === 'transfer_in' ? 'Recibido' : 'Enviado';
-                        txHistory += `${emoji} ${tipo}: $${Math.abs(tx.amount).toLocaleString()}\\n`;
+                        txHistory += `${emoji} ${tipo}: $${Math.abs(tx.amount).toLocaleString()}\n`;
                     });
                 } else {
                     txHistory = 'Sin transacciones recientes';
@@ -4692,7 +4692,7 @@ client.on('interactionCreate', async interaction => {
                         .maybeSingle();
 
                     if (!account || account.chips_balance < cantidad) {
-                        return interaction.editReply(`❌ No tienes suficientes fichas.\\n\\nTienes: ${account?.chips_balance || 0} fichas\\nIntentando retirar: ${cantidad} fichas`);
+                        return interaction.editReply(`❌ No tienes suficientes fichas.\n\nTienes: ${account?.chips_balance || 0} fichas\nIntentando retirar: ${cantidad} fichas`);
                     }
 
                     const dineroRecibido = cantidad * CHIP_PRICE;
@@ -4819,7 +4819,7 @@ client.on('interactionCreate', async interaction => {
                             tipo === 'profit' ? (player.total_won - player.total_lost) :
                                 player.games_played;
 
-                        description += `${medal} <@${player.discord_user_id}> - **${value.toLocaleString()}** ${tipo === 'games' ? 'juegos' : 'fichas'}\\n`;
+                        description += `${medal} <@${player.discord_user_id}> - **${value.toLocaleString()}** ${tipo === 'games' ? 'juegos' : 'fichas'}\n`;
                     }
 
                     const embed = new EmbedBuilder()
@@ -4871,7 +4871,7 @@ client.on('interactionCreate', async interaction => {
                         const fecha = new Date(game.created_at);
                         const timestamp = `<t:${Math.floor(fecha.getTime() / 1000)}:R>`;
 
-                        description += `${resultado} **${game.game_type}** - ${ganancia} fichas (${game.multiplier}x) ${timestamp}\\n`;
+                        description += `${resultado} **${game.game_type}** - ${ganancia} fichas (${game.multiplier}x) ${timestamp}\n`;
                     }
 
                     const embed = new EmbedBuilder()
@@ -5014,7 +5014,7 @@ client.on('interactionCreate', async interaction => {
             if (account.chips_balance < amount) {
                 return {
                     hasEnough: false,
-                    message: `❌ Fichas insuficientes.\\n\\nTienes: ${account.chips_balance.toLocaleString()}\\nNecesitas: ${amount.toLocaleString()}`
+                    message: `❌ Fichas insuficientes.\n\nTienes: ${account.chips_balance.toLocaleString()}\nNecesitas: ${amount.toLocaleString()}`
                 };
             }
 
@@ -5087,7 +5087,7 @@ client.on('interactionCreate', async interaction => {
 
                 const embed = new EmbedBuilder()
                     .setTitle('🎰 TRAGAMONEDAS')
-                    .setDescription(`\`\`\`\\n[ ${reel1} | ${reel2} | ${reel3} ]\\n\`\`\`\\n\\n${description}`)
+                    .setDescription(`\`\`\`\n[ ${reel1} | ${reel2} | ${reel3} ]\n\`\`\`\n\n${description}`)
                     .setColor(ganancia > 0 ? 0x00FF00 : 0xFF0000)
                     .addFields(
                         { name: '🎟️ Apuesta', value: `${apuesta.toLocaleString()} fichas`, inline: true },
@@ -5142,7 +5142,7 @@ client.on('interactionCreate', async interaction => {
 
                 const embed = new EmbedBuilder()
                     .setTitle('🎲 DICE')
-                    .setDescription(`**Resultado:** \`${resultado}\`\\n**Tu apuesta:** ${direccion === 'over' ? '⬆️ Mayor que' : '⬇️ Menor que'} ${numero}`)
+                    .setDescription(`**Resultado:** \`${resultado}\`\n**Tu apuesta:** ${direccion === 'over' ? '⬆️ Mayor que' : '⬇️ Menor que'} ${numero}`)
                     .setColor(win ? 0x00FF00 : 0xFF0000)
                     .addFields(
                         { name: '🎯 Resultado', value: win ? '✅ ¡GANASTE!' : '❌ Perdiste', inline: true },
@@ -5387,11 +5387,11 @@ client.on('interactionCreate', async interaction => {
                     { caballoElegido, ganador: ganador.id, posiciones: caballos.map((c, i) => ({ nombre: c.nombre, posicion: i + 1 })) }
                 );
 
-                let raceDescription = '**🏁 RESULTADOS:**\\n';
+                let raceDescription = '**🏁 RESULTADOS:**\n';
                 caballos.forEach((c, i) => {
                     const emoji = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}.`;
                     const highlight = c.id === caballoElegido ? '**' : '';
-                    raceDescription += `${emoji} ${highlight}${c.nombre}${highlight}\\n`;
+                    raceDescription += `${emoji} ${highlight}${c.nombre}${highlight}\n`;
                 });
 
                 const embed = new EmbedBuilder()
@@ -5455,7 +5455,7 @@ client.on('interactionCreate', async interaction => {
 
                 const embed = new EmbedBuilder()
                     .setTitle('📉 CRASH')
-                    .setDescription(`El multiplicador subió hasta **${crashPoint}x** y crasheó!\\n\\n🎯 Tu cash out: **${cashOutPoint}x**`)
+                    .setDescription(`El multiplicador subió hasta **${crashPoint}x** y crasheó!\n\n🎯 Tu cash out: **${cashOutPoint}x**`)
                     .setColor(0x00FF00)
                     .addFields(
                         { name: '🎟️ Apuesta', value: `${apuesta.toLocaleString()}`, inline: true },
@@ -5510,9 +5510,9 @@ client.on('interactionCreate', async interaction => {
                     { galloElegido, ganador, rounds }
                 );
 
-                let fightDescription = '**🥊 PELEA:**\\n';
+                let fightDescription = '**🥊 PELEA:**\n';
                 rounds.forEach((r, i) => {
-                    fightDescription += `Round ${i + 1}: ${r === 'red' ? '🔴 Rojo' : '🔵 Azul'} gana\\n`;
+                    fightDescription += `Round ${i + 1}: ${r === 'red' ? '🔴 Rojo' : '🔵 Azul'} gana\n`;
                 });
 
                 const embed = new EmbedBuilder()
@@ -5568,7 +5568,7 @@ client.on('interactionCreate', async interaction => {
 
                     const embed = new EmbedBuilder()
                         .setTitle('💀 RULETA RUSA')
-                        .setDescription('🎉 **¡SOBREVIVISTE!**\\n\\n*Click* ... La cámara estaba vacía.')
+                        .setDescription('🎉 **¡SOBREVIVISTE!**\n\n*Click* ... La cámara estaba vacía.')
                         .setColor(0x00FF00)
                         .addFields(
                             { name: '🎲 Cámara', value: `${chamber}/6`, inline: true },
@@ -5607,7 +5607,7 @@ client.on('interactionCreate', async interaction => {
 
                     const embed = new EmbedBuilder()
                         .setTitle('💀 RULETA RUSA')
-                        .setDescription('💥 **¡BANG!**\\n\\n❌ No tuviste suerte...\\n\\n**Penalización:**\\n• Perdiste tu apuesta\\n• Multa adicional: 2x apuesta\\n• Ban del casino: 1 hora')
+                        .setDescription('💥 **¡BANG!**\n\n❌ No tuviste suerte...\n\n**Penalización:**\n• Perdiste tu apuesta\n• Multa adicional: 2x apuesta\n• Ban del casino: 1 hora')
                         .setColor(0xFF0000)
                         .addFields(
                             { name: '🎲 Cámara', value: `${chamber}/6 💥`, inline: true },
