@@ -3072,7 +3072,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                     .eq('discord_user_id', interaction.user.id);
 
                 if (!portfolio || portfolio.length === 0) {
-                    return await interaction.reply({ content: '📊 Tu portafolio está vacío. Usa `/bolsa comprar` para invertir.', ephemeral: false });
+                    return await interaction.editReply({ content: '📊 Tu portafolio está vacío. Usa `/bolsa comprar` para invertir.', ephemeral: false });
                 }
 
                 const embed = new EmbedBuilder()
@@ -3519,7 +3519,6 @@ client.on('interactionCreate', async interaction => {
         }
 
         if (subcommand === 'estado') {
-            await interaction.deferReply();
             try {
                 const card = await getDebitCard(interaction.user.id);
                 if (!card) return interaction.editReply('❌ No tienes una tarjeta de débito activa. Visita el Banco Nacional para abrir tu cuenta con `/registrar-tarjeta`.');
@@ -3546,7 +3545,6 @@ client.on('interactionCreate', async interaction => {
         // === DEPOSITAR (Cash -> Bank) ===
         // === DEPOSITAR (Cash -> Bank) ===
         else if (subcommand === 'depositar') {
-            await interaction.deferReply();
 
             try {
                 const card = await getDebitCard(interaction.user.id);
@@ -3610,7 +3608,6 @@ client.on('interactionCreate', async interaction => {
         }
 
         else if (subcommand === 'retirar') {
-            await interaction.deferReply();
 
             try {
                 const card = await getDebitCard(interaction.user.id);
@@ -3669,7 +3666,6 @@ client.on('interactionCreate', async interaction => {
 
 
         else if (subcommand === 'historial') {
-            await interaction.deferReply();
             try {
                 const { data: transactions } = await supabase.from('debit_transactions').select('*').eq('discord_user_id', interaction.user.id).order('created_at', { ascending: false }).limit(10);
                 if (!transactions || transactions.length === 0) return interaction.editReply('📭 Sin transacciones.');
@@ -3690,7 +3686,6 @@ client.on('interactionCreate', async interaction => {
 
         // === INFO ===
         else if (subcommand === 'info') {
-            await interaction.deferReply();
 
             try {
                 const card = await getDebitCard(interaction.user.id);
@@ -5278,16 +5273,18 @@ client.on('interactionCreate', async interaction => {
 
     // ===== 🎮 CASINO GAMES =====
     else if (commandName === 'jugar') {
+        await interaction.deferReply(); // Global defer for all games
+
         const CASINO_CHANNEL_ID = '1451398359540826306';
         const CASINO_ROLE_ID = '1449951345611378841';
 
         // Security checks
         if (interaction.channelId !== CASINO_CHANNEL_ID) {
-            return interaction.reply({ content: `🎰 Este comando solo puede usarse en <#${CASINO_CHANNEL_ID}>`, ephemeral: true });
+            return interaction.editReply({ content: `🎰 Este comando solo puede usarse en <#${CASINO_CHANNEL_ID}>`, ephemeral: true });
         }
 
         if (!interaction.member.roles.cache.has(CASINO_ROLE_ID)) {
-            return interaction.reply({ content: '🚫 Necesitas el rol de Casino para jugar.', ephemeral: true });
+            return interaction.editReply({ content: '🚫 Necesitas el rol de Casino para jugar.', ephemeral: true });
         }
 
         const game = interaction.options.getSubcommand();
@@ -5362,7 +5359,6 @@ client.on('interactionCreate', async interaction => {
 
         // === SLOTS ===
         if (game === 'slots') {
-            await interaction.deferReply();
 
             const apuesta = interaction.options.getInteger('apuesta');
             const check = await checkChips(interaction.user.id, apuesta);
@@ -5446,7 +5442,6 @@ client.on('interactionCreate', async interaction => {
 
         // === DICE ===
         else if (game === 'dice') {
-            await interaction.deferReply();
 
             const apuesta = interaction.options.getInteger('apuesta');
             const direccion = interaction.options.getString('direccion');
@@ -5502,7 +5497,6 @@ client.on('interactionCreate', async interaction => {
 
         // === BLACKJACK ===
         else if (game === 'blackjack') {
-            await interaction.deferReply();
 
             const apuesta = interaction.options.getInteger('apuesta');
             const check = await checkChips(interaction.user.id, apuesta);
@@ -5606,7 +5600,6 @@ client.on('interactionCreate', async interaction => {
 
         // === RULETA ===
         else if (game === 'ruleta') {
-            await interaction.deferReply();
 
             const apuesta = interaction.options.getInteger('apuesta');
             const tipo = interaction.options.getString('tipo');
@@ -5690,7 +5683,6 @@ client.on('interactionCreate', async interaction => {
 
         // === CARRERAS DE CABALLOS ===
         else if (game === 'caballos') {
-            await interaction.deferReply();
 
             const apuesta = interaction.options.getInteger('apuesta');
             const caballoElegido = interaction.options.getInteger('caballo');
@@ -5758,7 +5750,6 @@ client.on('interactionCreate', async interaction => {
 
         // === CRASH ===
         else if (game === 'crash') {
-            await interaction.deferReply();
 
             const apuesta = interaction.options.getInteger('apuesta');
             const check = await checkChips(interaction.user.id, apuesta);
@@ -5814,7 +5805,6 @@ client.on('interactionCreate', async interaction => {
 
         // === GALLOS ===
         else if (game === 'gallos') {
-            await interaction.deferReply();
 
             const apuesta = interaction.options.getInteger('apuesta');
             const galloElegido = interaction.options.getString('gallo');
@@ -5879,7 +5869,6 @@ client.on('interactionCreate', async interaction => {
 
         // === RULETA RUSA ===
         else if (game === 'ruleta-rusa') {
-            await interaction.deferReply();
 
             const apuesta = interaction.options.getInteger('apuesta');
             const check = await checkChips(interaction.user.id, apuesta);
