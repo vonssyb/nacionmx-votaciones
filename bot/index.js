@@ -3559,6 +3559,112 @@ client.on('interactionCreate', async interaction => {
                 await interaction.editReply('❌ Error consultando débito.');
             }
         }
+// Add this code between line 3561 (after estado closing }) and line 3563 (before depositar comment)
+
+        // === TRANSFERIR (Debit to Debit - 5 min delay) ===
+        else if (subcommand === 'transferir') {
+            try {
+                const destUser = interaction.options.getUser('destinatario');
+                const inputMonto = interaction.options.getString('monto');
+
+                if (destUser.id === interaction.user.id) {
+                    return interaction.editReply('❌ No puedes transferir a ti mismo.');
+                }
+
+                // Check sender has debit card
+                const senderCard = await getDebitCard(interaction.user.id);
+                if (!senderCard) {
+                    return interaction.editReply('❌ No tienes una tarjeta de débito activa para transferir.');
+                }
+
+                // Check receiver has debit card
+                const receiverCard = await getDebitCard(destUser.id);
+                if (!receiverCard) {
+                    return interaction.editReply(`❌ **${destUser.username}** no tiene una tarjeta de débito activa para recibir transferencias.`);
+                }
+
+                // Get sender balance
+                const balance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
+                const bankBalance = balance.bank || 0;
+
+                let monto = 0;
+                if (inputMonto.toLowerCase() === 'todo' || inputMonto.toLowerCase() === 'all') {
+                    monto = bankBalance;
+                } else {
+                    monto = parseFloat(inputMonto);
+                }
+
+                if (isNaN(monto) || monto <= 0) {
+                    return interaction.editReply('❌ El monto debe ser mayor a 0.');
+                }
+
+                if (bankBalance < monto) {
+                    return interaction.editReply(`❌ Fondos insuficientes.\\n\\nSaldo en Banco: $${bankBalance.toLocaleString()}\\nIntentas transferir: $${monto.toLocaleString()}`);
+                }
+
+                // Check receiver card limit
+                const receiverTier = CARD_TIERS[receiverCard.card_type];
+                const receiverMax = receiverTier ? (receiverTier.max_balance || Infinity) : Infinity;
+                if (receiverMax !== Infinity) {
+                    const receiverBal = await billingService.ubService.getUserBalance(interaction.guildId, destUser.id);
+                    const receiverBank = receiverBal.bank || 0;
+                    if ((receiverBank + monto) > receiverMax) {
+                        return interaction.editReply(`⛔ El destinatario no puede recibir esta cantidad.\\nExcedería el límite de su tarjeta (**${receiverCard.card_type}**).\\n\\nLímite: $${receiverMax.toLocaleString()}\\nSaldo Actual: $${receiverBank.toLocaleString()}`);
+                    }
+                }
+
+                // Deduct from sender immediately
+                await billingService.ubService.removeMoney(
+                    interaction.guildId,
+                    interaction.user.id,
+                    monto,
+                    `Transferencia débito a ${destUser.tag}`,
+                    'bank'
+                );
+
+                // Schedule transfer for 5 minutes
+                const releaseDate = new Date();
+                releaseDate.setMinutes(releaseDate.getMinutes() + 5);
+
+                await supabase.from('pending_transfers').insert({
+                    sender_id: interaction.user.id,
+                    receiver_id: destUser.id,
+                    amount: monto,
+                    reason: 'Transferencia Interbancaria',
+                    release_date: releaseDate.toISOString(),
+                    status: 'PENDING',
+                    transfer_type: 'debit_to_debit'
+                });
+
+                // Log transaction
+                await supabase.from('debit_transactions').insert([{
+                    debit_card_id: senderCard.id,
+                    discord_user_id: interaction.user.id,
+                    transaction_type: 'transfer_out',
+                    amount: -monto,
+                    description: `Transferencia a ${destUser.tag}`
+                }]);
+
+                const embed = new EmbedBuilder()
+                    .setTitle('⏳ Transferencia Programada')
+                    .setColor(0xFFA500)
+                    .setDescription('Tu transferencia se procesará en 5 minutos.')
+                    .addFields(
+                        { name: 'De', value: interaction.user.tag, inline: true },
+                        { name: 'Para', value: destUser.tag, inline: true },
+                        { name: 'Monto', value: `$${monto.toLocaleString()}`, inline: true },
+                        { name: 'Llegada Estimada', value: releaseDate.toLocaleTimeString('es-MX', { timeZone: 'America/Mexico_City' }), inline: false }
+                    )
+                    .setFooter({ text: 'Sistema Interbancario NMX' })
+                    .setTimestamp();
+
+                await interaction.editReply({ embeds: [embed] });
+            } catch (error) {
+                console.error(error);
+                await interaction.editReply('❌ Error procesando la transferencia.');
+            }
+        }
+
 
         // === DEPOSITAR (Cash -> Bank) ===
         // === DEPOSITAR (Cash -> Bank) ===
