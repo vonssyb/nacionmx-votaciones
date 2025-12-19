@@ -4176,7 +4176,8 @@ client.on('interactionCreate', async interaction => {
                         amount: monto,
                         reason: razon,
                         release_date: releaseDate.toISOString(),
-                        status: 'PENDING'
+                        status: 'PENDING',
+                        transfer_type: 'cash_giro' // Explicitly mark as Cash
                     });
 
                 if (dbError) throw dbError;
