@@ -73,6 +73,26 @@ function updateStockPrices() {
     console.log('✅ Precios actualizados.');
 }
 
+// Card Tiers Configuration (Global - used in multiple commands)
+const CARD_TIERS = {
+    'NMX Débito': { limit: 0, interest: 0, cost: 100, max_balance: 50000 },
+    'NMX Débito Plus': { limit: 0, interest: 0, cost: 500, max_balance: 150000 },
+    'NMX Débito Gold': { limit: 0, interest: 0, cost: 1000, max_balance: Infinity },
+    'NMX Start': { limit: 15000, interest: 15, cost: 2000, max_balance: Infinity },
+    'NMX Básica': { limit: 30000, interest: 12, cost: 4000, max_balance: Infinity },
+    'NMX Plus': { limit: 50000, interest: 10, cost: 6000, max_balance: Infinity },
+    'NMX Plata': { limit: 100000, interest: 8, cost: 10000, max_balance: Infinity },
+    'NMX Oro': { limit: 250000, interest: 7, cost: 15000, max_balance: Infinity },
+    'NMX Rubí': { limit: 500000, interest: 6, cost: 25000, max_balance: Infinity },
+    'NMX Black': { limit: 1000000, interest: 5, cost: 40000, max_balance: Infinity },
+    'NMX Diamante': { limit: 2000000, interest: 3, cost: 60000, max_balance: Infinity },
+    // Business Cards
+    'NMX Business Start': { limit: 50000, interest: 2, cost: 8000, max_balance: Infinity },
+    'NMX Business Gold': { limit: 100000, interest: 1.5, cost: 15000, max_balance: Infinity },
+    'NMX Business Platinum': { limit: 200000, interest: 1.2, cost: 20000, max_balance: Infinity },
+    'NMX Business Elite': { limit: 500000, interest: 1, cost: 35000, max_balance: Infinity },
+    'NMX Corporate': { limit: 1000000, interest: 0.7, cost: 50000, max_balance: Infinity }
+};
 
 client.once('ready', async () => {
     console.log(`🤖 Bot iniciado como ${client.user.tag}!`);
@@ -89,26 +109,6 @@ client.once('ready', async () => {
 
 
     const rest = new REST({ version: '10' }).setToken(DISCORD_TOKEN);
-
-    const CARD_TIERS = {
-        'NMX Débito': { limit: 0, interest: 0, cost: 100, max_balance: 50000 },
-        'NMX Débito Plus': { limit: 0, interest: 0, cost: 500, max_balance: 150000 },
-        'NMX Débito Gold': { limit: 0, interest: 0, cost: 1000, max_balance: Infinity },
-        'NMX Start': { limit: 15000, interest: 15, cost: 2000, max_balance: Infinity },
-        'NMX Básica': { limit: 30000, interest: 12, cost: 4000, max_balance: Infinity },
-        'NMX Plus': { limit: 50000, interest: 10, cost: 6000, max_balance: Infinity },
-        'NMX Plata': { limit: 100000, interest: 8, cost: 10000, max_balance: Infinity },
-        'NMX Oro': { limit: 250000, interest: 7, cost: 15000, max_balance: Infinity },
-        'NMX Rubí': { limit: 500000, interest: 6, cost: 25000, max_balance: Infinity },
-        'NMX Black': { limit: 1000000, interest: 5, cost: 40000, max_balance: Infinity },
-        'NMX Diamante': { limit: 2000000, interest: 3, cost: 60000, max_balance: Infinity },
-        // Business Cards
-        'NMX Business Start': { limit: 50000, interest: 2, cost: 8000, max_balance: Infinity },
-        'NMX Business Gold': { limit: 100000, interest: 1.5, cost: 15000, max_balance: Infinity },
-        'NMX Business Platinum': { limit: 200000, interest: 1.2, cost: 20000, max_balance: Infinity },
-        'NMX Business Elite': { limit: 500000, interest: 1, cost: 35000, max_balance: Infinity },
-        'NMX Corporate': { limit: 1000000, interest: 0.7, cost: 50000, max_balance: Infinity }
-    };
 
     const commands = [
         {
@@ -1814,7 +1814,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 return interaction.reply({ content: '⛔ **Seguridad:** No puedes usar comandos administrativos sobre tu propia cuenta.', ephemeral: true });
             }
 
-            await interaction.deferReply({ ephemeral: false });
+            // Already deferred globally at command start
 
             // Resolve Citizen (Credit Cards are linked to CITIZENS, not Profiles directly)
             // 1. Try to find via Citizens table first
@@ -2889,7 +2889,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 embed.addFields({ name: `${trend} ${s.symbol} - ${s.name}`, value: `$${s.current.toLocaleString()} MXN`, inline: true });
             });
 
-            await interaction.reply({ embeds: [embed] });
+            await interaction.editReply({ embeds: [embed] });
         }
 
         else if (subcommand === 'comprar') {
@@ -3057,10 +3057,10 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                     )
                     .setTimestamp();
 
-                await interaction.reply({ embeds: [embed] });
+                await interaction.editReply({ embeds: [embed] });
             } catch (error) {
                 console.error('Error vendiendo acciones:', error);
-                await interaction.reply({ content: '❌ Error procesando la venta. Intenta de nuevo.', ephemeral: false });
+                await interaction.editReply({ content: '❌ Error procesando la venta. Intenta de nuevo.', ephemeral: false });
             }
         }
 
@@ -3850,32 +3850,104 @@ client.on('interactionCreate', async interaction => {
         await interaction.deferReply();
 
         try {
+            // Get all citizens with discord IDs
             const { data: citizens } = await supabase
                 .from('citizens')
-                .select('full_name, credit_score, discord_id')
-                .order('credit_score', { ascending: false })
-                .limit(10);
+                .select('full_name, discord_id')
+                .not('discord_id', 'is', null);
 
             if (!citizens || citizens.length === 0) {
                 return interaction.editReply('❌ No hay datos disponibles.');
             }
 
+            // Calculate total wealth for each citizen
+            const wealthData = [];
+
+            for (const citizen of citizens) {
+                try {
+                    // Get cash and bank balance from UnbelievaBoat
+                    const balance = await billingService.ubService.getUserBalance(interaction.guildId, citizen.discord_id);
+                    const cash = balance.cash || 0;
+                    const bank = balance.bank || 0;
+
+                    // Get debit card balance
+                    const { data: debitCard } = await supabase
+                        .from('debit_cards')
+                        .select('balance')
+                        .eq('discord_user_id', citizen.discord_id)
+                        .eq('status', 'active')
+                        .maybeSingle();
+                    const debitBalance = debitCard?.balance || 0;
+
+                    // Get investment portfolio value
+                    const { data: investments } = await supabase
+                        .from('investments')
+                        .select('quantity, ticker')
+                        .eq('discord_id', citizen.discord_id);
+
+                    let investmentsValue = 0;
+                    if (investments && investments.length > 0) {
+                        const { data: prices } = await supabase
+                            .from('market_prices')
+                            .select('ticker, current_price');
+
+                        const priceMap = {};
+                        prices?.forEach(p => priceMap[p.ticker] = p.current_price);
+
+                        investments.forEach(inv => {
+                            const price = priceMap[inv.ticker] || 0;
+                            investmentsValue += inv.quantity * price;
+                        });
+                    }
+
+                    const totalWealth = cash + bank + debitBalance + investmentsValue;
+
+                    wealthData.push({
+                        name: citizen.full_name,
+                        discord_id: citizen.discord_id,
+                        total: totalWealth,
+                        cash,
+                        bank,
+                        debit: debitBalance,
+                        investments: investmentsValue
+                    });
+                } catch (error) {
+                    console.error(`Error calculating wealth for ${citizen.full_name}:`, error);
+                }
+            }
+
+            // Sort by total wealth descending
+            wealthData.sort((a, b) => b.total - a.total);
+
+            // Take top 10
+            const top10 = wealthData.slice(0, 10);
+
+            if (top10.length === 0) {
+                return interaction.editReply('❌ No se pudieron calcular las fortunas.');
+            }
+
             const embed = new EmbedBuilder()
-                .setTitle('🏆 Top 10 - Mejores Puntajes Crediticios')
+                .setTitle('💰 Top 10 - Ciudadanos Más Ricos')
                 .setColor(0xFFD700)
+                .setDescription('Ranking por patrimonio total (Efectivo + Banco + Débito + Inversiones)')
                 .setTimestamp();
 
             let description = '';
-            citizens.forEach((c, index) => {
+            top10.forEach((person, index) => {
                 const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}.`;
-                description += `${medal} **${c.full_name}** - Score: ${c.credit_score || 100}/100\n`;
+                description += `${medal} **${person.name}** - $${person.total.toLocaleString()}\n`;
+                description += `   💵 Efectivo: $${person.cash.toLocaleString()} | 🏦 Banco: $${person.bank.toLocaleString()}\n`;
+                if (person.debit > 0 || person.investments > 0) {
+                    description += `   💳 Débito: $${person.debit.toLocaleString()} | 📈 Inversiones: $${person.investments.toLocaleString()}\n`;
+                }
+                description += '\n';
             });
 
             embed.setDescription(description);
             await interaction.editReply({ embeds: [embed] });
         } catch (error) {
             console.error(error);
-            await interaction.editReply('❌ Error obteniendo el ranking.');
+            await interaction.editReply('❌ Error calculando el ranking de riqueza.');
         }
     }
 
