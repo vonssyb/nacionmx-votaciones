@@ -1599,7 +1599,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 embeds: [new EmbedBuilder()
                     .setTitle('❌ Función Desactivada')
                     .setColor(0xFF0000)
-                    .setDescription('Las tarjetas de crédito ahora funcionan como **método de pago directo**.\\n\\n**No puedes retirar efectivo**, pero puedes usar tu tarjeta para pagar:\\n• Multas\\n• Licencias\\n• Empresas\\n• Transferencias\\n\\nAl pagar, selecciona "💳 Crédito" como método de pago.')
+                    .setDescription('Las tarjetas de crédito ahora funcionan como **método de pago directo**.\n\n**No puedes retirar efectivo**, pero puedes usar tu tarjeta para pagar:\n• Multas\n• Licencias\n• Empresas\n• Transferencias\n\nAl pagar, selecciona "💳 Crédito" como método de pago.')
                     .setFooter({ text: 'Banco Nacional - Nuevas Políticas de Crédito' })
                 ]
             });
@@ -4891,6 +4891,8 @@ client.on('interactionCreate', async interaction => {
 
             // === INFO ===
             else if (subCmd === 'info') {
+                await interaction.deferReply();
+
                 const infoEmbed = new EmbedBuilder()
                     .setTitle('🎰 Casino Nación MX - Guía Completa')
                     .setColor(0xFFD700)
@@ -4930,7 +4932,7 @@ client.on('interactionCreate', async interaction => {
                     .setFooter({ text: 'Casino Nación MX | La casa siempre gana... o no? 🎲' })
                     .setTimestamp();
 
-                await interaction.reply({ embeds: [infoEmbed] });
+                await interaction.editReply({ embeds: [infoEmbed] });
             }
         }
     }
