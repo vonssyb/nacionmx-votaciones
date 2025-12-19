@@ -3248,7 +3248,7 @@ async function handleUpgradeButton(interaction) {
 
     const { data: currentCard } = await supabase.from('credit_cards')
         .select('*')
-        .eq('discord_id', interaction.user.id)
+        .eq('discord_user_id', interaction.user.id)
         .eq('status', 'active')
         .order('created_at', { ascending: false })
         .limit(1)
