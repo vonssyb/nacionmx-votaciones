@@ -1369,80 +1369,14 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
         else if (subCmd === 'pedir-prestamo') {
             await interaction.deferReply({ ephemeral: isPrivate });
 
-            // Robust amount handling
-            const amount = interaction.options.getNumber('monto') || interaction.options.getInteger('monto');
-            if (!amount || amount <= 0) return interaction.editReply('❌ El monto debe ser mayor a 0.');
-
-            try {
-                const REQ_ID = `loan-${Date.now()}`;
-                console.log(`[Loan Debug] ${REQ_ID} Starting loan request for amount: ${amount}`);
-
-                // Fetch Card directly with citizen join to avoid lookup issues
-                const { data: userCard, error: cardError } = await supabase
-                    .from('credit_cards')
-                    .select('*, citizens!inner(id, full_name, discord_id)')
-                    .eq('citizens.discord_id', interaction.user.id)
-                    .order('created_at', { ascending: false })
-                    .limit(1)
-                    .maybeSingle();
-
-                if (cardError) throw new Error(`Error buscando tarjeta: ${cardError.message}`);
-                if (!userCard) return interaction.editReply('❌ No tienes una tarjeta activa.');
-
-                // 3. Validate Limit
-                const currentBalance = userCard.current_balance || 0;
-                const creditLimit = userCard.credit_limit || 0;
-                const availableCredit = creditLimit - currentBalance;
-
-                if (amount > availableCredit) {
-                    return interaction.editReply(`❌ **Fondos Insuficientes**. \nLímite: $${creditLimit.toLocaleString()} \nDeuda: $${currentBalance.toLocaleString()} \nDisponible: $${availableCredit.toLocaleString()}`);
-                }
-
-                // 4. Update DB
-                console.log(`[Loan Debug] ${REQ_ID} Updating DB...`);
-                const newDebt = currentBalance + amount;
-                const { error: dbError } = await supabase
-                    .from('credit_cards')
-                    .update({ current_balance: newDebt })
-                    .eq('id', userCard.id);
-
-                if (dbError) throw new Error(`Error DB: ${dbError.message}`);
-
-                // 5. Update UnbelievaBoat
-                console.log(`[Loan Debug] ${REQ_ID} UnbelievaBoat addMoney...`);
-                let ubSuccess = true;
-                let ubErrorMessage = '';
-
-                try {
-                    await billingService.ubService.addMoney(interaction.guildId, interaction.user.id, amount, `Préstamo NMX: ${userCard.card_type}`);
-                    console.log(`[Loan Debug] ${REQ_ID} UnbelievaBoat success.`);
-                } catch (ubError) {
-                    console.error(`[Loan Debug] ${REQ_ID} UB Error:`, ubError);
-                    ubSuccess = false;
-                    ubErrorMessage = ubError.message;
-                }
-
-                // 6. Success Reply
-                const embed = new EmbedBuilder()
-                    .setTitle(ubSuccess ? '💸 Préstamo Aprobado' : '⚠️ Préstamo con Advertencia')
-                    .setColor(ubSuccess ? 0x00FF00 : 0xFFA500)
-                    .setDescription(ubSuccess
-                        ? `Se han depositado **$${amount.toLocaleString()}** en tu cuenta de efectivo.`
-                        : `✅ Deuda registrada en Banco, pero **FALLÓ** el depósito en efectivo.\n\n**Error:** ${ubErrorMessage}\n\n📢 **Contacta a Soporte inmediatamente** para que te den el dinero manualmente.`)
-                    .addFields(
-                        { name: 'Nueva Deuda', value: `$${newDebt.toLocaleString()}`, inline: true },
-                        { name: 'Crédito Restante', value: `$${(userCard.credit_limit - newDebt).toLocaleString()}`, inline: true },
-                        { name: 'Instrucciones', value: 'El monto se cobrará automáticamente el próximo **Domingo**.' }
-                    )
-                    .setFooter({ text: 'Sistema Financiero Nacion MX' });
-
-                await interaction.editReply({ embeds: [embed] });
-
-            } catch (err) {
-                console.error('[Loan Debug] Critical Error:', err);
-                await interaction.editReply(`❌ Error procesando solicitud: ${err.message}`);
-                await interaction.editReply({ content: `❌ Error procesando solicitud: ${err.message}`, ephemeral: isPrivate });
-            }
+            return interaction.editReply({
+                embeds: [new EmbedBuilder()
+                    .setTitle('❌ Función Desactivada')
+                    .setColor(0xFF0000)
+                    .setDescription('Las tarjetas de crédito ahora funcionan como **método de pago directo**.\\n\\n**No puedes retirar efectivo**, pero puedes usar tu tarjeta para pagar:\\n• Multas\\n• Licencias\\n• Empresas\\n• Transferencias\\n\\nAl pagar, selecciona "💳 Crédito" como método de pago.')
+                    .setFooter({ text: 'Banco Nacional - Nuevas Políticas de Crédito' })
+                ]
+            });
         }
 
         else if (subCmd === 'pagar') {
@@ -3003,7 +2937,7 @@ client.on('interactionCreate', async interaction => {
                 .setColor(0x00D26A)
                 .addFields(
                     { name: '💵 EFECTIVO', value: `\`\`\`$${cash.toLocaleString()}\`\`\``, inline: true },
-                    { name: '💳 BANCO / DÉBITO', value: `\`\`\`$${bank.toLocaleString()}\`\`\`\n${hasDebit ? '✅ Tarjeta Activa' : '❌ Sin Tarjeta'}`, inline: true },
+                    { name: '🏦 BANCO / DÉBITO', value: `\`\`\`$${bank.toLocaleString()}\`\`\`\n${hasDebit ? '✅ Tarjeta Débito' : '📋 Cuenta Bancaria'}`, inline: true },
                     { name: '💳 CRÉDITO', value: `\`\`\`Disponible: $${creditAvailable.toLocaleString()}\nDeuda: $${creditDebt.toLocaleString()}\`\`\``, inline: false },
                     { name: '📊 PATRIMONIO TOTAL', value: `\`\`\`diff\n+ $${totalLiquid.toLocaleString()}\n\`\`\``, inline: false }
                 )
