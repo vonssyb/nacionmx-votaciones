@@ -2317,10 +2317,11 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
         await interaction.reply({ content: 'Esta función estará disponible pronto.', ephemeral: false });
     }
     else if (commandName === 'inversion') {
+        await interaction.deferReply(); // Global defer
+
         const subCmd = interaction.options.getSubcommand();
 
         if (subCmd === 'nueva') {
-            await interaction.deferReply();
             const amount = interaction.options.getNumber('monto');
             if (amount < 5000) return interaction.editReply('❌ La inversión mínima es de **$5,000**.');
 
@@ -2618,12 +2619,14 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
     }
 
     else if (commandName === 'nomina') {
+        await interaction.deferReply(); // Global defer
+
         const subCmd = interaction.options.getSubcommand();
 
         if (subCmd === 'crear') {
             const name = interaction.options.getString('nombre');
             await supabase.from('payroll_groups').insert([{ owner_discord_id: interaction.user.id, name: name }]);
-            await interaction.reply(`✅ Grupo de nómina **${name}** creado.`);
+            await interaction.editReply(`✅ Grupo de nómina **${name}** creado.`);
         }
         else if (subCmd === 'agregar') {
             const groupName = interaction.options.getString('grupo');
@@ -2632,10 +2635,10 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
 
             // Find group
             const { data: group } = await supabase.from('payroll_groups').select('id').eq('name', groupName).eq('owner_discord_id', interaction.user.id).single();
-            if (!group) return interaction.reply('❌ No encontré ese grupo o no eres el dueño.');
+            if (!group) return interaction.editReply('❌ No encontré ese grupo o no eres el dueño.');
 
             await supabase.from('payroll_members').upsert([{ group_id: group.id, member_discord_id: target.id, salary: salary }]);
-            await interaction.reply(`✅ **${target.username}** agregado a **${groupName}** con sueldo $${salary}.`);
+            await interaction.editReply(`✅ **${target.username}** agregado a **${groupName}** con sueldo $${salary}.`);
         }
         else if (subCmd === 'pagar') {
             await interaction.deferReply();
