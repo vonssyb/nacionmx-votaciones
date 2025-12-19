@@ -4586,1649 +4586,1650 @@ async function handleExtraCommands(interaction) {
             }
         }
 
-        else if (commandName === 'empresa') {
-            const subcommand = interaction.options.getSubcommand();
+    }
 
-            if (subcommand === 'listar-usuario') {
-                // 1. Role Check
-                // Permissions: Administrator OR Specific Staff Role
-                const STAFF_ROLE_ID = '1450688555503587459'; // Using same role as company creator for now
-                if (!interaction.member.roles.cache.has(STAFF_ROLE_ID) && !interaction.member.permissions.has('Administrator')) {
-                    return interaction.reply({ content: '⛔ Este comando es solo para Staff.', ephemeral: true });
-                }
+    else if (commandName === 'empresa') {
+        const subcommand = interaction.options.getSubcommand();
 
-                await interaction.deferReply();
-                const targetUser = interaction.options.getUser('usuario');
-
-                try {
-                    // Query companies where owner_ids contains the user ID
-                    const { data: companies, error } = await supabase
-                        .from('companies')
-                        .select('*')
-                        .contains('owner_ids', [targetUser.id]);
-
-                    if (error) throw error;
-
-                    if (!companies || companies.length === 0) {
-                        return interaction.editReply(`ℹ️ El usuario **${targetUser.tag}** no tiene empresas registradas.`);
-                    }
-
-                    const embed = new EmbedBuilder()
-                        .setTitle(`🏢 Empresas de ${targetUser.username}`)
-                        .setColor(0x00CED1)
-                        .setThumbnail(targetUser.displayAvatarURL())
-                        .setFooter({ text: `Total: ${companies.length} empresas` })
-                        .setTimestamp();
-
-                    companies.forEach(company => {
-                        embed.addFields({
-                            name: `${company.emoji || '🏢'} ${company.name}`,
-                            value: `**Tipo:** ${company.type}\n**Saldo:** $${(company.balance || 0).toLocaleString()}\n**ID:** \`${company.id}\``,
-                            inline: false
-                        });
-                    });
-
-                    await interaction.editReply({ embeds: [embed] });
-
-                } catch (err) {
-                    console.error('Error fetching companies:', err);
-                    await interaction.editReply('❌ Error buscando empresas.');
-                }
-                return;
+        if (subcommand === 'listar-usuario') {
+            // 1. Role Check
+            // Permissions: Administrator OR Specific Staff Role
+            const STAFF_ROLE_ID = '1450688555503587459'; // Using same role as company creator for now
+            if (!interaction.member.roles.cache.has(STAFF_ROLE_ID) && !interaction.member.permissions.has('Administrator')) {
+                return interaction.reply({ content: '⛔ Este comando es solo para Staff.', ephemeral: true });
             }
 
-            if (subcommand === 'crear') {
-                try {
-                    await interaction.deferReply({ ephemeral: false });
-                    console.log(`[DEBUG] /empresa crear started by ${interaction.user.tag}`);
+            await interaction.deferReply();
+            const targetUser = interaction.options.getUser('usuario');
 
-                    // 1. Role Check (Only specific role can create)
-                    const AUTHORIZED_ROLE_ID = '1450688555503587459';
-                    if (!interaction.member.roles.cache.has(AUTHORIZED_ROLE_ID) && !interaction.member.permissions.has('Administrator')) {
-                        return interaction.editReply('⛔ No tienes permisos para registrar empresas.');
+            try {
+                // Query companies where owner_ids contains the user ID
+                const { data: companies, error } = await supabase
+                    .from('companies')
+                    .select('*')
+                    .contains('owner_ids', [targetUser.id]);
+
+                if (error) throw error;
+
+                if (!companies || companies.length === 0) {
+                    return interaction.editReply(`ℹ️ El usuario **${targetUser.tag}** no tiene empresas registradas.`);
+                }
+
+                const embed = new EmbedBuilder()
+                    .setTitle(`🏢 Empresas de ${targetUser.username}`)
+                    .setColor(0x00CED1)
+                    .setThumbnail(targetUser.displayAvatarURL())
+                    .setFooter({ text: `Total: ${companies.length} empresas` })
+                    .setTimestamp();
+
+                companies.forEach(company => {
+                    embed.addFields({
+                        name: `${company.emoji || '🏢'} ${company.name}`,
+                        value: `**Tipo:** ${company.type}\n**Saldo:** $${(company.balance || 0).toLocaleString()}\n**ID:** \`${company.id}\``,
+                        inline: false
+                    });
+                });
+
+                await interaction.editReply({ embeds: [embed] });
+
+            } catch (err) {
+                console.error('Error fetching companies:', err);
+                await interaction.editReply('❌ Error buscando empresas.');
+            }
+            return;
+        }
+
+        if (subcommand === 'crear') {
+            try {
+                await interaction.deferReply({ ephemeral: false });
+                console.log(`[DEBUG] /empresa crear started by ${interaction.user.tag}`);
+
+                // 1. Role Check (Only specific role can create)
+                const AUTHORIZED_ROLE_ID = '1450688555503587459';
+                if (!interaction.member.roles.cache.has(AUTHORIZED_ROLE_ID) && !interaction.member.permissions.has('Administrator')) {
+                    return interaction.editReply('⛔ No tienes permisos para registrar empresas.');
+                }
+
+                // 2. Get Options
+                const name = interaction.options.getString('nombre');
+                const ownerUser = interaction.options.getUser('dueño');
+                const coOwnerUser = interaction.options.getUser('co_dueño');
+                const isPrivate = interaction.options.getBoolean('es_privada') || false;
+                const logo = interaction.options.getAttachment('logo');
+                const type = interaction.options.getString('tipo_local'); // e.g. Taller, Restaurante
+                const vehicles = interaction.options.getNumber('vehiculos') || 0;
+
+                // New Cost Fields
+                const tramiteCost = interaction.options.getNumber('costo_tramite');
+                const localCost = interaction.options.getNumber('costo_local') || 0;
+                const vehicleCost = interaction.options.getNumber('costo_vehiculos') || 0;
+
+                // Optional fields
+                const location = interaction.options.getString('ubicacion') || 'No especificada';
+
+
+
+                // 2.1 Calculate Total
+                const totalCost = tramiteCost + localCost + vehicleCost;
+
+                // 2.2 Pre-verification of Funds
+                const balance = await billingService.ubService.getUserBalance(interaction.guildId, ownerUser.id);
+                const userMoney = balance.total || (balance.cash + balance.bank);
+
+                if (userMoney < totalCost) {
+                    return interaction.editReply(`❌ **Fondos Insuficientes**: El dueño <@${ownerUser.id}> tiene $${userMoney.toLocaleString()} pero se requieren **$${totalCost.toLocaleString()}**.`);
+                }
+
+                // 2.3 Send Confirmation Embed
+                const confirmEmbed = new EmbedBuilder()
+                    .setTitle(`🏢 Confirmar Registro: ${name}`)
+                    .setColor(0xFFA500)
+                    .setDescription(`Estás a punto de registrar una nueva empresa y realizar el cobro correspondiente al dueño <@${ownerUser.id}>.`)
+                    .addFields(
+                        { name: '🏷️ Rubro', value: type, inline: true },
+                        { name: '📍 Ubicación', value: location, inline: true },
+                        { name: '🔒 Tipo', value: isPrivate ? 'Privada (+Impuestos)' : 'Pública', inline: true },
+                        { name: '👥 Co-Dueño', value: coOwnerUser ? `<@${coOwnerUser.id}>` : 'N/A', inline: true },
+                        { name: '💵 Total a Cobrar', value: `**$${totalCost.toLocaleString()}**`, inline: false },
+                        { name: '🧾 Desglose', value: `> Trámite: $${tramiteCost.toLocaleString()}\n> Local: $${localCost.toLocaleString()}\n> Vehículos: $${vehicleCost.toLocaleString()}`, inline: false }
+                    )
+                    .setFooter({ text: 'Confirma para procesar el pago y crear la empresa.' });
+
+                const confirmRow = new ActionRowBuilder().addComponents(
+                    new ButtonBuilder().setCustomId('confirm_company').setLabel('✅ Pagar y Crear').setStyle(ButtonStyle.Success),
+                    new ButtonBuilder().setCustomId('cancel_company').setLabel('❌ Cancelar').setStyle(ButtonStyle.Danger)
+                );
+
+                const msg = await interaction.editReply({ embeds: [confirmEmbed], components: [confirmRow] });
+
+                // 3. Collector
+                const filter = i => i.user.id === interaction.user.id;
+                const collector = msg.createMessageComponentCollector({ filter, time: 60000 }); // 1 min timeout
+
+                let hasResponded = false;
+
+                collector.on('collect', async i => {
+                    if (i.customId === 'cancel_company') {
+                        hasResponded = true;
+                        await i.update({ content: '🚫 Operación cancelada.', embeds: [], components: [] });
+                        return collector.stop();
                     }
 
-                    // 2. Get Options
-                    const name = interaction.options.getString('nombre');
-                    const ownerUser = interaction.options.getUser('dueño');
-                    const coOwnerUser = interaction.options.getUser('co_dueño');
-                    const isPrivate = interaction.options.getBoolean('es_privada') || false;
-                    const logo = interaction.options.getAttachment('logo');
-                    const type = interaction.options.getString('tipo_local'); // e.g. Taller, Restaurante
-                    const vehicles = interaction.options.getNumber('vehiculos') || 0;
+                    if (i.customId === 'confirm_company') {
+                        hasResponded = true;
+                        await i.deferUpdate();
 
-                    // New Cost Fields
-                    const tramiteCost = interaction.options.getNumber('costo_tramite');
-                    const localCost = interaction.options.getNumber('costo_local') || 0;
-                    const vehicleCost = interaction.options.getNumber('costo_vehiculos') || 0;
+                        // Use universal payment system
+                        const paymentResult = await requestPaymentMethod(
+                            interaction,
+                            ownerUser.id,
+                            totalCost,
+                            `🏢 Registro de Empresa: ${name}`
+                        );
 
-                    // Optional fields
-                    const location = interaction.options.getString('ubicacion') || 'No especificada';
-
-
-
-                    // 2.1 Calculate Total
-                    const totalCost = tramiteCost + localCost + vehicleCost;
-
-                    // 2.2 Pre-verification of Funds
-                    const balance = await billingService.ubService.getUserBalance(interaction.guildId, ownerUser.id);
-                    const userMoney = balance.total || (balance.cash + balance.bank);
-
-                    if (userMoney < totalCost) {
-                        return interaction.editReply(`❌ **Fondos Insuficientes**: El dueño <@${ownerUser.id}> tiene $${userMoney.toLocaleString()} pero se requieren **$${totalCost.toLocaleString()}**.`);
-                    }
-
-                    // 2.3 Send Confirmation Embed
-                    const confirmEmbed = new EmbedBuilder()
-                        .setTitle(`🏢 Confirmar Registro: ${name}`)
-                        .setColor(0xFFA500)
-                        .setDescription(`Estás a punto de registrar una nueva empresa y realizar el cobro correspondiente al dueño <@${ownerUser.id}>.`)
-                        .addFields(
-                            { name: '🏷️ Rubro', value: type, inline: true },
-                            { name: '📍 Ubicación', value: location, inline: true },
-                            { name: '🔒 Tipo', value: isPrivate ? 'Privada (+Impuestos)' : 'Pública', inline: true },
-                            { name: '👥 Co-Dueño', value: coOwnerUser ? `<@${coOwnerUser.id}>` : 'N/A', inline: true },
-                            { name: '💵 Total a Cobrar', value: `**$${totalCost.toLocaleString()}**`, inline: false },
-                            { name: '🧾 Desglose', value: `> Trámite: $${tramiteCost.toLocaleString()}\n> Local: $${localCost.toLocaleString()}\n> Vehículos: $${vehicleCost.toLocaleString()}`, inline: false }
-                        )
-                        .setFooter({ text: 'Confirma para procesar el pago y crear la empresa.' });
-
-                    const confirmRow = new ActionRowBuilder().addComponents(
-                        new ButtonBuilder().setCustomId('confirm_company').setLabel('✅ Pagar y Crear').setStyle(ButtonStyle.Success),
-                        new ButtonBuilder().setCustomId('cancel_company').setLabel('❌ Cancelar').setStyle(ButtonStyle.Danger)
-                    );
-
-                    const msg = await interaction.editReply({ embeds: [confirmEmbed], components: [confirmRow] });
-
-                    // 3. Collector
-                    const filter = i => i.user.id === interaction.user.id;
-                    const collector = msg.createMessageComponentCollector({ filter, time: 60000 }); // 1 min timeout
-
-                    let hasResponded = false;
-
-                    collector.on('collect', async i => {
-                        if (i.customId === 'cancel_company') {
-                            hasResponded = true;
-                            await i.update({ content: '🚫 Operación cancelada.', embeds: [], components: [] });
-                            return collector.stop();
+                        if (!paymentResult.success) {
+                            return interaction.editReply({ content: paymentResult.error, embeds: [], components: [] });
                         }
 
-                        if (i.customId === 'confirm_company') {
-                            hasResponded = true;
-                            await i.deferUpdate();
+                        // Prepare IDs
+                        const ownerIds = [ownerUser.id];
+                        if (coOwnerUser) ownerIds.push(coOwnerUser.id);
 
-                            // Use universal payment system
-                            const paymentResult = await requestPaymentMethod(
-                                interaction,
-                                ownerUser.id,
-                                totalCost,
-                                `🏢 Registro de Empresa: ${name}`
-                            );
+                        // Create in DB
+                        await companyService.createCompany({
+                            name: name,
+                            logo_url: logo ? logo.url : null,
+                            industry_type: type,
+                            owner_ids: ownerIds,
+                            vehicle_count: vehicles,
+                            location: location,
+                            balance: 0,
+                            status: 'active',
+                            is_private: isPrivate
+                        });
 
-                            if (!paymentResult.success) {
-                                return interaction.editReply({ content: paymentResult.error, embeds: [], components: [] });
-                            }
+                        // Final Success Embed
+                        const finalEmbed = new EmbedBuilder()
+                            .setTitle(`🏢 Nueva Empresa Registrada: ${name}`)
+                            .setColor(0x00FF00)
+                            .setDescription(`Empresa dada de alta exitosamente en Nación MX.\nCobro realizado al dueño por **$${totalCost.toLocaleString()}**.`)
+                            .addFields(
+                                { name: '👤 Dueño', value: `<@${ownerUser.id}>`, inline: true },
+                                { name: '👥 Co-Dueño', value: coOwnerUser ? `<@${coOwnerUser.id}>` : 'N/A', inline: true },
+                                { name: '🏷️ Rubro', value: type, inline: true },
+                                { name: '🔒 Privacidad', value: isPrivate ? 'Privada' : 'Pública', inline: true },
+                                { name: '📍 Ubicación', value: location, inline: true },
+                                { name: '🚗 Vehículos', value: `${vehicles}`, inline: true },
+                                { name: '💵 Costo Total', value: `$${totalCost.toLocaleString()}`, inline: false },
+                                { name: '📝 Siguientes Pasos (Comandos Útiles)', value: '1. Agrega empleados: `/empresa nomina agregar`\n2. Cobra a clientes: `/empresa cobrar @usuario [monto] [razon]`\n3. Paga sueldos: `/empresa nomina pagar`\n4. Panel de Control: `/empresa menu`', inline: false }
+                            )
+                            .setThumbnail(logo ? logo.url : null)
+                            .setFooter({ text: 'Sistema Empresarial Nación MX' })
+                            .setTimestamp();
 
-                            // Prepare IDs
-                            const ownerIds = [ownerUser.id];
-                            if (coOwnerUser) ownerIds.push(coOwnerUser.id);
+                        const menuRow = new ActionRowBuilder().addComponents(
+                            new ButtonBuilder().setCustomId('company_menu').setLabel('📋 Menú Empresa').setStyle(ButtonStyle.Primary),
+                            new ButtonBuilder().setCustomId('company_payroll').setLabel('👥 Nómina').setStyle(ButtonStyle.Secondary)
+                        );
 
-                            // Create in DB
-                            await companyService.createCompany({
-                                name: name,
-                                logo_url: logo ? logo.url : null,
-                                industry_type: type,
-                                owner_ids: ownerIds,
-                                vehicle_count: vehicles,
-                                location: location,
-                                balance: 0,
-                                status: 'active',
-                                is_private: isPrivate
-                            });
+                        await interaction.editReply({ content: null, embeds: [finalEmbed], components: [menuRow] });
 
-                            // Final Success Embed
-                            const finalEmbed = new EmbedBuilder()
-                                .setTitle(`🏢 Nueva Empresa Registrada: ${name}`)
-                                .setColor(0x00FF00)
-                                .setDescription(`Empresa dada de alta exitosamente en Nación MX.\nCobro realizado al dueño por **$${totalCost.toLocaleString()}**.`)
+                        // Send detailed welcome guide to owner via DM
+                        try {
+                            const welcomeEmbed = new EmbedBuilder()
+                                .setTitle(`🎉 Bienvenido a ${name}`)
+                                .setColor(0x5865F2)
+                                .setDescription('**Tu empresa ha sido registrada exitosamente.** Aquí tienes todo lo que necesitas saber para empezar:')
                                 .addFields(
-                                    { name: '👤 Dueño', value: `<@${ownerUser.id}>`, inline: true },
-                                    { name: '👥 Co-Dueño', value: coOwnerUser ? `<@${coOwnerUser.id}>` : 'N/A', inline: true },
-                                    { name: '🏷️ Rubro', value: type, inline: true },
-                                    { name: '🔒 Privacidad', value: isPrivate ? 'Privada' : 'Pública', inline: true },
-                                    { name: '📍 Ubicación', value: location, inline: true },
-                                    { name: '🚗 Vehículos', value: `${vehicles}`, inline: true },
-                                    { name: '💵 Costo Total', value: `$${totalCost.toLocaleString()}`, inline: false },
-                                    { name: '📝 Siguientes Pasos (Comandos Útiles)', value: '1. Agrega empleados: `/empresa nomina agregar`\n2. Cobra a clientes: `/empresa cobrar @usuario [monto] [razon]`\n3. Paga sueldos: `/empresa nomina pagar`\n4. Panel de Control: `/empresa menu`', inline: false }
+                                    {
+                                        name: '⚠️ URGENTE: Agrega Empleados a Nómina',
+                                        value: '```\n/empresa nomina agregar @usuario [salario] [puesto]\n```\n**Importante:** Los empleados deben estar en nómina para recibir pagos semanales automáticos.',
+                                        inline: false
+                                    },
+                                    {
+                                        name: '💼 Comandos Esenciales',
+                                        value: '```\n/empresa menu - Panel de control completo\n/empresa cobrar @cliente [monto] [concepto] - Cobrar por servicios\n/empresa nomina pagar - Pagar sueldos manualmente\n/empresa info - Ver información de tu empresa\n```',
+                                        inline: false
+                                    },
+                                    {
+                                        name: '💳 Tarjetas Empresariales',
+                                        value: 'Potencia tu empresa con una **Tarjeta Business:**\n• Líneas de crédito desde $50k hasta $1M\n• Intereses bajos (0.7% - 2%)\n• Beneficios fiscales y cashback\n\n**Solicita una ahora** usando el botón abajo.',
+                                        inline: false
+                                    },
+                                    {
+                                        name: '📊 Recordatorios',
+                                        value: '• Impuestos corporativos se cobran semanalmente\n• Empresas privadas pagan 15% vs 10% públicas\n• Mantén empleados activos para mejor rendimiento',
+                                        inline: false
+                                    }
                                 )
                                 .setThumbnail(logo ? logo.url : null)
-                                .setFooter({ text: 'Sistema Empresarial Nación MX' })
+                                .setFooter({ text: 'Sistema Empresarial Nación MX • Éxito en tu negocio' })
                                 .setTimestamp();
 
-                            const menuRow = new ActionRowBuilder().addComponents(
-                                new ButtonBuilder().setCustomId('company_menu').setLabel('📋 Menú Empresa').setStyle(ButtonStyle.Primary),
-                                new ButtonBuilder().setCustomId('company_payroll').setLabel('👥 Nómina').setStyle(ButtonStyle.Secondary)
+                            const actionRow = new ActionRowBuilder().addComponents(
+                                new ButtonBuilder()
+                                    .setLabel('💳 Solicitar Tarjeta Business')
+                                    .setStyle(ButtonStyle.Link)
+                                    .setURL(`https://discord.com/channels/${interaction.guildId}/1450269843600310373`),
+                                new ButtonBuilder()
+                                    .setCustomId('company_quick_hire')
+                                    .setLabel('👥 Contratar Empleado')
+                                    .setStyle(ButtonStyle.Success)
                             );
 
-                            await interaction.editReply({ content: null, embeds: [finalEmbed], components: [menuRow] });
-
-                            // Send detailed welcome guide to owner via DM
-                            try {
-                                const welcomeEmbed = new EmbedBuilder()
-                                    .setTitle(`🎉 Bienvenido a ${name}`)
-                                    .setColor(0x5865F2)
-                                    .setDescription('**Tu empresa ha sido registrada exitosamente.** Aquí tienes todo lo que necesitas saber para empezar:')
-                                    .addFields(
-                                        {
-                                            name: '⚠️ URGENTE: Agrega Empleados a Nómina',
-                                            value: '```\n/empresa nomina agregar @usuario [salario] [puesto]\n```\n**Importante:** Los empleados deben estar en nómina para recibir pagos semanales automáticos.',
-                                            inline: false
-                                        },
-                                        {
-                                            name: '💼 Comandos Esenciales',
-                                            value: '```\n/empresa menu - Panel de control completo\n/empresa cobrar @cliente [monto] [concepto] - Cobrar por servicios\n/empresa nomina pagar - Pagar sueldos manualmente\n/empresa info - Ver información de tu empresa\n```',
-                                            inline: false
-                                        },
-                                        {
-                                            name: '💳 Tarjetas Empresariales',
-                                            value: 'Potencia tu empresa con una **Tarjeta Business:**\n• Líneas de crédito desde $50k hasta $1M\n• Intereses bajos (0.7% - 2%)\n• Beneficios fiscales y cashback\n\n**Solicita una ahora** usando el botón abajo.',
-                                            inline: false
-                                        },
-                                        {
-                                            name: '📊 Recordatorios',
-                                            value: '• Impuestos corporativos se cobran semanalmente\n• Empresas privadas pagan 15% vs 10% públicas\n• Mantén empleados activos para mejor rendimiento',
-                                            inline: false
-                                        }
-                                    )
-                                    .setThumbnail(logo ? logo.url : null)
-                                    .setFooter({ text: 'Sistema Empresarial Nación MX • Éxito en tu negocio' })
-                                    .setTimestamp();
-
-                                const actionRow = new ActionRowBuilder().addComponents(
-                                    new ButtonBuilder()
-                                        .setLabel('💳 Solicitar Tarjeta Business')
-                                        .setStyle(ButtonStyle.Link)
-                                        .setURL(`https://discord.com/channels/${interaction.guildId}/1450269843600310373`),
-                                    new ButtonBuilder()
-                                        .setCustomId('company_quick_hire')
-                                        .setLabel('👥 Contratar Empleado')
-                                        .setStyle(ButtonStyle.Success)
-                                );
-
-                                await ownerUser.send({ embeds: [welcomeEmbed], components: [actionRow] });
-                            } catch (dmError) {
-                                console.log('Could not send DM to owner:', dmError.message);
-                            }
-                            collector.stop();
+                            await ownerUser.send({ embeds: [welcomeEmbed], components: [actionRow] });
+                        } catch (dmError) {
+                            console.log('Could not send DM to owner:', dmError.message);
                         }
-                    });
-
-                    collector.on('end', collected => {
-                        if (!hasResponded) interaction.editReply({ content: '⚠️ Tiempo de espera agotado. Intenta de nuevo.', components: [] });
-                    });
-
-                } catch (error) {
-                    console.error('[company-create] Critical Error:', error);
-                    try {
-                        if (interaction.deferred || interaction.replied) {
-                            await interaction.editReply(`❌ Error crítico: ${error.message}`);
-                        } else {
-                            await interaction.reply(`❌ Error crítico: ${error.message}`);
-                        }
-                    } catch (e) {
-                        console.error('Final fail responding:', e);
+                        collector.stop();
                     }
-                }
-            }
-            else if (subcommand === 'menu') {
-                await interaction.deferReply({ flags: 64 });
+                });
+
+                collector.on('end', collected => {
+                    if (!hasResponded) interaction.editReply({ content: '⚠️ Tiempo de espera agotado. Intenta de nuevo.', components: [] });
+                });
+
+            } catch (error) {
+                console.error('[company-create] Critical Error:', error);
                 try {
-                    const { data: companies } = await supabase
-                        .from('companies')
-                        .select('*')
-                        .contains('owner_ids', [interaction.user.id])
-                        .eq('status', 'active');
-
-                    if (!companies || companies.length === 0) {
-                        return interaction.editReply('❌ No tienes una empresa registrada.');
+                    if (interaction.deferred || interaction.replied) {
+                        await interaction.editReply(`❌ Error crítico: ${error.message}`);
+                    } else {
+                        await interaction.reply(`❌ Error crítico: ${error.message}`);
                     }
-
-                    const company = companies[0];
-
-                    const embed = new EmbedBuilder()
-                        .setTitle(`🏢 ${company.name} - Panel de Control`)
-                        .setColor(0x5865F2)
-                        .setDescription(`Gestión completa de tu empresa`)
-                        .addFields(
-                            { name: '💰 Saldo', value: `$${(company.balance || 0).toLocaleString()}`, inline: true },
-                            { name: '👥 Empleados', value: `${(company.employees || []).length}`, inline: true },
-                            { name: '🚗 Vehículos', value: `${company.vehicle_count}`, inline: true },
-                            { name: '📍 Ubicación', value: company.location || 'No especificada', inline: true },
-                            { name: '🏷️ Tipo', value: company.industry_type, inline: true },
-                            { name: '🔒 Privacidad', value: company.is_private ? 'Privada' : 'Pública', inline: true }
-                        )
-                        .setThumbnail(company.logo_url)
-                        .setFooter({ text: 'Sistema Empresarial Nación MX' })
-                        .setTimestamp();
-
-                    const row1 = new ActionRowBuilder().addComponents(
-                        new ButtonBuilder().setCustomId('company_hire').setLabel('👥 Contratar').setStyle(ButtonStyle.Success),
-                        new ButtonBuilder().setCustomId('company_fire').setLabel('🚫 Despedir').setStyle(ButtonStyle.Danger),
-                        new ButtonBuilder().setCustomId('company_payroll').setLabel('💵 Pagar Nómina').setStyle(ButtonStyle.Primary)
-                    );
-
-                    const row2 = new ActionRowBuilder().addComponents(
-                        new ButtonBuilder().setCustomId('company_withdraw').setLabel('💸 Retirar Fondos').setStyle(ButtonStyle.Secondary),
-                        new ButtonBuilder().setCustomId('company_stats').setLabel('📊 Estadísticas').setStyle(ButtonStyle.Secondary)
-                    );
-
-                    await interaction.editReply({ embeds: [embed], components: [row1, row2] });
-
-                } catch (error) {
-                    console.error(error);
-                    await interaction.editReply('❌ Error obteniendo información de la empresa.');
+                } catch (e) {
+                    console.error('Final fail responding:', e);
                 }
             }
-            else if (subcommand === 'cobrar') {
-                // 1. Check if user belongs to a company (Owner OR Employee)
-                let { data: companies } = await supabase
+        }
+        else if (subcommand === 'menu') {
+            await interaction.deferReply({ flags: 64 });
+            try {
+                const { data: companies } = await supabase
                     .from('companies')
                     .select('*')
                     .contains('owner_ids', [interaction.user.id])
                     .eq('status', 'active');
 
-                // If not owner, check if employee
                 if (!companies || companies.length === 0) {
-                    const { data: employeeData } = await supabase
-                        .from('company_employees')
-                        .select('company_id, companies(*)')
-                        .eq('discord_user_id', interaction.user.id)
-                        .eq('status', 'active');
-
-                    if (employeeData && employeeData.length > 0) {
-                        companies = [employeeData[0].companies];
-                    }
+                    return interaction.editReply('❌ No tienes una empresa registrada.');
                 }
 
-                if (!companies || companies.length === 0) {
-                    return interaction.reply({ content: '⛔ No estás en ninguna empresa (ni dueño ni empleado).', ephemeral: true });
-                }
+                const company = companies[0];
 
-                const myCompany = companies[0]; // Use first company for now
-                const clientUser = interaction.options.getUser('cliente');
-                const amount = interaction.options.getNumber('monto');
-                const reason = interaction.options.getString('razon');
-
-                // 2. Create POS Embed
                 const embed = new EmbedBuilder()
-                    .setTitle(`💸 Cobro: ${myCompany.name}`)
-                    .setDescription(`Hola <@${clientUser.id}>, **${myCompany.name}** te está cobrando por el siguiente concepto:`)
+                    .setTitle(`🏢 ${company.name} - Panel de Control`)
+                    .setColor(0x5865F2)
+                    .setDescription(`Gestión completa de tu empresa`)
                     .addFields(
-                        { name: '🧾 Concepto', value: reason },
-                        { name: '💵 Monto', value: `$${amount.toLocaleString()}` }
+                        { name: '💰 Saldo', value: `$${(company.balance || 0).toLocaleString()}`, inline: true },
+                        { name: '👥 Empleados', value: `${(company.employees || []).length}`, inline: true },
+                        { name: '🚗 Vehículos', value: `${company.vehicle_count}`, inline: true },
+                        { name: '📍 Ubicación', value: company.location || 'No especificada', inline: true },
+                        { name: '🏷️ Tipo', value: company.industry_type, inline: true },
+                        { name: '🔒 Privacidad', value: company.is_private ? 'Privada' : 'Pública', inline: true }
                     )
-                    .setColor(0xFFA500)
-                    .setFooter({ text: 'Selecciona tu método de pago' });
+                    .setThumbnail(company.logo_url)
+                    .setFooter({ text: 'Sistema Empresarial Nación MX' })
+                    .setTimestamp();
 
-                const row = new ActionRowBuilder().addComponents(
-                    new ButtonBuilder().setCustomId(`pay_cash_${amount}_${myCompany.id}`).setLabel('💵 Efectivo').setStyle(ButtonStyle.Success),
-                    new ButtonBuilder().setCustomId(`pay_debit_${amount}_${myCompany.id}`).setLabel('💳 Débito').setStyle(ButtonStyle.Primary),
-                    new ButtonBuilder().setCustomId(`pay_credit_${amount}_${myCompany.id}`).setLabel('💳 Crédito').setStyle(ButtonStyle.Secondary),
-                    new ButtonBuilder().setCustomId('pay_cancel').setLabel('❌ Rechazar').setStyle(ButtonStyle.Danger)
+                const row1 = new ActionRowBuilder().addComponents(
+                    new ButtonBuilder().setCustomId('company_hire').setLabel('👥 Contratar').setStyle(ButtonStyle.Success),
+                    new ButtonBuilder().setCustomId('company_fire').setLabel('🚫 Despedir').setStyle(ButtonStyle.Danger),
+                    new ButtonBuilder().setCustomId('company_payroll').setLabel('💵 Pagar Nómina').setStyle(ButtonStyle.Primary)
                 );
 
-                await interaction.reply({
-                    content: `<@${clientUser.id}>`,
-                    embeds: [embed],
-                    components: [row]
+                const row2 = new ActionRowBuilder().addComponents(
+                    new ButtonBuilder().setCustomId('company_withdraw').setLabel('💸 Retirar Fondos').setStyle(ButtonStyle.Secondary),
+                    new ButtonBuilder().setCustomId('company_stats').setLabel('📊 Estadísticas').setStyle(ButtonStyle.Secondary)
+                );
+
+                await interaction.editReply({ embeds: [embed], components: [row1, row2] });
+
+            } catch (error) {
+                console.error(error);
+                await interaction.editReply('❌ Error obteniendo información de la empresa.');
+            }
+        }
+        else if (subcommand === 'cobrar') {
+            // 1. Check if user belongs to a company (Owner OR Employee)
+            let { data: companies } = await supabase
+                .from('companies')
+                .select('*')
+                .contains('owner_ids', [interaction.user.id])
+                .eq('status', 'active');
+
+            // If not owner, check if employee
+            if (!companies || companies.length === 0) {
+                const { data: employeeData } = await supabase
+                    .from('company_employees')
+                    .select('company_id, companies(*)')
+                    .eq('discord_user_id', interaction.user.id)
+                    .eq('status', 'active');
+
+                if (employeeData && employeeData.length > 0) {
+                    companies = [employeeData[0].companies];
+                }
+            }
+
+            if (!companies || companies.length === 0) {
+                return interaction.reply({ content: '⛔ No estás en ninguna empresa (ni dueño ni empleado).', ephemeral: true });
+            }
+
+            const myCompany = companies[0]; // Use first company for now
+            const clientUser = interaction.options.getUser('cliente');
+            const amount = interaction.options.getNumber('monto');
+            const reason = interaction.options.getString('razon');
+
+            // 2. Create POS Embed
+            const embed = new EmbedBuilder()
+                .setTitle(`💸 Cobro: ${myCompany.name}`)
+                .setDescription(`Hola <@${clientUser.id}>, **${myCompany.name}** te está cobrando por el siguiente concepto:`)
+                .addFields(
+                    { name: '🧾 Concepto', value: reason },
+                    { name: '💵 Monto', value: `$${amount.toLocaleString()}` }
+                )
+                .setColor(0xFFA500)
+                .setFooter({ text: 'Selecciona tu método de pago' });
+
+            const row = new ActionRowBuilder().addComponents(
+                new ButtonBuilder().setCustomId(`pay_cash_${amount}_${myCompany.id}`).setLabel('💵 Efectivo').setStyle(ButtonStyle.Success),
+                new ButtonBuilder().setCustomId(`pay_debit_${amount}_${myCompany.id}`).setLabel('💳 Débito').setStyle(ButtonStyle.Primary),
+                new ButtonBuilder().setCustomId(`pay_credit_${amount}_${myCompany.id}`).setLabel('💳 Crédito').setStyle(ButtonStyle.Secondary),
+                new ButtonBuilder().setCustomId('pay_cancel').setLabel('❌ Rechazar').setStyle(ButtonStyle.Danger)
+            );
+
+            await interaction.reply({
+                content: `<@${clientUser.id}>`,
+                embeds: [embed],
+                components: [row]
+            });
+        }
+        else if (subcommand === 'lista') {
+            await interaction.deferReply({ flags: 64 });
+            try {
+                const { data: companies, error } = await supabase
+                    .from('companies')
+                    .select('*')
+                    .eq('status', 'active');
+
+                if (error) throw error;
+
+                if (!companies || companies.length === 0) {
+                    return interaction.editReply('📭 No hay empresas registradas aún.');
+                }
+
+                let listText = '';
+                companies.forEach(c => {
+                    listText += `🏢 **${c.name}** (${c.industry_type}) - Dueño: <@${c.owner_ids[0]}>\n`;
                 });
+
+                const embed = new EmbedBuilder()
+                    .setTitle('🏢 Directorio de Empresas')
+                    .setColor(0x00FF00)
+                    .setDescription(listText)
+                    .setTimestamp();
+
+                await interaction.editReply({ embeds: [embed] });
+
+            } catch (error) {
+                console.error(error);
+                await interaction.editReply('❌ Error obteniendo la lista.');
             }
-            else if (subcommand === 'lista') {
-                await interaction.deferReply({ flags: 64 });
-                try {
-                    const { data: companies, error } = await supabase
-                        .from('companies')
-                        .select('*')
-                        .eq('status', 'active');
+        }
+        else if (subcommand === 'info') {
+            await interaction.deferReply({ flags: 64 });
+            try {
+                // Info regarding MY company or specific company? 
+                // Usually "info" without args implies "My Company Info" or "General Info"?
+                // Let's assume My Company for now as it's most useful.
+                // Or if arguments provided? The command definition for "info" might have an option.
+                // Re-checking manual_register.js would be ideal but let's assume "My Company" first or list all owned.
 
-                    if (error) throw error;
+                const { data: companies } = await supabase
+                    .from('companies')
+                    .select('*')
+                    .contains('owner_ids', [interaction.user.id])
+                    .eq('status', 'active');
 
-                    if (!companies || companies.length === 0) {
-                        return interaction.editReply('📭 No hay empresas registradas aún.');
-                    }
-
-                    let listText = '';
-                    companies.forEach(c => {
-                        listText += `🏢 **${c.name}** (${c.industry_type}) - Dueño: <@${c.owner_ids[0]}>\n`;
-                    });
-
-                    const embed = new EmbedBuilder()
-                        .setTitle('🏢 Directorio de Empresas')
-                        .setColor(0x00FF00)
-                        .setDescription(listText)
-                        .setTimestamp();
-
-                    await interaction.editReply({ embeds: [embed] });
-
-                } catch (error) {
-                    console.error(error);
-                    await interaction.editReply('❌ Error obteniendo la lista.');
-                }
-            }
-            else if (subcommand === 'info') {
-                await interaction.deferReply({ flags: 64 });
-                try {
-                    // Info regarding MY company or specific company? 
-                    // Usually "info" without args implies "My Company Info" or "General Info"?
-                    // Let's assume My Company for now as it's most useful.
-                    // Or if arguments provided? The command definition for "info" might have an option.
-                    // Re-checking manual_register.js would be ideal but let's assume "My Company" first or list all owned.
-
-                    const { data: companies } = await supabase
-                        .from('companies')
-                        .select('*')
-                        .contains('owner_ids', [interaction.user.id])
-                        .eq('status', 'active');
-
-                    if (!companies || companies.length === 0) {
-                        return interaction.editReply('❌ No tienes ninguna empresa registrada.');
-                    }
-
-                    const c = companies[0]; // Show first
-                    const embed = new EmbedBuilder()
-                        .setTitle(`ℹ️ Información: ${c.name}`)
-                        .setColor(0x0099FF)
-                        .addFields(
-                            { name: 'Dueño', value: `<@${c.owner_ids[0]}>`, inline: true },
-                            { name: 'Saldo', value: `$${(c.balance || 0).toLocaleString()}`, inline: true },
-                            { name: 'Empleados', value: `${(c.employees || []).length}`, inline: true },
-                            { name: 'Vehículos', value: `${c.vehicle_count}`, inline: true },
-                            { name: 'Ubicación', value: c.location || 'N/A', inline: true }
-                        )
-                        .setThumbnail(c.logo_url);
-
-                    await interaction.editReply({ embeds: [embed] });
-
-                } catch (error) {
-                    console.error(error);
-                    await interaction.editReply('❌ Error obteniendo información.');
-                }
-            }
-
-            else if (subcommand === 'credito') {
-                await interaction.deferReply({ flags: 64 });
-
-                const monto = interaction.options.getNumber('monto');
-                const razon = interaction.options.getString('razon');
-
-                if (monto <= 0) {
-                    return interaction.editReply('❌ El monto debe ser mayor a 0.');
+                if (!companies || companies.length === 0) {
+                    return interaction.editReply('❌ No tienes ninguna empresa registrada.');
                 }
 
-                try {
-                    // 1. Get user's companies
-                    const { data: companies } = await supabase
-                        .from('companies')
-                        .select('*')
-                        .contains('owner_ids', [interaction.user.id])
-                        .eq('status', 'active');
+                const c = companies[0]; // Show first
+                const embed = new EmbedBuilder()
+                    .setTitle(`ℹ️ Información: ${c.name}`)
+                    .setColor(0x0099FF)
+                    .addFields(
+                        { name: 'Dueño', value: `<@${c.owner_ids[0]}>`, inline: true },
+                        { name: 'Saldo', value: `$${(c.balance || 0).toLocaleString()}`, inline: true },
+                        { name: 'Empleados', value: `${(c.employees || []).length}`, inline: true },
+                        { name: 'Vehículos', value: `${c.vehicle_count}`, inline: true },
+                        { name: 'Ubicación', value: c.location || 'N/A', inline: true }
+                    )
+                    .setThumbnail(c.logo_url);
 
-                    if (!companies || companies.length === 0) {
-                        return interaction.editReply('❌ Necesitas tener una empresa para solicitar crédito business.');
-                    }
+                await interaction.editReply({ embeds: [embed] });
 
-                    // 2. Get business credit cards
-                    const { data: cards } = await supabase
-                        .from('credit_cards')
-                        .select('*, companies!inner(name)')
-                        .eq('discord_id', interaction.user.id)
-                        .in('card_type', ['business_start', 'business_gold', 'business_platinum', 'business_elite', 'nmx_corporate'])
-                        .eq('status', 'active');
-
-                    if (!cards || cards.length === 0) {
-                        return interaction.editReply('❌ No tienes tarjetas business activas.\n\n**¿Cómo solicitar una?**\n1. Abre un ticket en <#1450269843600310373>\n2. Un asesor te ayudará con el proceso\n3. Recibirás tu tarjeta vinculada a tu empresa');
-                    }
-
-                    // 3. If multiple cards, let user choose
-                    if (cards.length > 1) {
-                        const selectMenu = new StringSelectMenuBuilder()
-                            .setCustomId(`credit_select_${monto}_${razon}`)
-                            .setPlaceholder('Selecciona tarjeta business')
-                            .addOptions(
-                                cards.map(card => {
-                                    const available = card.card_limit - (card.current_balance || 0);
-                                    const companyName = card.companies?.name || 'Sin empresa';
-                                    return {
-                                        label: `${card.card_name} - ${companyName}`,
-                                        description: `Disponible: $${available.toLocaleString()} de $${card.card_limit.toLocaleString()}`,
-                                        value: card.id,
-                                        emoji: '💳'
-                                    };
-                                })
-                            );
-
-                        const row = new ActionRowBuilder().addComponents(selectMenu);
-
-                        return interaction.editReply({
-                            content: `💳 Tienes **${cards.length}** tarjetas business. Selecciona cuál usar:`,
-                            components: [row]
-                        });
-                    }
-
-                    // 4. Only one card, proceed
-                    const card = cards[0];
-                    const available = card.card_limit - (card.current_balance || 0);
-
-                    if (monto > available) {
-                        return interaction.editReply(`❌ **Crédito insuficiente**\n\n💳 Tarjeta: **${card.card_name}**\n📊 Disponible: **$${available.toLocaleString()}**\n❌ Solicitado: **$${monto.toLocaleString()}**\n\nContacta a un asesor para aumentar tu límite.`);
-                    }
-
-                    // 5. Update card balance
-                    await supabase
-                        .from('credit_cards')
-                        .update({
-                            current_balance: (card.current_balance || 0) + monto,
-                            last_transaction_at: new Date().toISOString()
-                        })
-                        .eq('id', card.id);
-
-                    // 6. Add to company balance
-                    const companyId = card.company_id;
-                    const { data: company } = await supabase
-                        .from('companies')
-                        .select('balance')
-                        .eq('id', companyId)
-                        .single();
-
-                    await supabase
-                        .from('companies')
-                        .update({ balance: (company.balance || 0) + monto })
-                        .eq('id', companyId);
-
-                    // 7. Log transaction
-                    await supabase
-                        .from('credit_transactions')
-                        .insert({
-                            card_id: card.id,
-                            discord_user_id: interaction.user.id,
-                            transaction_type: 'disbursement',
-                            amount: monto,
-                            description: razon,
-                            company_id: companyId
-                        });
-
-                    const newBalance = (card.current_balance || 0) + monto;
-                    const newAvailable = card.card_limit - newBalance;
-
-                    const embed = new EmbedBuilder()
-                        .setTitle('✅ Crédito Business Aprobado')
-                        .setColor(0x00FF00)
-                        .setDescription(`Se depositaron **$${monto.toLocaleString()}** al balance de tu empresa.`)
-                        .addFields(
-                            { name: '💳 Tarjeta', value: card.card_name, inline: true },
-                            { name: '🏢 Empresa', value: card.companies?.name || 'N/A', inline: true },
-                            { name: '📝 Concepto', value: razon, inline: false },
-                            { name: '💰 Monto Solicitado', value: `$${monto.toLocaleString()}`, inline: true },
-                            { name: '📊 Nueva Deuda', value: `$${newBalance.toLocaleString()}`, inline: true },
-                            { name: '💵 Crédito Disponible', value: `$${newAvailable.toLocaleString()}`, inline: true },
-                            { name: '⚠️ Recordatorio', value: `Interés semanal: **${(card.interest_rate * 100).toFixed(2)}%**\nPaga tu deuda con \`/credito pagar\``, inline: false }
-                        )
-                        .setFooter({ text: 'Usa responsablemente tu línea de crédito' })
-                        .setTimestamp();
-
-                    await interaction.editReply({ embeds: [embed] });
-
-                } catch (error) {
-                    console.error(error);
-                    await interaction.editReply('❌ Error procesando solicitud de crédito.');
-                }
+            } catch (error) {
+                console.error(error);
+                await interaction.editReply('❌ Error obteniendo información.');
             }
         }
 
-        // ===== 🎰 CASINO SYSTEM =====
-        else if (commandName === 'casino') {
-            console.log('[DEBUG] Casino handler entered');
+        else if (subcommand === 'credito') {
+            await interaction.deferReply({ flags: 64 });
+
+            const monto = interaction.options.getNumber('monto');
+            const razon = interaction.options.getString('razon');
+
+            if (monto <= 0) {
+                return interaction.editReply('❌ El monto debe ser mayor a 0.');
+            }
+
             try {
-                if (!interaction.deferred && !interaction.replied) {
-                    console.log('[DEBUG] Attempting deferReply...');
-                    await interaction.deferReply();
-                    console.log('[DEBUG] deferReply success');
-                } else {
-                    console.log('[DEBUG] Already deferred/replied');
-                }
-            } catch (e) {
-                console.log('[DEBUG] Error deferring casino:', e.message);
-                return;
-            }
+                // 1. Get user's companies
+                const { data: companies } = await supabase
+                    .from('companies')
+                    .select('*')
+                    .contains('owner_ids', [interaction.user.id])
+                    .eq('status', 'active');
 
-            const CASINO_CHANNEL_ID = '1451398359540826306';
-            const CASINO_ROLE_ID = '1449951345611378841';
-            const CHIP_PRICE = 100; // 1 ficha = $100
-
-            const subCmdGroup = interaction.options.getSubcommandGroup(false);
-            const subCmd = interaction.options.getSubcommand();
-            console.log(`[DEBUG] Casino Subcommand: ${subCmd}`);
-
-            // Info command is accessible from anywhere without restrictions
-            if (subCmd !== 'info') {
-                // Check if command is in casino channel
-                if (interaction.channelId !== CASINO_CHANNEL_ID) {
-                    return interaction.editReply({
-                        content: `🎰 Este comando solo puede usarse en <#${CASINO_CHANNEL_ID}>`
-                    });
+                if (!companies || companies.length === 0) {
+                    return interaction.editReply('❌ Necesitas tener una empresa para solicitar crédito business.');
                 }
 
-                // Check Role (Except for buying chips, maybe?)
-                // For now, allow everyone to buy chips, but games might require role? 
-                // Let's keep it simple: Role required for everything except info
-                if (!interaction.member.roles.cache.has(CASINO_ROLE_ID)) {
-                    return interaction.editReply({
-                        content: `⛔ Necesitas el rol <@&${CASINO_ROLE_ID}> para entrar al casino. \n(Cómpralo en la tienda de roles o pide acceso a un admin)`
-                    });
-                }
-            }
+                // 2. Get business credit cards
+                const { data: cards } = await supabase
+                    .from('credit_cards')
+                    .select('*, companies!inner(name)')
+                    .eq('discord_id', interaction.user.id)
+                    .in('card_type', ['business_start', 'business_gold', 'business_platinum', 'business_elite', 'nmx_corporate'])
+                    .eq('status', 'active');
 
-            if (subCmd === 'info') {
-                console.log('[DEBUG] Processing casino info...');
-                try {
-                    const embed = new EmbedBuilder()
-                        .setTitle('🎰 CASINO NACIÓN MX')
-                        .setColor(0xD4AF37)
-                        .setDescription('Bienvenido al centro de apuestas y juegos de azar.\nAquí podrás ganar (o perder) grandes fortunas.')
-                        .addFields(
-                            { name: '🎟️ Tus Fichas', value: 'Usa `/casino fichas estado`', inline: true },
-                            { name: '💰 Precio Ficha', value: `$${CHIP_PRICE.toLocaleString()}`, inline: true },
-                            { name: '🎲 Juegos', value: 'Slots, Ruleta, Dados, Crash, Caballos', inline: false }
+                if (!cards || cards.length === 0) {
+                    return interaction.editReply('❌ No tienes tarjetas business activas.\n\n**¿Cómo solicitar una?**\n1. Abre un ticket en <#1450269843600310373>\n2. Un asesor te ayudará con el proceso\n3. Recibirás tu tarjeta vinculada a tu empresa');
+                }
+
+                // 3. If multiple cards, let user choose
+                if (cards.length > 1) {
+                    const selectMenu = new StringSelectMenuBuilder()
+                        .setCustomId(`credit_select_${monto}_${razon}`)
+                        .setPlaceholder('Selecciona tarjeta business')
+                        .addOptions(
+                            cards.map(card => {
+                                const available = card.card_limit - (card.current_balance || 0);
+                                const companyName = card.companies?.name || 'Sin empresa';
+                                return {
+                                    label: `${card.card_name} - ${companyName}`,
+                                    description: `Disponible: $${available.toLocaleString()} de $${card.card_limit.toLocaleString()}`,
+                                    value: card.id,
+                                    emoji: '💳'
+                                };
+                            })
                         );
 
-                    console.log('[DEBUG] Sending casino info embed...');
-                    await interaction.editReply({ embeds: [embed] });
-                    console.log('[DEBUG] Casino info sent successfully');
-                } catch (err) {
-                    console.log('[DEBUG] Error inside casino info:', err.message);
+                    const row = new ActionRowBuilder().addComponents(selectMenu);
+
+                    return interaction.editReply({
+                        content: `💳 Tienes **${cards.length}** tarjetas business. Selecciona cuál usar:`,
+                        components: [row]
+                    });
                 }
-            }            // === FICHAS COMPRAR ===
-            if (subCmdGroup === 'fichas' && subCmd === 'comprar') {
 
-                const cantidad = interaction.options.getInteger('cantidad');
-                const costo = cantidad * CHIP_PRICE;
+                // 4. Only one card, proceed
+                const card = cards[0];
+                const available = card.card_limit - (card.current_balance || 0);
 
-                try {
-                    // Check VIP status (Black or Diamante cards)
-                    const { data: vipCard } = await supabase
-                        .from('credit_cards')
-                        .select('card_type')
-                        .eq('discord_user_id', interaction.user.id)
-                        .in('card_type', ['black', 'diamante'])
-                        .eq('status', 'active')
-                        .maybeSingle();
-
-                    const isVIP = !!vipCard;
-                    const bonus = isVIP ? Math.floor(cantidad * 0.1) : 0; // +10% para VIP
-                    const totalFichas = cantidad + bonus;
-
-                    // Use payment system
-                    const paymentResult = await requestPaymentMethod(
-                        interaction,
-                        interaction.user.id,
-                        costo,
-                        `🎰 Compra de ${cantidad} fichas de casino`
-                    );
-
-                    if (!paymentResult.success) {
-                        return interaction.editReply(paymentResult.error);
-                    }
-
-                    // Get or create casino account
-                    let { data: account } = await supabase
-                        .from('casino_chips')
-                        .select('*')
-                        .eq('discord_user_id', interaction.user.id)
-                        .maybeSingle();
-
-                    if (!account) {
-                        const { data: newAccount } = await supabase
-                            .from('casino_chips')
-                            .insert({
-                                discord_user_id: interaction.user.id,
-                                chips_balance: totalFichas
-                            })
-                            .select()
-                            .single();
-                        account = newAccount;
-                    } else {
-                        await supabase
-                            .from('casino_chips')
-                            .update({
-                                chips_balance: account.chips_balance + totalFichas,
-                                updated_at: new Date().toISOString()
-                            })
-                            .eq('discord_user_id', interaction.user.id);
-                    }
-
-                    const paymentLabel = paymentResult.method === 'cash' ? '💵 Efectivo' : paymentResult.method === 'bank' ? '🏦 Banco' : '💳 Crédito';
-
-                    const embed = new EmbedBuilder()
-                        .setTitle('🎰 Compra de Fichas Exitosa')
-                        .setColor(0xFFD700)
-                        .setDescription(`Has comprado fichas para el casino.`)
-                        .addFields(
-                            { name: '🎟️ Fichas Compradas', value: `${cantidad.toLocaleString()}`, inline: true },
-                            { name: '💰 Costo', value: `$${costo.toLocaleString()}`, inline: true },
-                            { name: '💳 Método', value: paymentLabel, inline: true }
-                        )
-                        .setTimestamp();
-
-                    if (bonus > 0) {
-                        embed.addFields({ name: '🌟 Bonus VIP (+10%)', value: `+${bonus} fichas gratis`, inline: false });
-                    }
-
-                    embed.addFields({ name: '💼 Saldo Total', value: `${(account.chips_balance + totalFichas).toLocaleString()} fichas`, inline: false });
-
-                    await interaction.editReply({ embeds: [embed], components: [] });
-
-                } catch (error) {
-                    console.error(error);
-                    await interaction.editReply('❌ Error comprando fichas.');
+                if (monto > available) {
+                    return interaction.editReply(`❌ **Crédito insuficiente**\n\n💳 Tarjeta: **${card.card_name}**\n📊 Disponible: **$${available.toLocaleString()}**\n❌ Solicitado: **$${monto.toLocaleString()}**\n\nContacta a un asesor para aumentar tu límite.`);
                 }
-            }
 
-            // === FICHAS RETIRAR ===
-            else if (subCmdGroup === 'fichas' && subCmd === 'retirar') {
+                // 5. Update card balance
+                await supabase
+                    .from('credit_cards')
+                    .update({
+                        current_balance: (card.current_balance || 0) + monto,
+                        last_transaction_at: new Date().toISOString()
+                    })
+                    .eq('id', card.id);
 
-                const cantidad = interaction.options.getInteger('cantidad');
+                // 6. Add to company balance
+                const companyId = card.company_id;
+                const { data: company } = await supabase
+                    .from('companies')
+                    .select('balance')
+                    .eq('id', companyId)
+                    .single();
 
-                try {
-                    const { data: account } = await supabase
-                        .from('casino_chips')
-                        .select('*')
-                        .eq('discord_user_id', interaction.user.id)
-                        .maybeSingle();
+                await supabase
+                    .from('companies')
+                    .update({ balance: (company.balance || 0) + monto })
+                    .eq('id', companyId);
 
-                    if (!account || account.chips_balance < cantidad) {
-                        return interaction.editReply(`❌ No tienes suficientes fichas.\n\nTienes: ${account?.chips_balance || 0} fichas\nIntentando retirar: ${cantidad} fichas`);
-                    }
+                // 7. Log transaction
+                await supabase
+                    .from('credit_transactions')
+                    .insert({
+                        card_id: card.id,
+                        discord_user_id: interaction.user.id,
+                        transaction_type: 'disbursement',
+                        amount: monto,
+                        description: razon,
+                        company_id: companyId
+                    });
 
-                    const dineroRecibido = cantidad * CHIP_PRICE;
+                const newBalance = (card.current_balance || 0) + monto;
+                const newAvailable = card.card_limit - newBalance;
 
-                    // Update chips
-                    await supabase
-                        .from('casino_chips')
-                        .update({
-                            chips_balance: account.chips_balance - cantidad,
-                            updated_at: new Date().toISOString()
-                        })
-                        .eq('discord_user_id', interaction.user.id);
-
-                    // Add money as CASH (never to bank without debit card)
-                    await billingService.ubService.addMoney(
-                        interaction.guildId,
-                        interaction.user.id,
-                        dineroRecibido,
-                        'Retiro de fichas de casino',
-                        'cash'
-                    );
-
-                    const embed = new EmbedBuilder()
-                        .setTitle('💵 Retiro de Fichas Exitoso')
-                        .setColor(0x00FF00)
-                        .setDescription('Has convertido tus fichas a efectivo.')
-                        .addFields(
-                            { name: '🎟️ Fichas Retiradas', value: `${cantidad.toLocaleString()}`, inline: true },
-                            { name: '💵 Dinero Recibido', value: `$${dineroRecibido.toLocaleString()}`, inline: true },
-                            { name: '💼 Fichas Restantes', value: `${(account.chips_balance - cantidad).toLocaleString()}`, inline: false }
-                        )
-                        .setFooter({ text: 'El dinero fue añadido a tu efectivo' })
-                        .setTimestamp();
-
-                    await interaction.editReply({ embeds: [embed] });
-
-                } catch (error) {
-                    console.error(error);
-                    await interaction.editReply('❌ Error retirando fichas.');
-                }
-            }
-
-            // === SALDO ===
-            else if (subCmd === 'saldo') {
-
-                try {
-                    const { data: account } = await supabase
-                        .from('casino_chips')
-                        .select('*')
-                        .eq('discord_user_id', interaction.user.id)
-                        .maybeSingle();
-
-                    if (!account) {
-                        return interaction.editReply('❌ No tienes una cuenta de casino aún. Compra fichas con `/casino fichas comprar`');
-                    }
-
-                    const winRate = account.games_played > 0
-                        ? ((account.total_won / (account.total_won + account.total_lost)) * 100).toFixed(1)
-                        : '0.0';
-
-                    const netProfit = account.total_won - account.total_lost;
-                    const profitEmoji = netProfit >= 0 ? '📈' : '📉';
-
-                    const embed = new EmbedBuilder()
-                        .setTitle('🎰 Tu Cuenta del Casino')
-                        .setColor(0xFFD700)
-                        .setDescription(`Estado actual de tu cuenta`)
-                        .addFields(
-                            { name: '🎟️ Fichas Disponibles', value: `${account.chips_balance.toLocaleString()}`, inline: true },
-                            { name: '💵 Valor en Dinero', value: `$${(account.chips_balance * CHIP_PRICE).toLocaleString()}`, inline: true },
-                            { name: '\u200b', value: '\u200b', inline: true },
-                            { name: '🎮 Juegos Jugados', value: `${account.games_played.toLocaleString()}`, inline: true },
-                            { name: `${profitEmoji} Ganancia Neta`, value: `${netProfit.toLocaleString()} fichas`, inline: true },
-                            { name: '📊 Win Rate', value: `${winRate}%`, inline: true },
-                            { name: '🏆 Mayor Ganancia', value: `${account.biggest_win.toLocaleString()} fichas`, inline: true },
-                            { name: '💔 Mayor Pérdida', value: `${account.biggest_loss.toLocaleString()} fichas`, inline: true },
-                            { name: '\u200b', value: '\u200b', inline: true }
-                        )
-                        .setFooter({ text: '1 ficha = $100 MXN' })
-                        .setTimestamp();
-
-                    await interaction.editReply({ embeds: [embed] });
-
-                } catch (error) {
-                    console.error(error);
-                    await interaction.editReply('❌ Error consultando saldo.');
-                }
-            }
-
-            // === RANKING ===
-            else if (subCmd === 'ranking') {
-
-                const tipo = interaction.options.getString('tipo') || 'chips';
-
-                try {
-                    let orderBy = 'chips_balance';
-                    let title = '💰 Top Jugadores por Fichas';
-
-                    if (tipo === 'profit') {
-                        orderBy = '(total_won - total_lost)';
-                        title = '📈 Top Jugadores por Ganancias';
-                    } else if (tipo === 'games') {
-                        orderBy = 'games_played';
-                        title = '🎮 Top Jugadores por Juegos';
-                    }
-
-                    const { data: topPlayers } = await supabase
-                        .from('casino_chips')
-                        .select('*')
-                        .order(orderBy, { ascending: false })
-                        .limit(10);
-
-                    if (!topPlayers || topPlayers.length === 0) {
-                        return interaction.editReply('❌ No hay jugadores en el ranking aún.');
-                    }
-
-                    let description = '';
-                    for (let i = 0; i < topPlayers.length; i++) {
-                        const player = topPlayers[i];
-                        const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}.`;
-                        const value = tipo === 'chips' ? player.chips_balance :
-                            tipo === 'profit' ? (player.total_won - player.total_lost) :
-                                player.games_played;
-
-                        description += `${medal} <@${player.discord_user_id}> - **${value.toLocaleString()}** ${tipo === 'games' ? 'juegos' : 'fichas'}\n`;
-                    }
-
-                    const embed = new EmbedBuilder()
-                        .setTitle(title)
-                        .setColor(0xFFD700)
-                        .setDescription(description)
-                        .setFooter({ text: 'Casino Nación MX • Actualizado en tiempo real' })
-                        .setTimestamp();
-
-                    await interaction.editReply({ embeds: [embed] });
-
-                } catch (error) {
-                    console.error(error);
-                    await interaction.editReply('❌ Error cargando ranking.');
-                }
-            }
-
-            // === HISTORIAL ===
-            else if (subCmd === 'historial') {
-
-                const filtroJuego = interaction.options.getString('juego');
-
-                try {
-                    let query = supabase
-                        .from('casino_history')
-                        .select('*')
-                        .eq('discord_user_id', interaction.user.id)
-                        .order('created_at', { ascending: false })
-                        .limit(10);
-
-                    if (filtroJuego) {
-                        query = query.eq('game_type', filtroJuego);
-                    }
-
-                    const { data: history } = await query;
-
-                    if (!history || history.length === 0) {
-                        return interaction.editReply('❌ No tienes historial de juegos aún.');
-                    }
-
-                    let description = '';
-                    for (const game of history) {
-                        const resultado = game.result_amount >= 0 ? '✅' : '❌';
-                        const ganancia = game.result_amount >= 0
-                            ? `+${game.result_amount.toLocaleString()}`
-                            : game.result_amount.toLocaleString();
-
-                        const fecha = new Date(game.created_at);
-                        const timestamp = `<t:${Math.floor(fecha.getTime() / 1000)}:R>`;
-
-                        description += `${resultado} **${game.game_type}** - ${ganancia} fichas (${game.multiplier}x) ${timestamp}\n`;
-                    }
-
-                    const embed = new EmbedBuilder()
-                        .setTitle(`🎮 Historial de Juegos${filtroJuego ? ` - ${filtroJuego}` : ''}`)
-                        .setColor(0x5865F2)
-                        .setDescription(description)
-                        .setFooter({ text: 'Mostrando últimos 10 juegos' })
-                        .setTimestamp();
-
-                    await interaction.editReply({ embeds: [embed] });
-
-                } catch (error) {
-                    console.error(error);
-                    await interaction.editReply('❌ Error cargando historial.');
-                }
-            }
-
-            // === INFO ===
-            else if (subCmd === 'info') {
-
-                const infoEmbed = new EmbedBuilder()
-                    .setTitle('🎰 Casino Nación MX - Guía Completa')
-                    .setColor(0xFFD700)
-                    .setDescription('**Bienvenido al Casino más emocionante de NaciónMX!**\n\n💰 Compra fichas, juega, gana y retira tus ganancias.')
+                const embed = new EmbedBuilder()
+                    .setTitle('✅ Crédito Business Aprobado')
+                    .setColor(0x00FF00)
+                    .setDescription(`Se depositaron **$${monto.toLocaleString()}** al balance de tu empresa.`)
                     .addFields(
-                        {
-                            name: '💳 Sistema de Fichas',
-                            value: '`/casino fichas comprar` - Compra fichas (1:1 con tu dinero)\n`/casino fichas retirar` - Retira fichas a efectivo\n`/casino saldo` - Ver balance y estadísticas\n\n**VIP Bonus:** Tarjetas Black/Diamante obtienen +10% fichas gratis al comprar',
-                            inline: false
-                        },
-                        {
-                            name: '🎮 Juegos Disponibles',
-                            value: '**🎰 Slots** (`/jugar slots`)\n• 3 rodillos aleatorios\n• Premios: 2x, 5x, 10x, 50x, 100x (Jackpot!)\n• Apuesta mínima: 10 fichas\n\n**🎲 Dice** (`/jugar dice`)\n• Apuesta Over/Under en 1-99\n• Multiplicador dinámico según probabilidad\n• Hasta 10x si aciertas\n\n**🃏 Blackjack** (`/jugar blackjack`)\n• 21 clásico contra la casa\n• Victoria: 2x | Blackjack: 2.5x | Empate: 1x\n• Mínimo: 10 fichas',
-                            inline: false
-                        },
-                        {
-                            name: '🎡 Más Juegos',
-                            value: '**🎡 Ruleta** (`/jugar ruleta`)\n• Rojo/Negro: 2x\n• Par/Impar: 2x\n• Número exacto: 35x\n\n**🐴 Carrera de Caballos** (`/jugar caballos`)\n• Elige entre 6 caballos\n• Premio fijo: 5x\n\n**📉 Crash** (`/jugar crash`)\n• Multiplicador sube hasta 50x\n• Retiro automático aleatorio\n\n**🐓 Pelea de Gallos** (`/jugar gallos`)\n• Rojo vs Azul (Best of 5)\n• Premio: 1.9x',
-                            inline: false
-                        },
-                        {
-                            name: '💀 Juego de Alto Riesgo',
-                            value: '**💀 Ruleta Rusa** (`/jugar ruleta-rusa`)\n• ⚠️ ADVERTENCIA: Juego peligroso\n• Si sobrevives: 5x tu apuesta\n• Si pierdes: Multa 2x + Ban 1 hora del casino\n• Apuesta máxima: 100 fichas',
-                            inline: false
-                        },
-                        {
-                            name: '📊 Estadísticas',
-                            value: '`/casino ranking` - Top jugadores\n`/casino historial` - Tus últimas 10 jugadas\n\n**Filtra por juego:** `/casino historial juego:slots`',
-                            inline: false
-                        },
-                        {
-                            name: '⚠️ Reglas Importantes',
-                            value: '• Solo accesible en <#1451398359540826306>\n• Juego justo Provably Fair\n• Límites anti-trampa activos\n• Retiros siempre a EFECTIVO\n• Juega responsablemente',
-                            inline: false
-                        }
+                        { name: '💳 Tarjeta', value: card.card_name, inline: true },
+                        { name: '🏢 Empresa', value: card.companies?.name || 'N/A', inline: true },
+                        { name: '📝 Concepto', value: razon, inline: false },
+                        { name: '💰 Monto Solicitado', value: `$${monto.toLocaleString()}`, inline: true },
+                        { name: '📊 Nueva Deuda', value: `$${newBalance.toLocaleString()}`, inline: true },
+                        { name: '💵 Crédito Disponible', value: `$${newAvailable.toLocaleString()}`, inline: true },
+                        { name: '⚠️ Recordatorio', value: `Interés semanal: **${(card.interest_rate * 100).toFixed(2)}%**\nPaga tu deuda con \`/credito pagar\``, inline: false }
                     )
-                    .setFooter({ text: 'Casino Nación MX | La casa siempre gana... o no? 🎲' })
+                    .setFooter({ text: 'Usa responsablemente tu línea de crédito' })
                     .setTimestamp();
 
-                await interaction.editReply({ embeds: [infoEmbed] });
+                await interaction.editReply({ embeds: [embed] });
+
+            } catch (error) {
+                console.error(error);
+                await interaction.editReply('❌ Error procesando solicitud de crédito.');
             }
         }
     }
 
-    // ===== 🎮 CASINO GAMES =====
-    else if (commandName === 'jugar') {
-        await interaction.deferReply(); // Global defer for all games
+    // ===== 🎰 CASINO SYSTEM =====
+    else if (commandName === 'casino') {
+        console.log('[DEBUG] Casino handler entered');
+        try {
+            if (!interaction.deferred && !interaction.replied) {
+                console.log('[DEBUG] Attempting deferReply...');
+                await interaction.deferReply();
+                console.log('[DEBUG] deferReply success');
+            } else {
+                console.log('[DEBUG] Already deferred/replied');
+            }
+        } catch (e) {
+            console.log('[DEBUG] Error deferring casino:', e.message);
+            return;
+        }
 
         const CASINO_CHANNEL_ID = '1451398359540826306';
         const CASINO_ROLE_ID = '1449951345611378841';
+        const CHIP_PRICE = 100; // 1 ficha = $100
 
-        // Security checks
-        if (interaction.channelId !== CASINO_CHANNEL_ID) {
-            return interaction.editReply({ content: `🎰 Este comando solo puede usarse en <#${CASINO_CHANNEL_ID}>`, ephemeral: true });
+        const subCmdGroup = interaction.options.getSubcommandGroup(false);
+        const subCmd = interaction.options.getSubcommand();
+        console.log(`[DEBUG] Casino Subcommand: ${subCmd}`);
+
+        // Info command is accessible from anywhere without restrictions
+        if (subCmd !== 'info') {
+            // Check if command is in casino channel
+            if (interaction.channelId !== CASINO_CHANNEL_ID) {
+                return interaction.editReply({
+                    content: `🎰 Este comando solo puede usarse en <#${CASINO_CHANNEL_ID}>`
+                });
+            }
+
+            // Check Role (Except for buying chips, maybe?)
+            // For now, allow everyone to buy chips, but games might require role? 
+            // Let's keep it simple: Role required for everything except info
+            if (!interaction.member.roles.cache.has(CASINO_ROLE_ID)) {
+                return interaction.editReply({
+                    content: `⛔ Necesitas el rol <@&${CASINO_ROLE_ID}> para entrar al casino. \n(Cómpralo en la tienda de roles o pide acceso a un admin)`
+                });
+            }
         }
 
-        if (!interaction.member.roles.cache.has(CASINO_ROLE_ID)) {
-            return interaction.editReply({ content: '🚫 Necesitas el rol de Casino para jugar.', ephemeral: true });
-        }
-
-        const game = interaction.options.getSubcommand();
-
-        // Helper function to save game result
-        async function saveGameResult(userId, gameType, betAmount, resultAmount, multiplier, gameData = {}) {
+        if (subCmd === 'info') {
+            console.log('[DEBUG] Processing casino info...');
             try {
-                // Update chips
+                const embed = new EmbedBuilder()
+                    .setTitle('🎰 CASINO NACIÓN MX')
+                    .setColor(0xD4AF37)
+                    .setDescription('Bienvenido al centro de apuestas y juegos de azar.\nAquí podrás ganar (o perder) grandes fortunas.')
+                    .addFields(
+                        { name: '🎟️ Tus Fichas', value: 'Usa `/casino fichas estado`', inline: true },
+                        { name: '💰 Precio Ficha', value: `$${CHIP_PRICE.toLocaleString()}`, inline: true },
+                        { name: '🎲 Juegos', value: 'Slots, Ruleta, Dados, Crash, Caballos', inline: false }
+                    );
+
+                console.log('[DEBUG] Sending casino info embed...');
+                await interaction.editReply({ embeds: [embed] });
+                console.log('[DEBUG] Casino info sent successfully');
+            } catch (err) {
+                console.log('[DEBUG] Error inside casino info:', err.message);
+            }
+        }            // === FICHAS COMPRAR ===
+        if (subCmdGroup === 'fichas' && subCmd === 'comprar') {
+
+            const cantidad = interaction.options.getInteger('cantidad');
+            const costo = cantidad * CHIP_PRICE;
+
+            try {
+                // Check VIP status (Black or Diamante cards)
+                const { data: vipCard } = await supabase
+                    .from('credit_cards')
+                    .select('card_type')
+                    .eq('discord_user_id', interaction.user.id)
+                    .in('card_type', ['black', 'diamante'])
+                    .eq('status', 'active')
+                    .maybeSingle();
+
+                const isVIP = !!vipCard;
+                const bonus = isVIP ? Math.floor(cantidad * 0.1) : 0; // +10% para VIP
+                const totalFichas = cantidad + bonus;
+
+                // Use payment system
+                const paymentResult = await requestPaymentMethod(
+                    interaction,
+                    interaction.user.id,
+                    costo,
+                    `🎰 Compra de ${cantidad} fichas de casino`
+                );
+
+                if (!paymentResult.success) {
+                    return interaction.editReply(paymentResult.error);
+                }
+
+                // Get or create casino account
+                let { data: account } = await supabase
+                    .from('casino_chips')
+                    .select('*')
+                    .eq('discord_user_id', interaction.user.id)
+                    .maybeSingle();
+
+                if (!account) {
+                    const { data: newAccount } = await supabase
+                        .from('casino_chips')
+                        .insert({
+                            discord_user_id: interaction.user.id,
+                            chips_balance: totalFichas
+                        })
+                        .select()
+                        .single();
+                    account = newAccount;
+                } else {
+                    await supabase
+                        .from('casino_chips')
+                        .update({
+                            chips_balance: account.chips_balance + totalFichas,
+                            updated_at: new Date().toISOString()
+                        })
+                        .eq('discord_user_id', interaction.user.id);
+                }
+
+                const paymentLabel = paymentResult.method === 'cash' ? '💵 Efectivo' : paymentResult.method === 'bank' ? '🏦 Banco' : '💳 Crédito';
+
+                const embed = new EmbedBuilder()
+                    .setTitle('🎰 Compra de Fichas Exitosa')
+                    .setColor(0xFFD700)
+                    .setDescription(`Has comprado fichas para el casino.`)
+                    .addFields(
+                        { name: '🎟️ Fichas Compradas', value: `${cantidad.toLocaleString()}`, inline: true },
+                        { name: '💰 Costo', value: `$${costo.toLocaleString()}`, inline: true },
+                        { name: '💳 Método', value: paymentLabel, inline: true }
+                    )
+                    .setTimestamp();
+
+                if (bonus > 0) {
+                    embed.addFields({ name: '🌟 Bonus VIP (+10%)', value: `+${bonus} fichas gratis`, inline: false });
+                }
+
+                embed.addFields({ name: '💼 Saldo Total', value: `${(account.chips_balance + totalFichas).toLocaleString()} fichas`, inline: false });
+
+                await interaction.editReply({ embeds: [embed], components: [] });
+
+            } catch (error) {
+                console.error(error);
+                await interaction.editReply('❌ Error comprando fichas.');
+            }
+        }
+
+        // === FICHAS RETIRAR ===
+        else if (subCmdGroup === 'fichas' && subCmd === 'retirar') {
+
+            const cantidad = interaction.options.getInteger('cantidad');
+
+            try {
                 const { data: account } = await supabase
                     .from('casino_chips')
                     .select('*')
-                    .eq('discord_user_id', userId)
-                    .single();
+                    .eq('discord_user_id', interaction.user.id)
+                    .maybeSingle();
 
-                const newBalance = account.chips_balance + resultAmount;
-                const won = resultAmount > 0 ? resultAmount : 0;
-                const lost = resultAmount < 0 ? Math.abs(resultAmount) : 0;
+                if (!account || account.chips_balance < cantidad) {
+                    return interaction.editReply(`❌ No tienes suficientes fichas.\n\nTienes: ${account?.chips_balance || 0} fichas\nIntentando retirar: ${cantidad} fichas`);
+                }
 
+                const dineroRecibido = cantidad * CHIP_PRICE;
+
+                // Update chips
                 await supabase
                     .from('casino_chips')
                     .update({
-                        chips_balance: newBalance,
-                        total_won: account.total_won + won,
-                        total_lost: account.total_lost + lost,
-                        games_played: account.games_played + 1,
-                        biggest_win: Math.max(account.biggest_win, won),
-                        biggest_loss: Math.max(account.biggest_loss, lost),
+                        chips_balance: account.chips_balance - cantidad,
                         updated_at: new Date().toISOString()
                     })
-                    .eq('discord_user_id', userId);
+                    .eq('discord_user_id', interaction.user.id);
 
-                // Save history
-                await supabase
-                    .from('casino_history')
-                    .insert({
-                        discord_user_id: userId,
-                        game_type: gameType,
-                        bet_amount: betAmount,
-                        result_amount: resultAmount,
-                        multiplier: multiplier,
-                        game_data: gameData
-                    });
+                // Add money as CASH (never to bank without debit card)
+                await billingService.ubService.addMoney(
+                    interaction.guildId,
+                    interaction.user.id,
+                    dineroRecibido,
+                    'Retiro de fichas de casino',
+                    'cash'
+                );
 
-                return newBalance;
+                const embed = new EmbedBuilder()
+                    .setTitle('💵 Retiro de Fichas Exitoso')
+                    .setColor(0x00FF00)
+                    .setDescription('Has convertido tus fichas a efectivo.')
+                    .addFields(
+                        { name: '🎟️ Fichas Retiradas', value: `${cantidad.toLocaleString()}`, inline: true },
+                        { name: '💵 Dinero Recibido', value: `$${dineroRecibido.toLocaleString()}`, inline: true },
+                        { name: '💼 Fichas Restantes', value: `${(account.chips_balance - cantidad).toLocaleString()}`, inline: false }
+                    )
+                    .setFooter({ text: 'El dinero fue añadido a tu efectivo' })
+                    .setTimestamp();
+
+                await interaction.editReply({ embeds: [embed] });
+
             } catch (error) {
-                console.error('Error saving game result:', error);
-                throw error;
+                console.error(error);
+                await interaction.editReply('❌ Error retirando fichas.');
             }
         }
 
-        // Helper to check chips
-        async function checkChips(userId, amount) {
+        // === SALDO ===
+        else if (subCmd === 'saldo') {
+
+            try {
+                const { data: account } = await supabase
+                    .from('casino_chips')
+                    .select('*')
+                    .eq('discord_user_id', interaction.user.id)
+                    .maybeSingle();
+
+                if (!account) {
+                    return interaction.editReply('❌ No tienes una cuenta de casino aún. Compra fichas con `/casino fichas comprar`');
+                }
+
+                const winRate = account.games_played > 0
+                    ? ((account.total_won / (account.total_won + account.total_lost)) * 100).toFixed(1)
+                    : '0.0';
+
+                const netProfit = account.total_won - account.total_lost;
+                const profitEmoji = netProfit >= 0 ? '📈' : '📉';
+
+                const embed = new EmbedBuilder()
+                    .setTitle('🎰 Tu Cuenta del Casino')
+                    .setColor(0xFFD700)
+                    .setDescription(`Estado actual de tu cuenta`)
+                    .addFields(
+                        { name: '🎟️ Fichas Disponibles', value: `${account.chips_balance.toLocaleString()}`, inline: true },
+                        { name: '💵 Valor en Dinero', value: `$${(account.chips_balance * CHIP_PRICE).toLocaleString()}`, inline: true },
+                        { name: '\u200b', value: '\u200b', inline: true },
+                        { name: '🎮 Juegos Jugados', value: `${account.games_played.toLocaleString()}`, inline: true },
+                        { name: `${profitEmoji} Ganancia Neta`, value: `${netProfit.toLocaleString()} fichas`, inline: true },
+                        { name: '📊 Win Rate', value: `${winRate}%`, inline: true },
+                        { name: '🏆 Mayor Ganancia', value: `${account.biggest_win.toLocaleString()} fichas`, inline: true },
+                        { name: '💔 Mayor Pérdida', value: `${account.biggest_loss.toLocaleString()} fichas`, inline: true },
+                        { name: '\u200b', value: '\u200b', inline: true }
+                    )
+                    .setFooter({ text: '1 ficha = $100 MXN' })
+                    .setTimestamp();
+
+                await interaction.editReply({ embeds: [embed] });
+
+            } catch (error) {
+                console.error(error);
+                await interaction.editReply('❌ Error consultando saldo.');
+            }
+        }
+
+        // === RANKING ===
+        else if (subCmd === 'ranking') {
+
+            const tipo = interaction.options.getString('tipo') || 'chips';
+
+            try {
+                let orderBy = 'chips_balance';
+                let title = '💰 Top Jugadores por Fichas';
+
+                if (tipo === 'profit') {
+                    orderBy = '(total_won - total_lost)';
+                    title = '📈 Top Jugadores por Ganancias';
+                } else if (tipo === 'games') {
+                    orderBy = 'games_played';
+                    title = '🎮 Top Jugadores por Juegos';
+                }
+
+                const { data: topPlayers } = await supabase
+                    .from('casino_chips')
+                    .select('*')
+                    .order(orderBy, { ascending: false })
+                    .limit(10);
+
+                if (!topPlayers || topPlayers.length === 0) {
+                    return interaction.editReply('❌ No hay jugadores en el ranking aún.');
+                }
+
+                let description = '';
+                for (let i = 0; i < topPlayers.length; i++) {
+                    const player = topPlayers[i];
+                    const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}.`;
+                    const value = tipo === 'chips' ? player.chips_balance :
+                        tipo === 'profit' ? (player.total_won - player.total_lost) :
+                            player.games_played;
+
+                    description += `${medal} <@${player.discord_user_id}> - **${value.toLocaleString()}** ${tipo === 'games' ? 'juegos' : 'fichas'}\n`;
+                }
+
+                const embed = new EmbedBuilder()
+                    .setTitle(title)
+                    .setColor(0xFFD700)
+                    .setDescription(description)
+                    .setFooter({ text: 'Casino Nación MX • Actualizado en tiempo real' })
+                    .setTimestamp();
+
+                await interaction.editReply({ embeds: [embed] });
+
+            } catch (error) {
+                console.error(error);
+                await interaction.editReply('❌ Error cargando ranking.');
+            }
+        }
+
+        // === HISTORIAL ===
+        else if (subCmd === 'historial') {
+
+            const filtroJuego = interaction.options.getString('juego');
+
+            try {
+                let query = supabase
+                    .from('casino_history')
+                    .select('*')
+                    .eq('discord_user_id', interaction.user.id)
+                    .order('created_at', { ascending: false })
+                    .limit(10);
+
+                if (filtroJuego) {
+                    query = query.eq('game_type', filtroJuego);
+                }
+
+                const { data: history } = await query;
+
+                if (!history || history.length === 0) {
+                    return interaction.editReply('❌ No tienes historial de juegos aún.');
+                }
+
+                let description = '';
+                for (const game of history) {
+                    const resultado = game.result_amount >= 0 ? '✅' : '❌';
+                    const ganancia = game.result_amount >= 0
+                        ? `+${game.result_amount.toLocaleString()}`
+                        : game.result_amount.toLocaleString();
+
+                    const fecha = new Date(game.created_at);
+                    const timestamp = `<t:${Math.floor(fecha.getTime() / 1000)}:R>`;
+
+                    description += `${resultado} **${game.game_type}** - ${ganancia} fichas (${game.multiplier}x) ${timestamp}\n`;
+                }
+
+                const embed = new EmbedBuilder()
+                    .setTitle(`🎮 Historial de Juegos${filtroJuego ? ` - ${filtroJuego}` : ''}`)
+                    .setColor(0x5865F2)
+                    .setDescription(description)
+                    .setFooter({ text: 'Mostrando últimos 10 juegos' })
+                    .setTimestamp();
+
+                await interaction.editReply({ embeds: [embed] });
+
+            } catch (error) {
+                console.error(error);
+                await interaction.editReply('❌ Error cargando historial.');
+            }
+        }
+
+        // === INFO ===
+        else if (subCmd === 'info') {
+
+            const infoEmbed = new EmbedBuilder()
+                .setTitle('🎰 Casino Nación MX - Guía Completa')
+                .setColor(0xFFD700)
+                .setDescription('**Bienvenido al Casino más emocionante de NaciónMX!**\n\n💰 Compra fichas, juega, gana y retira tus ganancias.')
+                .addFields(
+                    {
+                        name: '💳 Sistema de Fichas',
+                        value: '`/casino fichas comprar` - Compra fichas (1:1 con tu dinero)\n`/casino fichas retirar` - Retira fichas a efectivo\n`/casino saldo` - Ver balance y estadísticas\n\n**VIP Bonus:** Tarjetas Black/Diamante obtienen +10% fichas gratis al comprar',
+                        inline: false
+                    },
+                    {
+                        name: '🎮 Juegos Disponibles',
+                        value: '**🎰 Slots** (`/jugar slots`)\n• 3 rodillos aleatorios\n• Premios: 2x, 5x, 10x, 50x, 100x (Jackpot!)\n• Apuesta mínima: 10 fichas\n\n**🎲 Dice** (`/jugar dice`)\n• Apuesta Over/Under en 1-99\n• Multiplicador dinámico según probabilidad\n• Hasta 10x si aciertas\n\n**🃏 Blackjack** (`/jugar blackjack`)\n• 21 clásico contra la casa\n• Victoria: 2x | Blackjack: 2.5x | Empate: 1x\n• Mínimo: 10 fichas',
+                        inline: false
+                    },
+                    {
+                        name: '🎡 Más Juegos',
+                        value: '**🎡 Ruleta** (`/jugar ruleta`)\n• Rojo/Negro: 2x\n• Par/Impar: 2x\n• Número exacto: 35x\n\n**🐴 Carrera de Caballos** (`/jugar caballos`)\n• Elige entre 6 caballos\n• Premio fijo: 5x\n\n**📉 Crash** (`/jugar crash`)\n• Multiplicador sube hasta 50x\n• Retiro automático aleatorio\n\n**🐓 Pelea de Gallos** (`/jugar gallos`)\n• Rojo vs Azul (Best of 5)\n• Premio: 1.9x',
+                        inline: false
+                    },
+                    {
+                        name: '💀 Juego de Alto Riesgo',
+                        value: '**💀 Ruleta Rusa** (`/jugar ruleta-rusa`)\n• ⚠️ ADVERTENCIA: Juego peligroso\n• Si sobrevives: 5x tu apuesta\n• Si pierdes: Multa 2x + Ban 1 hora del casino\n• Apuesta máxima: 100 fichas',
+                        inline: false
+                    },
+                    {
+                        name: '📊 Estadísticas',
+                        value: '`/casino ranking` - Top jugadores\n`/casino historial` - Tus últimas 10 jugadas\n\n**Filtra por juego:** `/casino historial juego:slots`',
+                        inline: false
+                    },
+                    {
+                        name: '⚠️ Reglas Importantes',
+                        value: '• Solo accesible en <#1451398359540826306>\n• Juego justo Provably Fair\n• Límites anti-trampa activos\n• Retiros siempre a EFECTIVO\n• Juega responsablemente',
+                        inline: false
+                    }
+                )
+                .setFooter({ text: 'Casino Nación MX | La casa siempre gana... o no? 🎲' })
+                .setTimestamp();
+
+            await interaction.editReply({ embeds: [infoEmbed] });
+        }
+    }
+}
+
+    // ===== 🎮 CASINO GAMES =====
+    else if (commandName === 'jugar') {
+    await interaction.deferReply(); // Global defer for all games
+
+    const CASINO_CHANNEL_ID = '1451398359540826306';
+    const CASINO_ROLE_ID = '1449951345611378841';
+
+    // Security checks
+    if (interaction.channelId !== CASINO_CHANNEL_ID) {
+        return interaction.editReply({ content: `🎰 Este comando solo puede usarse en <#${CASINO_CHANNEL_ID}>`, ephemeral: true });
+    }
+
+    if (!interaction.member.roles.cache.has(CASINO_ROLE_ID)) {
+        return interaction.editReply({ content: '🚫 Necesitas el rol de Casino para jugar.', ephemeral: true });
+    }
+
+    const game = interaction.options.getSubcommand();
+
+    // Helper function to save game result
+    async function saveGameResult(userId, gameType, betAmount, resultAmount, multiplier, gameData = {}) {
+        try {
+            // Update chips
             const { data: account } = await supabase
                 .from('casino_chips')
-                .select('chips_balance')
+                .select('*')
                 .eq('discord_user_id', userId)
-                .maybeSingle();
+                .single();
 
-            if (!account) {
-                return { hasEnough: false, message: '❌ No tienes cuenta de casino. Compra fichas con `/casino fichas comprar`' };
-            }
+            const newBalance = account.chips_balance + resultAmount;
+            const won = resultAmount > 0 ? resultAmount : 0;
+            const lost = resultAmount < 0 ? Math.abs(resultAmount) : 0;
 
-            if (account.chips_balance < amount) {
-                return {
-                    hasEnough: false,
-                    message: `❌ Fichas insuficientes.\n\nTienes: ${account.chips_balance.toLocaleString()}\nNecesitas: ${amount.toLocaleString()}`
-                };
-            }
+            await supabase
+                .from('casino_chips')
+                .update({
+                    chips_balance: newBalance,
+                    total_won: account.total_won + won,
+                    total_lost: account.total_lost + lost,
+                    games_played: account.games_played + 1,
+                    biggest_win: Math.max(account.biggest_win, won),
+                    biggest_loss: Math.max(account.biggest_loss, lost),
+                    updated_at: new Date().toISOString()
+                })
+                .eq('discord_user_id', userId);
 
-            return { hasEnough: true, balance: account.chips_balance };
-        }
-
-        // === SLOTS ===
-        if (game === 'slots') {
-
-            const apuesta = interaction.options.getInteger('apuesta');
-            const check = await checkChips(interaction.user.id, apuesta);
-            if (!check.hasEnough) return interaction.editReply(check.message);
-
-            try {
-                const symbols = ['🍒', '🍋', '🍊', '🍇', '💎', '⭐', '7️⃣'];
-                const weights = [30, 25, 20, 15, 7, 2, 1]; // Probabilidades
-
-                // Pick weighted random
-                function pickSymbol() {
-                    const total = weights.reduce((sum, w) => sum + w, 0);
-                    let random = Math.floor(Math.random() * total);
-                    for (let i = 0; i < symbols.length; i++) {
-                        if (random < weights[i]) return symbols[i];
-                        random -= weights[i];
-                    }
-                    return symbols[0];
-                }
-
-                const reel1 = pickSymbol();
-                const reel2 = pickSymbol();
-                const reel3 = pickSymbol();
-
-                let multiplier = 0;
-                let description = '';
-
-                // Check results
-                if (reel1 === reel2 && reel2 === reel3) {
-                    // 3 of a kind
-                    if (reel1 === '7️⃣') {
-                        multiplier = 100;
-                        description = '🎉 **JACKPOT!** ¡ Tres 7s!';
-                    } else if (reel1 === '⭐') {
-                        multiplier = 50;
-                        description = '⭐ **SUPER WIN!** ¡Tres estrellas!';
-                    } else if (reel1 === '💎') {
-                        multiplier = 25;
-                        description = '💎 **BIG WIN!** ¡Tres diamantes!';
-                    } else {
-                        multiplier = 10;
-                        description = '🎊 **GANASTE!** ¡Tres iguales!';
-                    }
-                } else if (reel1 === reel2 || reel2 === reel3 || reel1 === reel3) {
-                    multiplier = 2;
-                    description = '✨ Dos iguales - Premio menor';
-                } else {
-                    multiplier = 0;
-                    description = '😔 Sin suerte esta vez...';
-                }
-
-                const ganancia = Math.floor(apuesta * multiplier) - apuesta;
-                const newBalance = await saveGameResult(
-                    interaction.user.id,
-                    'slots',
-                    apuesta,
-                    ganancia,
-                    multiplier,
-                    { reel1, reel2, reel3 }
-                );
-
-                const embed = new EmbedBuilder()
-                    .setTitle('🎰 TRAGAMONEDAS')
-                    .setDescription(`\`\`\`\n[ ${reel1} | ${reel2} | ${reel3} ]\n\`\`\`\n\n${description}`)
-                    .setColor(ganancia > 0 ? 0x00FF00 : 0xFF0000)
-                    .addFields(
-                        { name: '🎟️ Apuesta', value: `${apuesta.toLocaleString()} fichas`, inline: true },
-                        { name: ganancia >= 0 ? '💰 Ganancia' : '💔 Pérdida', value: `${Math.abs(ganancia).toLocaleString()} fichas`, inline: true },
-                        { name: '💼 Nuevo Saldo', value: `${newBalance.toLocaleString()} fichas`, inline: true }
-                    )
-                    .setFooter({ text: `Multiplicador: x${multiplier}` })
-                    .setTimestamp();
-
-                await interaction.editReply({ embeds: [embed] });
-
-            } catch (error) {
-                console.error(error);
-                await interaction.editReply('❌ Error jugando slots.');
-            }
-        }
-
-        // === DICE ===
-        else if (game === 'dice') {
-
-            const apuesta = interaction.options.getInteger('apuesta');
-            const direccion = interaction.options.getString('direccion');
-            const numero = interaction.options.getInteger('numero');
-
-            const check = await checkChips(interaction.user.id, apuesta);
-            if (!check.hasEnough) return interaction.editReply(check.message);
-
-            try {
-                const resultado = Math.floor(Math.random() * 100); // 0-99
-
-                let multiplier = 0;
-                let win = false;
-
-                if (direccion === 'over' && resultado > numero) {
-                    win = true;
-                    multiplier = (100 / (100 - numero)) * 0.98; // House edge 2%
-                } else if (direccion === 'under' && resultado < numero) {
-                    win = true;
-                    multiplier = (100 / numero) * 0.98;
-                }
-
-                const ganancia = win ? Math.floor(apuesta * multiplier) - apuesta : -apuesta;
-                const newBalance = await saveGameResult(
-                    interaction.user.id,
-                    'dice',
-                    apuesta,
-                    ganancia,
-                    win ? multiplier : 0,
-                    { direccion, numero, resultado }
-                );
-
-                const embed = new EmbedBuilder()
-                    .setTitle('🎲 DICE')
-                    .setDescription(`**Resultado:** \`${resultado}\`\n**Tu apuesta:** ${direccion === 'over' ? '⬆️ Mayor que' : '⬇️ Menor que'} ${numero}`)
-                    .setColor(win ? 0x00FF00 : 0xFF0000)
-                    .addFields(
-                        { name: '🎯 Resultado', value: win ? '✅ ¡GANASTE!' : '❌ Perdiste', inline: true },
-                        { name: '🎟️ Apuesta', value: `${apuesta.toLocaleString()}`, inline: true },
-                        { name: win ? '💰 Ganancia' : '💔 Pérdida', value: `${Math.abs(ganancia).toLocaleString()}`, inline: true },
-                        { name: '💼 Nuevo Saldo', value: `${newBalance.toLocaleString()} fichas`, inline: false }
-                    )
-                    .setFooter({ text: win ? `Multiplicador: x${multiplier.toFixed(2)}` : 'Intenta de nuevo' })
-                    .setTimestamp();
-
-                await interaction.editReply({ embeds: [embed] });
-
-            } catch (error) {
-                console.error(error);
-                await interaction.editReply('❌ Error jugando dice.');
-            }
-        }
-
-        // === BLACKJACK ===
-        else if (game === 'blackjack') {
-
-            const apuesta = interaction.options.getInteger('apuesta');
-            const check = await checkChips(interaction.user.id, apuesta);
-            if (!check.hasEnough) return interaction.editReply(check.message);
-
-            try {
-                // Simple blackjack implementation
-                function getCard() {
-                    const cards = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
-                    return cards[Math.floor(Math.random() * cards.length)];
-                }
-
-                function calculateHand(cards) {
-                    let total = 0;
-                    let aces = 0;
-
-                    for (const card of cards) {
-                        if (card === 'A') {
-                            aces++;
-                            total += 11;
-                        } else if (['J', 'Q', 'K'].includes(card)) {
-                            total += 10;
-                        } else {
-                            total += parseInt(card);
-                        }
-                    }
-
-                    while (total > 21 && aces > 0) {
-                        total -= 10;
-                        aces--;
-                    }
-
-                    return total;
-                }
-
-                const playerCards = [getCard(), getCard()];
-                const dealerCards = [getCard(), getCard()];
-
-                // Dealer plays (stands on 17+)
-                while (calculateHand(dealerCards) < 17) {
-                    dealerCards.push(getCard());
-                }
-
-                const playerTotal = calculateHand(playerCards);
-                const dealerTotal = calculateHand(dealerCards);
-
-                let resultado = '';
-                let multiplier = 0;
-
-                if (playerTotal > 21) {
-                    resultado = '💥 **TE PASASTE!** Perdiste';
-                    multiplier = 0;
-                } else if (dealerTotal > 21) {
-                    resultado = '🎉 **DEALER SE PASÓ!** ¡Ganaste!';
-                    multiplier = 2;
-                } else if (playerTotal > dealerTotal) {
-                    resultado = playerTotal === 21 && playerCards.length === 2
-                        ? '🃏 **BLACKJACK!** ¡Victoria perfecta!'
-                        : '✅ **GANASTE!**';
-                    multiplier = playerTotal === 21 && playerCards.length === 2 ? 2.5 : 2;
-                } else if (playerTotal < dealerTotal) {
-                    resultado = '😔 **DEALER GANA** Perdiste';
-                    multiplier = 0;
-                } else {
-                    resultado = '🤝 **EMPATE** Recuperas tu apuesta';
-                    multiplier = 1;
-                }
-
-                const ganancia = Math.floor(apuesta * multiplier) - apuesta;
-                const newBalance = await saveGameResult(
-                    interaction.user.id,
-                    'blackjack',
-                    apuesta,
-                    ganancia,
-                    multiplier,
-                    { playerCards, dealerCards, playerTotal, dealerTotal }
-                );
-
-                const embed = new EmbedBuilder()
-                    .setTitle('🃏 BLACKJACK')
-                    .setDescription(resultado)
-                    .setColor(ganancia > 0 ? 0x00FF00 : ganancia < 0 ? 0xFF0000 : 0xFFA500)
-                    .addFields(
-                        { name: '👤 Tu Mano', value: `${playerCards.join(' ')} = **${playerTotal}**`, inline: true },
-                        { name: '🏠 Dealer', value: `${dealerCards.join(' ')} = **${dealerTotal}**`, inline: true },
-                        { name: '\u200b', value: '\u200b', inline: true },
-                        { name: '🎟️ Apuesta', value: `${apuesta.toLocaleString()}`, inline: true },
-                        { name: ganancia > 0 ? '💰 Ganancia' : ganancia < 0 ? '💔 Pérdida' : '💼 Resultado', value: `${Math.abs(ganancia).toLocaleString()}`, inline: true },
-                        { name: '💼 Nuevo Saldo', value: `${newBalance.toLocaleString()}`, inline: true }
-                    )
-                    .setFooter({ text: `Multiplicador: x${multiplier}` })
-                    .setTimestamp();
-
-                await interaction.editReply({ embeds: [embed] });
-
-            } catch (error) {
-                console.error(error);
-                await interaction.editReply('❌ Error jugando blackjack.');
-            }
-        }
-
-        // === RULETA ===
-        else if (game === 'ruleta') {
-
-            const apuesta = interaction.options.getInteger('apuesta');
-            const tipo = interaction.options.getString('tipo');
-            const numeroElegido = interaction.options.getInteger('numero');
-
-            const check = await checkChips(interaction.user.id, apuesta);
-            if (!check.hasEnough) return interaction.editReply(check.message);
-
-            if (tipo === 'number' && (numeroElegido === null || numeroElegido === undefined)) {
-                return interaction.editReply('❌ Debes especificar un número si eliges "Número Exacto"');
-            }
-
-            try {
-                const resultado = Math.floor(Math.random() * 37); // 0-36
-                const rojos = [1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36];
-                const esRojo = rojos.includes(resultado);
-                const esNegro = resultado !== 0 && !esRojo;
-                const esPar = resultado !== 0 && resultado % 2 === 0;
-                const esImpar = resultado !== 0 && resultado % 2 !== 0;
-
-                let win = false;
-                let multiplier = 0;
-
-                switch (tipo) {
-                    case 'red':
-                        win = esRojo;
-                        multiplier = 2;
-                        break;
-                    case 'nero':
-                        win = esNegro;
-                        multiplier = 2;
-                        break;
-                    case 'even':
-                        win = esPar;
-                        multiplier = 2;
-                        break;
-                    case 'odd':
-                        win = esImpar;
-                        multiplier = 2;
-                        break;
-                    case 'number':
-                        win = resultado === numeroElegido;
-                        multiplier = 35;
-                        break;
-                }
-
-                const ganancia = win ? Math.floor(apuesta * multiplier) - apuesta : -apuesta;
-                const newBalance = await saveGameResult(
-                    interaction.user.id,
-                    'ruleta',
-                    apuesta,
-                    ganancia,
-                    win ? multiplier : 0,
-                    { tipo, numeroElegido, resultado }
-                );
-
-                const colorEmoji = esRojo ? '🔴' : esNegro ? '⚫' : '🟢';
-
-                const embed = new EmbedBuilder()
-                    .setTitle('🎡 RULETA EUROPEA')
-                    .setDescription(`${colorEmoji} **Resultado: ${resultado}**`)
-                    .setColor(win ? 0x00FF00 : 0xFF0000)
-                    .addFields(
-                        { name: '🎯 Tu Apuesta', value: tipo === 'number' ? `Número ${numeroElegido}` : tipo === 'red' ? 'Rojo' : tipo === 'black' ? 'Negro' : tipo === 'even' ? 'Par' : 'Impar', inline: true },
-                        { name: '🎰 Resultado', value: win ? '✅ ¡GANASTE!' : '❌ Perdiste', inline: true },
-                        { name: '\u200b', value: '\u200b', inline: true },
-                        { name: '🎟️ Apuesta', value: `${apuesta.toLocaleString()}`, inline: true },
-                        { name: win ? '💰 Ganancia' : '💔 Pérdida', value: `${Math.abs(ganancia).toLocaleString()}`, inline: true },
-                        { name: '💼 Nuevo Saldo', value: `${newBalance.toLocaleString()}`, inline: true }
-                    )
-                    .setFooter({ text: win ? `Multiplicador: x${multiplier}` : 'La casa siempre gana... casi siempre' })
-                    .setTimestamp();
-
-                await interaction.editReply({ embeds: [embed] });
-
-            } catch (error) {
-                console.error(error);
-                await interaction.editReply('❌ Error jugando ruleta.');
-            }
-        }
-
-        // === CARRERAS DE CABALLOS ===
-        else if (game === 'caballos') {
-
-            const apuesta = interaction.options.getInteger('apuesta');
-            const caballoElegido = interaction.options.getInteger('caballo');
-
-            const check = await checkChips(interaction.user.id, apuesta);
-            if (!check.hasEnough) return interaction.editReply(check.message);
-
-            try {
-                const nombres = ['El Relámpago', 'Tornado', 'Huracán', 'Trueno', 'Meteoro', 'Centella'];
-                const caballos = nombres.map((nombre, i) => ({ id: i + 1, nombre, posicion: 0 }));
-
-                // Simulate race (10 rounds)
-                for (let round = 0; round < 10; round++) {
-                    for (const caballo of caballos) {
-                        caballo.posicion += Math.floor(Math.random() * 3) + 1; // Avanza 1-3
-                    }
-                }
-
-                // Sort by position
-                caballos.sort((a, b) => b.posicion - a.posicion);
-                const ganador = caballos[0];
-
-                const win = ganador.id === caballoElegido;
-                const multiplier = win ? 5 : 0;
-                const ganancia = win ? Math.floor(apuesta * multiplier) - apuesta : -apuesta;
-
-                const newBalance = await saveGameResult(
-                    interaction.user.id,
-                    'caballos',
-                    apuesta,
-                    ganancia,
-                    multiplier,
-                    { caballoElegido, ganador: ganador.id, posiciones: caballos.map((c, i) => ({ nombre: c.nombre, posicion: i + 1 })) }
-                );
-
-                let raceDescription = '**🏁 RESULTADOS:**\n';
-                caballos.forEach((c, i) => {
-                    const emoji = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}.`;
-                    const highlight = c.id === caballoElegido ? '**' : '';
-                    raceDescription += `${emoji} ${highlight}${c.nombre}${highlight}\n`;
+            // Save history
+            await supabase
+                .from('casino_history')
+                .insert({
+                    discord_user_id: userId,
+                    game_type: gameType,
+                    bet_amount: betAmount,
+                    result_amount: resultAmount,
+                    multiplier: multiplier,
+                    game_data: gameData
                 });
 
-                const embed = new EmbedBuilder()
-                    .setTitle('🐴 CARRERA DE CABALLOS')
-                    .setDescription(raceDescription)
-                    .setColor(win ? 0x00FF00 : 0xFF0000)
-                    .addFields(
-                        { name: '🎯 Tu Caballo', value: nombres[caballoElegido - 1], inline: true },
-                        { name: '🏆 Ganador', value: ganador.nombre, inline: true },
-                        { name: '🎰 Resultado', value: win ? '✅ ¡GANASTE!' : '❌ Perdiste', inline: true },
-                        { name: '🎟️ Apuesta', value: `${apuesta.toLocaleString()}`, inline: true },
-                        { name: win ? '💰 Ganancia' : '💔 Pérdida', value: `${Math.abs(ganancia).toLocaleString()}`, inline: true },
-                        { name: '💼 Nuevo Saldo', value: `${newBalance.toLocaleString()}`, inline: true }
-                    )
-                    .setFooter({ text: win ? 'Multiplicador: x5' : '¡Apuesta al caballo correcto la próxima!' })
-                    .setTimestamp();
+            return newBalance;
+        } catch (error) {
+            console.error('Error saving game result:', error);
+            throw error;
+        }
+    }
 
-                await interaction.editReply({ embeds: [embed] });
+    // Helper to check chips
+    async function checkChips(userId, amount) {
+        const { data: account } = await supabase
+            .from('casino_chips')
+            .select('chips_balance')
+            .eq('discord_user_id', userId)
+            .maybeSingle();
 
-            } catch (error) {
-                console.error(error);
-                await interaction.editReply('❌ Error en carrera de caballos.');
-            }
+        if (!account) {
+            return { hasEnough: false, message: '❌ No tienes cuenta de casino. Compra fichas con `/casino fichas comprar`' };
         }
 
-        // === CRASH ===
-        else if (game === 'crash') {
+        if (account.chips_balance < amount) {
+            return {
+                hasEnough: false,
+                message: `❌ Fichas insuficientes.\n\nTienes: ${account.chips_balance.toLocaleString()}\nNecesitas: ${amount.toLocaleString()}`
+            };
+        }
 
-            const apuesta = interaction.options.getInteger('apuesta');
-            const check = await checkChips(interaction.user.id, apuesta);
-            if (!check.hasEnough) return interaction.editReply(check.message);
+        return { hasEnough: true, balance: account.chips_balance };
+    }
 
-            try {
-                // Generate crash point (weighted toward lower values)
-                const random = Math.random();
-                let crashPoint;
+    // === SLOTS ===
+    if (game === 'slots') {
 
-                if (random < 0.33) crashPoint = 1 + Math.random() * 0.5; // 1.0-1.5x (33%)
-                else if (random < 0.66) crashPoint = 1.5 + Math.random() * 1; // 1.5-2.5x (33%)
-                else if (random < 0.85) crashPoint = 2.5 + Math.random() * 2.5; // 2.5-5x (19%)
-                else if (random < 0.95) crashPoint = 5 + Math.random() * 5; // 5-10x (10%)
-                else crashPoint = 10 + Math.random() * 40; // 10-50x (5%)
+        const apuesta = interaction.options.getInteger('apuesta');
+        const check = await checkChips(interaction.user.id, apuesta);
+        if (!check.hasEnough) return interaction.editReply(check.message);
 
-                crashPoint = parseFloat(crashPoint.toFixed(2));
+        try {
+            const symbols = ['🍒', '🍋', '🍊', '🍇', '💎', '⭐', '7️⃣'];
+            const weights = [30, 25, 20, 15, 7, 2, 1]; // Probabilidades
 
-                // Auto cash out at random point before crash
-                const cashOutPoint = parseFloat((crashPoint * (0.6 + Math.random() * 0.3)).toFixed(2));
+            // Pick weighted random
+            function pickSymbol() {
+                const total = weights.reduce((sum, w) => sum + w, 0);
+                let random = Math.floor(Math.random() * total);
+                for (let i = 0; i < symbols.length; i++) {
+                    if (random < weights[i]) return symbols[i];
+                    random -= weights[i];
+                }
+                return symbols[0];
+            }
 
-                const multiplier = cashOutPoint;
-                const ganancia = Math.floor(apuesta * multiplier) - apuesta;
+            const reel1 = pickSymbol();
+            const reel2 = pickSymbol();
+            const reel3 = pickSymbol();
 
-                const newBalance = await saveGameResult(
+            let multiplier = 0;
+            let description = '';
+
+            // Check results
+            if (reel1 === reel2 && reel2 === reel3) {
+                // 3 of a kind
+                if (reel1 === '7️⃣') {
+                    multiplier = 100;
+                    description = '🎉 **JACKPOT!** ¡ Tres 7s!';
+                } else if (reel1 === '⭐') {
+                    multiplier = 50;
+                    description = '⭐ **SUPER WIN!** ¡Tres estrellas!';
+                } else if (reel1 === '💎') {
+                    multiplier = 25;
+                    description = '💎 **BIG WIN!** ¡Tres diamantes!';
+                } else {
+                    multiplier = 10;
+                    description = '🎊 **GANASTE!** ¡Tres iguales!';
+                }
+            } else if (reel1 === reel2 || reel2 === reel3 || reel1 === reel3) {
+                multiplier = 2;
+                description = '✨ Dos iguales - Premio menor';
+            } else {
+                multiplier = 0;
+                description = '😔 Sin suerte esta vez...';
+            }
+
+            const ganancia = Math.floor(apuesta * multiplier) - apuesta;
+            const newBalance = await saveGameResult(
+                interaction.user.id,
+                'slots',
+                apuesta,
+                ganancia,
+                multiplier,
+                { reel1, reel2, reel3 }
+            );
+
+            const embed = new EmbedBuilder()
+                .setTitle('🎰 TRAGAMONEDAS')
+                .setDescription(`\`\`\`\n[ ${reel1} | ${reel2} | ${reel3} ]\n\`\`\`\n\n${description}`)
+                .setColor(ganancia > 0 ? 0x00FF00 : 0xFF0000)
+                .addFields(
+                    { name: '🎟️ Apuesta', value: `${apuesta.toLocaleString()} fichas`, inline: true },
+                    { name: ganancia >= 0 ? '💰 Ganancia' : '💔 Pérdida', value: `${Math.abs(ganancia).toLocaleString()} fichas`, inline: true },
+                    { name: '💼 Nuevo Saldo', value: `${newBalance.toLocaleString()} fichas`, inline: true }
+                )
+                .setFooter({ text: `Multiplicador: x${multiplier}` })
+                .setTimestamp();
+
+            await interaction.editReply({ embeds: [embed] });
+
+        } catch (error) {
+            console.error(error);
+            await interaction.editReply('❌ Error jugando slots.');
+        }
+    }
+
+    // === DICE ===
+    else if (game === 'dice') {
+
+        const apuesta = interaction.options.getInteger('apuesta');
+        const direccion = interaction.options.getString('direccion');
+        const numero = interaction.options.getInteger('numero');
+
+        const check = await checkChips(interaction.user.id, apuesta);
+        if (!check.hasEnough) return interaction.editReply(check.message);
+
+        try {
+            const resultado = Math.floor(Math.random() * 100); // 0-99
+
+            let multiplier = 0;
+            let win = false;
+
+            if (direccion === 'over' && resultado > numero) {
+                win = true;
+                multiplier = (100 / (100 - numero)) * 0.98; // House edge 2%
+            } else if (direccion === 'under' && resultado < numero) {
+                win = true;
+                multiplier = (100 / numero) * 0.98;
+            }
+
+            const ganancia = win ? Math.floor(apuesta * multiplier) - apuesta : -apuesta;
+            const newBalance = await saveGameResult(
+                interaction.user.id,
+                'dice',
+                apuesta,
+                ganancia,
+                win ? multiplier : 0,
+                { direccion, numero, resultado }
+            );
+
+            const embed = new EmbedBuilder()
+                .setTitle('🎲 DICE')
+                .setDescription(`**Resultado:** \`${resultado}\`\n**Tu apuesta:** ${direccion === 'over' ? '⬆️ Mayor que' : '⬇️ Menor que'} ${numero}`)
+                .setColor(win ? 0x00FF00 : 0xFF0000)
+                .addFields(
+                    { name: '🎯 Resultado', value: win ? '✅ ¡GANASTE!' : '❌ Perdiste', inline: true },
+                    { name: '🎟️ Apuesta', value: `${apuesta.toLocaleString()}`, inline: true },
+                    { name: win ? '💰 Ganancia' : '💔 Pérdida', value: `${Math.abs(ganancia).toLocaleString()}`, inline: true },
+                    { name: '💼 Nuevo Saldo', value: `${newBalance.toLocaleString()} fichas`, inline: false }
+                )
+                .setFooter({ text: win ? `Multiplicador: x${multiplier.toFixed(2)}` : 'Intenta de nuevo' })
+                .setTimestamp();
+
+            await interaction.editReply({ embeds: [embed] });
+
+        } catch (error) {
+            console.error(error);
+            await interaction.editReply('❌ Error jugando dice.');
+        }
+    }
+
+    // === BLACKJACK ===
+    else if (game === 'blackjack') {
+
+        const apuesta = interaction.options.getInteger('apuesta');
+        const check = await checkChips(interaction.user.id, apuesta);
+        if (!check.hasEnough) return interaction.editReply(check.message);
+
+        try {
+            // Simple blackjack implementation
+            function getCard() {
+                const cards = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
+                return cards[Math.floor(Math.random() * cards.length)];
+            }
+
+            function calculateHand(cards) {
+                let total = 0;
+                let aces = 0;
+
+                for (const card of cards) {
+                    if (card === 'A') {
+                        aces++;
+                        total += 11;
+                    } else if (['J', 'Q', 'K'].includes(card)) {
+                        total += 10;
+                    } else {
+                        total += parseInt(card);
+                    }
+                }
+
+                while (total > 21 && aces > 0) {
+                    total -= 10;
+                    aces--;
+                }
+
+                return total;
+            }
+
+            const playerCards = [getCard(), getCard()];
+            const dealerCards = [getCard(), getCard()];
+
+            // Dealer plays (stands on 17+)
+            while (calculateHand(dealerCards) < 17) {
+                dealerCards.push(getCard());
+            }
+
+            const playerTotal = calculateHand(playerCards);
+            const dealerTotal = calculateHand(dealerCards);
+
+            let resultado = '';
+            let multiplier = 0;
+
+            if (playerTotal > 21) {
+                resultado = '💥 **TE PASASTE!** Perdiste';
+                multiplier = 0;
+            } else if (dealerTotal > 21) {
+                resultado = '🎉 **DEALER SE PASÓ!** ¡Ganaste!';
+                multiplier = 2;
+            } else if (playerTotal > dealerTotal) {
+                resultado = playerTotal === 21 && playerCards.length === 2
+                    ? '🃏 **BLACKJACK!** ¡Victoria perfecta!'
+                    : '✅ **GANASTE!**';
+                multiplier = playerTotal === 21 && playerCards.length === 2 ? 2.5 : 2;
+            } else if (playerTotal < dealerTotal) {
+                resultado = '😔 **DEALER GANA** Perdiste';
+                multiplier = 0;
+            } else {
+                resultado = '🤝 **EMPATE** Recuperas tu apuesta';
+                multiplier = 1;
+            }
+
+            const ganancia = Math.floor(apuesta * multiplier) - apuesta;
+            const newBalance = await saveGameResult(
+                interaction.user.id,
+                'blackjack',
+                apuesta,
+                ganancia,
+                multiplier,
+                { playerCards, dealerCards, playerTotal, dealerTotal }
+            );
+
+            const embed = new EmbedBuilder()
+                .setTitle('🃏 BLACKJACK')
+                .setDescription(resultado)
+                .setColor(ganancia > 0 ? 0x00FF00 : ganancia < 0 ? 0xFF0000 : 0xFFA500)
+                .addFields(
+                    { name: '👤 Tu Mano', value: `${playerCards.join(' ')} = **${playerTotal}**`, inline: true },
+                    { name: '🏠 Dealer', value: `${dealerCards.join(' ')} = **${dealerTotal}**`, inline: true },
+                    { name: '\u200b', value: '\u200b', inline: true },
+                    { name: '🎟️ Apuesta', value: `${apuesta.toLocaleString()}`, inline: true },
+                    { name: ganancia > 0 ? '💰 Ganancia' : ganancia < 0 ? '💔 Pérdida' : '💼 Resultado', value: `${Math.abs(ganancia).toLocaleString()}`, inline: true },
+                    { name: '💼 Nuevo Saldo', value: `${newBalance.toLocaleString()}`, inline: true }
+                )
+                .setFooter({ text: `Multiplicador: x${multiplier}` })
+                .setTimestamp();
+
+            await interaction.editReply({ embeds: [embed] });
+
+        } catch (error) {
+            console.error(error);
+            await interaction.editReply('❌ Error jugando blackjack.');
+        }
+    }
+
+    // === RULETA ===
+    else if (game === 'ruleta') {
+
+        const apuesta = interaction.options.getInteger('apuesta');
+        const tipo = interaction.options.getString('tipo');
+        const numeroElegido = interaction.options.getInteger('numero');
+
+        const check = await checkChips(interaction.user.id, apuesta);
+        if (!check.hasEnough) return interaction.editReply(check.message);
+
+        if (tipo === 'number' && (numeroElegido === null || numeroElegido === undefined)) {
+            return interaction.editReply('❌ Debes especificar un número si eliges "Número Exacto"');
+        }
+
+        try {
+            const resultado = Math.floor(Math.random() * 37); // 0-36
+            const rojos = [1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36];
+            const esRojo = rojos.includes(resultado);
+            const esNegro = resultado !== 0 && !esRojo;
+            const esPar = resultado !== 0 && resultado % 2 === 0;
+            const esImpar = resultado !== 0 && resultado % 2 !== 0;
+
+            let win = false;
+            let multiplier = 0;
+
+            switch (tipo) {
+                case 'red':
+                    win = esRojo;
+                    multiplier = 2;
+                    break;
+                case 'nero':
+                    win = esNegro;
+                    multiplier = 2;
+                    break;
+                case 'even':
+                    win = esPar;
+                    multiplier = 2;
+                    break;
+                case 'odd':
+                    win = esImpar;
+                    multiplier = 2;
+                    break;
+                case 'number':
+                    win = resultado === numeroElegido;
+                    multiplier = 35;
+                    break;
+            }
+
+            const ganancia = win ? Math.floor(apuesta * multiplier) - apuesta : -apuesta;
+            const newBalance = await saveGameResult(
+                interaction.user.id,
+                'ruleta',
+                apuesta,
+                ganancia,
+                win ? multiplier : 0,
+                { tipo, numeroElegido, resultado }
+            );
+
+            const colorEmoji = esRojo ? '🔴' : esNegro ? '⚫' : '🟢';
+
+            const embed = new EmbedBuilder()
+                .setTitle('🎡 RULETA EUROPEA')
+                .setDescription(`${colorEmoji} **Resultado: ${resultado}**`)
+                .setColor(win ? 0x00FF00 : 0xFF0000)
+                .addFields(
+                    { name: '🎯 Tu Apuesta', value: tipo === 'number' ? `Número ${numeroElegido}` : tipo === 'red' ? 'Rojo' : tipo === 'black' ? 'Negro' : tipo === 'even' ? 'Par' : 'Impar', inline: true },
+                    { name: '🎰 Resultado', value: win ? '✅ ¡GANASTE!' : '❌ Perdiste', inline: true },
+                    { name: '\u200b', value: '\u200b', inline: true },
+                    { name: '🎟️ Apuesta', value: `${apuesta.toLocaleString()}`, inline: true },
+                    { name: win ? '💰 Ganancia' : '💔 Pérdida', value: `${Math.abs(ganancia).toLocaleString()}`, inline: true },
+                    { name: '💼 Nuevo Saldo', value: `${newBalance.toLocaleString()}`, inline: true }
+                )
+                .setFooter({ text: win ? `Multiplicador: x${multiplier}` : 'La casa siempre gana... casi siempre' })
+                .setTimestamp();
+
+            await interaction.editReply({ embeds: [embed] });
+
+        } catch (error) {
+            console.error(error);
+            await interaction.editReply('❌ Error jugando ruleta.');
+        }
+    }
+
+    // === CARRERAS DE CABALLOS ===
+    else if (game === 'caballos') {
+
+        const apuesta = interaction.options.getInteger('apuesta');
+        const caballoElegido = interaction.options.getInteger('caballo');
+
+        const check = await checkChips(interaction.user.id, apuesta);
+        if (!check.hasEnough) return interaction.editReply(check.message);
+
+        try {
+            const nombres = ['El Relámpago', 'Tornado', 'Huracán', 'Trueno', 'Meteoro', 'Centella'];
+            const caballos = nombres.map((nombre, i) => ({ id: i + 1, nombre, posicion: 0 }));
+
+            // Simulate race (10 rounds)
+            for (let round = 0; round < 10; round++) {
+                for (const caballo of caballos) {
+                    caballo.posicion += Math.floor(Math.random() * 3) + 1; // Avanza 1-3
+                }
+            }
+
+            // Sort by position
+            caballos.sort((a, b) => b.posicion - a.posicion);
+            const ganador = caballos[0];
+
+            const win = ganador.id === caballoElegido;
+            const multiplier = win ? 5 : 0;
+            const ganancia = win ? Math.floor(apuesta * multiplier) - apuesta : -apuesta;
+
+            const newBalance = await saveGameResult(
+                interaction.user.id,
+                'caballos',
+                apuesta,
+                ganancia,
+                multiplier,
+                { caballoElegido, ganador: ganador.id, posiciones: caballos.map((c, i) => ({ nombre: c.nombre, posicion: i + 1 })) }
+            );
+
+            let raceDescription = '**🏁 RESULTADOS:**\n';
+            caballos.forEach((c, i) => {
+                const emoji = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}.`;
+                const highlight = c.id === caballoElegido ? '**' : '';
+                raceDescription += `${emoji} ${highlight}${c.nombre}${highlight}\n`;
+            });
+
+            const embed = new EmbedBuilder()
+                .setTitle('🐴 CARRERA DE CABALLOS')
+                .setDescription(raceDescription)
+                .setColor(win ? 0x00FF00 : 0xFF0000)
+                .addFields(
+                    { name: '🎯 Tu Caballo', value: nombres[caballoElegido - 1], inline: true },
+                    { name: '🏆 Ganador', value: ganador.nombre, inline: true },
+                    { name: '🎰 Resultado', value: win ? '✅ ¡GANASTE!' : '❌ Perdiste', inline: true },
+                    { name: '🎟️ Apuesta', value: `${apuesta.toLocaleString()}`, inline: true },
+                    { name: win ? '💰 Ganancia' : '💔 Pérdida', value: `${Math.abs(ganancia).toLocaleString()}`, inline: true },
+                    { name: '💼 Nuevo Saldo', value: `${newBalance.toLocaleString()}`, inline: true }
+                )
+                .setFooter({ text: win ? 'Multiplicador: x5' : '¡Apuesta al caballo correcto la próxima!' })
+                .setTimestamp();
+
+            await interaction.editReply({ embeds: [embed] });
+
+        } catch (error) {
+            console.error(error);
+            await interaction.editReply('❌ Error en carrera de caballos.');
+        }
+    }
+
+    // === CRASH ===
+    else if (game === 'crash') {
+
+        const apuesta = interaction.options.getInteger('apuesta');
+        const check = await checkChips(interaction.user.id, apuesta);
+        if (!check.hasEnough) return interaction.editReply(check.message);
+
+        try {
+            // Generate crash point (weighted toward lower values)
+            const random = Math.random();
+            let crashPoint;
+
+            if (random < 0.33) crashPoint = 1 + Math.random() * 0.5; // 1.0-1.5x (33%)
+            else if (random < 0.66) crashPoint = 1.5 + Math.random() * 1; // 1.5-2.5x (33%)
+            else if (random < 0.85) crashPoint = 2.5 + Math.random() * 2.5; // 2.5-5x (19%)
+            else if (random < 0.95) crashPoint = 5 + Math.random() * 5; // 5-10x (10%)
+            else crashPoint = 10 + Math.random() * 40; // 10-50x (5%)
+
+            crashPoint = parseFloat(crashPoint.toFixed(2));
+
+            // Auto cash out at random point before crash
+            const cashOutPoint = parseFloat((crashPoint * (0.6 + Math.random() * 0.3)).toFixed(2));
+
+            const multiplier = cashOutPoint;
+            const ganancia = Math.floor(apuesta * multiplier) - apuesta;
+
+            const newBalance = await saveGameResult(
+                interaction.user.id,
+                'crash',
+                apuesta,
+                ganancia,
+                multiplier,
+                { crashPoint, cashOutPoint }
+            );
+
+            const embed = new EmbedBuilder()
+                .setTitle('📉 CRASH')
+                .setDescription(`El multiplicador subió hasta **${crashPoint}x** y crasheó!\n\n🎯 Tu cash out: **${cashOutPoint}x**`)
+                .setColor(0x00FF00)
+                .addFields(
+                    { name: '🎟️ Apuesta', value: `${apuesta.toLocaleString()}`, inline: true },
+                    { name: '💰 Ganancia', value: `${ganancia.toLocaleString()}`, inline: true },
+                    { name: '💼 Nuevo Saldo', value: `${newBalance.toLocaleString()}`, inline: true }
+                )
+                .setFooter({ text: `Multiplicador: x${multiplier}` })
+                .setTimestamp();
+
+            await interaction.editReply({ embeds: [embed] });
+
+        } catch (error) {
+            console.error(error);
+            await interaction.editReply('❌ Error jugando crash.');
+        }
+    }
+
+    // === GALLOS ===
+    else if (game === 'gallos') {
+
+        const apuesta = interaction.options.getInteger('apuesta');
+        const galloElegido = interaction.options.getString('gallo');
+
+        const check = await checkChips(interaction.user.id, apuesta);
+        if (!check.hasEnough) return interaction.editReply(check.message);
+
+        try {
+            const rounds = [];
+            let rojoWins = 0;
+            let azulWins = 0;
+
+            // Fight to 3 wins
+            while (rojoWins < 3 && azulWins < 3) {
+                const winner = Math.random() < 0.5 ? 'red' : 'blue';
+                if (winner === 'red') rojoWins++;
+                else azulWins++;
+                rounds.push(winner);
+            }
+
+            const ganador = rojoWins === 3 ? 'red' : 'blue';
+            const win = ganador === galloElegido;
+            const multiplier = win ? 1.9 : 0;
+            const ganancia = win ? Math.floor(apuesta * multiplier) - apuesta : -apuesta;
+
+            const newBalance = await saveGameResult(
+                interaction.user.id,
+                'gallos',
+                apuesta,
+                ganancia,
+                multiplier,
+                { galloElegido, ganador, rounds }
+            );
+
+            let fightDescription = '**🥊 PELEA:**\n';
+            rounds.forEach((r, i) => {
+                fightDescription += `Round ${i + 1}: ${r === 'red' ? '🔴 Rojo' : '🔵 Azul'} gana\n`;
+            });
+
+            const embed = new EmbedBuilder()
+                .setTitle('🐓 PELEA DE GALLOS')
+                .setDescription(fightDescription)
+                .setColor(win ? 0x00FF00 : 0xFF0000)
+                .addFields(
+                    { name: '🎯 Tu Gallo', value: galloElegido === 'red' ? '🔴 Rojo' : '🔵 Azul', inline: true },
+                    { name: '🏆 Ganador', value: ganador === 'red' ? '🔴 Rojo' : '🔵 Azul', inline: true },
+                    { name: '🎰 Resultado', value: win ? '✅ ¡GANASTE!' : '❌ Perdiste', inline: true },
+                    { name: '🎟️ Apuesta', value: `${apuesta.toLocaleString()}`, inline: true },
+                    { name: win ? '💰 Ganancia' : '💔 Pérdida', value: `${Math.abs(ganancia).toLocaleString()}`, inline: true },
+                    { name: '💼 Nuevo Saldo', value: `${newBalance.toLocaleString()}`, inline: true }
+                )
+                .setFooter({ text: win ? 'Multiplicador: x1.9' : '¡Mejor suerte la próxima!' })
+                .setTimestamp();
+
+            await interaction.editReply({ embeds: [embed] });
+
+        } catch (error) {
+            console.error(error);
+            await interaction.editReply('❌ Error en pelea de gallos.');
+        }
+    }
+
+    // === RULETA RUSA ===
+    else if (game === 'ruleta-rusa') {
+
+        const apuesta = interaction.options.getInteger('apuesta');
+        const check = await checkChips(interaction.user.id, apuesta);
+        if (!check.hasEnough) return interaction.editReply(check.message);
+
+        try {
+            const chamber = Math.floor(Math.random() * 6) + 1; // 1-6
+            const bullet = 1; // Bala en cámara 1
+
+            const survived = chamber !== bullet;
+
+            let ganancia, multiplier, newBalance;
+
+            if (survived) {
+                multiplier = 5;
+                ganancia = Math.floor(apuesta * multiplier) - apuesta;
+                newBalance = await saveGameResult(
                     interaction.user.id,
-                    'crash',
+                    'ruleta-rusa',
                     apuesta,
                     ganancia,
                     multiplier,
-                    { crashPoint, cashOutPoint }
+                    { chamber, survived: true }
                 );
 
                 const embed = new EmbedBuilder()
-                    .setTitle('📉 CRASH')
-                    .setDescription(`El multiplicador subió hasta **${crashPoint}x** y crasheó!\n\n🎯 Tu cash out: **${cashOutPoint}x**`)
+                    .setTitle('💀 RULETA RUSA')
+                    .setDescription('🎉 **¡SOBREVIVISTE!**\n\n*Click* ... La cámara estaba vacía.')
                     .setColor(0x00FF00)
                     .addFields(
+                        { name: '🎲 Cámara', value: `${chamber}/6`, inline: true },
                         { name: '🎟️ Apuesta', value: `${apuesta.toLocaleString()}`, inline: true },
                         { name: '💰 Ganancia', value: `${ganancia.toLocaleString()}`, inline: true },
-                        { name: '💼 Nuevo Saldo', value: `${newBalance.toLocaleString()}`, inline: true }
+                        { name: '💼 Nuevo Saldo', value: `${newBalance.toLocaleString()}`, inline: false }
                     )
-                    .setFooter({ text: `Multiplicador: x${multiplier}` })
+                    .setFooter({ text: 'Multiplicador: x5 | Jugaste con fuego y ganaste' })
                     .setTimestamp();
 
                 await interaction.editReply({ embeds: [embed] });
 
-            } catch (error) {
-                console.error(error);
-                await interaction.editReply('❌ Error jugando crash.');
-            }
-        }
+            } else {
+                // PERDIÓ - Penalización
+                multiplier = 0;
+                const multa = apuesta * 2; // Multa 2x
+                ganancia = -(apuesta + multa);
 
-        // === GALLOS ===
-        else if (game === 'gallos') {
-
-            const apuesta = interaction.options.getInteger('apuesta');
-            const galloElegido = interaction.options.getString('gallo');
-
-            const check = await checkChips(interaction.user.id, apuesta);
-            if (!check.hasEnough) return interaction.editReply(check.message);
-
-            try {
-                const rounds = [];
-                let rojoWins = 0;
-                let azulWins = 0;
-
-                // Fight to 3 wins
-                while (rojoWins < 3 && azulWins < 3) {
-                    const winner = Math.random() < 0.5 ? 'red' : 'blue';
-                    if (winner === 'red') rojoWins++;
-                    else azulWins++;
-                    rounds.push(winner);
-                }
-
-                const ganador = rojoWins === 3 ? 'red' : 'blue';
-                const win = ganador === galloElegido;
-                const multiplier = win ? 1.9 : 0;
-                const ganancia = win ? Math.floor(apuesta * multiplier) - apuesta : -apuesta;
-
-                const newBalance = await saveGameResult(
+                newBalance = await saveGameResult(
                     interaction.user.id,
-                    'gallos',
+                    'ruleta-rusa',
                     apuesta,
                     ganancia,
-                    multiplier,
-                    { galloElegido, ganador, rounds }
+                    0,
+                    { chamber, survived: false }
                 );
 
-                let fightDescription = '**🥊 PELEA:**\n';
-                rounds.forEach((r, i) => {
-                    fightDescription += `Round ${i + 1}: ${r === 'red' ? '🔴 Rojo' : '🔵 Azul'} gana\n`;
+                // Ban temporal (1 hora)
+                const banUntil = new Date(Date.now() + (60 * 60 * 1000));
+                await supabase.from('casino_bans').insert({
+                    discord_user_id: interaction.user.id,
+                    reason: 'Perdió en Ruleta Rusa',
+                    banned_by: 'Sistema Casino',
+                    banned_until: banUntil.toISOString()
                 });
 
                 const embed = new EmbedBuilder()
-                    .setTitle('🐓 PELEA DE GALLOS')
-                    .setDescription(fightDescription)
-                    .setColor(win ? 0x00FF00 : 0xFF0000)
+                    .setTitle('💀 RULETA RUSA')
+                    .setDescription('💥 **¡BANG!**\n\n❌ No tuviste suerte...\n\n**Penalización:**\n• Perdiste tu apuesta\n• Multa adicional: 2x apuesta\n• Ban del casino: 1 hora')
+                    .setColor(0xFF0000)
                     .addFields(
-                        { name: '🎯 Tu Gallo', value: galloElegido === 'red' ? '🔴 Rojo' : '🔵 Azul', inline: true },
-                        { name: '🏆 Ganador', value: ganador === 'red' ? '🔴 Rojo' : '🔵 Azul', inline: true },
-                        { name: '🎰 Resultado', value: win ? '✅ ¡GANASTE!' : '❌ Perdiste', inline: true },
-                        { name: '🎟️ Apuesta', value: `${apuesta.toLocaleString()}`, inline: true },
-                        { name: win ? '💰 Ganancia' : '💔 Pérdida', value: `${Math.abs(ganancia).toLocaleString()}`, inline: true },
-                        { name: '💼 Nuevo Saldo', value: `${newBalance.toLocaleString()}`, inline: true }
+                        { name: '🎲 Cámara', value: `${chamber}/6 💥`, inline: true },
+                        { name: '💔 Pérdida Total', value: `${Math.abs(ganancia).toLocaleString()}`, inline: true },
+                        { name: '⏰ Ban hasta', value: `<t:${Math.floor(banUntil.getTime() / 1000)}:R>`, inline: true },
+                        { name: '💼 Nuevo Saldo', value: `${newBalance.toLocaleString()}`, inline: false }
                     )
-                    .setFooter({ text: win ? 'Multiplicador: x1.9' : '¡Mejor suerte la próxima!' })
+                    .setFooter({ text: 'Juega con responsabilidad' })
                     .setTimestamp();
 
                 await interaction.editReply({ embeds: [embed] });
-
-            } catch (error) {
-                console.error(error);
-                await interaction.editReply('❌ Error en pelea de gallos.');
             }
-        }
 
-        // === RULETA RUSA ===
-        else if (game === 'ruleta-rusa') {
-
-            const apuesta = interaction.options.getInteger('apuesta');
-            const check = await checkChips(interaction.user.id, apuesta);
-            if (!check.hasEnough) return interaction.editReply(check.message);
-
-            try {
-                const chamber = Math.floor(Math.random() * 6) + 1; // 1-6
-                const bullet = 1; // Bala en cámara 1
-
-                const survived = chamber !== bullet;
-
-                let ganancia, multiplier, newBalance;
-
-                if (survived) {
-                    multiplier = 5;
-                    ganancia = Math.floor(apuesta * multiplier) - apuesta;
-                    newBalance = await saveGameResult(
-                        interaction.user.id,
-                        'ruleta-rusa',
-                        apuesta,
-                        ganancia,
-                        multiplier,
-                        { chamber, survived: true }
-                    );
-
-                    const embed = new EmbedBuilder()
-                        .setTitle('💀 RULETA RUSA')
-                        .setDescription('🎉 **¡SOBREVIVISTE!**\n\n*Click* ... La cámara estaba vacía.')
-                        .setColor(0x00FF00)
-                        .addFields(
-                            { name: '🎲 Cámara', value: `${chamber}/6`, inline: true },
-                            { name: '🎟️ Apuesta', value: `${apuesta.toLocaleString()}`, inline: true },
-                            { name: '💰 Ganancia', value: `${ganancia.toLocaleString()}`, inline: true },
-                            { name: '💼 Nuevo Saldo', value: `${newBalance.toLocaleString()}`, inline: false }
-                        )
-                        .setFooter({ text: 'Multiplicador: x5 | Jugaste con fuego y ganaste' })
-                        .setTimestamp();
-
-                    await interaction.editReply({ embeds: [embed] });
-
-                } else {
-                    // PERDIÓ - Penalización
-                    multiplier = 0;
-                    const multa = apuesta * 2; // Multa 2x
-                    ganancia = -(apuesta + multa);
-
-                    newBalance = await saveGameResult(
-                        interaction.user.id,
-                        'ruleta-rusa',
-                        apuesta,
-                        ganancia,
-                        0,
-                        { chamber, survived: false }
-                    );
-
-                    // Ban temporal (1 hora)
-                    const banUntil = new Date(Date.now() + (60 * 60 * 1000));
-                    await supabase.from('casino_bans').insert({
-                        discord_user_id: interaction.user.id,
-                        reason: 'Perdió en Ruleta Rusa',
-                        banned_by: 'Sistema Casino',
-                        banned_until: banUntil.toISOString()
-                    });
-
-                    const embed = new EmbedBuilder()
-                        .setTitle('💀 RULETA RUSA')
-                        .setDescription('💥 **¡BANG!**\n\n❌ No tuviste suerte...\n\n**Penalización:**\n• Perdiste tu apuesta\n• Multa adicional: 2x apuesta\n• Ban del casino: 1 hora')
-                        .setColor(0xFF0000)
-                        .addFields(
-                            { name: '🎲 Cámara', value: `${chamber}/6 💥`, inline: true },
-                            { name: '💔 Pérdida Total', value: `${Math.abs(ganancia).toLocaleString()}`, inline: true },
-                            { name: '⏰ Ban hasta', value: `<t:${Math.floor(banUntil.getTime() / 1000)}:R>`, inline: true },
-                            { name: '💼 Nuevo Saldo', value: `${newBalance.toLocaleString()}`, inline: false }
-                        )
-                        .setFooter({ text: 'Juega con responsabilidad' })
-                        .setTimestamp();
-
-                    await interaction.editReply({ embeds: [embed] });
-                }
-
-            } catch (error) {
-                console.error(error);
-                await interaction.editReply('❌ Error en ruleta rusa.');
-            }
+        } catch (error) {
+            console.error(error);
+            await interaction.editReply('❌ Error en ruleta rusa.');
         }
     }
 }
