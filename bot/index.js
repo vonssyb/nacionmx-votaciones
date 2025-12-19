@@ -1244,12 +1244,12 @@ client.on('interactionCreate', async interaction => {
     }
 
     else if (commandName === 'estado') {
+        await interaction.deferReply({ ephemeral: false }); // Defer first to prevent timeout
+
         // IDs Provided by User
         const TARGET_CHANNEL_ID = '1412963363545284680';
         const PING_ROLE_ID = '1412899401000685588';
         const action = interaction.options.getString('seleccion');
-
-        await interaction.deferReply({ ephemeral: false });
 
         try {
             const channel = await client.channels.fetch(TARGET_CHANNEL_ID);
