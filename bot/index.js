@@ -393,15 +393,6 @@ client.once('ready', async () => {
             ]
         },
         {
-            name: 'transferir',
-            description: 'Enviar dinero a otro ciudadano - Sistema SPEI',
-            options: [
-                { name: 'destinatario', description: 'Ciudadano que recibirá el dinero', type: 6, required: true },
-                { name: 'monto', description: 'Cantidad o "todo"', type: 3, required: true },
-                { name: 'razon', description: 'Concepto de la transferencia', type: 3, required: false }
-            ]
-        },
-        {
             name: 'depositar',
             description: 'Depositar efectivo a la cuenta de otro ciudadano (OXXO)',
             options: [
@@ -3559,7 +3550,7 @@ client.on('interactionCreate', async interaction => {
                 await interaction.editReply('❌ Error consultando débito.');
             }
         }
-// Add this code between line 3561 (after estado closing }) and line 3563 (before depositar comment)
+        // Add this code between line 3561 (after estado closing }) and line 3563 (before depositar comment)
 
         // === TRANSFERIR (Debit to Debit - 5 min delay) ===
         else if (subcommand === 'transferir') {
@@ -4186,110 +4177,6 @@ client.on('interactionCreate', async interaction => {
         }
     }
 
-    else if (commandName === 'transferir') {
-        await interaction.deferReply(); // Defer immediately
-
-        const destUser = interaction.options.getUser('destinatario');
-        const inputMonto = interaction.options.getString('monto');
-        const razon = interaction.options.getString('razon') || 'Transferencia Débito';
-
-        if (destUser.id === interaction.user.id) return interaction.editReply({ content: '❌ Auto-transferencia no permitida.' });
-
-        try {
-            // 0. Security Check: Sender must have active Debit Card
-            const senderCardCheck = await getDebitCard(interaction.user.id);
-            if (!senderCardCheck) return interaction.editReply('❌ **Acceso Denegado:** No tienes una Tarjeta de Débito activa. No puedes realizar transferencias bancarias.');
-
-            // 1. Check if destination has debit card (Required for SPEI)
-            const { data: destCard } = await supabase
-                .from('debit_cards')
-                .select('*')
-                .eq('discord_user_id', destUser.id)
-                .eq('status', 'active')
-                .maybeSingle();
-
-            if (!destCard) return interaction.editReply(`❌ **${destUser.username}** no tiene cuenta bancaria activa para recibir SPEI.`);
-
-            // 2. Check Sender Bank Balance
-            const balance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
-            const bankBalance = balance.bank || 0;
-
-            let monto = 0;
-            if (inputMonto.toLowerCase() === 'todo' || inputMonto.toLowerCase() === 'all') {
-                monto = bankBalance;
-            } else {
-                monto = parseFloat(inputMonto);
-            }
-
-            if (isNaN(monto) || monto <= 0) return interaction.editReply('❌ El monto debe ser mayor a 0.');
-
-            // Check Destination Max Balance Limit
-            const destTier = CARD_TIERS[destCard.card_type];
-            const destMax = destTier ? (destTier.max_balance || Infinity) : Infinity;
-            // Only check if limit is not infinite
-            if (destMax !== Infinity) {
-                const destBalData = await billingService.ubService.getUserBalance(interaction.guildId, destUser.id);
-                const destCurrentBank = destBalData.bank || 0;
-                if ((destCurrentBank + monto) > destMax) {
-                    return interaction.editReply(`⛔ **Transferencia Rechazada**\nEl destinatario no puede recibir esta cantidad porque excedería el límite de saldo de su tarjeta (**${destCard.card_type}**).\nLímite: $${destMax.toLocaleString()}\nSaldo Actual Destino: $${destCurrentBank.toLocaleString()}`);
-                }
-            }
-
-            if (bankBalance < monto) {
-                return interaction.editReply(`❌ Fondos insuficientes en Banco.\n\nDisponible: $${bankBalance.toLocaleString()}\nIntentas transferir: $${monto.toLocaleString()}`);
-            }
-
-            // 3. Process Transfer (Bank -> Bank Immediate)
-            // 3. Process Transfer (Bank -> Bank DELAYED 2 MINS)
-            // Deduct from sender immediately
-            await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, monto, `Transferencia a ${destUser.tag}: ${razon}`, 'bank');
-
-            const releaseDate = new Date();
-            releaseDate.setMinutes(releaseDate.getMinutes() + 2); // 2 Minutes Delay
-
-            const { error: pendErr } = await supabase.from('pending_transfers').insert({
-                sender_id: interaction.user.id,
-                receiver_id: destUser.id,
-                amount: monto,
-                reason: razon,
-                release_date: releaseDate.toISOString(),
-                status: 'PENDING',
-                transfer_type: 'debit_to_debit'
-            });
-
-            if (pendErr) throw pendErr;
-
-            // Log Outgoing Transaction for Sender (Optional history)
-            if (senderCardCheck) { // available from check above
-                await supabase.from('debit_transactions').insert([{
-                    debit_card_id: senderCardCheck.id,
-                    discord_user_id: interaction.user.id,
-                    transaction_type: 'transfer_out',
-                    amount: -monto,
-                    description: `Transferencia a ${destUser.tag}`
-                }]);
-            }
-
-            const embed = new EmbedBuilder()
-                .setTitle('⏳ Transferencia Iniciada')
-                .setColor(0xFFA500)
-                .setDescription(`Transferencia programada. Se completará en 2 minutos.`)
-                .addFields(
-                    { name: 'De', value: `${interaction.user.tag}`, inline: true },
-                    { name: 'Para', value: `${destUser.tag}`, inline: true },
-                    { name: 'Monto', value: `$${monto.toLocaleString()}`, inline: true },
-                    { name: 'Concepto', value: razon, inline: false },
-                    { name: 'Llegada Estimada', value: releaseDate.toLocaleTimeString('es-MX', { timeZone: 'America/Mexico_City' }), inline: false }
-                )
-                .setTimestamp();
-
-            await interaction.editReply({ embeds: [embed] });
-
-        } catch (error) {
-            console.error(error);
-            await interaction.editReply('❌ Error procesando la transferencia.');
-        }
-    }
 
     else if (commandName === 'giro') {
         await interaction.deferReply(); // Defer immediately
