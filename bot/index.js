@@ -472,15 +472,17 @@ client.once('ready', async () => {
                     description: 'Registrar una nueva empresa ($50k)',
                     type: 1,
                     options: [
-                        { name: 'owner', description: 'Dueño de la empresa', type: 6, required: true },
                         { name: 'nombre', description: 'Nombre de la empresa', type: 3, required: true },
-                        {
-                            name: 'tipo', description: 'Tipo de empresa', type: 3, required: true, choices: [
-                                { name: 'Privada', value: 'Privada' },
-                                { name: 'Pública', value: 'Pública' }
-                            ]
-                        },
-                        { name: 'descripcion', description: 'Descripción del negocio', type: 3, required: false }
+                        { name: 'dueño', description: 'Dueño de la empresa', type: 6, required: true },
+                        { name: 'tipo_local', description: 'Rubro (Taller, Restaurante, etc)', type: 3, required: true },
+                        { name: 'costo_tramite', description: 'Costo del trámite administrativo', type: 10, required: true },
+                        { name: 'co_dueño', description: 'Co-Dueño (Opcional)', type: 6, required: false },
+                        { name: 'es_privada', description: '¿Es empresa privada? (Paga impuestos)', type: 5, required: false },
+                        { name: 'logo', description: 'Logo de la empresa', type: 11, required: false },
+                        { name: 'vehiculos', description: 'Cantidad de vehículos asignados', type: 10, required: false },
+                        { name: 'costo_local', description: 'Costo del local/propiedad', type: 10, required: false },
+                        { name: 'costo_vehiculos', description: 'Costo total de vehículos', type: 10, required: false },
+                        { name: 'ubicacion', description: 'Ubicación RP', type: 3, required: false }
                     ]
                 },
                 {
