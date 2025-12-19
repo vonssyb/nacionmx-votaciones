@@ -500,14 +500,6 @@ client.once('ready', async () => {
             options: [
                 { name: 'estado', description: 'Ver balance debito', type: 1 },
                 {
-                    name: 'depositar',
-                    description: 'Depositar efectivo a debito - Tarda 4 horas',
-                    type: 1,
-                    options: [
-                        { name: 'monto', description: 'Cantidad', type: 10, required: true }
-                    ]
-                },
-                {
                     name: 'transferir',
                     description: 'Transferir debito a debito - Tarda 5 minutos',
                     type: 1,
