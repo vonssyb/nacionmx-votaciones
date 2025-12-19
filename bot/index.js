@@ -668,8 +668,8 @@ client.once('ready', async () => {
                                 { name: 'Número Exacto', value: 'number' }
                             ]
                         },
-                        { name: 'numero', description: 'Si elegiste número exacto (0-36)', type: 4, required: false, min_value: 0, max_value: 36 },
-                        { name: 'apuesta', description: 'Fichas a apostar', type: 4, required: true, min_value: 1 }
+                        { name: 'apuesta', description: 'Fichas a apostar', type: 4, required: true, min_value: 1 },
+                        { name: 'numero', description: 'Si elegiste número exacto (0-36)', type: 4, required: false, min_value: 0, max_value: 36 }
                     ]
                 },
                 // Caballos
@@ -3174,7 +3174,7 @@ async function requestPaymentMethod(interaction, userId, amount, description) {
     const embed = new EmbedBuilder()
         .setTitle('💳 Selecciona Método de Pago')
         .setColor(0xFFD700)
-        .setDescription(`**${description}**\\n\\n💰 Total a pagar: **$${amount.toLocaleString()}**\\n\\nElige cómo deseas pagar:`)
+        .setDescription(`**${description}**\n\n💰 Total a pagar: **$${amount.toLocaleString()}**\n\nElige cómo deseas pagar:`)
         .setFooter({ text: 'Banco Nacional - Métodos de Pago' });
 
     const msg = await interaction.editReply({ embeds: [embed], components: [paymentRow] });
