@@ -3371,14 +3371,7 @@ client.on('interactionCreate', async interaction => {
         await interaction.deferReply();
 
         try {
-            // 1. Check BOTH for Debit Cards
-            const { data: senderCard } = await supabase
-                .from('debit_cards')
-                .select('*')
-                .eq('discord_user_id', interaction.user.id)
-                .eq('status', 'active')
-                .maybeSingle();
-
+            // Check if destination has debit card
             const { data: destCard } = await supabase
                 .from('debit_cards')
                 .select('*')
@@ -3386,38 +3379,50 @@ client.on('interactionCreate', async interaction => {
                 .eq('status', 'active')
                 .maybeSingle();
 
-            if (!senderCard) return interaction.editReply('❌ **No tienes Tarjeta de Débito**. Usa `/depositar` para transferencias en efectivo/banco genérico.');
-            if (!destCard) return interaction.editReply(`❌ **${destUser.username}** no tiene Tarjeta de Débito activa. Usa \`/depositar\`.`);
+            if (!destCard) return interaction.editReply(`❌ **${destUser.username}** no tiene Tarjeta de Débito activa para recibir.`);
 
-            // 2. Check Balance (UB BANK)
-            const balance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
-            if ((balance.bank || 0) < monto) {
-                return interaction.editReply(`❌ Fondos insuficientes en Banco. Tienes $${(balance.bank || 0).toLocaleString()}.`);
+            // Use universal payment system for sender
+            const paymentResult = await requestPaymentMethod(
+                interaction,
+                interaction.user.id,
+                monto,
+                `💸 Transferencia a ${destUser.tag}: ${razon}`
+            );
+
+            if (!paymentResult.success) {
+                return interaction.editReply(paymentResult.error);
             }
 
-            // 3. Execute Transfer (UB Bank -> UB Bank)
-            await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, monto, `Transferencia a ${destUser.tag}: ${razon}`, 'bank');
+            // Add money to destination (always to bank)
             await billingService.ubService.addMoney(interaction.guildId, destUser.id, monto, `Transferencia de ${interaction.user.tag}: ${razon}`, 'bank');
 
-            // Logs
-            await supabase.from('debit_transactions').insert([
-                { debit_card_id: senderCard.id, discord_user_id: interaction.user.id, transaction_type: 'transfer_out', amount: monto, balance_after: (balance.bank - monto), description: `Transferencia a ${destUser.tag}` },
-                { debit_card_id: destCard.id, discord_user_id: destUser.id, transaction_type: 'transfer_in', amount: monto, balance_after: 0, description: `Transferencia de ${interaction.user.tag}` }
-            ]);
+            // Log transaction
+            const { data: senderCard } = await supabase.from('debit_cards').select('id').eq('discord_user_id', interaction.user.id).eq('status', 'active').maybeSingle();
+
+            await supabase.from('debit_transactions').insert([{
+                debit_card_id: destCard.id,
+                discord_user_id: destUser.id,
+                transaction_type: 'transfer_in',
+                amount: monto,
+                description: `Transferencia de ${interaction.user.tag}`
+            }]);
+
+            const paymentMethodLabel = paymentResult.method === 'cash' ? '💵 Efectivo' : paymentResult.method === 'bank' ? '🏦 Banco/Débito' : '💳 Crédito';
 
             const embed = new EmbedBuilder()
-                .setTitle('💳 Transferencia Débito Exitosa')
-                .setColor(0x00FFFF) // Cyan for Debit
-                .setDescription(`Transferencia segura entre cuentas de débito NMX.`)
+                .setTitle('💸 Transferencia Exitosa')
+                .setColor(0x00FFFF)
+                .setDescription(`Transferencia completada exitosamente.`)
                 .addFields(
-                    { name: 'De', value: `💳 ${interaction.user.tag}`, inline: true },
-                    { name: 'Para', value: `💳 ${destUser.tag}`, inline: true },
+                    { name: 'De', value: `${interaction.user.tag}`, inline: true },
+                    { name: 'Para', value: `${destUser.tag}`, inline: true },
                     { name: 'Monto', value: `$${monto.toLocaleString()}`, inline: true },
+                    { name: 'Método de Pago', value: paymentMethodLabel, inline: true },
                     { name: 'Concepto', value: razon, inline: false }
                 )
                 .setTimestamp();
 
-            await interaction.editReply({ embeds: [embed] });
+            await interaction.editReply({ embeds: [embed], components: [] });
 
             // Notify
             try {
