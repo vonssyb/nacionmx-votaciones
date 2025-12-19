@@ -517,6 +517,14 @@ client.once('ready', async () => {
                     ]
                 },
                 {
+                    name: 'depositar',
+                    description: 'Depositar efectivo en tu cuenta bancaria',
+                    type: 1,
+                    options: [
+                        { name: 'monto', description: 'Cantidad a depositar', type: 10, required: true }
+                    ]
+                },
+                {
                     name: 'retirar',
                     description: 'Retirar dinero del banco a efectivo',
                     type: 1,
@@ -1090,7 +1098,7 @@ client.on('interactionCreate', async interaction => {
             .setColor(0xD4AF37) // Gold
             .setDescription('**Guía completa de comandos económicos y empresariales**')
             .addFields(
-                { name: '💰 Banco & Efectivo', value: '`/balanza` - Ver saldo total (Efectivo + Banco + Crédito)\n`/debito estado` - Ver saldo de cuenta bancaria\n`/debito info` - Información completa de tu tarjeta\n`/debito retirar` - Retirar dinero del banco a efectivo\n`/depositar` - Depósito OXXO\n`/transferir` - Transferencia bancaria\n`/giro` - Envío paquetería (24h)\n\n**👨‍💼 Ejecutivos Bancarios:**\n`/debito admin info` - Ver info completa de cliente\n`/debito admin historial` - Ver transacciones de cliente' },
+                { name: '💰 Banco & Efectivo', value: '`/balanza` - Ver saldo total (Efectivo + Banco + Crédito)\n`/debito estado` - Ver saldo de cuenta bancaria\n`/debito info` - Información completa de tu tarjeta\n`/debito depositar` - Depositar efectivo en banco\n`/debito retirar` - Retirar dinero del banco a efectivo\n`/depositar` - Depósito OXXO (a otros)\n`/transferir` - Transferencia bancaria\n`/giro` - Envío paquetería (24h)\n\n**👨‍💼 Ejecutivos Bancarios:**\n`/debito admin info` - Ver info completa de cliente\n`/debito admin historial` - Ver transacciones de cliente' },
                 { name: '💳 Tarjetas & Crédito', value: '`/credito info` - Ver información de tu tarjeta\n`/credito pagar` - Pagar deuda de tarjeta\n`/credito buro` - Ver historial crediticio\n\n**👨‍💼 Ejecutivos:**\n`/credito admin historial` - Análisis completo de cliente' },
                 { name: '🏢 Empresas', value: '`/empresa crear` - Registrar tu negocio\n`/empresa menu` - Panel de gestión\n`/empresa cobrar` - Terminal POS\n`/empresa credito` - Crédito empresarial' },
                 { name: '📈 Inversiones', value: '`/bolsa precios` - Mercado de valores\n`/bolsa comprar/vender` - Trading\n`/inversion nueva` - Plazo fijo\n`/bolsa portafolio` - Ver inversiones' },
@@ -3386,6 +3394,56 @@ client.on('interactionCreate', async interaction => {
             } catch (error) {
                 console.error(error);
                 await interaction.editReply('❌ Error consultando débito.');
+            }
+        }
+
+        // === DEPOSITAR (Cash -> Bank) ===
+        else if (subcommand === 'depositar') {
+            const monto = interaction.options.getNumber('monto');
+            if (monto <= 0) return interaction.reply({ content: '❌ El monto debe ser mayor a 0.', ephemeral: true });
+
+            await interaction.deferReply();
+
+            try {
+                const card = await getDebitCard(interaction.user.id);
+                if (!card) return interaction.editReply('❌ No tienes una tarjeta de débito activa para depositar.');
+
+                const balance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
+                const cashBalance = balance.cash || 0;
+                const bankBalance = balance.bank || 0;
+
+                if (cashBalance < monto) {
+                    return interaction.editReply(`❌ Fondos insuficientes en efectivo.\n\nTienes: $${cashBalance.toLocaleString()}\nIntentas depositar: $${monto.toLocaleString()}`);
+                }
+
+                // Transfer from cash to bank
+                await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, monto, 'Depósito bancario', 'cash');
+                await billingService.ubService.addMoney(interaction.guildId, interaction.user.id, monto, 'Depósito bancario', 'bank');
+
+                // Log transaction
+                await supabase.from('debit_transactions').insert({
+                    debit_card_id: card.id,
+                    discord_user_id: interaction.user.id,
+                    transaction_type: 'deposit',
+                    amount: monto,
+                    description: 'Depósito en sucursal/ATM'
+                });
+
+                const embed = new EmbedBuilder()
+                    .setTitle('🏧 Depósito Exitoso')
+                    .setColor(0x00FF00)
+                    .setDescription('Has depositado efectivo a tu cuenta bancaria.')
+                    .addFields(
+                        { name: 'Monto Depositado', value: `$${monto.toLocaleString()}`, inline: true },
+                        { name: 'Nuevo Saldo Banco', value: `$${(bankBalance + monto).toLocaleString()}`, inline: true }
+                    )
+                    .setTimestamp();
+
+                await interaction.editReply({ embeds: [embed] });
+
+            } catch (error) {
+                console.error(error);
+                await interaction.editReply('❌ Error realizando depósito.');
             }
         }
 
