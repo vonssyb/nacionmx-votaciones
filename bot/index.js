@@ -3389,13 +3389,28 @@ async function handleUpgradeButton(interaction) {
 
     console.log(`[DEBUG] Upgrade: Buscando tarjeta para usuario ${interaction.user.id}`);
 
-    const { data: currentCard, error: cardError } = await supabase.from('credit_cards')
+    // Resolve Citizen (Credit Cards are linked to CITIZENS, not Profiles directly)
+    const { data: citizen } = await supabase
+        .from('citizens')
+        .select('id')
+        .eq('discord_id', interaction.user.id)
+        .maybeSingle();
+
+    // Query credit card - prioritize citizen_id, fallback to discord_user_id
+    let cardQuery = supabase
+        .from('credit_cards')
         .select('*')
-        .eq('discord_user_id', interaction.user.id)
         .eq('status', 'active')
         .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
+        .limit(1);
+
+    if (citizen) {
+        cardQuery = cardQuery.eq('citizen_id', citizen.id);
+    } else {
+        cardQuery = cardQuery.eq('discord_user_id', interaction.user.id);
+    }
+
+    const { data: currentCard, error: cardError } = await cardQuery.maybeSingle();
 
     if (cardError) console.error('[DEBUG] Error buscando tarjeta:', cardError);
     if (!currentCard) console.log(`[DEBUG] No se encontró tarjeta activa para ${interaction.user.id}`);
