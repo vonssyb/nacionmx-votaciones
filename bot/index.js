@@ -1677,7 +1677,12 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                         .setCustomId(`btn_upgrade_${targetUser.id}_${nextTier.replace(/ /g, '_')}`)
                         .setLabel(`Aceptar y Pagar $${nextStats.cost.toLocaleString()}`)
                         .setStyle(ButtonStyle.Success)
-                        .setEmoji('💳')
+                        .setEmoji('💳'),
+                    new ButtonBuilder()
+                        .setCustomId(`btn_cancel_upgrade_${targetUser.id}`)
+                        .setLabel('Cancelar')
+                        .setStyle(ButtonStyle.Secondary)
+                        .setEmoji('❌')
                 );
 
                 // Send Offer to Channel Publicly (Ticket)
@@ -2877,7 +2882,7 @@ async function subscribeToCancellations() {
 
 // ===== BUTTON HANDLERS =====
 async function handleUpgradeButton(interaction) {
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ ephemeral: false });
 
     const parts = interaction.customId.split('_');
     const targetUserId = parts[2];
@@ -2949,6 +2954,16 @@ client.on('interactionCreate', async interaction => {
     if (interaction.isButton()) {
         if (interaction.customId.startsWith('btn_upgrade_')) {
             await handleUpgradeButton(interaction);
+        } else if (interaction.customId.startsWith('btn_cancel_upgrade_')) {
+            await interaction.deferReply({ ephemeral: false });
+            const userId = interaction.customId.split('_')[3];
+
+            if (interaction.user.id !== userId) {
+                return interaction.editReply('⛔ Esta oferta no es para ti.');
+            }
+
+            await interaction.editReply('❌ Has cancelado la oferta de mejora.');
+            await interaction.message.edit({ components: [] });
         }
         return;
     }
