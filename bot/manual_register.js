@@ -1,7 +1,7 @@
 // Manual Command Registration Script - REGISTER ALL COMMANDS
 // Run this from your PC to register/update Discord slash commands
 
-require('dotenv').config();
+require('dotenv').config({ path: require('path').join(__dirname, '.env') });
 const { REST, Routes } = require('discord.js');
 
 const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
