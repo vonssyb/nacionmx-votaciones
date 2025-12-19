@@ -524,7 +524,31 @@ client.once('ready', async () => {
                         { name: 'monto', description: 'Cantidad a retirar', type: 10, required: true }
                     ]
                 },
-                { name: 'historial', description: 'Ver transacciones', type: 1 }
+                { name: 'historial', description: 'Ver transacciones', type: 1 },
+                { name: 'info', description: 'Ver información completa de tu tarjeta de débito', type: 1 },
+                {
+                    name: 'admin',
+                    description: '👨‍💼 Comandos para ejecutivos bancarios',
+                    type: 2,
+                    options: [
+                        {
+                            name: 'info',
+                            description: 'Ver info completa de tarjeta de un usuario',
+                            type: 1,
+                            options: [
+                                { name: 'usuario', description: 'Usuario a consultar', type: 6, required: true }
+                            ]
+                        },
+                        {
+                            name: 'historial',
+                            description: 'Ver historial de transacciones de débito',
+                            type: 1,
+                            options: [
+                                { name: 'usuario', description: 'Usuario a consultar', type: 6, required: true }
+                            ]
+                        }
+                    ]
+                }
             ]
         },
         {
@@ -1065,13 +1089,13 @@ client.on('interactionCreate', async interaction => {
             .setColor(0xD4AF37) // Gold
             .setDescription('**Guía completa de comandos económicos y empresariales**')
             .addFields(
-                { name: '💰 Banco & Efectivo', value: '`/balanza` - Ver saldo total (Efectivo + Banco + Crédito)\n`/debito estado` - Ver saldo de cuenta bancaria\n`/debito retirar` - Retirar dinero del banco a efectivo\n`/depositar` - Depósito OXXO (Efectivo a cuenta de otro)\n`/transferir` - Transferencia bancaria (Múltiples métodos de pago)\n`/giro` - Envío paquetería (Efectivo a Efectivo, 24h)' },
-                { name: '💳 Tarjetas & Crédito', value: '` /credito info` - Ver información de tu tarjeta\n`/credito pagar` - Pagar deuda de tarjeta\n`/credito buro` - Ver historial crediticio\n\n**👨‍💼 Ejecutivos Banqueros:**\n`/credito admin historial` - Análisis completo de cliente\n`/credito admin ofrecer-upgrade` - Ofrecer mejora de tarjeta' },
-                { name: '🏢 Empresas', value: '`/empresa crear` - Registrar tu negocio\n`/empresa menu` - Panel de gestión (Empleados, Nómina)\n`/empresa cobrar` - Terminal Punto de Venta (Cobrar a clientes)\n`/empresa credito` - Solicitar crédito empresarial' },
-                { name: '📈 Inversiones', value: '`/bolsa precios` - Mercado de valores\n`/bolsa comprar/vender` - Trading de acciones\n`/inversion nueva` - Plazo fijo (Rendimiento garantizado)\n`/bolsa portafolio` - Ver tus inversiones' },
-                { name: '📊 Impuestos & Admin', value: '`/impuestos consultar` - Estado fiscal personal\n`/top-ricos` - Ranking de millonarios\n`/top-morosos` - Lista pública de deudores' },
-                { name: '🚔 Policía', value: '`/multa` - Aplicar multa a un ciudadano\n`/licencia registrar` - Registrar licencia\n`/licencia revocar` - Revocar licencia' },
-                { name: '💡 Notas Importantes', value: '• **Métodos de Pago:** Al pagar licencias, multas o empresas, puedes elegir entre efectivo, banco/débito o crédito\n• **Crédito:** Las tarjetas de crédito ya NO otorgan préstamos en efectivo, solo sirven como método de pago\n• **Sin tarjeta = Sin banco:** Necesitas una tarjeta de débito para tener dinero en el banco', inline: false }
+                { name: '💰 Banco & Efectivo', value: '`/balanza` - Ver saldo total (Efectivo + Banco + Crédito)\\n`/debito estado` - Ver saldo de cuenta bancaria\\n`/debito info` - Información completa de tu tarjeta\\n`/debito retirar` - Retirar dinero del banco a efectivo\\n`/depositar` - Depósito OXXO\\n`/transferir` - Transferencia bancaria\\n`/giro` - Envío paquetería (24h)\\n\\n**👨‍💼 Ejecutivos Bancarios:**\\n`/debito admin info` - Ver info completa de cliente\\n`/debito admin historial` - Ver transacciones de cliente' },
+                { name: '💳 Tarjetas & Crédito', value: '`/credito info` - Ver información de tu tarjeta\n`/credito pagar` - Pagar deuda de tarjeta\n`/credito buro` - Ver historial crediticio\n\n**👨‍💼 Ejecutivos:**\n`/credito admin historial` - Análisis completo de cliente' },
+                { name: '🏢 Empresas', value: '`/empresa crear` - Registrar tu negocio\n`/empresa menu` - Panel de gestión\n`/empresa cobrar` - Terminal POS\n`/empresa credito` - Crédito empresarial' },
+                { name: '📈 Inversiones', value: '`/bolsa precios` - Mercado de valores\n`/bolsa comprar/vender` - Trading\n`/inversion nueva` - Plazo fijo\n`/bolsa portafolio` - Ver inversiones' },
+                { name: '🎰 Casino', value: '**Sistema de Fichas:**\n`/casino fichas comprar` - Comprar fichas\n`/casino fichas retirar` - Retirar a efectivo\n`/casino saldo` - Ver estadísticas\n`/casino ranking` - Top jugadores\n\n**Juegos Disponibles:**\n`/jugar slots` - Tragamonedas (100x)\n`/jugar dice` - Over/Under (10x)\n`/jugar blackjack` - 21 (2.5x)\n`/jugar ruleta` - Europea (35x)\n`/jugar caballos` - Carreras (5x)\n`/jugar crash` - Multiplicador (50x)\n`/jugar gallos` - Pelea (1.9x)\n`/jugar ruleta-rusa` - ⚠️ Alto riesgo (5x)' },
+                { name: '🚔 Policía', value: '`/multa` - Aplicar multa\n`/licencia registrar` - Registrar licencia\n`/licencia revocar` - Revocar licencia' },
+                { name: '💡 Notas', value: '• **Métodos de Pago:** Efectivo, Banco/Débito o Crédito\n• **Casino:** VIP (Black/Diamante) = +10% fichas bonus\n• **Sin tarjeta débito = Sin banco**' }
             )
             .setFooter({ text: 'Sistema Financiero Nación MX • Uso exclusivo Roleplay' })
             .setTimestamp();
@@ -3446,6 +3470,161 @@ client.on('interactionCreate', async interaction => {
             } catch (error) {
                 console.error(error);
                 await interaction.editReply('❌ Error consultando historial.');
+            }
+        }
+
+        // === INFO ===
+        else if (subcommand === 'info') {
+            await interaction.deferReply();
+
+            try {
+                const card = await getDebitCard(interaction.user.id);
+                if (!card) return interaction.editReply('❌ No tienes una tarjeta de débito activa.');
+
+                const balance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
+                const bankBalance = balance.bank || 0;
+
+                // Get recent transactions
+                const { data: recentTxs } = await supabase
+                    .from('debit_transactions')
+                    .select('*')
+                    .eq('discord_user_id', interaction.user.id)
+                    .order('created_at', { ascending: false })
+                    .limit(5);
+
+                let txHistory = '';
+                if (recentTxs && recentTxs.length > 0) {
+                    recentTxs.forEach(tx => {
+                        const emoji = tx.amount > 0 ? '➕' : '➖';
+                        const tipo = tx.transaction_type === 'withdrawal' ? 'Retiro' :
+                            tx.transaction_type === 'deposit' ? 'Depósito' :
+                                tx.transaction_type === 'transfer_in' ? 'Recibido' : 'Enviado';
+                        txHistory += `${emoji} ${tipo}: $${Math.abs(tx.amount).toLocaleString()}\\n`;
+                    });
+                } else {
+                    txHistory = 'Sin transacciones recientes';
+                }
+
+                const embed = new EmbedBuilder()
+                    .setTitle('💳 Información Completa - Tarjeta de Débito')
+                    .setColor(0x00CED1)
+                    .setDescription(`Detalles de tu cuenta bancaria NMX`)
+                    .addFields(
+                        { name: '🔢 Número de Tarjeta', value: `\`${card.card_number}\``, inline: false },
+                        { name: '💰 Saldo en Banco', value: `$${bankBalance.toLocaleString()}`, inline: true },
+                        { name: '📅 Fecha de Creación', value: `<t:${Math.floor(new Date(card.created_at).getTime() / 1000)}:D>`, inline: true },
+                        { name: '✅ Estado', value: 'Activa', inline: true },
+                        { name: '📊 Últimas Transacciones', value: txHistory, inline: false }
+                    )
+                    .setFooter({ text: 'Banco Nacional MX' })
+                    .setTimestamp();
+
+                await interaction.editReply({ embeds: [embed] });
+
+            } catch (error) {
+                console.error(error);
+                await interaction.editReply('❌ Error consultando información.');
+            }
+        }
+
+        // === ADMIN COMMANDS ===
+        else if (subCommandGroup === 'admin') {
+            // Check if user is bank executive
+            const BANK_EXEC_ROLE_ID = '1450688555503587459'; // Same as company creator role
+            if (!interaction.member.roles.cache.has(BANK_EXEC_ROLE_ID) && !interaction.member.permissions.has('Administrator')) {
+                return interaction.reply({ content: '⛔ Solo ejecutivos bancarios pueden usar estos comandos.', ephemeral: true });
+            }
+
+            const adminSubCmd = interaction.options.getSubcommand();
+            const targetUser = interaction.options.getUser('usuario');
+
+            // === ADMIN INFO ===
+            if (adminSubCmd === 'info') {
+                await interaction.deferReply({ ephemeral: true });
+
+                try {
+                    const card = await getDebitCard(targetUser.id);
+                    if (!card) return interaction.editReply(`❌ ${targetUser.username} no tiene tarjeta de débito.`);
+
+                    const balance = await billingService.ubService.getUserBalance(interaction.guildId, targetUser.id);
+                    const bankBalance = balance.bank || 0;
+                    const cashBalance = balance.cash || 0;
+
+                    // Get transaction count and totals
+                    const { data: txs } = await supabase
+                        .from('debit_transactions')
+                        .select('*')
+                        .eq('discord_user_id', targetUser.id);
+
+                    const totalTransactions = txs?.length || 0;
+                    const totalDeposits = txs?.filter(t => t.amount > 0).reduce((sum, t) => sum + t.amount, 0) || 0;
+                    const totalWithdrawals = txs?.filter(t => t.amount < 0).reduce((sum, t) => sum + Math.abs(t.amount), 0) || 0;
+
+                    const embed = new EmbedBuilder()
+                        .setTitle(`👨‍💼 Análisis Bancario - ${targetUser.username}`)
+                        .setColor(0x5865F2)
+                        .setThumbnail(targetUser.displayAvatarURL())
+                        .addFields(
+                            { name: '🔢 Número de Tarjeta', value: `\`${card.card_number}\``, inline: false },
+                            { name: '💰 Saldo en Banco', value: `$${bankBalance.toLocaleString()}`, inline: true },
+                            { name: '💵 Saldo en Efectivo', value: `$${cashBalance.toLocaleString()}`, inline: true },
+                            { name: '💼 Total Combinado', value: `$${(bankBalance + cashBalance).toLocaleString()}`, inline: true },
+                            { name: '📊 Total Transacciones', value: `${totalTransactions}`, inline: true },
+                            { name: '➕ Total Depósitos', value: `$${totalDeposits.toLocaleString()}`, inline: true },
+                            { name: '➖ Total Retiros', value: `$${totalWithdrawals.toLocaleString()}`, inline: true },
+                            { name: '📅 Cuenta Creada', value: `<t:${Math.floor(new Date(card.created_at).getTime() / 1000)}:R>`, inline: false }
+                        )
+                        .setFooter({ text: 'Información Confidencial - Solo para Ejecutivos' })
+                        .setTimestamp();
+
+                    await interaction.editReply({ embeds: [embed] });
+
+                } catch (error) {
+                    console.error(error);
+                    await interaction.editReply('❌ Error consultando información.');
+                }
+            }
+
+            // === ADMIN HISTORIAL ===
+            else if (adminSubCmd === 'historial') {
+                await interaction.deferReply({ ephemeral: true });
+
+                try {
+                    const { data: transactions } = await supabase
+                        .from('debit_transactions')
+                        .select('*')
+                        .eq('discord_user_id', targetUser.id)
+                        .order('created_at', { ascending: false })
+                        .limit(20);
+
+                    if (!transactions || transactions.length === 0) {
+                        return interaction.editReply(`❌ ${targetUser.username} no tiene historial.`);
+                    }
+
+                    let description = '';
+                    transactions.forEach((tx, index) => {
+                        const emoji = tx.amount > 0 ? '➕' : '➖';
+                        const tipo = tx.transaction_type === 'withdrawal' ? 'Retiro' :
+                            tx.transaction_type === 'deposit' ? 'Depósito' :
+                                tx.transaction_type === 'transfer_in' ? 'Recibido' :
+                                    tx.transaction_type === 'transfer_out' ? 'Enviado' : tx.transaction_type;
+                        const fecha = new Date(tx.created_at);
+                        description += `${emoji} **${tipo}**: $${Math.abs(tx.amount).toLocaleString()} | <t:${Math.floor(fecha.getTime() / 1000)}:R>\\n`;
+                    });
+
+                    const embed = new EmbedBuilder()
+                        .setTitle(`📋 Historial de Débito - ${targetUser.username}`)
+                        .setColor(0x00CED1)
+                        .setDescription(description)
+                        .setFooter({ text: `Mostrando últimas ${transactions.length} transacciones` })
+                        .setTimestamp();
+
+                    await interaction.editReply({ embeds: [embed] });
+
+                } catch (error) {
+                    console.error(error);
+                    await interaction.editReply('❌ Error cargando historial.');
+                }
             }
         }
     }
