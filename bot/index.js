@@ -3772,74 +3772,106 @@ client.on('interactionCreate', async interaction => {
                         }
 
                         if (i.customId === 'confirm_company') {
-                            const payRow = new ActionRowBuilder().addComponents(
-                                new ButtonBuilder().setCustomId('comp_pay_cash').setLabel('💵 Efectivo').setStyle(ButtonStyle.Success),
-                                new ButtonBuilder().setCustomId('comp_pay_bank').setLabel('🏦 Banco (UB)').setStyle(ButtonStyle.Primary),
-                                new ButtonBuilder().setCustomId('comp_pay_debit').setLabel('💳 Débito (NMX)').setStyle(ButtonStyle.Secondary)
-                            );
-                            await i.update({ content: '🏢 **Selecciona método de pago:**', embeds: [], components: [payRow] });
-                            return;
-                        }
-
-                        if (['comp_pay_cash', 'comp_pay_bank', 'comp_pay_debit'].includes(i.customId)) {
                             hasResponded = true;
                             await i.deferUpdate();
+
+                            // Use universal payment system
+                            const paymentResult = await requestPaymentMethod(
+                                interaction,
+                                ownerUser.id,
+                                totalCost,
+                                `🏢 Registro de Empresa: ${name}`
+                            );
+
+                            if (!paymentResult.success) {
+                                return interaction.editReply({ content: paymentResult.error, embeds: [], components: [] });
+                            }
+
+                            // Prepare IDs
+                            const ownerIds = [ownerUser.id];
+                            if (coOwnerUser) ownerIds.push(coOwnerUser.id);
+
+                            // Create in DB
+                            await companyService.createCompany({
+                                name: name,
+                                logo_url: logo ? logo.url : null,
+                                industry_type: type,
+                                owner_ids: ownerIds,
+                                vehicle_count: vehicles,
+                                location: location,
+                                balance: 0,
+                                status: 'active',
+                                is_private: isPrivate
+                            });
+
+                            // Final Success Embed
+                            const finalEmbed = new EmbedBuilder()
+                                .setTitle(`🏢 Nueva Empresa Registrada: ${name}`)
+                                .setColor(0x00FF00)
+                                .setDescription(`Empresa dada de alta exitosamente en Nación MX.\nCobro realizado al dueño por **$${totalCost.toLocaleString()}**.`)
+                                .addFields(
+                                    { name: '👤 Dueño', value: `<@${ownerUser.id}>`, inline: true },
+                                    { name: '👥 Co-Dueño', value: coOwnerUser ? `<@${coOwnerUser.id}>` : 'N/A', inline: true },
+                                    { name: '🏷️ Rubro', value: type, inline: true },
+                                    { name: '🔒 Privacidad', value: isPrivate ? 'Privada' : 'Pública', inline: true },
+                                    { name: '📍 Ubicación', value: location, inline: true },
+                                    { name: '🚗 Vehículos', value: `${vehicles}`, inline: true },
+                                    { name: '💵 Costo Total', value: `$${totalCost.toLocaleString()}`, inline: false },
+                                    { name: '📝 Siguientes Pasos (Comandos Útiles)', value: '1. Agrega empleados: `/empresa nomina agregar`\n2. Cobra a clientes: `/empresa cobrar @usuario [monto] [razon]`\n3. Paga sueldos: `/empresa nomina pagar`\n4. Panel de Control: `/empresa menu`', inline: false }
+                                )
+                                .setThumbnail(logo ? logo.url : null)
+                                .setFooter({ text: 'Sistema Empresarial Nación MX' })
+                                .setTimestamp();
+
+                            const menuRow = new ActionRowBuilder().addComponents(
+                                new ButtonBuilder().setCustomId('company_menu').setLabel('📋 Menú Empresa').setStyle(ButtonStyle.Primary),
+                                new ButtonBuilder().setCustomId('company_payroll').setLabel('👥 Nómina').setStyle(ButtonStyle.Secondary)
+                            );
+
+                            await interaction.editReply({ content: null, embeds: [finalEmbed], components: [menuRow] });
+
+                            // Send detailed welcome guide to owner via DM
                             try {
-                                if (totalCost > 0) {
-                                    if (i.customId === 'comp_pay_cash') {
-                                        const bal = await billingService.ubService.getUserBalance(interaction.guildId, ownerUser.id);
-                                        if ((bal.cash || 0) < totalCost) return i.followUp({ content: `❌ No tiene suficiente efectivo el dueño.`, ephemeral: true });
-                                        await billingService.ubService.removeMoney(interaction.guildId, ownerUser.id, totalCost, `Registro Empresa: ${name}`, 'cash');
-                                    }
-                                    else if (i.customId === 'comp_pay_bank') {
-                                        const bal = await billingService.ubService.getUserBalance(interaction.guildId, ownerUser.id);
-                                        if ((bal.bank || 0) < totalCost) return i.followUp({ content: `❌ No tiene suficiente en Banco el dueño.`, ephemeral: true });
-                                        await billingService.ubService.removeMoney(interaction.guildId, ownerUser.id, totalCost, `Registro Empresa: ${name}`, 'bank');
-                                    }
-                                    else if (i.customId === 'comp_pay_debit') {
-                                        // Unified with Bank
-                                        const bal = await billingService.ubService.getUserBalance(interaction.guildId, ownerUser.id);
-                                        if ((bal.bank || 0) < totalCost) return i.followUp({ content: `❌ No tiene suficiente saldo en Banco/Débito.`, ephemeral: true });
-
-                                        await billingService.ubService.removeMoney(interaction.guildId, ownerUser.id, totalCost, `Registro Empresa: ${name}`, 'bank');
-                                    }
-                                }
-
-                                // Prepare IDs
-                                const ownerIds = [ownerUser.id];
-                                if (coOwnerUser) ownerIds.push(coOwnerUser.id);
-
-                                // Create in DB
-                                await companyService.createCompany({
-                                    name: name,
-                                    logo_url: logo ? logo.url : null,
-                                    industry_type: type,
-                                    owner_ids: ownerIds,
-                                    vehicle_count: vehicles,
-                                    location: location,
-                                    balance: 0,
-                                    status: 'active',
-                                    is_private: isPrivate
-                                });
-
-                                // Final Success Embed
-                                const finalEmbed = new EmbedBuilder()
-                                    .setTitle(`🏢 Nueva Empresa Registrada: ${name}`)
-                                    .setColor(0x00FF00)
-                                    .setDescription(`Empresa dada de alta exitosamente en Nación MX.\nCobro realizado al dueño por **$${totalCost.toLocaleString()}**.`)
+                                const welcomeEmbed = new EmbedBuilder()
+                                    .setTitle(`🎉 Bienvenido a ${name}`)
+                                    .setColor(0x5865F2)
+                                    .setDescription('**Tu empresa ha sido registrada exitosamente.** Aquí tienes todo lo que necesitas saber para empezar:')
                                     .addFields(
-                                        { name: '👤 Dueño', value: `<@${ownerUser.id}>`, inline: true },
-                                        { name: '👥 Co-Dueño', value: coOwnerUser ? `<@${coOwnerUser.id}>` : 'N/A', inline: true },
-                                        { name: '🏷️ Rubro', value: type, inline: true },
-                                        { name: '🔒 Privacidad', value: isPrivate ? 'Privada' : 'Pública', inline: true },
-                                        { name: '📍 Ubicación', value: location, inline: true },
-                                        { name: '🚗 Vehículos', value: `${vehicles}`, inline: true },
-                                        { name: '💵 Costo Total', value: `$${totalCost.toLocaleString()}`, inline: false },
-                                        { name: '📝 Siguientes Pasos (Comandos Útiles)', value: '1. Agrega empleados: `/empresa nomina agregar`\n2. Cobra a clientes: `/empresa cobrar @usuario [monto] [razon]`\n3. Paga sueldos: `/empresa nomina pagar`\n4. Panel de Control: `/empresa menu`', inline: false }
+                                        {
+                                            name: '⚠️ URGENTE: Agrega Empleados a Nómina',
+                                            value: '```\n/empresa nomina agregar @usuario [salario] [puesto]\n```\n**Importante:** Los empleados deben estar en nómina para recibir pagos semanales automáticos.',
+                                            inline: false
+                                        },
+                                        {
+                                            name: '💼 Comandos Esenciales',
+                                            value: '```\n/empresa menu - Panel de control completo\n/empresa cobrar @cliente [monto] [concepto] - Cobrar por servicios\n/empresa nomina pagar - Pagar sueldos manualmente\n/empresa info - Ver información de tu empresa\n```',
+                                            inline: false
+                                        },
+                                        {
+                                            name: '💳 Tarjetas Empresariales',
+                                            value: 'Potencia tu empresa con una **Tarjeta Business:**\n• Líneas de crédito desde $50k hasta $1M\n• Intereses bajos (0.7% - 2%)\n• Beneficios fiscales y cashback\n\n**Solicita una ahora** usando el botón abajo.',
+                                            inline: false
+                                        },
+                                        {
+                                            name: '📊 Recordatorios',
+                                            value: '• Impuestos corporativos se cobran semanalmente\n• Empresas privadas pagan 15% vs 10% públicas\n• Mantén empleados activos para mejor rendimiento',
+                                            inline: false
+                                        }
                                     )
                                     .setThumbnail(logo ? logo.url : null)
-                                    .setFooter({ text: 'Sistema Empresarial Nación MX' })
+                                    .setFooter({ text: 'Sistema Empresarial Nación MX • Éxito en tu negocio' })
                                     .setTimestamp();
+
+                                const actionRow = new ActionRowBuilder().addComponents(
+                                    new ButtonBuilder()
+                                        .setLabel('💳 Solicitar Tarjeta Business')
+                                        .setStyle(ButtonStyle.Link)
+                                        .setURL(`https://discord.com/channels/${interaction.guildId}/1450269843600310373`),
+                                    new ButtonBuilder()
+                                        .setCustomId('company_quick_hire')
+                                        .setLabel('👥 Contratar Empleado')
+                                        .setStyle(ButtonStyle.Success)
+                                );
 
                                 const menuRow = new ActionRowBuilder().addComponents(
                                     new ButtonBuilder().setCustomId('company_menu').setLabel('📋 Menú Empresa').setStyle(ButtonStyle.Primary),
@@ -3895,11 +3927,9 @@ client.on('interactionCreate', async interaction => {
                                 } catch (dmError) {
                                     console.log('Could not send DM to owner:', dmError.message);
                                 }
-
-
                             } catch (err) {
                                 console.error(err);
-                                await i.followUp({ content: `❌ Error procesando el registro: ${err.message}`, ephemeral: true });
+                                await interaction.editReply({ content: `❌ Error procesando el registro: ${err.message}`, embeds: [], components: [] });
                             }
                             collector.stop();
                         }
