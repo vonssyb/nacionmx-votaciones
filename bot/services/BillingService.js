@@ -234,11 +234,12 @@ class BillingService {
                 for (const t of transfers) {
                     try {
                         // Determine Method (Cash vs Bank)
-                        const isCashGiro = t.transfer_type === 'cash_giro';
-                        const currency = isCashGiro ? 'cash' : 'bank';
+                        // All database supported types lead to Debit (Bank)
+                        const currency = 'bank';
 
                         // Add funds to receiver
-                        await this.ubService.addMoney(GUILD_ID, t.receiver_id, parseFloat(t.amount), `Giro Recibido de ${t.sender_id}: ${t.reason}`, currency);
+                        const title = (t.metadata && t.metadata.subtype === 'giro') ? 'GIRO RECIBIDO' : 'TRANSFERENCIA RECIBIDA';
+                        await this.ubService.addMoney(GUILD_ID, t.receiver_id, parseFloat(t.amount), `${title} de ${t.sender_id}: ${t.reason}`, currency);
 
                         // Mark as COMPLETED
                         await supabase
@@ -247,7 +248,7 @@ class BillingService {
                             .eq('id', t.id);
 
                         // Notify Receiver
-                        this.notifyUser(t.receiver_id, `💰 **GIRO RECIBIDO**\nHas recibido **$${parseFloat(t.amount).toLocaleString()}** de un giro de <@${t.sender_id}>.\nConcepto: ${t.reason}`, true);
+                        this.notifyUser(t.receiver_id, `💰 **${title}**\nHas recibido **$${parseFloat(t.amount).toLocaleString()}** de <@${t.sender_id}>.\nConcepto: ${t.reason}`, true);
 
                     } catch (txError) {
                         console.error(`Error processing transfer ${t.id}:`, txError);

@@ -1130,7 +1130,7 @@ client.on('interactionCreate', async interaction => {
             .setTitle('📘 Centro de Ayuda Nación MX')
             .setColor(0xD4AF37) // Gold
             .setDescription('**Selecciona una categoría en el menú de abajo para ver los comandos disponibles.**\n\nAquí encontrarás toda la información sobre el sistema financiero, legal y de entretenimiento.')
-            .setImage('https://i.imgur.com/K3pW4kC.png') // Placeholder banner, can be updated later
+            // .setImage('https://i.imgur.com/K3pW4kC.png') 
             .setFooter({ text: 'Usa el menú desplegable para navegar' });
 
         const selectMenu = new StringSelectMenuBuilder()
@@ -4061,7 +4061,7 @@ client.on('interactionCreate', async interaction => {
                 reason: razon,
                 release_date: releaseDate.toISOString(),
                 status: 'PENDING',
-                transfer_type: 'bank_transfer'
+                transfer_type: 'debit_to_debit'
             });
 
             if (pendErr) throw pendErr;
@@ -4151,7 +4151,8 @@ client.on('interactionCreate', async interaction => {
                     reason: razon,
                     release_date: releaseDate.toISOString(),
                     status: 'PENDING',
-                    transfer_type: 'cash_giro' // Explicitly mark as Cash
+                    transfer_type: 'cash_to_debit',
+                    metadata: { subtype: 'giro' }
                 });
 
             if (dbError) throw dbError;
