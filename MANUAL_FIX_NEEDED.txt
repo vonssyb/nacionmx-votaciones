@@ -1,0 +1,15 @@
+// INSTRUCCIONES: En el archivo bot/index.js
+// ELIMINA desde la línea 3429 hasta 3513 (antes de "else if (commandName === 'empresa')")
+// El código duplicado debe ser borrado completamente.
+
+// Las líneas a ELIMINAR son:
+//    3429:         await interaction.deferReply();
+//    ...
+//    3513:     }
+
+// Después del cambio, el código debe pasar directamente de:
+//    3428:         }
+// A:
+//    3429:     else if (commandName === 'empresa') {
+
+// RESUMEN: Borra aproximadamente 85 líneas de código duplicado viejo.
