@@ -3600,7 +3600,19 @@ client.on('interactionCreate', async interaction => {
                     const receiverBal = await billingService.ubService.getUserBalance(interaction.guildId, destUser.id);
                     const receiverBank = receiverBal.bank || 0;
                     if ((receiverBank + monto) > receiverMax) {
-                        return interaction.editReply(`⛔ El destinatario no puede recibir esta cantidad.\\nExcedería el límite de su tarjeta (**${receiverCard.card_type}**).\\n\\nLímite: $${receiverMax.toLocaleString()}\\nSaldo Actual: $${receiverBank.toLocaleString()}`);
+                        const errorEmbed = new EmbedBuilder()
+                            .setTitle('⛔ Transferencia Rechazada')
+                            .setColor(0xFF0000)
+                            .setDescription(`El destinatario no puede recibir esta cantidad porque excedería el límite de su tarjeta.`)
+                            .addFields(
+                                { name: '💳 Tipo de Tarjeta', value: receiverCard.card_type, inline: true },
+                                { name: '📊 Límite Máximo', value: `$${receiverMax.toLocaleString()}`, inline: true },
+                                { name: '💰 Saldo Actual', value: `$${receiverBank.toLocaleString()}`, inline: true },
+                                { name: '🚫 Intentas Transferir', value: `$${monto.toLocaleString()}`, inline: true },
+                                { name: '📈 Saldo Final Sería', value: `$${(receiverBank + monto).toLocaleString()}`, inline: true }
+                            )
+                            .setFooter({ text: 'El destinatario debe actualizar su tarjeta para recibir más dinero' });
+                        return interaction.editReply({ embeds: [errorEmbed] });
                     }
                 }
 
