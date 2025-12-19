@@ -233,8 +233,12 @@ class BillingService {
 
                 for (const t of transfers) {
                     try {
-                        // Add funds to receiver (defaults to Bank in UB Service logic usually, we'll use that)
-                        await this.ubService.addMoney(GUILD_ID, t.receiver_id, parseFloat(t.amount), `Giro Recibido de ${t.sender_id}: ${t.reason}`);
+                        // Determine Method (Cash vs Bank)
+                        const isCashGiro = t.transfer_type === 'cash_giro';
+                        const currency = isCashGiro ? 'cash' : 'bank';
+
+                        // Add funds to receiver
+                        await this.ubService.addMoney(GUILD_ID, t.receiver_id, parseFloat(t.amount), `Giro Recibido de ${t.sender_id}: ${t.reason}`, currency);
 
                         // Mark as COMPLETED
                         await supabase
