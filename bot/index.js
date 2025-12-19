@@ -5147,18 +5147,27 @@ async function handleExtraCommands(interaction) {
 
         // ===== 🎰 CASINO SYSTEM =====
         else if (commandName === 'casino') {
+            console.log('[DEBUG] Casino handler entered');
             try {
-                if (!interaction.deferred && !interaction.replied) await interaction.deferReply();
+                if (!interaction.deferred && !interaction.replied) {
+                    console.log('[DEBUG] Attempting deferReply...');
+                    await interaction.deferReply();
+                    console.log('[DEBUG] deferReply success');
+                } else {
+                    console.log('[DEBUG] Already deferred/replied');
+                }
             } catch (e) {
                 console.log('[DEBUG] Error deferring casino:', e.message);
                 return;
             }
+
             const CASINO_CHANNEL_ID = '1451398359540826306';
             const CASINO_ROLE_ID = '1449951345611378841';
             const CHIP_PRICE = 100; // 1 ficha = $100
 
             const subCmdGroup = interaction.options.getSubcommandGroup(false);
             const subCmd = interaction.options.getSubcommand();
+            console.log(`[DEBUG] Casino Subcommand: ${subCmd}`);
 
             // Info command is accessible from anywhere without restrictions
             if (subCmd !== 'info') {
@@ -5169,15 +5178,36 @@ async function handleExtraCommands(interaction) {
                     });
                 }
 
-                // Check if user has casino role
+                // Check Role (Except for buying chips, maybe?)
+                // For now, allow everyone to buy chips, but games might require role? 
+                // Let's keep it simple: Role required for everything except info
                 if (!interaction.member.roles.cache.has(CASINO_ROLE_ID)) {
                     return interaction.editReply({
-                        content: '🚫 Necesitas el rol de Casino para jugar. Pídelo a un staff.'
+                        content: `⛔ Necesitas el rol <@&${CASINO_ROLE_ID}> para entrar al casino. \n(Cómpralo en la tienda de roles o pide acceso a un admin)`
                     });
                 }
             }
 
-            // === FICHAS COMPRAR ===
+            if (subCmd === 'info') {
+                console.log('[DEBUG] Processing casino info...');
+                try {
+                    const embed = new EmbedBuilder()
+                        .setTitle('🎰 CASINO NACIÓN MX')
+                        .setColor(0xD4AF37)
+                        .setDescription('Bienvenido al centro de apuestas y juegos de azar.\nAquí podrás ganar (o perder) grandes fortunas.')
+                        .addFields(
+                            { name: '🎟️ Tus Fichas', value: 'Usa `/casino fichas estado`', inline: true },
+                            { name: '💰 Precio Ficha', value: `$${CHIP_PRICE.toLocaleString()}`, inline: true },
+                            { name: '🎲 Juegos', value: 'Slots, Ruleta, Dados, Crash, Caballos', inline: false }
+                        );
+
+                    console.log('[DEBUG] Sending casino info embed...');
+                    await interaction.editReply({ embeds: [embed] });
+                    console.log('[DEBUG] Casino info sent successfully');
+                } catch (err) {
+                    console.log('[DEBUG] Error inside casino info:', err.message);
+                }
+            }            // === FICHAS COMPRAR ===
             if (subCmdGroup === 'fichas' && subCmd === 'comprar') {
 
                 const cantidad = interaction.options.getInteger('cantidad');
