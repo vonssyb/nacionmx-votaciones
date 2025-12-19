@@ -7,28 +7,35 @@
 - **Rol Requerido:** `1449951345611378841` (para escribir en el canal)
 - **Beneficio VIP:** Tarjetas Black & Diamante tienen acceso ilimitado (sin comprar entrada)
 
-### Juegos (15 Total):
+### Juegos (20 Total):
 
-#### 🎰 Juegos de Azar Clásicos:
+#### 🎰 Juegos de Azar Clásicos (Solo):
 1. **🃏 Blackjack** - Clásico 21 contra la casa (hasta 2x)
 2. **🎡 Ruleta** - Ruleta europea con todas las apuestas (hasta 35x)
 3. **🎲 Dados (Craps)** - Tira 2 dados, apuesta al resultado (hasta 30x)
 4. **🃏 Baccarat** - Jugador vs Banca, cartas altas ganan (1.95x)
 5. **🎰 Slots** - Tragamonedas con símbolos (hasta 100x en Jackpot)
 
-#### 🎮 Juegos Modernos/Virales:
+#### 🎮 Juegos Modernos/Virales (Solo):
 6. **📉 Crash** - Apuesta y retira antes del crash (multiplicador x1.01 a x10+)
-7. **� Plinko** - Pelota cayendo por clavijas (hasta 16x)
+7. **🎯 Plinko** - Pelota cayendo por clavijas (hasta 16x)
 8. **💣 Minas** - Encuentra gemas, evita bombas (hasta 24x)
 9. **🎲 Dice** - Tira dado, gana si sale arriba/abajo de número (hasta 9.9x)
 10. **🎰 Keno** - Selecciona 10 números de 80 (hasta 10,000x)
 
-#### 🏆 Juegos Temáticos RP:
+#### 🏆 Juegos Temáticos RP (Solo):
 11. **🐴 Carreras de Caballos** - 6 caballos, apuestas múltiples (5x)
 12. **🐓 Pelea de Gallos** - Combate en rounds (1.9x)
 13. **💀 Ruleta Rusa** - Alto riesgo, ban temporal si pierdes (5x)
 14. **🎴 Video Poker** - Forma manos de poker (hasta 250x)
 15. **⚔️ Guerra de Cartas** - Carta más alta gana (2x o empate)
+
+#### 👥 JUEGOS MULTIJUGADOR (2-8 jugadores):
+16. **🃏 Poker Texas Hold'em** - Hasta 8 jugadores, pot compartido
+17. **🎲 Liar's Dice (Perudo)** - 2-6 jugadores, engaña a tus oponentes
+18. **🎯 Carrera de Apuestas** - Todos apuestan, suma más alta gana el pot
+19. **💰 Sitio y Quito** - Juego mexicano de dados, hasta 6 jugadores
+20. **🎰 Ruleta Multijugador** - Todos apuestan en la misma ruleta, resultados simultáneos
 
 ### Sistema de Fichas:
 - Comprar fichas con dinero real (efectivo, banco, crédito)
