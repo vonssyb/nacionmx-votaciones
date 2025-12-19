@@ -4926,22 +4926,25 @@ client.on('interactionCreate', async interaction => {
             const CASINO_ROLE_ID = '1449951345611378841';
             const CHIP_PRICE = 100; // 1 ficha = $100
 
-            // Check if command is in casino channel
-            if (interaction.channelId !== CASINO_CHANNEL_ID) {
-                return interaction.editReply({
-                    content: `🎰 Este comando solo puede usarse en <#${CASINO_CHANNEL_ID}>`
-                });
-            }
-
-            // Check if user has casino role
-            if (!interaction.member.roles.cache.has(CASINO_ROLE_ID)) {
-                return interaction.editReply({
-                    content: '🚫 Necesitas el rol de Casino para jugar. Pídelo a un staff.'
-                });
-            }
-
             const subCmdGroup = interaction.options.getSubcommandGroup(false);
             const subCmd = interaction.options.getSubcommand();
+
+            // Info command is accessible from anywhere without restrictions
+            if (subCmd !== 'info') {
+                // Check if command is in casino channel
+                if (interaction.channelId !== CASINO_CHANNEL_ID) {
+                    return interaction.editReply({
+                        content: `🎰 Este comando solo puede usarse en <#${CASINO_CHANNEL_ID}>`
+                    });
+                }
+
+                // Check if user has casino role
+                if (!interaction.member.roles.cache.has(CASINO_ROLE_ID)) {
+                    return interaction.editReply({
+                        content: '🚫 Necesitas el rol de Casino para jugar. Pídelo a un staff.'
+                    });
+                }
+            }
 
             // === FICHAS COMPRAR ===
             if (subCmdGroup === 'fichas' && subCmd === 'comprar') {
