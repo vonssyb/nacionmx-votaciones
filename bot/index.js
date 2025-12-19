@@ -109,6 +109,12 @@ client.once('ready', async () => {
     setInterval(updateStockPrices, 10 * 60 * 1000);
 
 
+    async function getDebitCard(discordId) {
+        const { data: card } = await supabase.from('debit_cards').select('*').eq('discord_user_id', discordId).eq('status', 'active').maybeSingle();
+        return card;
+    }
+
+
     const rest = new REST({ version: '10' }).setToken(DISCORD_TOKEN);
 
     const commands = [
@@ -3654,10 +3660,7 @@ async function handleExtraCommands(interaction) {
 
         const subcommand = interaction.options.getSubcommand();
 
-        async function getDebitCard(discordId) {
-            const { data: card } = await supabase.from('debit_cards').select('*').eq('discord_user_id', discordId).eq('status', 'active').maybeSingle();
-            return card;
-        }
+
 
         if (subcommand === 'estado') {
             try {
