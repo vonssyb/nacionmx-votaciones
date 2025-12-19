@@ -3796,12 +3796,14 @@ client.on('interactionCreate', async interaction => {
                     let description = '';
                     transactions.forEach((tx, index) => {
                         const emoji = tx.amount > 0 ? '➕' : '➖';
-                        const tipo = tx.transaction_type === 'withdrawal' ? 'Retiro' :
-                            tx.transaction_type === 'deposit' ? 'Depósito' :
-                                tx.transaction_type === 'transfer_in' ? 'Recibido' :
-                                    tx.transaction_type === 'transfer_out' ? 'Enviado' : tx.transaction_type;
+                        let tipo = tx.transaction_type;
+                        if (tipo === 'withdrawal') tipo = 'Retiro';
+                        else if (tipo === 'deposit') tipo = 'Depósito';
+                        else if (tipo === 'transfer_in') tipo = 'Recibido';
+                        else if (tipo === 'transfer_out') tipo = 'Enviado';
+
                         const fecha = new Date(tx.created_at);
-                        description += `${emoji} **${tipo}**: $${Math.abs(tx.amount).toLocaleString()} | <t:${Math.floor(fecha.getTime() / 1000)}:R>\\n`;
+                        description += `${emoji} **${tipo}**: $${Math.abs(tx.amount).toLocaleString()} | <t:${Math.floor(fecha.getTime() / 1000)}:R>\n`;
                     });
 
                     const embed = new EmbedBuilder()
