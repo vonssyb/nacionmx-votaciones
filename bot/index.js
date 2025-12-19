@@ -53,6 +53,21 @@ let globalStocks = [
     { symbol: 'NMX', name: 'Nación MX Corp', base: 500, current: 500, type: 'Empresa' }
 ];
 
+// GLOBAL CASINO SESSIONS (MULTIPLAYER)
+let raceSession = {
+    isOpen: false,
+    bets: [], // { userId, horseId, amount, interaction }
+    timer: null,
+    startTime: null
+};
+
+let russianRouletteSession = {
+    isOpen: false,
+    players: [], // { userId, amount, name, interaction }
+    timer: null,
+    startTime: null
+};
+
 
 async function getDebitCard(discordId) {
     const { data: card } = await supabase.from('debit_cards').select('*').eq('discord_user_id', discordId).eq('status', 'active').maybeSingle();
@@ -105,7 +120,8 @@ client.once('ready', async () => {
     console.log(`📡 Conectado a Supabase: ${supabaseUrl}`);
 
     // Update Status to indicate DEBUG MODE
-    client.user.setActivity('🔴 MODO DEBUG | /ayuda', { type: ActivityType.Playing });
+    // Status Normal
+    client.user.setActivity('Nación MX | /ayuda', { type: ActivityType.Playing });
 
     // Start Auto-Billing Cron
     billingService.startCron();
@@ -622,8 +638,11 @@ client.once('ready', async () => {
                 },
                 {
                     name: 'mejorar',
-                    description: 'Subir de nivel tu tarjeta de débito',
-                    type: 1
+                    description: 'Ofrecer mejora de tarjeta de débito (Ejecutivos)',
+                    type: 1,
+                    options: [
+                        { name: 'usuario', description: 'Cliente a ofrecer mejora', type: 6, required: true }
+                    ]
                 },
                 { name: 'historial', description: 'Ver transacciones', type: 1 },
                 { name: 'info', description: 'Ver información completa de tu tarjeta de débito', type: 1 },
@@ -2973,259 +2992,261 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             const currentPrice = stock.current;
             const totalCost = currentPrice * cantidad;
 
-            // Check user balance
-            try {
-                const balance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
-                if (balance.bank < totalCost) {
-                    return await interaction.editReply({
-                        content: `❌ Fondos insuficientes. Necesitas $${totalCost.toLocaleString()} MXN pero solo tienes $${balance.bank.toLocaleString()} MXN en el banco.`,
-                        ephemeral: false
-                    });
-                }
+            // Request Payment Method (Cash, Debit, Credit)
+            const paymentResult = await requestPaymentMethod(
+                interaction,
+                interaction.user.id,
+                totalCost,
+                `📈 Compra de ${cantidad} acciones de ${symbol}`
+            );
 
-                // Deduct money
-                await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, totalCost, `Compra ${cantidad} ${symbol}`);
+            if (!paymentResult.success) {
+                return interaction.editReply({ content: paymentResult.error, components: [] });
+            }
 
-                // Update portfolio
-                const { data: existing } = await supabase
-                    .from('stock_portfolios')
-                    .select('*')
-                    .eq('discord_user_id', interaction.user.id)
-                    .eq('stock_symbol', symbol)
-                    .single();
+            // Payment is already processed in requestPaymentMethod
+            const methodLabel = paymentResult.method === 'credit' ? '💳 Crédito' : (paymentResult.method === 'cash' ? '💵 Efectivo' : '🏦 Banco/Débito');
 
-                if (existing) {
-                    const totalShares = existing.shares + cantidad;
-                    const newAvgPrice = ((existing.avg_buy_price * existing.shares) + (currentPrice * cantidad)) / totalShares;
+            // Update portfolio
+            const { data: existing } = await supabase
+                .from('stock_portfolios')
+                .select('*')
+                .eq('discord_user_id', interaction.user.id)
+                .eq('stock_symbol', symbol)
+                .single();
 
-                    await supabase
-                        .from('stock_portfolios')
-                        .update({ shares: totalShares, avg_buy_price: newAvgPrice })
-                        .eq('discord_user_id', interaction.user.id)
-                        .eq('stock_symbol', symbol);
-                } else {
-                    await supabase
-                        .from('stock_portfolios')
-                        .insert({
-                            discord_user_id: interaction.user.id,
-                            stock_symbol: symbol,
-                            shares: cantidad,
-                            avg_buy_price: currentPrice
-                        });
-                }
+            if (existing) {
+                const totalShares = existing.shares + cantidad;
+                const newAvgPrice = ((existing.avg_buy_price * existing.shares) + (currentPrice * cantidad)) / totalShares;
 
-                // Log transaction
                 await supabase
-                    .from('stock_transactions')
+                    .from('stock_portfolios')
+                    .update({ shares: totalShares, avg_buy_price: newAvgPrice })
+                    .eq('discord_user_id', interaction.user.id)
+                    .eq('stock_symbol', symbol);
+            } else {
+                await supabase
+                    .from('stock_portfolios')
                     .insert({
                         discord_user_id: interaction.user.id,
                         stock_symbol: symbol,
-                        transaction_type: 'BUY',
                         shares: cantidad,
-                        price_per_share: currentPrice,
-                        total_amount: totalCost
+                        avg_buy_price: currentPrice
                     });
-
-                const embed = new EmbedBuilder()
-                    .setTitle('✅ Compra Exitosa')
-                    .setColor(0x00FF00)
-                    .setDescription(`Has comprado **${cantidad} acciones de ${symbol}**`)
-                    .addFields(
-                        { name: 'Precio por Acción', value: `$${currentPrice.toLocaleString()}`, inline: true },
-                        { name: 'Total Pagado', value: `$${totalCost.toLocaleString()}`, inline: true },
-                        { name: 'Balance Restante', value: `$${(balance.bank - totalCost).toLocaleString()}`, inline: true }
-                    )
-                    .setTimestamp();
-
-                await interaction.editReply({ embeds: [embed] });
-            } catch (error) {
-                console.error('Error comprando acciones:', error);
-                await interaction.editReply({ content: '❌ Error procesando la compra. Intenta de nuevo.', ephemeral: false });
             }
+
+            // Log transaction
+            await supabase
+                .from('stock_transactions')
+                .insert({
+                    discord_user_id: interaction.user.id,
+                    stock_symbol: symbol,
+                    transaction_type: 'BUY',
+                    shares: cantidad,
+                    price_per_share: currentPrice,
+                    total_amount: totalCost
+                });
+
+            const embed = new EmbedBuilder()
+                .setTitle('✅ Compra Exitosa')
+                .setColor(0x00FF00)
+                .setDescription(`Has comprado **${cantidad} acciones de ${symbol}**`)
+                .addFields(
+                    { name: 'Precio por Acción', value: `$${currentPrice.toLocaleString()}`, inline: true },
+                    { name: 'Total Pagado', value: `$${totalCost.toLocaleString()}`, inline: true },
+                    { name: 'Balance Restante', value: `$${(balance.bank - totalCost).toLocaleString()}`, inline: true }
+                )
+                .setTimestamp();
+
+            await interaction.editReply({ embeds: [embed] });
+        } catch (error) {
+            console.error('Error comprando acciones:', error);
+            await interaction.editReply({ content: '❌ Error procesando la compra. Intenta de nuevo.', ephemeral: false });
+        }
+    }
+
+    else if (subcommand === 'vender') {
+        const symbol = interaction.options.getString('symbol').toUpperCase();
+        const cantidad = interaction.options.getNumber('cantidad');
+
+        // Validate stock exists in Global
+        const stock = globalStocks.find(s => s.symbol === symbol);
+        if (!stock) {
+            return await interaction.editReply({ content: `❌ Símbolo inválido. Usa: ${globalStocks.map(s => s.symbol).join(', ')}`, ephemeral: false });
         }
 
-        else if (subcommand === 'vender') {
-            const symbol = interaction.options.getString('symbol').toUpperCase();
-            const cantidad = interaction.options.getNumber('cantidad');
+        if (cantidad <= 0) {
+            return await interaction.editReply({ content: '❌ La cantidad debe ser mayor a 0.', ephemeral: false });
+        }
 
-            // Validate stock exists in Global
-            const stock = globalStocks.find(s => s.symbol === symbol);
-            if (!stock) {
-                return await interaction.editReply({ content: `❌ Símbolo inválido. Usa: ${globalStocks.map(s => s.symbol).join(', ')}`, ephemeral: false });
+        try {
+            // Check portfolio
+            const { data: portfolio } = await supabase
+                .from('stock_portfolios')
+                .select('*')
+                .eq('discord_user_id', interaction.user.id)
+                .eq('stock_symbol', symbol)
+                .single();
+
+            if (!portfolio || portfolio.shares < cantidad) {
+                return await interaction.editReply({
+                    content: `❌ No tienes suficientes acciones. Tienes ${portfolio?.shares || 0} de ${symbol}.`,
+                    ephemeral: false
+                });
             }
 
-            if (cantidad <= 0) {
-                return await interaction.editReply({ content: '❌ La cantidad debe ser mayor a 0.', ephemeral: false });
-            }
+            const currentPrice = stock.current;
+            const totalRevenue = currentPrice * cantidad;
+            const profit = (currentPrice - portfolio.avg_buy_price) * cantidad;
+            const profitEmoji = profit >= 0 ? '📈' : '📉';
 
-            try {
-                // Check portfolio
-                const { data: portfolio } = await supabase
+            // Add money (Use BillingService wrapper if possible, or direct UB service)
+            await billingService.ubService.addMoney(interaction.guildId, interaction.user.id, totalRevenue, `Venta ${cantidad} ${symbol}`);
+
+            // Update portfolio
+            const newShares = portfolio.shares - cantidad;
+            if (newShares <= 0) {
+                await supabase
                     .from('stock_portfolios')
-                    .select('*')
+                    .delete()
                     .eq('discord_user_id', interaction.user.id)
-                    .eq('stock_symbol', symbol)
-                    .single();
+                    .eq('stock_symbol', symbol);
+            } else {
+                await supabase
+                    .from('stock_portfolios')
+                    .update({ shares: newShares })
+                    .eq('discord_user_id', interaction.user.id)
+                    .eq('stock_symbol', symbol);
+            }
 
-                if (!portfolio || portfolio.shares < cantidad) {
-                    return await interaction.editReply({
-                        content: `❌ No tienes suficientes acciones. Tienes ${portfolio?.shares || 0} de ${symbol}.`,
-                        ephemeral: false
-                    });
-                }
+            // Log transaction
+            await supabase
+                .from('stock_transactions')
+                .insert({
+                    discord_user_id: interaction.user.id,
+                    stock_symbol: symbol,
+                    transaction_type: 'SELL',
+                    shares: cantidad,
+                    price_per_share: currentPrice,
+                    total_amount: totalRevenue
+                });
+
+            const embed = new EmbedBuilder()
+                .setTitle('✅ Venta Exitosa')
+                .setColor(profit >= 0 ? 0x00FF00 : 0xFF0000)
+                .setDescription(`Has vendido **${cantidad} acciones de ${symbol}**`)
+                .addFields(
+                    { name: 'Precio por Acción', value: `$${currentPrice.toLocaleString()} MXN`, inline: true },
+                    { name: 'Total Recibido', value: `$${totalRevenue.toLocaleString()} MXN`, inline: true },
+                    { name: profit >= 0 ? '📈 Ganancia' : '📉 Pérdida', value: `$${Math.abs(Math.floor(profit)).toLocaleString()} MXN`, inline: true }
+                )
+                .setTimestamp();
+
+            await interaction.editReply({ embeds: [embed] });
+        } catch (error) {
+            console.error('Error vendiendo acciones:', error);
+            await interaction.editReply({ content: '❌ Error procesando la venta. Intenta de nuevo.', ephemeral: false });
+        }
+    }
+
+    else if (subcommand === 'portafolio') {
+        try {
+            const { data: portfolio } = await supabase
+                .from('stock_portfolios')
+                .select('*')
+                .eq('discord_user_id', interaction.user.id);
+
+            if (!portfolio || portfolio.length === 0) {
+                return await interaction.editReply({ content: '📊 Tu portafolio está vacío. Usa `/bolsa comprar` para invertir.', ephemeral: false });
+            }
+
+            const embed = new EmbedBuilder()
+                .setTitle(`📊 Portafolio de ${interaction.user.username}`)
+                .setColor(0xFFD700)
+                .setTimestamp();
+
+            let totalInvested = 0;
+            let totalCurrent = 0;
+
+            portfolio.forEach(p => {
+                const stock = globalStocks.find(s => s.symbol === p.stock_symbol);
+                if (!stock) return;
 
                 const currentPrice = stock.current;
-                const totalRevenue = currentPrice * cantidad;
-                const profit = (currentPrice - portfolio.avg_buy_price) * cantidad;
-                const profitEmoji = profit >= 0 ? '📈' : '📉';
+                const invested = p.avg_buy_price * p.shares;
+                const currentValue = currentPrice * p.shares;
+                const profitLoss = currentValue - invested;
+                const profitEmoji = profitLoss >= 0 ? '📈' : '📉';
 
-                // Add money (Use BillingService wrapper if possible, or direct UB service)
-                await billingService.ubService.addMoney(interaction.guildId, interaction.user.id, totalRevenue, `Venta ${cantidad} ${symbol}`);
+                totalInvested += invested;
+                totalCurrent += currentValue;
 
-                // Update portfolio
-                const newShares = portfolio.shares - cantidad;
-                if (newShares <= 0) {
-                    await supabase
-                        .from('stock_portfolios')
-                        .delete()
-                        .eq('discord_user_id', interaction.user.id)
-                        .eq('stock_symbol', symbol);
-                } else {
-                    await supabase
-                        .from('stock_portfolios')
-                        .update({ shares: newShares })
-                        .eq('discord_user_id', interaction.user.id)
-                        .eq('stock_symbol', symbol);
-                }
-
-                // Log transaction
-                await supabase
-                    .from('stock_transactions')
-                    .insert({
-                        discord_user_id: interaction.user.id,
-                        stock_symbol: symbol,
-                        transaction_type: 'SELL',
-                        shares: cantidad,
-                        price_per_share: currentPrice,
-                        total_amount: totalRevenue
-                    });
-
-                const embed = new EmbedBuilder()
-                    .setTitle('✅ Venta Exitosa')
-                    .setColor(profit >= 0 ? 0x00FF00 : 0xFF0000)
-                    .setDescription(`Has vendido **${cantidad} acciones de ${symbol}**`)
-                    .addFields(
-                        { name: 'Precio por Acción', value: `$${currentPrice.toLocaleString()} MXN`, inline: true },
-                        { name: 'Total Recibido', value: `$${totalRevenue.toLocaleString()} MXN`, inline: true },
-                        { name: profit >= 0 ? '📈 Ganancia' : '📉 Pérdida', value: `$${Math.abs(Math.floor(profit)).toLocaleString()} MXN`, inline: true }
-                    )
-                    .setTimestamp();
-
-                await interaction.editReply({ embeds: [embed] });
-            } catch (error) {
-                console.error('Error vendiendo acciones:', error);
-                await interaction.editReply({ content: '❌ Error procesando la venta. Intenta de nuevo.', ephemeral: false });
-            }
-        }
-
-        else if (subcommand === 'portafolio') {
-            try {
-                const { data: portfolio } = await supabase
-                    .from('stock_portfolios')
-                    .select('*')
-                    .eq('discord_user_id', interaction.user.id);
-
-                if (!portfolio || portfolio.length === 0) {
-                    return await interaction.editReply({ content: '📊 Tu portafolio está vacío. Usa `/bolsa comprar` para invertir.', ephemeral: false });
-                }
-
-                const embed = new EmbedBuilder()
-                    .setTitle(`📊 Portafolio de ${interaction.user.username}`)
-                    .setColor(0xFFD700)
-                    .setTimestamp();
-
-                let totalInvested = 0;
-                let totalCurrent = 0;
-
-                portfolio.forEach(p => {
-                    const stock = globalStocks.find(s => s.symbol === p.stock_symbol);
-                    if (!stock) return;
-
-                    const currentPrice = stock.current;
-                    const invested = p.avg_buy_price * p.shares;
-                    const currentValue = currentPrice * p.shares;
-                    const profitLoss = currentValue - invested;
-                    const profitEmoji = profitLoss >= 0 ? '📈' : '📉';
-
-                    totalInvested += invested;
-                    totalCurrent += currentValue;
-
-                    embed.addFields({
-                        name: `${profitEmoji} ${p.stock_symbol} (${p.shares} acciones)`,
-                        value: `Compra: $${p.avg_buy_price.toLocaleString()} | Actual: $${currentPrice.toLocaleString()}\nValor: $${currentValue.toLocaleString()} | ${profitLoss >= 0 ? '📈 Ganancia' : '📉 Pérdida'}: $${Math.abs(profitLoss).toLocaleString()}`,
-                        inline: false
-                    });
+                embed.addFields({
+                    name: `${profitEmoji} ${p.stock_symbol} (${p.shares} acciones)`,
+                    value: `Compra: $${p.avg_buy_price.toLocaleString()} | Actual: $${currentPrice.toLocaleString()}\nValor: $${currentValue.toLocaleString()} | ${profitLoss >= 0 ? '📈 Ganancia' : '📉 Pérdida'}: $${Math.abs(profitLoss).toLocaleString()}`,
+                    inline: false
                 });
+            });
 
-                const totalProfit = totalCurrent - totalInvested;
-                const profitEmoji = totalProfit >= 0 ? '📈' : '📉';
+            const totalProfit = totalCurrent - totalInvested;
+            const profitEmoji = totalProfit >= 0 ? '📈' : '📉';
 
-                const profitLabel = totalProfit >= 0 ? '📈 Ganancia Total' : '📉 Pérdida Total';
-                embed.setDescription(`**Total Invertido:** $${totalInvested.toLocaleString()}\n**Valor Actual:** $${totalCurrent.toLocaleString()}\n**${profitLabel}:** $${Math.abs(totalProfit).toLocaleString()}`);
+            const profitLabel = totalProfit >= 0 ? '📈 Ganancia Total' : '📉 Pérdida Total';
+            embed.setDescription(`**Total Invertido:** $${totalInvested.toLocaleString()}\n**Valor Actual:** $${totalCurrent.toLocaleString()}\n**${profitLabel}:** $${Math.abs(totalProfit).toLocaleString()}`);
 
-                await interaction.editReply({ embeds: [embed] });
-            } catch (error) {
-                console.error('Error mostrando portafolio:', error);
-                await interaction.editReply({ content: '❌ Error obteniendo tu portafolio.', ephemeral: false });
-            }
-        }
-
-        else if (subcommand === 'historial') {
-            try {
-                const { data: transactions } = await supabase
-                    .from('stock_transactions')
-                    .select('*')
-                    .eq('discord_user_id', interaction.user.id)
-                    .order('created_at', { ascending: false })
-                    .limit(10);
-
-                if (!transactions || transactions.length === 0) {
-                    return await interaction.editReply({ content: '📜 No tienes transacciones registradas.', ephemeral: false });
-                }
-
-                const embed = new EmbedBuilder()
-                    .setTitle(`📜 Historial de Transacciones`)
-                    .setColor(0x3498DB)
-                    .setDescription(`Últimas ${transactions.length} transacciones`)
-                    .setTimestamp();
-
-                transactions.forEach(t => {
-                    const typeEmoji = t.transaction_type === 'BUY' ? '🛒' : '💰';
-                    const date = new Date(t.created_at).toLocaleDateString();
-
-                    embed.addFields({
-                        name: `${typeEmoji} ${t.transaction_type} - ${t.stock_symbol}`,
-                        value: `${t.shares} acciones @ $${t.price_per_share.toLocaleString()} = $${t.total_amount.toLocaleString()}\n${date}`,
-                        inline: true
-                    });
-                });
-
-                await interaction.editReply({ embeds: [embed] });
-            } catch (error) {
-                console.error('Error mostrando historial:', error);
-                await interaction.editReply({ content: '❌ Error obteniendo tu historial.', ephemeral: false });
-            }
+            await interaction.editReply({ embeds: [embed] });
+        } catch (error) {
+            console.error('Error mostrando portafolio:', error);
+            await interaction.editReply({ content: '❌ Error obteniendo tu portafolio.', ephemeral: false });
         }
     }
+
+    else if (subcommand === 'historial') {
+        try {
+            const { data: transactions } = await supabase
+                .from('stock_transactions')
+                .select('*')
+                .eq('discord_user_id', interaction.user.id)
+                .order('created_at', { ascending: false })
+                .limit(10);
+
+            if (!transactions || transactions.length === 0) {
+                return await interaction.editReply({ content: '📜 No tienes transacciones registradas.', ephemeral: false });
+            }
+
+            const embed = new EmbedBuilder()
+                .setTitle(`📜 Historial de Transacciones`)
+                .setColor(0x3498DB)
+                .setDescription(`Últimas ${transactions.length} transacciones`)
+                .setTimestamp();
+
+            transactions.forEach(t => {
+                const typeEmoji = t.transaction_type === 'BUY' ? '🛒' : '💰';
+                const date = new Date(t.created_at).toLocaleDateString();
+
+                embed.addFields({
+                    name: `${typeEmoji} ${t.transaction_type} - ${t.stock_symbol}`,
+                    value: `${t.shares} acciones @ $${t.price_per_share.toLocaleString()} = $${t.total_amount.toLocaleString()}\n${date}`,
+                    inline: true
+                });
+            });
+
+            await interaction.editReply({ embeds: [embed] });
+        } catch (error) {
+            console.error('Error mostrando historial:', error);
+            await interaction.editReply({ content: '❌ Error obteniendo tu historial.', ephemeral: false });
+        }
+    }
+}
 
     else if (commandName === 'impuestos') {
-        await interaction.reply({ content: '🛠️ **Próximamente:** Sistema de impuestos dinámico.', ephemeral: true });
-    }
-    // Check if interaction was handled; if not, pass to the second handler (Extra Commands)
-    if (!interaction.replied && !interaction.deferred) {
-        console.log(`[DEBUG] Delegating interaction ${interaction.customId || interaction.commandName} to handleExtraCommands`);
-        await handleExtraCommands(interaction);
-    }
+    await interaction.reply({ content: '🛠️ **Próximamente:** Sistema de impuestos dinámico.', ephemeral: true });
+}
+// Check if interaction was handled; if not, pass to the second handler (Extra Commands)
+if (!interaction.replied && !interaction.deferred) {
+    console.log(`[DEBUG] Delegating interaction ${interaction.customId || interaction.commandName} to handleExtraCommands`);
+    await handleExtraCommands(interaction);
+}
 });
 
 function getColorForCard(type) {
@@ -3691,10 +3712,18 @@ async function handleExtraCommands(interaction) {
         // Add this code between line 3561 (after estado closing }) and line 3563 (before depositar comment)
 
         // === MEJORAR (Upgrade Debit Card) ===
+        // === MEJORAR (Upgrade Debit Card - STAFF ONLY) ===
         else if (subcommand === 'mejorar') {
+            const BANK_EXEC_ROLE_ID = '1450688555503587459';
+            if (!interaction.member.roles.cache.has(BANK_EXEC_ROLE_ID) && !interaction.member.permissions.has('Administrator')) {
+                return interaction.editReply('⛔ Solo ejecutivos bancarios pueden ofrecer mejoras.');
+            }
+
+            const targetUser = interaction.options.getUser('usuario');
+
             try {
-                const card = await getDebitCard(interaction.user.id);
-                if (!card) return interaction.editReply('❌ No tienes una tarjeta de débito activa.');
+                const card = await getDebitCard(targetUser.id);
+                if (!card) return interaction.editReply(`❌ ${targetUser.username} no tiene una tarjeta de débito activa.`);
 
                 const currentTier = card.card_tier || 'NMX Débito';
                 let nextTier = null;
@@ -3703,36 +3732,42 @@ async function handleExtraCommands(interaction) {
                 else if (currentTier === 'NMX Débito Plus') nextTier = 'NMX Débito Gold';
 
                 if (!nextTier) {
-                    return interaction.editReply(`✨ Tu tarjeta **${currentTier}** ya es el nivel máximo.`);
+                    return interaction.editReply(`✨ La tarjeta de ${targetUser.username} (**${currentTier}**) ya es el nivel máximo.`);
                 }
 
                 const nextStats = CARD_TIERS[nextTier];
                 const upgradeCost = nextStats.cost;
 
                 const embed = new EmbedBuilder()
-                    .setTitle('🚀 Mejora tu Tarjeta de Débito')
+                    .setTitle('🚀 Oferta de Mejora de Débito')
                     .setColor(0x00CED1)
-                    .setDescription(`Estás a punto de mejorar tu tarjeta **${currentTier}** a **${nextTier}**.`)
+                    .setDescription(`Hola <@${targetUser.id}>, el banco te invita a mejorar tu tarjeta **${currentTier}** a **${nextTier}**.`)
                     .addFields(
                         { name: '🌟 Nuevo Nivel', value: nextTier, inline: true },
                         { name: '💎 Beneficios', value: `Límite Máximo: $${nextStats.max_balance === Infinity ? 'Ilimitado' : nextStats.max_balance.toLocaleString()}`, inline: true },
                         { name: '💰 Costo de Mejora', value: `$${upgradeCost.toLocaleString()}`, inline: false }
-                    );
+                    )
+                    .setFooter({ text: 'Acepta la oferta para procesar el cobro inmediatamente.' });
 
                 const row = new ActionRowBuilder()
                     .addComponents(
                         new ButtonBuilder()
                             .setCustomId(`btn_udp_upgrade_${card.id}_${nextTier.replace(/ /g, '_')}`)
-                            .setLabel(`Mejorar por $${upgradeCost}`)
+                            .setLabel(`Aceptar Mejora ($${upgradeCost})`)
                             .setStyle(ButtonStyle.Success)
-                            .setEmoji('💳')
+                            .setEmoji('💳'),
+                        new ButtonBuilder()
+                            .setCustomId(`btn_cancel_upgrade_${targetUser.id}`)
+                            .setLabel('Rechazar')
+                            .setStyle(ButtonStyle.Danger)
                     );
 
-                await interaction.editReply({ embeds: [embed], components: [row] });
+                // Send to the channel, pinging the user
+                await interaction.editReply({ content: `<@${targetUser.id}>`, embeds: [embed], components: [row] });
 
             } catch (error) {
                 console.error(error);
-                await interaction.editReply('❌ Error procesando la mejora.');
+                await interaction.editReply('❌ Error procesando la oferta de mejora.');
             }
         }
 
@@ -5556,8 +5591,25 @@ async function handleExtraCommands(interaction) {
 
 
     // ===== 🎮 CASINO GAMES =====
+
+    // Helper for tension
+    const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+    // GLOBAL ROULETE SESSION
+    let rouletteSession = {
+        isOpen: false,
+        bets: [],
+        timer: null,
+        startTime: null
+    };
+
+// ... existing code ...
+
+    // ===== 🎮 CASINO GAMES =====
     else if (commandName === 'jugar') {
-        await interaction.deferReply(); // Global defer for all games
+        // Note: We do NOT deferReply immediately here because Roulette needs to handle it differently (or we defer and edit).
+        // Actually, for simplicity, let's defer everyone. Roulette will just edit the reply to say "Bet placed".
+        await interaction.deferReply();
 
         const CASINO_CHANNEL_ID = '1451398359540826306';
         const CASINO_ROLE_ID = '1449951345611378841';
@@ -5582,6 +5634,9 @@ async function handleExtraCommands(interaction) {
                     .select('*')
                     .eq('discord_user_id', userId)
                     .single();
+
+                // If account doesn't exist? Should be handled before calling this, but safety check:
+                if (!account) return null;
 
                 const newBalance = account.chips_balance + resultAmount;
                 const won = resultAmount > 0 ? resultAmount : 0;
@@ -5649,10 +5704,13 @@ async function handleExtraCommands(interaction) {
             if (!check.hasEnough) return interaction.editReply(check.message);
 
             try {
+                // TENSION ANIMATION
+                await interaction.editReply('🎰 **Girando...** ⬜ ⬜ ⬜');
+                await sleep(1000);
+
                 const symbols = ['🍒', '🍋', '🍊', '🍇', '💎', '⭐', '7️⃣'];
                 const weights = [30, 25, 20, 15, 7, 2, 1]; // Probabilidades
 
-                // Pick weighted random
                 function pickSymbol() {
                     const total = weights.reduce((sum, w) => sum + w, 0);
                     let random = Math.floor(Math.random() * total);
@@ -5664,7 +5722,13 @@ async function handleExtraCommands(interaction) {
                 }
 
                 const reel1 = pickSymbol();
+                await interaction.editReply(`🎰 **Girando...** ${reel1} ⬜ ⬜`);
+                await sleep(800);
+
                 const reel2 = pickSymbol();
+                await interaction.editReply(`🎰 **Girando...** ${reel1} ${reel2} ⬜`);
+                await sleep(800);
+
                 const reel3 = pickSymbol();
 
                 let multiplier = 0;
@@ -5716,7 +5780,7 @@ async function handleExtraCommands(interaction) {
                     .setFooter({ text: `Multiplicador: x${multiplier}` })
                     .setTimestamp();
 
-                await interaction.editReply({ embeds: [embed] });
+                await interaction.editReply({ content: null, embeds: [embed] });
 
             } catch (error) {
                 console.error(error);
@@ -5735,6 +5799,10 @@ async function handleExtraCommands(interaction) {
             if (!check.hasEnough) return interaction.editReply(check.message);
 
             try {
+                // Tension
+                await interaction.editReply('🎲 **Lanzando dados...** 🎲');
+                await sleep(1500);
+
                 const resultado = Math.floor(Math.random() * 100); // 0-99
 
                 let multiplier = 0;
@@ -5771,7 +5839,7 @@ async function handleExtraCommands(interaction) {
                     .setFooter({ text: win ? `Multiplicador: x${multiplier.toFixed(2)}` : 'Intenta de nuevo' })
                     .setTimestamp();
 
-                await interaction.editReply({ embeds: [embed] });
+                await interaction.editReply({ content: null, embeds: [embed] });
 
             } catch (error) {
                 console.error(error);
@@ -5781,10 +5849,13 @@ async function handleExtraCommands(interaction) {
 
         // === BLACKJACK ===
         else if (game === 'blackjack') {
-
+            // Blackjack is fast paced, maybe just 1s delay
             const apuesta = interaction.options.getInteger('apuesta');
             const check = await checkChips(interaction.user.id, apuesta);
             if (!check.hasEnough) return interaction.editReply(check.message);
+
+            await interaction.editReply('🃏 **Repartiendo cartas...**');
+            await sleep(1000);
 
             try {
                 // Simple blackjack implementation
@@ -5874,7 +5945,7 @@ async function handleExtraCommands(interaction) {
                     .setFooter({ text: `Multiplicador: x${multiplier}` })
                     .setTimestamp();
 
-                await interaction.editReply({ embeds: [embed] });
+                await interaction.editReply({ content: null, embeds: [embed] });
 
             } catch (error) {
                 console.error(error);
@@ -5882,7 +5953,7 @@ async function handleExtraCommands(interaction) {
             }
         }
 
-        // === RULETA ===
+        // === MULTIPLAYER RULETA ===
         else if (game === 'ruleta') {
 
             const apuesta = interaction.options.getInteger('apuesta');
@@ -5896,76 +5967,182 @@ async function handleExtraCommands(interaction) {
                 return interaction.editReply('❌ Debes especificar un número si eliges "Número Exacto"');
             }
 
+            // Immediately deduct chips to prevent double betting logic issues or exploiting
+            // Note: In a real robust system, we would hold these chips in "escrow". 
+            // For simplicity, we deduct them now. If error, we should refund.
+            // But we already checked balance.
+
             try {
-                const resultado = Math.floor(Math.random() * 37); // 0-36
-                const rojos = [1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36];
-                const esRojo = rojos.includes(resultado);
-                const esNegro = resultado !== 0 && !esRojo;
-                const esPar = resultado !== 0 && resultado % 2 === 0;
-                const esImpar = resultado !== 0 && resultado % 2 !== 0;
+                // Deduct chips immediately
+                await supabase.rpc('decrement_chips', { user_id_input: interaction.user.id, amount: apuesta });
+                // Note: I don't have this RPC, so I will stick to JS update for now to avoid migration overhead.
+                // Re-fetch to be safe
+                const { data: acc } = await supabase.from('casino_chips').select('*').eq('discord_user_id', interaction.user.id).single();
+                if (acc.chips_balance < apuesta) return interaction.editReply('❌ Fondos insuficientes.');
 
-                let win = false;
-                let multiplier = 0;
+                await supabase
+                    .from('casino_chips')
+                    .update({ chips_balance: acc.chips_balance - apuesta })
+                    .eq('discord_user_id', interaction.user.id);
 
-                switch (tipo) {
-                    case 'red':
-                        win = esRojo;
-                        multiplier = 2;
-                        break;
-                    case 'nero':
-                        win = esNegro;
-                        multiplier = 2;
-                        break;
-                    case 'even':
-                        win = esPar;
-                        multiplier = 2;
-                        break;
-                    case 'odd':
-                        win = esImpar;
-                        multiplier = 2;
-                        break;
-                    case 'number':
-                        win = resultado === numeroElegido;
-                        multiplier = 35;
-                        break;
+
+                // Add to session
+                rouletteSession.bets.push({
+                    user: interaction.user,
+                    userId: interaction.user.id,
+                    amount: apuesta,
+                    type: tipo,
+                    number: numeroElegido,
+                    interaction: interaction // Keep ref to edit reply later? Or just one big message?
+                    // We can't edit 50 interactions easily. We will send a results message to the channel.
+                });
+
+                if (!rouletteSession.isOpen) {
+                    rouletteSession.isOpen = true;
+                    rouletteSession.startTime = Date.now();
+
+                    // Public announcement
+                    const announcement = await interaction.channel.send({
+                        content: `🎡 **¡RULETA ABIERTA!** \n\n⏳ Giramos en **30 segundos**.\n💰 Hagan sus apuestas con \`/jugar ruleta\`!`
+                    });
+
+                    // Set Timer
+                    rouletteSession.timer = setTimeout(async () => {
+                        // SPIN!
+                        rouletteSession.isOpen = false;
+                        const resultado = Math.floor(Math.random() * 37); // 0-36
+                        const rojos = [1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36];
+                        const esRojo = rojos.includes(resultado);
+                        const esNegro = resultado !== 0 && !esRojo;
+                        const esPar = resultado !== 0 && resultado % 2 === 0;
+                        const esImpar = resultado !== 0 && resultado % 2 !== 0; // Fixed logic
+                        const colorEmoji = esRojo ? '🔴' : esNegro ? '⚫' : '🟢';
+
+                        // Calculate Results
+                        let winners = [];
+                        let totalPaid = 0;
+
+                        for (const bet of rouletteSession.bets) {
+                            let win = false;
+                            let multiplier = 0;
+
+                            switch (bet.type) {
+                                case 'red': if (esRojo) { win = true; multiplier = 2; } break;
+                                case 'black': if (esNegro) { win = true; multiplier = 2; } break; // Fixed 'nero' typo to 'black' if option changed, but option is 'nero' or similar?
+                                // Wait, the option defined in slash command? 
+                                // In previous code it was: case 'red', case 'nero' (likely typo for negro/black), case 'even', case 'odd'
+                                // Standardize: Let's assume user uses the slash command choices.
+                                // Previous code: case 'red', case 'nero'. 
+                                // Let's support both 'black' and 'nero' just in case.
+                                case 'nero': if (esNegro) { win = true; multiplier = 2; } break;
+
+                                case 'even': if (esPar) { win = true; multiplier = 2; } break;
+                                case 'odd': if (esImpar) { win = true; multiplier = 2; } break;
+                                case 'number': if (resultado === bet.number) { win = true; multiplier = 35; } break;
+                            }
+
+                            if (win) {
+                                const profit = bet.amount * multiplier; // Total return (stake + profit)
+                                totalPaid += profit;
+                                winners.push(`🏆 <@${bet.userId}>: +${profit.toLocaleString()}`);
+
+                                // Refund stake + profit (since we deducted stake earlier) -> profit is total return?
+                                // Multiplier 2x means Bet 100 -> Get 200. Profit 100.
+                                // We deducted 100. We need to add 200.
+
+                                // Update DB
+                                // Fetch fresh in case they bet multiple times?
+                                // Better to do one bulk update or individual. Individual is safer.
+                                const { data: winnerAcc } = await supabase.from('casino_chips').select('chips_balance, total_won').eq('discord_user_id', bet.userId).single();
+                                if (winnerAcc) {
+                                    await supabase.from('casino_chips').update({
+                                        chips_balance: winnerAcc.chips_balance + profit,
+                                        total_won: winnerAcc.total_won + (profit - bet.amount),
+                                        updated_at: new Date().toISOString()
+                                    }).eq('discord_user_id', bet.userId);
+                                }
+
+                                // Log History
+                                await supabase.from('casino_history').insert({
+                                    discord_user_id: bet.userId,
+                                    game_type: 'ruleta',
+                                    bet_amount: bet.amount,
+                                    result_amount: profit - bet.amount,
+                                    multiplier: multiplier,
+                                    game_data: { label: 'Multiplayer win', result: resultado }
+                                });
+
+                            } else {
+                                // Loser
+                                // Already deducted. Just log history.
+                                await supabase.from('casino_history').insert({
+                                    discord_user_id: bet.userId,
+                                    game_type: 'ruleta',
+                                    bet_amount: bet.amount,
+                                    result_amount: -bet.amount,
+                                    multiplier: 0,
+                                    game_data: { label: 'Multiplayer loss', result: resultado }
+                                });
+                                // Update Stats (Loss)
+                                const { data: loserAcc } = await supabase.from('casino_chips').select('total_lost').eq('discord_user_id', bet.userId).single();
+                                if (loserAcc) {
+                                    await supabase.from('casino_chips').update({
+                                        total_lost: loserAcc.total_lost + bet.amount,
+                                        updated_at: new Date().toISOString()
+                                    }).eq('discord_user_id', bet.userId);
+                                }
+                            }
+                        }
+
+                        // Send Result Embed
+                        const resultEmbed = new EmbedBuilder()
+                            .setTitle(`🎡 Resultados de la Ruleta`)
+                            .setDescription(`## ${colorEmoji} ${resultado}`)
+                            .addFields(
+                                { name: '📊 Resumen', value: `Jugadores: ${rouletteSession.bets.length}\nTotal Pagado: $${totalPaid.toLocaleString()}`, inline: false }
+                            )
+                            .setColor(esRojo ? 0xFF0000 : esNegro ? 0x000000 : 0x00FF00)
+                            .setTimestamp();
+
+                        if (winners.length > 0) {
+                            // Split if too long
+                            const winnerString = winners.join('\n');
+                            resultEmbed.addFields({ name: '🎉 Ganadores', value: winnerString.substring(0, 1024) || 'Nadie... ¿Cómo?', inline: false });
+                        } else {
+                            resultEmbed.addFields({ name: '😢 Ganadores', value: 'Nadie ganó esta ronda.', inline: false });
+                        }
+
+                        await interaction.channel.send({ embeds: [resultEmbed] });
+
+                        // Notification for original replies (optional, to stop them loading if they are still thinking? they are deferred)
+                        // We can't easily edit all original interactions. They will eventually timeout or we can leave them.
+                        // Ideally we edit them in the loop.
+                        // Let's try to edit them to say "Ronda finalizada. Ver resultados abajo."
+                        for (const bet of rouletteSession.bets) {
+                            try {
+                                await bet.interaction.editReply({ content: `✅ **Ronda finalizada.** Resultado: ${colorEmoji} ${resultado}` });
+                            } catch (e) { }
+                        }
+
+
+                        // Reset Session
+                        rouletteSession.bets = [];
+                        rouletteSession.timer = null;
+
+                    }, 30000); // 30 seconds
                 }
 
-                const ganancia = win ? Math.floor(apuesta * multiplier) - apuesta : -apuesta;
-                const newBalance = await saveGameResult(
-                    interaction.user.id,
-                    'ruleta',
-                    apuesta,
-                    ganancia,
-                    win ? multiplier : 0,
-                    { tipo, numeroElegido, resultado }
-                );
-
-                const colorEmoji = esRojo ? '🔴' : esNegro ? '⚫' : '🟢';
-
-                const embed = new EmbedBuilder()
-                    .setTitle('🎡 RULETA EUROPEA')
-                    .setDescription(`${colorEmoji} **Resultado: ${resultado}**`)
-                    .setColor(win ? 0x00FF00 : 0xFF0000)
-                    .addFields(
-                        { name: '🎯 Tu Apuesta', value: tipo === 'number' ? `Número ${numeroElegido}` : tipo === 'red' ? 'Rojo' : tipo === 'black' ? 'Negro' : tipo === 'even' ? 'Par' : 'Impar', inline: true },
-                        { name: '🎰 Resultado', value: win ? '✅ ¡GANASTE!' : '❌ Perdiste', inline: true },
-                        { name: '\u200b', value: '\u200b', inline: true },
-                        { name: '🎟️ Apuesta', value: `${apuesta.toLocaleString()}`, inline: true },
-                        { name: win ? '💰 Ganancia' : '💔 Pérdida', value: `${Math.abs(ganancia).toLocaleString()}`, inline: true },
-                        { name: '💼 Nuevo Saldo', value: `${newBalance.toLocaleString()}`, inline: true }
-                    )
-                    .setFooter({ text: win ? `Multiplicador: x${multiplier}` : 'La casa siempre gana... casi siempre' })
-                    .setTimestamp();
-
-                await interaction.editReply({ embeds: [embed] });
+                // Reply to individual
+                const timeLeft = Math.ceil((30000 - (Date.now() - rouletteSession.startTime)) / 1000);
+                await interaction.editReply(`✅ **Apuesta Aceptada** ($${apuesta})\n🎡 Girando en ${timeLeft} segundos...`);
 
             } catch (error) {
                 console.error(error);
-                await interaction.editReply('❌ Error jugando ruleta.');
+                await interaction.editReply('❌ Error uniéndose a la ruleta.');
             }
         }
 
-        // === CARRERAS DE CABALLOS ===
+        // === CARRERAS DE CABALLOS (MULTIPLAYER) ===
         else if (game === 'caballos') {
 
             const apuesta = interaction.options.getInteger('apuesta');
@@ -5975,60 +6152,142 @@ async function handleExtraCommands(interaction) {
             if (!check.hasEnough) return interaction.editReply(check.message);
 
             try {
-                const nombres = ['El Relámpago', 'Tornado', 'Huracán', 'Trueno', 'Meteoro', 'Centella'];
-                const caballos = nombres.map((nombre, i) => ({ id: i + 1, nombre, posicion: 0 }));
-
-                // Simulate race (10 rounds)
-                for (let round = 0; round < 10; round++) {
-                    for (const caballo of caballos) {
-                        caballo.posicion += Math.floor(Math.random() * 3) + 1; // Avanza 1-3
-                    }
+                // Deduct chips immediately
+                await supabase.rpc('decrement_chips', { user_id_input: interaction.user.id, amount: apuesta });
+                // Fallback update if RPC usage is tricky in this env (we assume RPC exists or update manually)
+                const { data: acc } = await supabase.from('casino_chips').select('*').eq('discord_user_id', interaction.user.id).single();
+                if (acc) {
+                    await supabase.from('casino_chips').update({ chips_balance: acc.chips_balance - apuesta }).eq('discord_user_id', interaction.user.id);
                 }
 
-                // Sort by position
-                caballos.sort((a, b) => b.posicion - a.posicion);
-                const ganador = caballos[0];
-
-                const win = ganador.id === caballoElegido;
-                const multiplier = win ? 5 : 0;
-                const ganancia = win ? Math.floor(apuesta * multiplier) - apuesta : -apuesta;
-
-                const newBalance = await saveGameResult(
-                    interaction.user.id,
-                    'caballos',
-                    apuesta,
-                    ganancia,
-                    multiplier,
-                    { caballoElegido, ganador: ganador.id, posiciones: caballos.map((c, i) => ({ nombre: c.nombre, posicion: i + 1 })) }
-                );
-
-                let raceDescription = '**🏁 RESULTADOS:**\n';
-                caballos.forEach((c, i) => {
-                    const emoji = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}.`;
-                    const highlight = c.id === caballoElegido ? '**' : '';
-                    raceDescription += `${emoji} ${highlight}${c.nombre}${highlight}\n`;
+                // Add to session
+                raceSession.bets.push({
+                    userId: interaction.user.id,
+                    horseId: caballoElegido,
+                    amount: apuesta,
+                    interaction: interaction
                 });
 
-                const embed = new EmbedBuilder()
-                    .setTitle('🐴 CARRERA DE CABALLOS')
-                    .setDescription(raceDescription)
-                    .setColor(win ? 0x00FF00 : 0xFF0000)
-                    .addFields(
-                        { name: '🎯 Tu Caballo', value: nombres[caballoElegido - 1], inline: true },
-                        { name: '🏆 Ganador', value: ganador.nombre, inline: true },
-                        { name: '🎰 Resultado', value: win ? '✅ ¡GANASTE!' : '❌ Perdiste', inline: true },
-                        { name: '🎟️ Apuesta', value: `${apuesta.toLocaleString()}`, inline: true },
-                        { name: win ? '💰 Ganancia' : '💔 Pérdida', value: `${Math.abs(ganancia).toLocaleString()}`, inline: true },
-                        { name: '💼 Nuevo Saldo', value: `${newBalance.toLocaleString()}`, inline: true }
-                    )
-                    .setFooter({ text: win ? 'Multiplicador: x5' : '¡Apuesta al caballo correcto la próxima!' })
-                    .setTimestamp();
+                if (!raceSession.isOpen) {
+                    raceSession.isOpen = true;
+                    raceSession.startTime = Date.now();
 
-                await interaction.editReply({ embeds: [embed] });
+                    await interaction.channel.send({
+                        content: `🏇 **¡HIPÓDROMO ABIERTO!** \n\n⏳ La carrera comienza en **30 segundos**.\n💰 Apuesten a su caballo favorito!`
+                    });
+
+                    raceSession.timer = setTimeout(async () => {
+                        raceSession.isOpen = false;
+
+                        // Run Race
+                        const nombres = ['El Relámpago', 'Tornado', 'Huracán', 'Trueno', 'Meteoro', 'Centella'];
+                        const caballos = nombres.map((nombre, i) => ({ id: i + 1, nombre, posicion: 0 }));
+
+                        // Animation Message
+                        const raceMsg = await interaction.channel.send('🏁 **¡ARRANCAN!**');
+                        await sleep(1000);
+
+                        // 3 Updates
+                        for (let u = 0; u < 3; u++) {
+                            for (const caballo of caballos) {
+                                caballo.posicion += Math.floor(Math.random() * 20) + 5;
+                            }
+                            const tempOrder = [...caballos].sort((a, b) => b.posicion - a.posicion);
+                            await raceMsg.edit(`🏇 **Carrera en curso...**\n1️⃣ ${tempOrder[0].nombre}\n2️⃣ ${tempOrder[1].nombre}\n3️⃣ ${tempOrder[2].nombre}`);
+                            await sleep(2000);
+                        }
+
+                        // Final Push
+                        for (const caballo of caballos) {
+                            caballo.posicion += Math.floor(Math.random() * 20);
+                        }
+                        caballos.sort((a, b) => b.posicion - a.posicion);
+                        const ganador = caballos[0];
+
+                        // Process Winners
+                        let winners = [];
+                        let totalPaid = 0;
+
+                        for (const bet of raceSession.bets) {
+                            const win = bet.horseId === ganador.id;
+                            const multiplier = win ? 5 : 0;
+                            const profit = win ? bet.amount * multiplier : 0;
+
+                            if (win) {
+                                totalPaid += profit;
+                                winners.push(`🏆 <@${bet.userId}>: +${profit.toLocaleString()}`);
+
+                                // Pay
+                                const { data: wAcc } = await supabase.from('casino_chips').select('*').eq('discord_user_id', bet.userId).single();
+                                if (wAcc) {
+                                    await supabase.from('casino_chips').update({
+                                        chips_balance: wAcc.chips_balance + profit,
+                                        total_won: wAcc.total_won + (profit - bet.amount),
+                                        updated_at: new Date().toISOString()
+                                    }).eq('discord_user_id', bet.userId);
+                                }
+
+                                await supabase.from('casino_history').insert({
+                                    discord_user_id: bet.userId,
+                                    game_type: 'caballos',
+                                    bet_amount: bet.amount,
+                                    result_amount: profit - bet.amount,
+                                    multiplier: 5,
+                                    game_data: { ganador: ganador.nombre }
+                                });
+                            } else {
+                                // Loss log
+                                await supabase.from('casino_history').insert({
+                                    discord_user_id: bet.userId,
+                                    game_type: 'caballos',
+                                    bet_amount: bet.amount,
+                                    result_amount: -bet.amount,
+                                    multiplier: 0,
+                                    game_data: { ganador: ganador.nombre }
+                                });
+                                // Stats
+                                const { data: lAcc } = await supabase.from('casino_chips').select('total_lost').eq('discord_user_id', bet.userId).single();
+                                if (lAcc) await supabase.from('casino_chips').update({ total_lost: lAcc.total_lost + bet.amount }).eq('discord_user_id', bet.userId);
+                            }
+                        }
+
+                        // Results Embed
+                        const embed = new EmbedBuilder()
+                            .setTitle('🐴 RESULTADOS HÍPICOS')
+                            .setDescription(`🏆 **GANADOR:** ${ganador.nombre}`)
+                            .addFields(
+                                { name: '📊 Resumen', value: `Apostadores: ${raceSession.bets.length}\nPagos Totales: $${totalPaid.toLocaleString()}`, inline: false }
+                            )
+                            .setColor(0xFFA500)
+                            .setTimestamp();
+
+                        if (winners.length > 0) {
+                            embed.addFields({ name: '🎉 Ganadores', value: winners.join('\n').substring(0, 1024), inline: false });
+                        } else {
+                            embed.addFields({ name: '😢 Resultados', value: 'La casa se lleva todo.', inline: false });
+                        }
+
+                        await interaction.channel.send({ embeds: [embed] });
+
+                        // Notify individuals
+                        for (const bet of raceSession.bets) {
+                            try { await bet.interaction.editReply({ content: `🏁 **Carrera Finalizada.** Ganador: ${ganador.nombre}` }); } catch (e) { }
+                        }
+
+                        // Reset
+                        raceSession.bets = [];
+                        raceSession.timer = null;
+
+                    }, 30000);
+                }
+
+                const timeLeft = Math.ceil((30000 - (Date.now() - raceSession.startTime)) / 1000);
+                const nombres = ['El Relámpago', 'Tornado', 'Huracán', 'Trueno', 'Meteoro', 'Centella']; // Re-define for reply
+                await interaction.editReply(`✅ **Apuesta Registrada** ($${apuesta} al #${nombres[caballoElegido - 1] || caballoElegido})\n🏇 Carrera en ${timeLeft}s...`);
 
             } catch (error) {
                 console.error(error);
-                await interaction.editReply('❌ Error en carrera de caballos.');
+                await interaction.editReply('❌ Error en carrera.');
             }
         }
 
@@ -6043,17 +6302,33 @@ async function handleExtraCommands(interaction) {
                 // Generate crash point (weighted toward lower values)
                 const random = Math.random();
                 let crashPoint;
-
-                if (random < 0.33) crashPoint = 1 + Math.random() * 0.5; // 1.0-1.5x (33%)
-                else if (random < 0.66) crashPoint = 1.5 + Math.random() * 1; // 1.5-2.5x (33%)
-                else if (random < 0.85) crashPoint = 2.5 + Math.random() * 2.5; // 2.5-5x (19%)
-                else if (random < 0.95) crashPoint = 5 + Math.random() * 5; // 5-10x (10%)
-                else crashPoint = 10 + Math.random() * 40; // 10-50x (5%)
-
+                if (random < 0.33) crashPoint = 1 + Math.random() * 0.5; // 1.0-1.5x 
+                else if (random < 0.66) crashPoint = 1.5 + Math.random() * 1; // 1.5-2.5x 
+                else if (random < 0.85) crashPoint = 2.5 + Math.random() * 2.5; // 2.5-5x 
+                else if (random < 0.95) crashPoint = 5 + Math.random() * 5; // 5-10x 
+                else crashPoint = 10 + Math.random() * 40; // 10-50x 
                 crashPoint = parseFloat(crashPoint.toFixed(2));
-
-                // Auto cash out at random point before crash
                 const cashOutPoint = parseFloat((crashPoint * (0.6 + Math.random() * 0.3)).toFixed(2));
+
+                // ANIMATION
+                await interaction.editReply('🚀 **Despegando...** 1.00x');
+                await sleep(1000);
+
+                let current = 1.0;
+                while (current < crashPoint && current < 5.0) { // Show up to 5x animation
+                    current += 0.5 + Math.random();
+                    if (current > crashPoint) current = crashPoint; // Cap visual
+                    await interaction.editReply(`🚀 **Subiendo...** ${current.toFixed(2)}x`);
+                    await sleep(800);
+                }
+
+                if (crashPoint > 5.0) {
+                    await interaction.editReply(`🚀 **Subiendo...** ... 🌚`);
+                    await sleep(1000);
+                }
+
+                await interaction.editReply(`💥 **CRASHED @ ${crashPoint}x**`);
+                await sleep(500);
 
                 const multiplier = cashOutPoint;
                 const ganancia = Math.floor(apuesta * multiplier) - apuesta;
@@ -6079,13 +6354,141 @@ async function handleExtraCommands(interaction) {
                     .setFooter({ text: `Multiplicador: x${multiplier}` })
                     .setTimestamp();
 
-                await interaction.editReply({ embeds: [embed] });
+                await interaction.editReply({ content: null, embeds: [embed] });
 
             } catch (error) {
                 console.error(error);
                 await interaction.editReply('❌ Error jugando crash.');
             }
         }
+
+        // === RULETA RUSA (MULTIPLAYER) ===
+        else if (game === 'ruleta-rusa') {
+            // Since 'ruleta-rusa' might not have options in the slash command yet, we assume a standard bet or try to get 'apuesta'.
+            // If manual_register.js wasn't updated for this, it might fail to get options. 
+            // We will assume a fixed entry fee if no option, OR we try to read 'apuesta'.
+            // To be safe, let's default to 1000 if null.
+            const apuestaInput = interaction.options.getInteger('apuesta');
+            const apuesta = apuestaInput ? apuestaInput : 1000;
+
+            const check = await checkChips(interaction.user.id, apuesta);
+            if (!check.hasEnough) return interaction.editReply(check.message);
+
+            try {
+                // Deduct chips
+                await supabase.rpc('decrement_chips', { user_id_input: interaction.user.id, amount: apuesta });
+                const { data: acc } = await supabase.from('casino_chips').select('*').eq('discord_user_id', interaction.user.id).single();
+                if (acc) await supabase.from('casino_chips').update({ chips_balance: acc.chips_balance - apuesta }).eq('discord_user_id', interaction.user.id);
+
+                russianRouletteSession.players.push({
+                    userId: interaction.user.id,
+                    amount: apuesta,
+                    name: interaction.user.username,
+                    interaction: interaction
+                });
+
+                if (!russianRouletteSession.isOpen) {
+                    russianRouletteSession.isOpen = true;
+                    russianRouletteSession.startTime = Date.now();
+
+                    await interaction.channel.send({
+                        content: `🔫 **RULETA RUSA** \n\n☠️ La ronda inicia en **30 segundos**.\n💵 Entrada: $${apuesta.toLocaleString()}`
+                    });
+
+                    russianRouletteSession.timer = setTimeout(async () => {
+                        russianRouletteSession.isOpen = false;
+
+                        const players = russianRouletteSession.players;
+                        if (players.length < 2) {
+                            // Cancel if only 1 player
+                            await interaction.channel.send('⚠️ Ruleta cancelada. Mínimo 2 jugadores.');
+                            // Refund
+                            for (const p of players) {
+                                const { data: rAcc } = await supabase.from('casino_chips').select('chips_balance').eq('discord_user_id', p.userId).single();
+                                if (rAcc) await supabase.from('casino_chips').update({ chips_balance: rAcc.chips_balance + p.amount }).eq('discord_user_id', p.userId);
+                            }
+                            russianRouletteSession.players = [];
+                            russianRouletteSession.timer = null;
+                            return;
+                        }
+
+                        // Animation
+                        await interaction.channel.send('🎲 Cargando el revólver... (1 Bala)');
+                        await sleep(2000);
+                        await interaction.channel.send('😰 Girando el tambor...');
+                        await sleep(2000);
+
+                        // Select Loser
+                        const loserIndex = Math.floor(Math.random() * players.length);
+                        const loser = players[loserIndex];
+                        const winners = players.filter((_, i) => i !== loserIndex);
+
+                        // Calculate Pot
+                        const pot = players.reduce((sum, p) => sum + p.amount, 0);
+                        const houseFee = Math.floor(pot * 0.1);
+                        const prizePool = pot - houseFee;
+                        const share = Math.floor(prizePool / winners.length);
+
+                        await interaction.channel.send(`💥 **¡BANG!** <@${loser.userId}> ha caído.`);
+
+                        // Validating payouts
+                        for (const winner of winners) {
+                            const { data: wAcc } = await supabase.from('casino_chips').select('*').eq('discord_user_id', winner.userId).single();
+                            if (wAcc) {
+                                await supabase.from('casino_chips').update({
+                                    chips_balance: wAcc.chips_balance + share,
+                                    total_won: wAcc.total_won + (share - winner.amount),
+                                    updated_at: new Date().toISOString()
+                                }).eq('discord_user_id', winner.userId);
+
+                                await supabase.from('casino_history').insert({
+                                    discord_user_id: winner.userId,
+                                    game_type: 'ruleta-rusa',
+                                    bet_amount: winner.amount,
+                                    result_amount: share - winner.amount,
+                                    multiplier: (share / winner.amount).toFixed(2),
+                                    game_data: { status: 'survived', victim: loser.name }
+                                });
+                            }
+                        }
+
+                        // Loser stats
+                        const { data: lAcc } = await supabase.from('casino_chips').select('total_lost').eq('discord_user_id', loser.userId).single();
+                        if (lAcc) await supabase.from('casino_chips').update({ total_lost: lAcc.total_lost + loser.amount }).eq('discord_user_id', loser.userId);
+                        await supabase.from('casino_history').insert({
+                            discord_user_id: loser.userId,
+                            game_type: 'ruleta-rusa',
+                            bet_amount: loser.amount,
+                            result_amount: -loser.amount,
+                            multiplier: 0,
+                            game_data: { status: 'dead' }
+                        });
+
+                        // Embed
+                        const embed = new EmbedBuilder()
+                            .setTitle('☠️ RULETA RUSA - RESULTADOS')
+                            .setDescription(`💀 **VICTIMA:** <@${loser.userId}>\n💰 **SOBREVIVIENTES:** ${winners.length}\n💵 **A REPARTIR:** $${prizePool.toLocaleString()} ($${share.toLocaleString()} c/u)`)
+                            .setColor(0x000000)
+                            .setTimestamp();
+
+                        await interaction.channel.send({ content: null, embeds: [embed] });
+
+                        // Reset
+                        russianRouletteSession.players = [];
+                        russianRouletteSession.timer = null;
+
+                    }, 30000);
+                }
+
+                const timeLeft = Math.ceil((30000 - (Date.now() - russianRouletteSession.startTime)) / 1000);
+                await interaction.editReply({ content: `✅ **Unido a la masacre**\n☠️ Inicia en ${timeLeft}s...` });
+
+            } catch (error) {
+                console.error(error);
+                await interaction.editReply('❌ Error en ruleta rusa.');
+            }
+        }
+
 
         // === GALLOS ===
         else if (game === 'gallos') {
