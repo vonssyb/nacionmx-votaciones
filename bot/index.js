@@ -90,6 +90,26 @@ client.once('ready', async () => {
 
     const rest = new REST({ version: '10' }).setToken(DISCORD_TOKEN);
 
+    const CARD_TIERS = {
+        'NMX Débito': { limit: 0, interest: 0, cost: 100, max_balance: 50000 },
+        'NMX Débito Plus': { limit: 0, interest: 0, cost: 500, max_balance: 150000 },
+        'NMX Débito Gold': { limit: 0, interest: 0, cost: 1000, max_balance: Infinity },
+        'NMX Start': { limit: 15000, interest: 15, cost: 2000, max_balance: Infinity },
+        'NMX Básica': { limit: 30000, interest: 12, cost: 4000, max_balance: Infinity },
+        'NMX Plus': { limit: 50000, interest: 10, cost: 6000, max_balance: Infinity },
+        'NMX Plata': { limit: 100000, interest: 8, cost: 10000, max_balance: Infinity },
+        'NMX Oro': { limit: 250000, interest: 7, cost: 15000, max_balance: Infinity },
+        'NMX Rubí': { limit: 500000, interest: 6, cost: 25000, max_balance: Infinity },
+        'NMX Black': { limit: 1000000, interest: 5, cost: 40000, max_balance: Infinity },
+        'NMX Diamante': { limit: 2000000, interest: 3, cost: 60000, max_balance: Infinity },
+        // Business Cards
+        'NMX Business Start': { limit: 50000, interest: 2, cost: 8000, max_balance: Infinity },
+        'NMX Business Gold': { limit: 100000, interest: 1.5, cost: 15000, max_balance: Infinity },
+        'NMX Business Platinum': { limit: 200000, interest: 1.2, cost: 20000, max_balance: Infinity },
+        'NMX Business Elite': { limit: 500000, interest: 1, cost: 35000, max_balance: Infinity },
+        'NMX Corporate': { limit: 1000000, interest: 0.7, cost: 50000, max_balance: Infinity }
+    };
+
     const commands = [
         {
             name: 'ping',
@@ -148,20 +168,20 @@ client.once('ready', async () => {
                         { name: '💳 NMX Débito Plus ($500)', value: 'NMX Débito Plus' },
                         { name: '💳 NMX Débito Gold ($1k)', value: 'NMX Débito Gold' },
                         { name: '--- CRÉDITO ---', value: 'separator_credit' },
-                        { name: 'NMX Start ($2k)', value: 'NMX Start' },
-                        { name: 'NMX Básica ($4k)', value: 'NMX Básica' },
-                        { name: 'NMX Plus ($6k)', value: 'NMX Plus' },
-                        { name: 'NMX Plata ($10k)', value: 'NMX Plata' },
-                        { name: 'NMX Oro ($15k)', value: 'NMX Oro' },
-                        { name: 'NMX Rubí ($25k)', value: 'NMX Rubí' },
-                        { name: 'NMX Black ($40k)', value: 'NMX Black' },
-                        { name: 'NMX Diamante ($60k)', value: 'NMX Diamante' },
+                        { name: '💳 NMX Start ($2k)', value: 'NMX Start' },
+                        { name: '💳 NMX Básica ($4k)', value: 'NMX Básica' },
+                        { name: '💳 NMX Plus ($6k)', value: 'NMX Plus' },
+                        { name: '💳 NMX Plata ($10k)', value: 'NMX Plata' },
+                        { name: '💳 NMX Oro ($15k)', value: 'NMX Oro' },
+                        { name: '💳 NMX Rubí ($25k)', value: 'NMX Rubí' },
+                        { name: '💳 NMX Black ($40k)', value: 'NMX Black' },
+                        { name: '💳 NMX Diamante ($60k)', value: 'NMX Diamante' },
                         { name: '--- EMPRESARIAL ---', value: 'separator1' },
-                        { name: 'NMX Business Start ($50k)', value: 'NMX Business Start' },
-                        { name: 'NMX Business Gold ($100k)', value: 'NMX Business Gold' },
-                        { name: 'NMX Business Platinum ($200k)', value: 'NMX Business Platinum' },
-                        { name: 'NMX Business Elite ($500k)', value: 'NMX Business Elite' },
-                        { name: 'NMX Corporate ($1M)', value: 'NMX Corporate' }
+                        { name: '💳 NMX Business Start ($50k)', value: 'NMX Business Start' },
+                        { name: '💳 NMX Business Gold ($100k)', value: 'NMX Business Gold' },
+                        { name: '💳 NMX Business Platinum ($200k)', value: 'NMX Business Platinum' },
+                        { name: '💳 NMX Business Elite ($500k)', value: 'NMX Business Elite' },
+                        { name: '💳 NMX Corporate ($1M)', value: 'NMX Corporate' }
                     ]
                 },
                 { name: 'foto_dni', description: 'Foto del DNI/Identificación', type: 11, required: true },
@@ -1467,28 +1487,8 @@ client.on('interactionCreate', async interaction => {
             const dniPhoto = interaction.options.getAttachment('foto_dni');
             const notes = interaction.options.getString('notas') || 'Sin notas';
 
-            // CARD STATS MAP
-            const cardStats = {
-                'NMX Débito': { limit: 0, interest: 0, cost: 100 },
-                'NMX Débito Plus': { limit: 0, interest: 0, cost: 500 },
-                'NMX Débito Gold': { limit: 0, interest: 0, cost: 1000 },
-                'NMX Start': { limit: 15000, interest: 15, cost: 2000 },
-                'NMX Básica': { limit: 30000, interest: 12, cost: 4000 },
-                'NMX Plus': { limit: 50000, interest: 10, cost: 6000 },
-                'NMX Plata': { limit: 100000, interest: 8, cost: 10000 },
-                'NMX Oro': { limit: 250000, interest: 7, cost: 15000 },
-                'NMX Rubí': { limit: 500000, interest: 6, cost: 25000 },
-                'NMX Black': { limit: 1000000, interest: 5, cost: 40000 },
-                'NMX Diamante': { limit: 2000000, interest: 3, cost: 60000 },
-                // Business Cards
-                'NMX Business Start': { limit: 50000, interest: 2, cost: 8000 },
-                'NMX Business Gold': { limit: 100000, interest: 1.5, cost: 15000 },
-                'NMX Business Platinum': { limit: 200000, interest: 1.2, cost: 20000 },
-                'NMX Business Elite': { limit: 500000, interest: 1, cost: 35000 },
-                'NMX Corporate': { limit: 1000000, interest: 0.7, cost: 50000 }
-            };
-
-            const stats = cardStats[cardType || 'NMX Start'] || cardStats['NMX Start'];
+            // CARD STATS MAP (Global)
+            const stats = CARD_TIERS[cardType || 'NMX Start'] || CARD_TIERS['NMX Start'];
 
             // 2. Find Citizen (Optional check, but we need to link it eventually. If not found, create one?)
             // The user said "pide foto de dni, nombre del titular". This implies we might be CREATING the citizen logic here or just linking.
@@ -3465,7 +3465,10 @@ client.on('interactionCreate', async interaction => {
             let creditDebt = 0;
             if (creditCards) {
                 creditCards.forEach(c => {
-                    const limit = c.card_limit || c.credit_limit || 0;
+                    let limit = c.card_limit || c.credit_limit || 0;
+                    if (limit === 0 && c.card_type && CARD_TIERS && CARD_TIERS[c.card_type]) {
+                        limit = CARD_TIERS[c.card_type].limit || 0;
+                    }
                     const debt = c.current_balance || 0;
                     creditAvailable += (limit - debt);
                     creditDebt += debt;
@@ -3553,6 +3556,13 @@ client.on('interactionCreate', async interaction => {
 
                 if (cashBalance < monto) {
                     return interaction.editReply(`❌ Fondos insuficientes en efectivo.\n\nTienes: $${cashBalance.toLocaleString()}\nIntentas depositar: $${monto.toLocaleString()}`);
+                }
+
+                // Check Max Balance Limit (Tier based)
+                const tier = CARD_TIERS[card.card_type];
+                const maxBal = tier ? (tier.max_balance || Infinity) : Infinity;
+                if ((bankBalance + monto) > maxBal) {
+                    return interaction.editReply(`⛔ **Límite de Saldo Excedido**\nTu tarjeta **${card.card_type}** tiene un límite de almacenamiento de **$${maxBal.toLocaleString()}**.\nActual: $${bankBalance.toLocaleString()} + Depósito: $${monto.toLocaleString()} > Límite.\n\n💡 **Mejora a NMX Débito Gold para almacenamiento ilimitado.**`);
                 }
 
                 // Transfer from cash to bank
@@ -4019,6 +4029,18 @@ client.on('interactionCreate', async interaction => {
             }
 
             if (isNaN(monto) || monto <= 0) return interaction.editReply('❌ El monto debe ser mayor a 0.');
+
+            // Check Destination Max Balance Limit
+            const destTier = CARD_TIERS[destCard.card_type];
+            const destMax = destTier ? (destTier.max_balance || Infinity) : Infinity;
+            // Only check if limit is not infinite
+            if (destMax !== Infinity) {
+                const destBalData = await billingService.ubService.getUserBalance(interaction.guildId, destUser.id);
+                const destCurrentBank = destBalData.bank || 0;
+                if ((destCurrentBank + monto) > destMax) {
+                    return interaction.editReply(`⛔ **Transferencia Rechazada**\nEl destinatario no puede recibir esta cantidad porque excedería el límite de saldo de su tarjeta (**${destCard.card_type}**).\nLímite: $${destMax.toLocaleString()}\nSaldo Actual Destino: $${destCurrentBank.toLocaleString()}`);
+                }
+            }
 
             if (bankBalance < monto) {
                 return interaction.editReply(`❌ Fondos insuficientes en Banco.\n\nDisponible: $${bankBalance.toLocaleString()}\nIntentas transferir: $${monto.toLocaleString()}`);
