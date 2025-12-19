@@ -2071,7 +2071,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
 
                 // Register license
                 const expiryDate = new Date();
-                expiryDate.setFullYear(expiryDate.getFullYear() + 1); // 1 year validity
+                expiryDate.setDate(expiryDate.getDate() + 14); // 2 weeks validity
 
                 await supabase
                     .from('licenses')
