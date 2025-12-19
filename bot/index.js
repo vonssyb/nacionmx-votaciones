@@ -882,11 +882,13 @@ client.on('interactionCreate', async interaction => {
             .setColor(0xD4AF37) // Gold
             .setDescription('**Guía completa de comandos económicos y empresariales**')
             .addFields(
-                { name: '💰 Banco & Efectivo', value: '`/balanza` - Ver saldo total (Cartera + Banco)\n`/banco depositar` - Cajero ATM (Efectivo a tu cuenta)\n`/depositar` - Depósito OXXO (Efectivo a cuenta de otro)\n`/transferir` - App Banco (Débito a Débito)\n`/giro` - Envío paquetería (Efectivo a Efectivo, 24h)' },
-                { name: '💳 Tarjetas & Crédito', value: '`/tarjeta info` - Ver tus tarjetas y deudas\n`/credito pedir-prestamo` - Disponer efectivo de TC\n`/credito pagar` - Pagar tarjeta\n`/credito buro` - Ver tu historial crediticio' },
+                { name: '💰 Banco & Efectivo', value: '`/balanza` - Ver saldo total (Efectivo + Banco + Crédito)\n`/debito estado` - Ver saldo de cuenta bancaria\n`/debito retirar` - Retirar dinero del banco a efectivo\n`/depositar` - Depósito OXXO (Efectivo a cuenta de otro)\n`/transferir` - Transferencia bancaria (Múltiples métodos de pago)\n`/giro` - Envío paquetería (Efectivo a Efectivo, 24h)' },
+                { name: '💳 Tarjetas & Crédito', value: '` /credito info` - Ver información de tu tarjeta\n`/credito pagar` - Pagar deuda de tarjeta\n`/credito buro` - Ver historial crediticio\n\n**👨‍💼 Ejecutivos Banqueros:**\n`/credito admin historial` - Análisis completo de cliente\n`/credito admin ofrecer-upgrade` - Ofrecer mejora de tarjeta' },
                 { name: '🏢 Empresas', value: '`/empresa crear` - Registrar tu negocio\n`/empresa menu` - Panel de gestión (Empleados, Nómina)\n`/empresa cobrar` - Terminal Punto de Venta (Cobrar a clientes)\n`/empresa credito` - Solicitar crédito empresarial' },
-                { name: '📈 Inversiones', value: '`/bolsa precios` - Mercado de valores\n`/bolsa comprar/vender` - Trading de acciones\n`/inversion nueva` - Plazo fijo (Rendimiento garantizado)' },
-                { name: '📊 Impuestos & Admin', value: '`/impuestos consultar` - Estado fiscal personal\n`/top-ricos` - Ranking de millonarios\n`/top-morosos` - Lista pública de deudores' }
+                { name: '📈 Inversiones', value: '`/bolsa precios` - Mercado de valores\n`/bolsa comprar/vender` - Trading de acciones\n`/inversion nueva` - Plazo fijo (Rendimiento garantizado)\n`/bolsa portafolio` - Ver tus inversiones' },
+                { name: '📊 Impuestos & Admin', value: '`/impuestos consultar` - Estado fiscal personal\n`/top-ricos` - Ranking de millonarios\n`/top-morosos` - Lista pública de deudores' },
+                { name: '🚔 Policía', value: '`/multa` - Aplicar multa a un ciudadano\n`/licencia registrar` - Registrar licencia\n`/licencia revocar` - Revocar licencia' },
+                { name: '💡 Notas Importantes', value: '• **Métodos de Pago:** Al pagar licencias, multas o empresas, puedes elegir entre efectivo, banco/débito o crédito\n• **Crédito:** Las tarjetas de crédito ya NO otorgan préstamos en efectivo, solo sirven como método de pago\n• **Sin tarjeta = Sin banco:** Necesitas una tarjeta de débito para tener dinero en el banco', inline: false }
             )
             .setFooter({ text: 'Sistema Financiero Nación MX • Uso exclusivo Roleplay' })
             .setTimestamp();
