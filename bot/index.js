@@ -3247,13 +3247,19 @@ async function handleUpgradeButton(interaction) {
         return interaction.editReply(`❌ **Fondos Insuficientes**. Tienes $${userMoney.toLocaleString()} y el upgrade cuesta **$${cost.toLocaleString()}**.`);
     }
 
-    const { data: currentCard } = await supabase.from('credit_cards')
+    console.log(`[DEBUG] Upgrade: Buscando tarjeta para usuario ${interaction.user.id}`);
+
+    const { data: currentCard, error: cardError } = await supabase.from('credit_cards')
         .select('*')
         .eq('discord_user_id', interaction.user.id)
         .eq('status', 'active')
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();
+
+    if (cardError) console.error('[DEBUG] Error buscando tarjeta:', cardError);
+    if (!currentCard) console.log(`[DEBUG] No se encontró tarjeta activa para ${interaction.user.id}`);
+    else console.log(`[DEBUG] Tarjeta encontrada: ${currentCard.id} (${currentCard.card_type})`);
 
     if (!currentCard) return interaction.editReply('❌ No tienes una tarjeta activa para mejorar.');
     if (currentCard.card_type === tierName) return interaction.editReply('ℹ️ Ya tienes esta tarjeta.');
