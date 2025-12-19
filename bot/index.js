@@ -316,6 +316,14 @@ client.once('ready', async () => {
                             ]
                         },
                         {
+                            name: 'historial',
+                            description: 'Ver historial financiero completo y análisis de crédito',
+                            type: 1,
+                            options: [
+                                { name: 'usuario', description: 'Usuario a analizar', type: 6, required: true }
+                            ]
+                        },
+                        {
                             name: 'ofrecer-upgrade',
                             description: 'Enviar oferta de mejora de tarjeta por DM - Requiere buen Score',
                             type: 1,
@@ -1484,6 +1492,101 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                         { name: 'Límite', value: `$${(userCard.card_limit || userCard.credit_limit || 0).toLocaleString()}`, inline: true },
                         { name: 'Discord ID', value: targetUser.id, inline: true }
                     );
+                await interaction.editReply({ embeds: [embed] });
+            }
+
+            else if (subCmdAdmin === 'historial') {
+                // Get citizen balance
+                const balance = await billingService.ubService.getUserBalance(interaction.guildId, targetUser.id);
+                const cash = balance.cash || 0;
+                const bank = balance.bank || 0;
+
+                // Get all credit cards
+                const { data: allCards } = await supabase
+                    .from('credit_cards')
+                    .select('*')
+                    .eq('discord_id', targetUser.id)
+                    .order('created_at', { ascending: false });
+
+                let totalCreditLimit = 0;
+                let totalDebt = 0;
+                let totalAvailable = 0;
+
+                if (allCards && allCards.length > 0) {
+                    allCards.forEach(card => {
+                        const limit = card.card_limit || card.credit_limit || 0;
+                        const debt = card.current_balance || 0;
+                        totalCreditLimit += limit;
+                        totalDebt += debt;
+                        totalAvailable += (limit - debt);
+                    });
+                }
+
+                // Get transaction history (payments made)
+                const { data: payments } = await supabase
+                    .from('credit_card_payments')
+                    .select('*')
+                    .eq('card_id', userCard.id)
+                    .order('payment_date', { ascending: false })
+                    .limit(10);
+
+                let totalPaid = 0;
+                let interestPaid = 0;
+
+                if (payments) {
+                    payments.forEach(p => {
+                        totalPaid += (p.amount || 0);
+                        interestPaid += (p.interest_amount || 0);
+                    });
+                }
+
+                // Calculate usage stats
+                const cardAge = userCard.created_at ? Math.floor((Date.now() - new Date(userCard.created_at)) / (1000 * 60 * 60 * 24)) : 0;
+                const utilizationRate = totalCreditLimit > 0 ? Math.round((totalDebt / totalCreditLimit) * 100) : 0;
+
+                // Get credit score
+                const { data: citizenScore } = await supabase
+                    .from('citizens')
+                    .select('credit_score')
+                    .eq('discord_id', targetUser.id)
+                    .maybeSingle();
+
+                const creditScore = citizenScore?.credit_score || 100;
+
+                const embed = new EmbedBuilder()
+                    .setTitle(`📊 Historial Financiero: ${citizen.full_name}`)
+                    .setColor(0x1E90FF)
+                    .setDescription(`Análisis completo para decisiones de crédito`)
+                    .addFields(
+                        { name: '💰 Efectivo', value: `$${cash.toLocaleString()}`, inline: true },
+                        { name: '🏦 Banco/Débito', value: `$${bank.toLocaleString()}`, inline: true },
+                        { name: '📈 Score Crediticio', value: `${creditScore}/100`, inline: true },
+                        { name: '━━━━━━━━━━━━━━━━━', value: '**TARJETAS DE CRÉDITO**', inline: false },
+                        { name: '💳 Límite Total', value: `$${totalCreditLimit.toLocaleString()}`, inline: true },
+                        { name: '📊 Deuda Total', value: `$${totalDebt.toLocaleString()}`, inline: true },
+                        { name: '✅ Disponible', value: `$${totalAvailable.toLocaleString()}`, inline: true },
+                        { name: '📉 Utilización', value: `${utilizationRate}%`, inline: true },
+                        { name: '📅 Antigüedad', value: `${cardAge} días`, inline: true },
+                        { name: '━━━━━━━━━━━━━━━━━', value: '**HISTORIAL DE PAGOS**', inline: false },
+                        { name: '💵 Total Pagado', value: `$${totalPaid.toLocaleString()}`, inline: true },
+                        { name: '📈 Intereses Pagados', value: `$${interestPaid.toLocaleString()}`, inline: true },
+                        { name: '🎁 Puntos Acumulados', value: `${userCard.reward_points || 0} pts`, inline: true },
+                        { name: '━━━━━━━━━━━━━━━━━', value: '**RECOMENDACIÓN**', inline: false },
+                        {
+                            name: '💡 Análisis', value:
+                                utilizationRate < 30 && creditScore > 70
+                                    ? '✅ **EXCELENTE** - Cliente apto para upgrade'
+                                    : utilizationRate > 70
+                                        ? '⚠️ **PRECAUCIÓN** - Alta utilización de crédito'
+                                        : creditScore < 50
+                                            ? '❌ **RIESGO** - Score bajo, no recomendar upgrade'
+                                            : '📊 **REGULAR** - Monitorear comportamiento',
+                            inline: false
+                        }
+                    )
+                    .setFooter({ text: `Reporte generado por ${interaction.user.tag}` })
+                    .setTimestamp();
+
                 await interaction.editReply({ embeds: [embed] });
             }
 
