@@ -2899,11 +2899,11 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             // Validate stock exists in Global
             const stock = globalStocks.find(s => s.symbol === symbol);
             if (!stock) {
-                return await interaction.reply({ content: `❌ Símbolo inválido. Usa: ${globalStocks.map(s => s.symbol).join(', ')}`, ephemeral: false });
+                return await interaction.editReply({ content: `❌ Símbolo inválido. Usa: ${globalStocks.map(s => s.symbol).join(', ')}`, ephemeral: false });
             }
 
             if (cantidad <= 0) {
-                return await interaction.reply({ content: '❌ La cantidad debe ser mayor a 0.', ephemeral: false });
+                return await interaction.editReply({ content: '❌ La cantidad debe ser mayor a 0.', ephemeral: false });
             }
 
             const currentPrice = stock.current;
@@ -2913,7 +2913,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             try {
                 const balance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
                 if (balance.bank < totalCost) {
-                    return await interaction.reply({
+                    return await interaction.editReply({
                         content: `❌ Fondos insuficientes. Necesitas $${totalCost.toLocaleString()} MXN pero solo tienes $${balance.bank.toLocaleString()} MXN en el banco.`,
                         ephemeral: false
                     });
@@ -2973,10 +2973,10 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                     )
                     .setTimestamp();
 
-                await interaction.reply({ embeds: [embed] });
+                await interaction.editReply({ embeds: [embed] });
             } catch (error) {
                 console.error('Error comprando acciones:', error);
-                await interaction.reply({ content: '❌ Error procesando la compra. Intenta de nuevo.', ephemeral: false });
+                await interaction.editReply({ content: '❌ Error procesando la compra. Intenta de nuevo.', ephemeral: false });
             }
         }
 
@@ -2987,11 +2987,11 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             // Validate stock exists in Global
             const stock = globalStocks.find(s => s.symbol === symbol);
             if (!stock) {
-                return await interaction.reply({ content: `❌ Símbolo inválido. Usa: ${globalStocks.map(s => s.symbol).join(', ')}`, ephemeral: false });
+                return await interaction.editReply({ content: `❌ Símbolo inválido. Usa: ${globalStocks.map(s => s.symbol).join(', ')}`, ephemeral: false });
             }
 
             if (cantidad <= 0) {
-                return await interaction.reply({ content: '❌ La cantidad debe ser mayor a 0.', ephemeral: false });
+                return await interaction.editReply({ content: '❌ La cantidad debe ser mayor a 0.', ephemeral: false });
             }
 
             try {
@@ -3004,7 +3004,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                     .single();
 
                 if (!portfolio || portfolio.shares < cantidad) {
-                    return await interaction.reply({
+                    return await interaction.editReply({
                         content: `❌ No tienes suficientes acciones. Tienes ${portfolio?.shares || 0} de ${symbol}.`,
                         ephemeral: false
                     });
@@ -3109,10 +3109,10 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 const profitLabel = totalProfit >= 0 ? '📈 Ganancia Total' : '📉 Pérdida Total';
                 embed.setDescription(`**Total Invertido:** $${totalInvested.toLocaleString()}\n**Valor Actual:** $${totalCurrent.toLocaleString()}\n**${profitLabel}:** $${Math.abs(totalProfit).toLocaleString()}`);
 
-                await interaction.reply({ embeds: [embed] });
+                await interaction.editReply({ embeds: [embed] });
             } catch (error) {
                 console.error('Error mostrando portafolio:', error);
-                await interaction.reply({ content: '❌ Error obteniendo tu portafolio.', ephemeral: false });
+                await interaction.editReply({ content: '❌ Error obteniendo tu portafolio.', ephemeral: false });
             }
         }
 
@@ -3126,7 +3126,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                     .limit(10);
 
                 if (!transactions || transactions.length === 0) {
-                    return await interaction.reply({ content: '📜 No tienes transacciones registradas.', ephemeral: false });
+                    return await interaction.editReply({ content: '📜 No tienes transacciones registradas.', ephemeral: false });
                 }
 
                 const embed = new EmbedBuilder()
@@ -3146,10 +3146,10 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                     });
                 });
 
-                await interaction.reply({ embeds: [embed] });
+                await interaction.editReply({ embeds: [embed] });
             } catch (error) {
                 console.error('Error mostrando historial:', error);
-                await interaction.reply({ content: '❌ Error obteniendo tu historial.', ephemeral: false });
+                await interaction.editReply({ content: '❌ Error obteniendo tu historial.', ephemeral: false });
             }
         }
     }
