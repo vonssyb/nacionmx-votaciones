@@ -4839,23 +4839,22 @@ client.on('interactionCreate', async interaction => {
 
         // ===== 🎰 CASINO SYSTEM =====
         else if (commandName === 'casino') {
+            await interaction.deferReply(); // Global Defer to prevent timeouts
             const CASINO_CHANNEL_ID = '1451398359540826306';
             const CASINO_ROLE_ID = '1449951345611378841';
             const CHIP_PRICE = 100; // 1 ficha = $100
 
             // Check if command is in casino channel
             if (interaction.channelId !== CASINO_CHANNEL_ID) {
-                return interaction.reply({
-                    content: `🎰 Este comando solo puede usarse en <#${CASINO_CHANNEL_ID}>`,
-                    ephemeral: true
+                return interaction.editReply({
+                    content: `🎰 Este comando solo puede usarse en <#${CASINO_CHANNEL_ID}>`
                 });
             }
 
             // Check if user has casino role
             if (!interaction.member.roles.cache.has(CASINO_ROLE_ID)) {
-                return interaction.reply({
-                    content: '🚫 Necesitas el rol de Casino para jugar. Pídelo a un staff.',
-                    ephemeral: true
+                return interaction.editReply({
+                    content: '🚫 Necesitas el rol de Casino para jugar. Pídelo a un staff.'
                 });
             }
 
@@ -4864,7 +4863,6 @@ client.on('interactionCreate', async interaction => {
 
             // === FICHAS COMPRAR ===
             if (subCmdGroup === 'fichas' && subCmd === 'comprar') {
-                await interaction.deferReply();
 
                 const cantidad = interaction.options.getInteger('cantidad');
                 const costo = cantidad * CHIP_PRICE;
@@ -4951,7 +4949,6 @@ client.on('interactionCreate', async interaction => {
 
             // === FICHAS RETIRAR ===
             else if (subCmdGroup === 'fichas' && subCmd === 'retirar') {
-                await interaction.deferReply();
 
                 const cantidad = interaction.options.getInteger('cantidad');
 
@@ -5008,7 +5005,6 @@ client.on('interactionCreate', async interaction => {
 
             // === SALDO ===
             else if (subCmd === 'saldo') {
-                await interaction.deferReply();
 
                 try {
                     const { data: account } = await supabase
@@ -5056,7 +5052,6 @@ client.on('interactionCreate', async interaction => {
 
             // === RANKING ===
             else if (subCmd === 'ranking') {
-                await interaction.deferReply();
 
                 const tipo = interaction.options.getString('tipo') || 'chips';
 
@@ -5110,7 +5105,6 @@ client.on('interactionCreate', async interaction => {
 
             // === HISTORIAL ===
             else if (subCmd === 'historial') {
-                await interaction.deferReply();
 
                 const filtroJuego = interaction.options.getString('juego');
 
@@ -5162,7 +5156,6 @@ client.on('interactionCreate', async interaction => {
 
             // === INFO ===
             else if (subCmd === 'info') {
-                await interaction.deferReply();
 
                 const infoEmbed = new EmbedBuilder()
                     .setTitle('🎰 Casino Nación MX - Guía Completa')
