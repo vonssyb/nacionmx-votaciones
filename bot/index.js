@@ -516,6 +516,14 @@ client.once('ready', async () => {
                         { name: 'monto', description: 'Cantidad', type: 10, required: true }
                     ]
                 },
+                {
+                    name: 'retirar',
+                    description: 'Retirar dinero del banco a efectivo',
+                    type: 1,
+                    options: [
+                        { name: 'monto', description: 'Cantidad a retirar', type: 10, required: true }
+                    ]
+                },
                 { name: 'historial', description: 'Ver transacciones', type: 1 }
             ]
         }
@@ -3144,23 +3152,10 @@ client.on('interactionCreate', async interaction => {
             await interaction.deferReply();
             try {
                 const card = await getDebitCard(interaction.user.id);
+                if (!card) return interaction.editReply('❌ No tienes una tarjeta de débito activa. Visita el Banco Nacional para abrir tu cuenta con `/registrar-tarjeta`.');
+
                 const balance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
                 const bankBalance = balance.bank || 0;
-
-                if (!card) {
-                    // No card but has bank account
-                    const embed = new EmbedBuilder()
-                        .setTitle('🏦 Cuenta Bancaria')
-                        .setColor(0x00CED1)
-                        .setDescription('Tienes una cuenta bancaria pero no una tarjeta de débito física.')
-                        .addFields(
-                            { name: '💰 Saldo en Banco', value: `$${bankBalance.toLocaleString()}`, inline: true },
-                            { name: '📋 Estado', value: 'Cuenta Activa', inline: true }
-                        )
-                        .setFooter({ text: 'Usa /registrar-tarjeta para obtener una tarjeta física' })
-                        .setTimestamp();
-                    return interaction.editReply({ embeds: [embed] });
-                }
 
                 const embed = new EmbedBuilder()
                     .setTitle('💳 Estado Tarjeta Débito')
@@ -3178,6 +3173,53 @@ client.on('interactionCreate', async interaction => {
             }
         }
 
+        else if (subcommand === 'retirar') {
+            const monto = interaction.options.getNumber('monto');
+            if (monto <= 0) return interaction.reply({ content: '❌ El monto debe ser mayor a 0.', ephemeral: true });
+
+            await interaction.deferReply();
+
+            try {
+                const card = await getDebitCard(interaction.user.id);
+                if (!card) return interaction.editReply('❌ No tienes una tarjeta de débito activa.');
+
+                const balance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
+                const bankBalance = balance.bank || 0;
+
+                if (bankBalance < monto) {
+                    return interaction.editReply(`❌ Fondos insuficientes en banco.\\n\\nDisponible: $${bankBalance.toLocaleString()}\\nIntentando retirar: $${monto.toLocaleString()}`);
+                }
+
+                // Transfer from bank to cash
+                await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, monto, 'Retiro de cajero', 'bank');
+                await billingService.ubService.addMoney(interaction.guildId, interaction.user.id, monto, 'Retiro de cajero', 'cash');
+
+                // Log transaction
+                await supabase.from('debit_transactions').insert({
+                    debit_card_id: card.id,
+                    discord_user_id: interaction.user.id,
+                    transaction_type: 'withdrawal',
+                    amount: -monto,
+                    description: 'Retiro en cajero automático'
+                });
+
+                const embed = new EmbedBuilder()
+                    .setTitle('🏧 Retiro Exitoso')
+                    .setColor(0x00FF00)
+                    .setDescription('Has retirado efectivo de tu cuenta bancaria.')
+                    .addFields(
+                        { name: 'Monto Retirado', value: `$${monto.toLocaleString()}`, inline: true },
+                        { name: 'Nuevo Saldo Banco', value: `$${(bankBalance - monto).toLocaleString()}`, inline: true }
+                    )
+                    .setFooter({ text: 'El efectivo está ahora en tu billetera' })
+                    .setTimestamp();
+
+                await interaction.editReply({ embeds: [embed] });
+            } catch (error) {
+                console.error(error);
+                await interaction.editReply('❌ Error procesando retiro.');
+            }
+        }
 
 
         else if (subcommand === 'transferir') {
