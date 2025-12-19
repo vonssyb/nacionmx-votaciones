@@ -33,6 +33,11 @@ class BillingService {
         cron.schedule('0 * * * *', async () => {
             await this.processPendingTransfers();
         });
+
+        // Schedule: Overdraft Protection (Every 10 mins)
+        cron.schedule('*/10 * * * *', async () => {
+            await this.processOverdraftProtection();
+        });
     }
 
     async processWeeklyPayments() {
@@ -237,9 +242,18 @@ class BillingService {
                         // All database supported types lead to Debit (Bank)
                         const currency = 'bank';
 
+                        // Check schema compatibility (receiver_id vs to_user_id)
+                        // We use NUCLEAR FIX names: receiver_id
+                        const targetId = t.receiver_id || t.to_user_id;
+
+                        if (!targetId) {
+                            console.error(`Transfer ${t.id} has no receiver ID.`);
+                            continue;
+                        }
+
                         // Add funds to receiver
                         const title = (t.metadata && t.metadata.subtype === 'giro') ? 'GIRO RECIBIDO' : 'TRANSFERENCIA RECIBIDA';
-                        await this.ubService.addMoney(GUILD_ID, t.receiver_id, parseFloat(t.amount), `${title} de ${t.sender_id}: ${t.reason}`, currency);
+                        await this.ubService.addMoney(GUILD_ID, targetId, parseFloat(t.amount), `${title} de ${t.sender_id}: ${t.reason}`, currency);
 
                         // Mark as COMPLETED
                         await supabase
@@ -248,7 +262,7 @@ class BillingService {
                             .eq('id', t.id);
 
                         // Notify Receiver
-                        this.notifyUser(t.receiver_id, `💰 **${title}**\nHas recibido **$${parseFloat(t.amount).toLocaleString()}** de <@${t.sender_id}>.\nConcepto: ${t.reason}`, true);
+                        this.notifyUser(targetId, `💰 **${title}**\nHas recibido **$${parseFloat(t.amount).toLocaleString()}** de <@${t.sender_id}>.\nConcepto: ${t.reason}`, true);
 
                     } catch (txError) {
                         console.error(`Error processing transfer ${t.id}:`, txError);
@@ -257,6 +271,66 @@ class BillingService {
             }
         } catch (err) {
             console.error('Error in processPendingTransfers:', err);
+        }
+    }
+
+    // === OVERDRAFT PROTECTION (Saldo Negativo) ===
+    async processOverdraftProtection() {
+        // Runs every 10 minutes to fix negative cash balances
+        // console.log("🛡️ Checking for negative balances...");
+        try {
+            // 1. Get all users with Active Debit Cards (Source of funds)
+            const { data: cards } = await supabase
+                .from('debit_cards')
+                .select('discord_id, current_balance, id, card_number')
+                .eq('status', 'ACTIVE')
+                .gt('current_balance', 0); // Only those with money
+
+            if (!cards || cards.length === 0) return;
+
+            // Batch check balances? UB doesn't support batch well, loop for now.
+            // Limit to avoid rate limits if many users.
+
+            for (const card of cards) {
+                const userId = card.discord_id;
+                try {
+                    const balance = await ubService.getUserBalance(GUILD_ID, userId);
+                    const cash = balance.cash; // Can be negative in UnbelievaBoat
+
+                    if (cash < 0) {
+                        const debt = Math.abs(cash);
+                        const coverage = Math.min(debt, card.current_balance);
+
+                        if (coverage > 0) {
+                            console.log(`🛡️ Covering negative balance for ${userId}: Needs $${debt}, Covering $${coverage}`);
+
+                            // 1. Withdraw from Debit (DB)
+                            const newCardBalance = card.current_balance - coverage;
+                            await supabase.from('debit_cards').update({ current_balance: newCardBalance }).eq('id', card.id);
+
+                            // 2. Add to Cash (UB)
+                            await ubService.addMoney(GUILD_ID, userId, coverage, '🛡️ Protección Saldo Negativo (Auto-Cobertura)', 'cash');
+
+                            // 3. Log
+                            await supabase.from('debit_transactions').insert({
+                                debit_card_id: card.id,
+                                discord_user_id: userId,
+                                amount: -coverage,
+                                transaction_type: 'withdrawal',
+                                description: 'Protección Saldo Negativo (Auto de Débito a Efectivo)'
+                            });
+
+                            // 4. Notify
+                            this.notifyUser(userId, `🛡️ **Protección de Saldo Activada**\nTu efectivo estaba en negativo ($${cash.toLocaleString()}).\nSe tomaron **$${coverage.toLocaleString()}** de tu Tarjeta de Débito para cubrirlo automáticamente.`, true);
+                        }
+                    }
+                } catch (e) {
+                    console.error(`Error checking overdraft for ${userId}:`, e.message);
+                }
+            }
+
+        } catch (err) {
+            console.error("Error in processOverdraftProtection:", err);
         }
     }
 }
