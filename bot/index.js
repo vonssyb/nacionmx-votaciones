@@ -5549,6 +5549,7 @@ async function handleExtraCommands(interaction) {
     }
 }
 
+
     // ===== 🎮 CASINO GAMES =====
     else if (commandName === 'jugar') {
     await interaction.deferReply(); // Global defer for all games
