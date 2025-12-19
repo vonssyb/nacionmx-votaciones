@@ -456,6 +456,50 @@ client.once('ready', async () => {
             type: 1
         },
         {
+            name: 'empresa',
+            description: '🏢 Gestión de empresas y negocios',
+            options: [
+                {
+                    name: 'crear',
+                    description: 'Registrar una nueva empresa ($50k)',
+                    type: 1,
+                    options: [
+                        { name: 'owner', description: 'Dueño de la empresa', type: 6, required: true },
+                        { name: 'nombre', description: 'Nombre de la empresa', type: 3, required: true },
+                        { name: 'tipo', description: 'Tipo de empresa', type: 3, required: true, choices: [
+                            { name: 'Privada', value: 'Privada' },
+                            { name: 'Pública', value: 'Pública' }
+                        ]},
+                        { name: 'descripcion', description: 'Descripción del negocio', type: 3, required: false }
+                    ]
+                },
+                {
+                    name: 'menu',
+                    description: 'Panel de gestión de tu empresa',
+                    type: 1
+                },
+                {
+                    name: 'cobrar',
+                    description: 'Generar cobro para clientes (Terminal POS)',
+                    type: 1,
+                    options: [
+                        { name: 'cliente', description: 'Cliente a cobrar', type: 6, required: true },
+                        { name: 'monto', description: 'Monto a cobrar', type: 10, required: true },
+                        { name: 'razon', description: 'Concepto del cobro', type: 3, required: true }
+                    ]
+                },
+                {
+                    name: 'credito',
+                    description: 'Solicitar crédito empresarial',
+                    type: 1,
+                    options: [
+                        { name: 'monto', description: 'Cantidad a solicitar', type: 10, required: true },
+                        { name: 'razon', description: 'Uso del crédito', type: 3, required: false }
+                    ]
+                }
+            ]
+        },
+        {
             name: 'nomina',
             description: 'Gestión de Nóminas para Empresas',
             options: [
