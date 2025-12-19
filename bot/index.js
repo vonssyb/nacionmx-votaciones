@@ -53,6 +53,12 @@ let globalStocks = [
     { symbol: 'NMX', name: 'Nación MX Corp', base: 500, current: 500, type: 'Empresa' }
 ];
 
+
+async function getDebitCard(discordId) {
+    const { data: card } = await supabase.from('debit_cards').select('*').eq('discord_user_id', discordId).eq('status', 'active').maybeSingle();
+    return card;
+}
+
 function updateStockPrices() {
     console.log('📉 Actualizando precios de bolsa...');
     globalStocks = globalStocks.map(stock => {
@@ -108,11 +114,6 @@ client.once('ready', async () => {
     updateStockPrices(); // Initial update
     setInterval(updateStockPrices, 10 * 60 * 1000);
 
-
-    async function getDebitCard(discordId) {
-        const { data: card } = await supabase.from('debit_cards').select('*').eq('discord_user_id', discordId).eq('status', 'active').maybeSingle();
-        return card;
-    }
 
 
     const rest = new REST({ version: '10' }).setToken(DISCORD_TOKEN);
