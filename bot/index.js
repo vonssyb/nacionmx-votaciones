@@ -2594,7 +2594,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                     .addFields(
                         { name: 'Precio por Acción', value: `$${currentPrice.toLocaleString()} MXN`, inline: true },
                         { name: 'Total Recibido', value: `$${totalRevenue.toLocaleString()} MXN`, inline: true },
-                        { name: 'Ganancia/Pérdida', value: `${profitEmoji} $${Math.floor(profit).toLocaleString()} MXN`, inline: true }
+                        { name: profit >= 0 ? '📈 Ganancia' : '📉 Pérdida', value: `$${Math.abs(Math.floor(profit)).toLocaleString()} MXN`, inline: true }
                     )
                     .setTimestamp();
 
@@ -2639,7 +2639,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
 
                     embed.addFields({
                         name: `${profitEmoji} ${p.stock_symbol} (${p.shares} acciones)`,
-                        value: `Compra: $${p.avg_buy_price.toLocaleString()} | Actual: $${currentPrice.toLocaleString()}\nValor: $${currentValue.toLocaleString()} | ${profitEmoji} $${profitLoss.toLocaleString()}`,
+                        value: `Compra: $${p.avg_buy_price.toLocaleString()} | Actual: $${currentPrice.toLocaleString()}\nValor: $${currentValue.toLocaleString()} | ${profitLoss >= 0 ? '📈 Ganancia' : '📉 Pérdida'}: $${Math.abs(profitLoss).toLocaleString()}`,
                         inline: false
                     });
                 });
@@ -2647,7 +2647,8 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 const totalProfit = totalCurrent - totalInvested;
                 const profitEmoji = totalProfit >= 0 ? '📈' : '📉';
 
-                embed.setDescription(`**Total Invertido:** $${totalInvested.toLocaleString()}\n**Valor Actual:** $${totalCurrent.toLocaleString()}\n**${profitEmoji} Ganancia/Pérdida Total:** $${totalProfit.toLocaleString()}`);
+                const profitLabel = totalProfit >= 0 ? '📈 Ganancia Total' : '📉 Pérdida Total';
+                embed.setDescription(`**Total Invertido:** $${totalInvested.toLocaleString()}\n**Valor Actual:** $${totalCurrent.toLocaleString()}\n**${profitLabel}:** $${Math.abs(totalProfit).toLocaleString()}`);
 
                 await interaction.reply({ embeds: [embed] });
             } catch (error) {
