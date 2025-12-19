@@ -1649,11 +1649,12 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
     }
 
     else if (commandName === 'credito') {
+        await interaction.deferReply({ ephemeral: false }); // Global defer to prevent timeouts
+
         const subCmd = interaction.options.getSubcommand();
         const isPrivate = interaction.options.getBoolean('privado') ?? false;
 
         if (subCmd === 'buro') {
-            await interaction.deferReply({ ephemeral: isPrivate });
 
             const { data: citizen } = await supabase.from('citizens').select('id, full_name, credit_score').eq('discord_id', interaction.user.id).order('created_at', { ascending: false }).limit(1).maybeSingle();
 
@@ -1676,7 +1677,6 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             await interaction.editReply({ embeds: [embed] });
         }
         else if (subCmd === 'info' && interaction.options.getSubcommandGroup() !== 'admin') {
-            await interaction.deferReply({ ephemeral: isPrivate });
 
             const { data: citizen } = await supabase.from('citizens').select('id, full_name, dni').eq('discord_id', interaction.user.id).limit(1).maybeSingle();
             if (!citizen) return interaction.editReply('❌ No tienes un ciudadano vinculado.');
@@ -1699,7 +1699,6 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             await interaction.editReply({ embeds: [embed] });
         }
         else if (subCmd === 'estado') {
-            await interaction.deferReply({ ephemeral: isPrivate });
 
             // FIX: Query 'citizens' table instead of 'profiles' because credit_cards are linked to citizens.
             const { data: citizen } = await supabase.from('citizens').select('id').eq('discord_id', interaction.user.id).order('created_at', { ascending: false }).limit(1).maybeSingle();
@@ -1728,7 +1727,6 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
         }
 
         else if (subCmd === 'pedir-prestamo') {
-            await interaction.deferReply({ ephemeral: isPrivate });
 
             return interaction.editReply({
                 embeds: [new EmbedBuilder()
@@ -1741,7 +1739,6 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
         }
 
         else if (subCmd === 'pagar') {
-            await interaction.deferReply({ ephemeral: isPrivate });
 
             // Robust amount handling
             const amount = interaction.options.getNumber('monto') || interaction.options.getInteger('monto');
@@ -2874,6 +2871,8 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
     }
 
     else if (commandName === 'bolsa') {
+        await interaction.deferReply(); // Global defer to prevent timeouts
+
         const subcommand = interaction.options.getSubcommand();
         const hour = new Date().getHours();
 
@@ -3510,6 +3509,8 @@ client.on('interactionCreate', async interaction => {
     }
 
     else if (commandName === 'debito') {
+        await interaction.deferReply(); // Global defer to prevent timeouts
+
         const subcommand = interaction.options.getSubcommand();
 
         async function getDebitCard(discordId) {
