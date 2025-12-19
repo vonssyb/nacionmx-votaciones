@@ -466,10 +466,12 @@ client.once('ready', async () => {
                     options: [
                         { name: 'owner', description: 'Dueño de la empresa', type: 6, required: true },
                         { name: 'nombre', description: 'Nombre de la empresa', type: 3, required: true },
-                        { name: 'tipo', description: 'Tipo de empresa', type: 3, required: true, choices: [
-                            { name: 'Privada', value: 'Privada' },
-                            { name: 'Pública', value: 'Pública' }
-                        ]},
+                        {
+                            name: 'tipo', description: 'Tipo de empresa', type: 3, required: true, choices: [
+                                { name: 'Privada', value: 'Privada' },
+                                { name: 'Pública', value: 'Pública' }
+                            ]
+                        },
                         { name: 'descripcion', description: 'Descripción del negocio', type: 3, required: false }
                     ]
                 },
@@ -3891,6 +3893,7 @@ client.on('interactionCreate', async interaction => {
                     .setColor(0x00CED1)
                     .setDescription(`Detalles de tu cuenta bancaria NMX`)
                     .addFields(
+                        { name: '💳 Tipo de Tarjeta', value: card.card_type || 'NMX Débito', inline: true },
                         { name: '🔢 Número de Tarjeta', value: `\`${card.card_number}\``, inline: false },
                         { name: '💰 Saldo en Banco', value: `$${bankBalance.toLocaleString()}`, inline: true },
                         { name: '📅 Fecha de Creación', value: `<t:${Math.floor(new Date(card.created_at).getTime() / 1000)}:D>`, inline: true },
@@ -4260,11 +4263,7 @@ client.on('interactionCreate', async interaction => {
                 return interaction.editReply(`❌ Fondos insuficientes en Efectivo. Tienes $${(senderBalance.cash || 0).toLocaleString()}.`);
             }
 
-            // 2. Deduct Money Immediately (Cash)
-            await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, monto, `Giro enviado a ${destUser.tag}: ${razon}`, 'cash');
-
-            // 3. Create Pending Transfer (24h Delay)
-            // 24 hours from now
+            // 2. Create Pending Transfer FIRST (24h Delay)
             const releaseDate = new Date();
             releaseDate.setHours(releaseDate.getHours() + 24);
 
@@ -4281,7 +4280,13 @@ client.on('interactionCreate', async interaction => {
                     metadata: { subtype: 'giro' }
                 });
 
-            if (dbError) throw dbError;
+            if (dbError) {
+                console.error('DB Error creating giro:', dbError);
+                return interaction.editReply('❌ Error procesando el giro. Por favor intenta de nuevo.');
+            }
+
+            // 3. Deduct Money AFTER DB Success (Cash)
+            await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, monto, `Giro enviado a ${destUser.tag}: ${razon}`, 'cash');
 
             // 4. Notify
             const embed = new EmbedBuilder()
