@@ -582,6 +582,96 @@ client.once('ready', async () => {
                     ]
                 }
             ]
+        },
+        {
+            name: 'jugar',
+            description: '🎮 Jugar a los juegos del casino',
+            options: [
+                // Slots
+                {
+                    name: 'slots',
+                    description: '🎰 Tragamonedas de 3 rodillos',
+                    type: 1,
+                    options: [
+                        { name: 'apuesta', description: 'Fichas a apostar (mín: 10)', type: 4, required: true, min_value: 10 }
+                    ]
+                },
+                // Dice
+                {
+                    name: 'dice',
+                    description: '🎲 Tira un dado y apuesta alto/bajo',
+                    type: 1,
+                    options: [
+                        {
+                            name: 'direccion',
+                            description: 'Over (arriba) o Under (abajo)',
+                            type: 3,
+                            required: true,
+                            choices: [
+                                { name: 'Over (Mayor que)', value: 'over' },
+                                { name: 'Under (Menor que)', value: 'under' }
+                            ]
+                        },
+                        { name: 'numero', description: 'Número 1-99', type: 4, required: true, min_value: 1, max_value: 99 },
+                        { name: 'apuesta', description: 'Fichas a apostar', type: 4, required: true, min_value: 1 }
+                    ]
+                },
+                // Blackjack
+                {
+                    name: 'blackjack',
+                    description: '🃏 Clásico 21 contra la casa',
+                    type: 1,
+                    options: [
+                        { name: 'apuesta', description: 'Fichas a apostar', type: 4, required: true, min_value: 10 }
+                    ]
+                },
+                // Ruleta
+                {
+                    name: 'ruleta',
+                    description: '🎡 Ruleta europea',
+                    type: 1,
+                    options: [
+                        {
+                            name: 'tipo',
+                            description: 'Tipo de apuesta',
+                            type: 3,
+                            required: true,
+                            choices: [
+                                { name: 'Rojo', value: 'red' },
+                                { name: 'Negro', value: 'black' },
+                                { name: 'Par', value: 'even' },
+                                { name: 'Impar', value: 'odd' },
+                                { name: 'Número Exacto', value: 'number' }
+                            ]
+                        },
+                        { name: 'numero', description: 'Si elegiste número exacto (0-36)', type: 4, required: false, min_value: 0, max_value: 36 },
+                        { name: 'apuesta', description: 'Fichas a apostar', type: 4, required: true, min_value: 1 }
+                    ]
+                },
+                // Caballos
+                {
+                    name: 'caballos',
+                    description: '🐴 Carrera de caballos',
+                    type: 1,
+                    options: [
+                        {
+                            name: 'caballo',
+                            description: 'Elige tu caballo',
+                            type: 4,
+                            required: true,
+                            choices: [
+                                { name: '🐴 Caballo 1', value: 1 },
+                                { name: '🐴 Caballo 2', value: 2 },
+                                { name: '🐴 Caballo 3', value: 3 },
+                                { name: '🐴 Caballo 4', value: 4 },
+                                { name: '🐴 Caballo 5', value: 5 },
+                                { name: '🐴 Caballo 6', value: 6 }
+                            ]
+                        },
+                        { name: 'apuesta', description: 'Fichas a apostar', type: 4, required: true, min_value: 10 }
+                    ]
+                }
+            ]
         }
     ];
 
@@ -4582,7 +4672,487 @@ client.on('interactionCreate', async interaction => {
                 }
             }
         }
+    }
 
+    // ===== 🎮 CASINO GAMES =====
+    else if (commandName === 'jugar') {
+        const CASINO_CHANNEL_ID = '1451398359540826306';
+        const CASINO_ROLE_ID = '1449951345611378841';
+
+        // Security checks
+        if (interaction.channelId !== CASINO_CHANNEL_ID) {
+            return interaction.reply({ content: `🎰 Este comando solo puede usarse en <#${CASINO_CHANNEL_ID}>`, ephemeral: true });
+        }
+
+        if (!interaction.member.roles.cache.has(CASINO_ROLE_ID)) {
+            return interaction.reply({ content: '🚫 Necesitas el rol de Casino para jugar.', ephemeral: true });
+        }
+
+        const game = interaction.options.getSubcommand();
+
+        // Helper function to save game result
+        async function saveGameResult(userId, gameType, betAmount, resultAmount, multiplier, gameData = {}) {
+            try {
+                // Update chips
+                const { data: account } = await supabase
+                    .from('casino_chips')
+                    .select('*')
+                    .eq('discord_user_id', userId)
+                    .single();
+
+                const newBalance = account.chips_balance + resultAmount;
+                const won = resultAmount > 0 ? resultAmount : 0;
+                const lost = resultAmount < 0 ? Math.abs(resultAmount) : 0;
+
+                await supabase
+                    .from('casino_chips')
+                    .update({
+                        chips_balance: newBalance,
+                        total_won: account.total_won + won,
+                        total_lost: account.total_lost + lost,
+                        games_played: account.games_played + 1,
+                        biggest_win: Math.max(account.biggest_win, won),
+                        biggest_loss: Math.max(account.biggest_loss, lost),
+                        updated_at: new Date().toISOString()
+                    })
+                    .eq('discord_user_id', userId);
+
+                // Save history
+                await supabase
+                    .from('casino_history')
+                    .insert({
+                        discord_user_id: userId,
+                        game_type: gameType,
+                        bet_amount: betAmount,
+                        result_amount: resultAmount,
+                        multiplier: multiplier,
+                        game_data: gameData
+                    });
+
+                return newBalance;
+            } catch (error) {
+                console.error('Error saving game result:', error);
+                throw error;
+            }
+        }
+
+        // Helper to check chips
+        async function checkChips(userId, amount) {
+            const { data: account } = await supabase
+                .from('casino_chips')
+                .select('chips_balance')
+                .eq('discord_user_id', userId)
+                .maybeSingle();
+
+            if (!account) {
+                return { hasEnough: false, message: '❌ No tienes cuenta de casino. Compra fichas con `/casino fichas comprar`' };
+            }
+
+            if (account.chips_balance < amount) {
+                return {
+                    hasEnough: false,
+                    message: `❌ Fichas insuficientes.\\n\\nTienes: ${account.chips_balance.toLocaleString()}\\nNecesitas: ${amount.toLocaleString()}`
+                };
+            }
+
+            return { hasEnough: true, balance: account.chips_balance };
+        }
+
+        // === SLOTS ===
+        if (game === 'slots') {
+            await interaction.deferReply();
+
+            const apuesta = interaction.options.getInteger('apuesta');
+            const check = await checkChips(interaction.user.id, apuesta);
+            if (!check.hasEnough) return interaction.editReply(check.message);
+
+            try {
+                const symbols = ['🍒', '🍋', '🍊', '🍇', '💎', '⭐', '7️⃣'];
+                const weights = [30, 25, 20, 15, 7, 2, 1]; // Probabilidades
+
+                // Pick weighted random
+                function pickSymbol() {
+                    const total = weights.reduce((sum, w) => sum + w, 0);
+                    let random = Math.floor(Math.random() * total);
+                    for (let i = 0; i < symbols.length; i++) {
+                        if (random < weights[i]) return symbols[i];
+                        random -= weights[i];
+                    }
+                    return symbols[0];
+                }
+
+                const reel1 = pickSymbol();
+                const reel2 = pickSymbol();
+                const reel3 = pickSymbol();
+
+                let multiplier = 0;
+                let description = '';
+
+                // Check results
+                if (reel1 === reel2 && reel2 === reel3) {
+                    // 3 of a kind
+                    if (reel1 === '7️⃣') {
+                        multiplier = 100;
+                        description = '🎉 **JACKPOT!** ¡ Tres 7s!';
+                    } else if (reel1 === '⭐') {
+                        multiplier = 50;
+                        description = '⭐ **SUPER WIN!** ¡Tres estrellas!';
+                    } else if (reel1 === '💎') {
+                        multiplier = 25;
+                        description = '💎 **BIG WIN!** ¡Tres diamantes!';
+                    } else {
+                        multiplier = 10;
+                        description = '🎊 **GANASTE!** ¡Tres iguales!';
+                    }
+                } else if (reel1 === reel2 || reel2 === reel3 || reel1 === reel3) {
+                    multiplier = 2;
+                    description = '✨ Dos iguales - Premio menor';
+                } else {
+                    multiplier = 0;
+                    description = '😔 Sin suerte esta vez...';
+                }
+
+                const ganancia = Math.floor(apuesta * multiplier) - apuesta;
+                const newBalance = await saveGameResult(
+                    interaction.user.id,
+                    'slots',
+                    apuesta,
+                    ganancia,
+                    multiplier,
+                    { reel1, reel2, reel3 }
+                );
+
+                const embed = new EmbedBuilder()
+                    .setTitle('🎰 TRAGAMONEDAS')
+                    .setDescription(`\`\`\`\\n[ ${reel1} | ${reel2} | ${reel3} ]\\n\`\`\`\\n\\n${description}`)
+                    .setColor(ganancia > 0 ? 0x00FF00 : 0xFF0000)
+                    .addFields(
+                        { name: '🎟️ Apuesta', value: `${apuesta.toLocaleString()} fichas`, inline: true },
+                        { name: ganancia >= 0 ? '💰 Ganancia' : '💔 Pérdida', value: `${Math.abs(ganancia).toLocaleString()} fichas`, inline: true },
+                        { name: '💼 Nuevo Saldo', value: `${newBalance.toLocaleString()} fichas`, inline: true }
+                    )
+                    .setFooter({ text: `Multiplicador: x${multiplier}` })
+                    .setTimestamp();
+
+                await interaction.editReply({ embeds: [embed] });
+
+            } catch (error) {
+                console.error(error);
+                await interaction.editReply('❌ Error jugando slots.');
+            }
+        }
+
+        // === DICE ===
+        else if (game === 'dice') {
+            await interaction.deferReply();
+
+            const apuesta = interaction.options.getInteger('apuesta');
+            const direccion = interaction.options.getString('direccion');
+            const numero = interaction.options.getInteger('numero');
+
+            const check = await checkChips(interaction.user.id, apuesta);
+            if (!check.hasEnough) return interaction.editReply(check.message);
+
+            try {
+                const resultado = Math.floor(Math.random() * 100); // 0-99
+
+                let multiplier = 0;
+                let win = false;
+
+                if (direccion === 'over' && resultado > numero) {
+                    win = true;
+                    multiplier = (100 / (100 - numero)) * 0.98; // House edge 2%
+                } else if (direccion === 'under' && resultado < numero) {
+                    win = true;
+                    multiplier = (100 / numero) * 0.98;
+                }
+
+                const ganancia = win ? Math.floor(apuesta * multiplier) - apuesta : -apuesta;
+                const newBalance = await saveGameResult(
+                    interaction.user.id,
+                    'dice',
+                    apuesta,
+                    ganancia,
+                    win ? multiplier : 0,
+                    { direccion, numero, resultado }
+                );
+
+                const embed = new EmbedBuilder()
+                    .setTitle('🎲 DICE')
+                    .setDescription(`**Resultado:** \`${resultado}\`\\n**Tu apuesta:** ${direccion === 'over' ? '⬆️ Mayor que' : '⬇️ Menor que'} ${numero}`)
+                    .setColor(win ? 0x00FF00 : 0xFF0000)
+                    .addFields(
+                        { name: '🎯 Resultado', value: win ? '✅ ¡GANASTE!' : '❌ Perdiste', inline: true },
+                        { name: '🎟️ Apuesta', value: `${apuesta.toLocaleString()}`, inline: true },
+                        { name: win ? '💰 Ganancia' : '💔 Pérdida', value: `${Math.abs(ganancia).toLocaleString()}`, inline: true },
+                        { name: '💼 Nuevo Saldo', value: `${newBalance.toLocaleString()} fichas`, inline: false }
+                    )
+                    .setFooter({ text: win ? `Multiplicador: x${multiplier.toFixed(2)}` : 'Intenta de nuevo' })
+                    .setTimestamp();
+
+                await interaction.editReply({ embeds: [embed] });
+
+            } catch (error) {
+                console.error(error);
+                await interaction.editReply('❌ Error jugando dice.');
+            }
+        }
+
+        // === BLACKJACK ===
+        else if (game === 'blackjack') {
+            await interaction.deferReply();
+
+            const apuesta = interaction.options.getInteger('apuesta');
+            const check = await checkChips(interaction.user.id, apuesta);
+            if (!check.hasEnough) return interaction.editReply(check.message);
+
+            try {
+                // Simple blackjack implementation
+                function getCard() {
+                    const cards = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
+                    return cards[Math.floor(Math.random() * cards.length)];
+                }
+
+                function calculateHand(cards) {
+                    let total = 0;
+                    let aces = 0;
+
+                    for (const card of cards) {
+                        if (card === 'A') {
+                            aces++;
+                            total += 11;
+                        } else if (['J', 'Q', 'K'].includes(card)) {
+                            total += 10;
+                        } else {
+                            total += parseInt(card);
+                        }
+                    }
+
+                    while (total > 21 && aces > 0) {
+                        total -= 10;
+                        aces--;
+                    }
+
+                    return total;
+                }
+
+                const playerCards = [getCard(), getCard()];
+                const dealerCards = [getCard(), getCard()];
+
+                // Dealer plays (stands on 17+)
+                while (calculateHand(dealerCards) < 17) {
+                    dealerCards.push(getCard());
+                }
+
+                const playerTotal = calculateHand(playerCards);
+                const dealerTotal = calculateHand(dealerCards);
+
+                let resultado = '';
+                let multiplier = 0;
+
+                if (playerTotal > 21) {
+                    resultado = '💥 **TE PASASTE!** Perdiste';
+                    multiplier = 0;
+                } else if (dealerTotal > 21) {
+                    resultado = '🎉 **DEALER SE PASÓ!** ¡Ganaste!';
+                    multiplier = 2;
+                } else if (playerTotal > dealerTotal) {
+                    resultado = playerTotal === 21 && playerCards.length === 2
+                        ? '🃏 **BLACKJACK!** ¡Victoria perfecta!'
+                        : '✅ **GANASTE!**';
+                    multiplier = playerTotal === 21 && playerCards.length === 2 ? 2.5 : 2;
+                } else if (playerTotal < dealerTotal) {
+                    resultado = '😔 **DEALER GANA** Perdiste';
+                    multiplier = 0;
+                } else {
+                    resultado = '🤝 **EMPATE** Recuperas tu apuesta';
+                    multiplier = 1;
+                }
+
+                const ganancia = Math.floor(apuesta * multiplier) - apuesta;
+                const newBalance = await saveGameResult(
+                    interaction.user.id,
+                    'blackjack',
+                    apuesta,
+                    ganancia,
+                    multiplier,
+                    { playerCards, dealerCards, playerTotal, dealerTotal }
+                );
+
+                const embed = new EmbedBuilder()
+                    .setTitle('🃏 BLACKJACK')
+                    .setDescription(resultado)
+                    .setColor(ganancia > 0 ? 0x00FF00 : ganancia < 0 ? 0xFF0000 : 0xFFA500)
+                    .addFields(
+                        { name: '👤 Tu Mano', value: `${playerCards.join(' ')} = **${playerTotal}**`, inline: true },
+                        { name: '🏠 Dealer', value: `${dealerCards.join(' ')} = **${dealerTotal}**`, inline: true },
+                        { name: '\u200b', value: '\u200b', inline: true },
+                        { name: '🎟️ Apuesta', value: `${apuesta.toLocaleString()}`, inline: true },
+                        { name: ganancia > 0 ? '💰 Ganancia' : ganancia < 0 ? '💔 Pérdida' : '💼 Resultado', value: `${Math.abs(ganancia).toLocaleString()}`, inline: true },
+                        { name: '💼 Nuevo Saldo', value: `${newBalance.toLocaleString()}`, inline: true }
+                    )
+                    .setFooter({ text: `Multiplicador: x${multiplier}` })
+                    .setTimestamp();
+
+                await interaction.editReply({ embeds: [embed] });
+
+            } catch (error) {
+                console.error(error);
+                await interaction.editReply('❌ Error jugando blackjack.');
+            }
+        }
+
+        // === RULETA ===
+        else if (game === 'ruleta') {
+            await interaction.deferReply();
+
+            const apuesta = interaction.options.getInteger('apuesta');
+            const tipo = interaction.options.getString('tipo');
+            const numeroElegido = interaction.options.getInteger('numero');
+
+            const check = await checkChips(interaction.user.id, apuesta);
+            if (!check.hasEnough) return interaction.editReply(check.message);
+
+            if (tipo === 'number' && (numeroElegido === null || numeroElegido === undefined)) {
+                return interaction.editReply('❌ Debes especificar un número si eliges "Número Exacto"');
+            }
+
+            try {
+                const resultado = Math.floor(Math.random() * 37); // 0-36
+                const rojos = [1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36];
+                const esRojo = rojos.includes(resultado);
+                const esNegro = resultado !== 0 && !esRojo;
+                const esPar = resultado !== 0 && resultado % 2 === 0;
+                const esImpar = resultado !== 0 && resultado % 2 !== 0;
+
+                let win = false;
+                let multiplier = 0;
+
+                switch (tipo) {
+                    case 'red':
+                        win = esRojo;
+                        multiplier = 2;
+                        break;
+                    case 'nero':
+                        win = esNegro;
+                        multiplier = 2;
+                        break;
+                    case 'even':
+                        win = esPar;
+                        multiplier = 2;
+                        break;
+                    case 'odd':
+                        win = esImpar;
+                        multiplier = 2;
+                        break;
+                    case 'number':
+                        win = resultado === numeroElegido;
+                        multiplier = 35;
+                        break;
+                }
+
+                const ganancia = win ? Math.floor(apuesta * multiplier) - apuesta : -apuesta;
+                const newBalance = await saveGameResult(
+                    interaction.user.id,
+                    'ruleta',
+                    apuesta,
+                    ganancia,
+                    win ? multiplier : 0,
+                    { tipo, numeroElegido, resultado }
+                );
+
+                const colorEmoji = esRojo ? '🔴' : esNegro ? '⚫' : '🟢';
+
+                const embed = new EmbedBuilder()
+                    .setTitle('🎡 RULETA EUROPEA')
+                    .setDescription(`${colorEmoji} **Resultado: ${resultado}**`)
+                    .setColor(win ? 0x00FF00 : 0xFF0000)
+                    .addFields(
+                        { name: '🎯 Tu Apuesta', value: tipo === 'number' ? `Número ${numeroElegido}` : tipo === 'red' ? 'Rojo' : tipo === 'black' ? 'Negro' : tipo === 'even' ? 'Par' : 'Impar', inline: true },
+                        { name: '🎰 Resultado', value: win ? '✅ ¡GANASTE!' : '❌ Perdiste', inline: true },
+                        { name: '\u200b', value: '\u200b', inline: true },
+                        { name: '🎟️ Apuesta', value: `${apuesta.toLocaleString()}`, inline: true },
+                        { name: win ? '💰 Ganancia' : '💔 Pérdida', value: `${Math.abs(ganancia).toLocaleString()}`, inline: true },
+                        { name: '💼 Nuevo Saldo', value: `${newBalance.toLocaleString()}`, inline: true }
+                    )
+                    .setFooter({ text: win ? `Multiplicador: x${multiplier}` : 'La casa siempre gana... casi siempre' })
+                    .setTimestamp();
+
+                await interaction.editReply({ embeds: [embed] });
+
+            } catch (error) {
+                console.error(error);
+                await interaction.editReply('❌ Error jugando ruleta.');
+            }
+        }
+
+        // === CARRERAS DE CABALLOS ===
+        else if (game === 'caballos') {
+            await interaction.deferReply();
+
+            const apuesta = interaction.options.getInteger('apuesta');
+            const caballoElegido = interaction.options.getInteger('caballo');
+
+            const check = await checkChips(interaction.user.id, apuesta);
+            if (!check.hasEnough) return interaction.editReply(check.message);
+
+            try {
+                const nombres = ['El Relámpago', 'Tornado', 'Huracán', 'Trueno', 'Meteoro', 'Centella'];
+                const caballos = nombres.map((nombre, i) => ({ id: i + 1, nombre, posicion: 0 }));
+
+                // Simulate race (10 rounds)
+                for (let round = 0; round < 10; round++) {
+                    for (const caballo of caballos) {
+                        caballo.posicion += Math.floor(Math.random() * 3) + 1; // Avanza 1-3
+                    }
+                }
+
+                // Sort by position
+                caballos.sort((a, b) => b.posicion - a.posicion);
+                const ganador = caballos[0];
+
+                const win = ganador.id === caballoElegido;
+                const multiplier = win ? 5 : 0;
+                const ganancia = win ? Math.floor(apuesta * multiplier) - apuesta : -apuesta;
+
+                const newBalance = await saveGameResult(
+                    interaction.user.id,
+                    'caballos',
+                    apuesta,
+                    ganancia,
+                    multiplier,
+                    { caballoElegido, ganador: ganador.id, posiciones: caballos.map((c, i) => ({ nombre: c.nombre, posicion: i + 1 })) }
+                );
+
+                let raceDescription = '**🏁 RESULTADOS:**\\n';
+                caballos.forEach((c, i) => {
+                    const emoji = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}.`;
+                    const highlight = c.id === caballoElegido ? '**' : '';
+                    raceDescription += `${emoji} ${highlight}${c.nombre}${highlight}\\n`;
+                });
+
+                const embed = new EmbedBuilder()
+                    .setTitle('🐴 CARRERA DE CABALLOS')
+                    .setDescription(raceDescription)
+                    .setColor(win ? 0x00FF00 : 0xFF0000)
+                    .addFields(
+                        { name: '🎯 Tu Caballo', value: nombres[caballoElegido - 1], inline: true },
+                        { name: '🏆 Ganador', value: ganador.nombre, inline: true },
+                        { name: '🎰 Resultado', value: win ? '✅ ¡GANASTE!' : '❌ Perdiste', inline: true },
+                        { name: '🎟️ Apuesta', value: `${apuesta.toLocaleString()}`, inline: true },
+                        { name: win ? '💰 Ganancia' : '💔 Pérdida', value: `${Math.abs(ganancia).toLocaleString()}`, inline: true },
+                        { name: '💼 Nuevo Saldo', value: `${newBalance.toLocaleString()}`, inline: true }
+                    )
+                    .setFooter({ text: win ? 'Multiplicador: x5' : '¡Apuesta al caballo correcto la próxima!' })
+                    .setTimestamp();
+
+                await interaction.editReply({ embeds: [embed] });
+
+            } catch (error) {
+                console.error(error);
+                await interaction.editReply('❌ Error en carrera de caballos.');
+            }
+        }
     }
 });
 
