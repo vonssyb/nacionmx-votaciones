@@ -670,6 +670,43 @@ client.once('ready', async () => {
                         },
                         { name: 'apuesta', description: 'Fichas a apostar', type: 4, required: true, min_value: 10 }
                     ]
+                },
+                // Crash
+                {
+                    name: 'crash',
+                    description: '📉 Retira antes del crash - Multiplicador sube',
+                    type: 1,
+                    options: [
+                        { name: 'apuesta', description: 'Fichas a apostar', type: 4, required: true, min_value: 10 }
+                    ]
+                },
+                // Gallos
+                {
+                    name: 'gallos',
+                    description: '🐓 Pelea de gallos',
+                    type: 1,
+                    options: [
+                        {
+                            name: 'gallo',
+                            description: 'Elige tu gallo',
+                            type: 3,
+                            required: true,
+                            choices: [
+                                { name: '🔴 Gallo Rojo', value: 'red' },
+                                { name: '🔵 Gallo Azul', value: 'blue' }
+                            ]
+                        },
+                        { name: 'apuesta', description: 'Fichas a apostar', type: 4, required: true, min_value: 10 }
+                    ]
+                },
+                // Ruleta Rusa
+                {
+                    name: 'ruleta-rusa',
+                    description: '💀 ALTO RIESGO - Si pierdes, ban temporal',
+                    type: 1,
+                    options: [
+                        { name: 'apuesta', description: 'Fichas a apostar (máx: 100)', type: 4, required: true, min_value: 10, max_value: 100 }
+                    ]
                 }
             ]
         }
@@ -5151,6 +5188,216 @@ client.on('interactionCreate', async interaction => {
             } catch (error) {
                 console.error(error);
                 await interaction.editReply('❌ Error en carrera de caballos.');
+            }
+        }
+
+        // === CRASH ===
+        else if (game === 'crash') {
+            await interaction.deferReply();
+
+            const apuesta = interaction.options.getInteger('apuesta');
+            const check = await checkChips(interaction.user.id, apuesta);
+            if (!check.hasEnough) return interaction.editReply(check.message);
+
+            try {
+                // Generate crash point (weighted toward lower values)
+                const random = Math.random();
+                let crashPoint;
+
+                if (random < 0.33) crashPoint = 1 + Math.random() * 0.5; // 1.0-1.5x (33%)
+                else if (random < 0.66) crashPoint = 1.5 + Math.random() * 1; // 1.5-2.5x (33%)
+                else if (random < 0.85) crashPoint = 2.5 + Math.random() * 2.5; // 2.5-5x (19%)
+                else if (random < 0.95) crashPoint = 5 + Math.random() * 5; // 5-10x (10%)
+                else crashPoint = 10 + Math.random() * 40; // 10-50x (5%)
+
+                crashPoint = parseFloat(crashPoint.toFixed(2));
+
+                // Auto cash out at random point before crash
+                const cashOutPoint = parseFloat((crashPoint * (0.6 + Math.random() * 0.3)).toFixed(2));
+
+                const multiplier = cashOutPoint;
+                const ganancia = Math.floor(apuesta * multiplier) - apuesta;
+
+                const newBalance = await saveGameResult(
+                    interaction.user.id,
+                    'crash',
+                    apuesta,
+                    ganancia,
+                    multiplier,
+                    { crashPoint, cashOutPoint }
+                );
+
+                const embed = new EmbedBuilder()
+                    .setTitle('📉 CRASH')
+                    .setDescription(`El multiplicador subió hasta **${crashPoint}x** y crasheó!\\n\\n🎯 Tu cash out: **${cashOutPoint}x**`)
+                    .setColor(0x00FF00)
+                    .addFields(
+                        { name: '🎟️ Apuesta', value: `${apuesta.toLocaleString()}`, inline: true },
+                        { name: '💰 Ganancia', value: `${ganancia.toLocaleString()}`, inline: true },
+                        { name: '💼 Nuevo Saldo', value: `${newBalance.toLocaleString()}`, inline: true }
+                    )
+                    .setFooter({ text: `Multiplicador: x${multiplier}` })
+                    .setTimestamp();
+
+                await interaction.editReply({ embeds: [embed] });
+
+            } catch (error) {
+                console.error(error);
+                await interaction.editReply('❌ Error jugando crash.');
+            }
+        }
+
+        // === GALLOS ===
+        else if (game === 'gallos') {
+            await interaction.deferReply();
+
+            const apuesta = interaction.options.getInteger('apuesta');
+            const galloElegido = interaction.options.getString('gallo');
+
+            const check = await checkChips(interaction.user.id, apuesta);
+            if (!check.hasEnough) return interaction.editReply(check.message);
+
+            try {
+                const rounds = [];
+                let rojoWins = 0;
+                let azulWins = 0;
+
+                // Fight to 3 wins
+                while (rojoWins < 3 && azulWins < 3) {
+                    const winner = Math.random() < 0.5 ? 'red' : 'blue';
+                    if (winner === 'red') rojoWins++;
+                    else azulWins++;
+                    rounds.push(winner);
+                }
+
+                const ganador = rojoWins === 3 ? 'red' : 'blue';
+                const win = ganador === galloElegido;
+                const multiplier = win ? 1.9 : 0;
+                const ganancia = win ? Math.floor(apuesta * multiplier) - apuesta : -apuesta;
+
+                const newBalance = await saveGameResult(
+                    interaction.user.id,
+                    'gallos',
+                    apuesta,
+                    ganancia,
+                    multiplier,
+                    { galloElegido, ganador, rounds }
+                );
+
+                let fightDescription = '**🥊 PELEA:**\\n';
+                rounds.forEach((r, i) => {
+                    fightDescription += `Round ${i + 1}: ${r === 'red' ? '🔴 Rojo' : '🔵 Azul'} gana\\n`;
+                });
+
+                const embed = new EmbedBuilder()
+                    .setTitle('🐓 PELEA DE GALLOS')
+                    .setDescription(fightDescription)
+                    .setColor(win ? 0x00FF00 : 0xFF0000)
+                    .addFields(
+                        { name: '🎯 Tu Gallo', value: galloElegido === 'red' ? '🔴 Rojo' : '🔵 Azul', inline: true },
+                        { name: '🏆 Ganador', value: ganador === 'red' ? '🔴 Rojo' : '🔵 Azul', inline: true },
+                        { name: '🎰 Resultado', value: win ? '✅ ¡GANASTE!' : '❌ Perdiste', inline: true },
+                        { name: '🎟️ Apuesta', value: `${apuesta.toLocaleString()}`, inline: true },
+                        { name: win ? '💰 Ganancia' : '💔 Pérdida', value: `${Math.abs(ganancia).toLocaleString()}`, inline: true },
+                        { name: '💼 Nuevo Saldo', value: `${newBalance.toLocaleString()}`, inline: true }
+                    )
+                    .setFooter({ text: win ? 'Multiplicador: x1.9' : '¡Mejor suerte la próxima!' })
+                    .setTimestamp();
+
+                await interaction.editReply({ embeds: [embed] });
+
+            } catch (error) {
+                console.error(error);
+                await interaction.editReply('❌ Error en pelea de gallos.');
+            }
+        }
+
+        // === RULETA RUSA ===
+        else if (game === 'ruleta-rusa') {
+            await interaction.deferReply();
+
+            const apuesta = interaction.options.getInteger('apuesta');
+            const check = await checkChips(interaction.user.id, apuesta);
+            if (!check.hasEnough) return interaction.editReply(check.message);
+
+            try {
+                const chamber = Math.floor(Math.random() * 6) + 1; // 1-6
+                const bullet = 1; // Bala en cámara 1
+
+                const survived = chamber !== bullet;
+
+                let ganancia, multiplier, newBalance;
+
+                if (survived) {
+                    multiplier = 5;
+                    ganancia = Math.floor(apuesta * multiplier) - apuesta;
+                    newBalance = await saveGameResult(
+                        interaction.user.id,
+                        'ruleta-rusa',
+                        apuesta,
+                        ganancia,
+                        multiplier,
+                        { chamber, survived: true }
+                    );
+
+                    const embed = new EmbedBuilder()
+                        .setTitle('💀 RULETA RUSA')
+                        .setDescription('🎉 **¡SOBREVIVISTE!**\\n\\n*Click* ... La cámara estaba vacía.')
+                        .setColor(0x00FF00)
+                        .addFields(
+                            { name: '🎲 Cámara', value: `${chamber}/6`, inline: true },
+                            { name: '🎟️ Apuesta', value: `${apuesta.toLocaleString()}`, inline: true },
+                            { name: '💰 Ganancia', value: `${ganancia.toLocaleString()}`, inline: true },
+                            { name: '💼 Nuevo Saldo', value: `${newBalance.toLocaleString()}`, inline: false }
+                        )
+                        .setFooter({ text: 'Multiplicador: x5 | Jugaste con fuego y ganaste' })
+                        .setTimestamp();
+
+                    await interaction.editReply({ embeds: [embed] });
+
+                } else {
+                    // PERDIÓ - Penalización
+                    multiplier = 0;
+                    const multa = apuesta * 2; // Multa 2x
+                    ganancia = -(apuesta + multa);
+
+                    newBalance = await saveGameResult(
+                        interaction.user.id,
+                        'ruleta-rusa',
+                        apuesta,
+                        ganancia,
+                        0,
+                        { chamber, survived: false }
+                    );
+
+                    // Ban temporal (1 hora)
+                    const banUntil = new Date(Date.now() + (60 * 60 * 1000));
+                    await supabase.from('casino_bans').insert({
+                        discord_user_id: interaction.user.id,
+                        reason: 'Perdió en Ruleta Rusa',
+                        banned_by: 'Sistema Casino',
+                        banned_until: banUntil.toISOString()
+                    });
+
+                    const embed = new EmbedBuilder()
+                        .setTitle('💀 RULETA RUSA')
+                        .setDescription('💥 **¡BANG!**\\n\\n❌ No tuviste suerte...\\n\\n**Penalización:**\\n• Perdiste tu apuesta\\n• Multa adicional: 2x apuesta\\n• Ban del casino: 1 hora')
+                        .setColor(0xFF0000)
+                        .addFields(
+                            { name: '🎲 Cámara', value: `${chamber}/6 💥`, inline: true },
+                            { name: '💔 Pérdida Total', value: `${Math.abs(ganancia).toLocaleString()}`, inline: true },
+                            { name: '⏰ Ban hasta', value: `<t:${Math.floor(banUntil.getTime() / 1000)}:R>`, inline: true },
+                            { name: '💼 Nuevo Saldo', value: `${newBalance.toLocaleString()}`, inline: false }
+                        )
+                        .setFooter({ text: 'Juega con responsabilidad' })
+                        .setTimestamp();
+
+                    await interaction.editReply({ embeds: [embed] });
+                }
+
+            } catch (error) {
+                console.error(error);
+                await interaction.editReply('❌ Error en ruleta rusa.');
             }
         }
     }
