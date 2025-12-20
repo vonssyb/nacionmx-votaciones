@@ -4720,11 +4720,23 @@ async function handleExtraCommands(interaction) {
     }
 
     else if (commandName === 'debito') {
-        await interaction.deferReply(); // Global defer to prevent timeouts
-
         const subcommand = interaction.options.getSubcommand();
 
+        // === PRE-VALIDATION (Before Defer) ===
+        // Quick check for common failure cases
+        if (subcommand === 'estado' || subcommand === 'info') {
+            // Quick check: Does user have a debit card? (use cache if available)
+            const quickCard = await getDebitCard(interaction.user.id);
+            if (!quickCard) {
+                return interaction.reply({
+                    content: '❌ No tienes una tarjeta de débito activa. Visita el Banco Nacional para abrir tu cuenta con `/registrar-tarjeta`.',
+                    ephemeral: true
+                });
+            }
+        }
 
+        // Safe to defer now
+        await interaction.deferReply();
 
         if (subcommand === 'estado') {
             try {

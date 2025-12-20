@@ -34,3 +34,5 @@ dist-ssr
 bot/node_modules
 bot/.env
 
+logs/
+*.log
