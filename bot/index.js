@@ -4556,13 +4556,13 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             const targetUser = interaction.options.getUser('usuario');
 
             try {
-                // Get TARGET USER's active debit card (the one being upgraded)
+                // Get TARGET USER's active debit card (the one with MOST balance)
                 const { data: card, error: cardError } = await supabase
                     .from('debit_cards')
                     .select('*')
                     .eq('discord_user_id', targetUser.id)
                     .eq('status', 'active')
-                    .order('created_at', { ascending: false })
+                    .order('balance', { ascending: false })  // Highest balance first
                     .limit(1)
                     .maybeSingle();
 
