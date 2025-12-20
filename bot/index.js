@@ -2807,7 +2807,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                         new ButtonBuilder().setCustomId('reg_pay_bank').setLabel('🏦 Banco (UB)').setStyle(ButtonStyle.Primary),
                         new ButtonBuilder().setCustomId('reg_pay_debit').setLabel('💳 Débito (NMX)').setStyle(ButtonStyle.Secondary)
                     );
-                    await i.editReply({ content: '💳 **Selecciona método de pago para la apertura:**', embeds: [], components: [payRow] });
+                    await i.update({ content: '💳 **Selecciona método de pago para la apertura:**', embeds: [], components: [payRow] });
                 }
                 else if (['reg_pay_cash', 'reg_pay_bank', 'reg_pay_debit'].includes(i.customId)) {
                     await i.deferUpdate();
