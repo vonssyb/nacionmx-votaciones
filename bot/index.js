@@ -127,12 +127,18 @@ const CARD_TIERS = {
     'NMX Rubí': { limit: 500000, interest: 6, cost: 25000, max_balance: Infinity },
     'NMX Black': { limit: 1000000, interest: 5, cost: 40000, max_balance: Infinity },
     'NMX Diamante': { limit: 2000000, interest: 3, cost: 60000, max_balance: Infinity },
+    'NMX Zafiro': { limit: 5000000, interest: 2.5, cost: 100000, max_balance: Infinity },
+    'NMX Platino Elite': { limit: 10000000, interest: 2, cost: 150000, max_balance: Infinity },
     // Business Cards
     'NMX Business Start': { limit: 50000, interest: 2, cost: 8000, max_balance: Infinity },
     'NMX Business Gold': { limit: 100000, interest: 1.5, cost: 15000, max_balance: Infinity },
     'NMX Business Platinum': { limit: 200000, interest: 1.2, cost: 20000, max_balance: Infinity },
     'NMX Business Elite': { limit: 500000, interest: 1, cost: 35000, max_balance: Infinity },
-    'NMX Corporate': { limit: 1000000, interest: 0.7, cost: 50000, max_balance: Infinity }
+    'NMX Corporate': { limit: 1000000, interest: 0.7, cost: 50000, max_balance: Infinity },
+    'NMX Corporate Plus': { limit: 5000000, interest: 0.5, cost: 100000, max_balance: Infinity },
+    'NMX Enterprise': { limit: 10000000, interest: 0.4, cost: 200000, max_balance: Infinity },
+    'NMX Conglomerate': { limit: 25000000, interest: 0.3, cost: 350000, max_balance: Infinity },
+    'NMX Supreme': { limit: 50000000, interest: 0.2, cost: 500000, max_balance: Infinity }
 };
 
 // ==========================================
@@ -603,12 +609,18 @@ client.once('ready', async () => {
                         { name: '💳 NMX Rubí ($25k)', value: 'NMX Rubí' },
                         { name: '💳 NMX Black ($40k)', value: 'NMX Black' },
                         { name: '💳 NMX Diamante ($60k)', value: 'NMX Diamante' },
+                        { name: '💳 NMX Zafiro ($100k)', value: 'NMX Zafiro' },
+                        { name: '💳 NMX Platino Elite ($150k)', value: 'NMX Platino Elite' },
                         { name: '--- EMPRESARIAL ---', value: 'separator1' },
                         { name: '💳 NMX Business Start ($50k)', value: 'NMX Business Start' },
                         { name: '💳 NMX Business Gold ($100k)', value: 'NMX Business Gold' },
                         { name: '💳 NMX Business Platinum ($200k)', value: 'NMX Business Platinum' },
                         { name: '💳 NMX Business Elite ($500k)', value: 'NMX Business Elite' },
-                        { name: '💳 NMX Corporate ($1M)', value: 'NMX Corporate' }
+                        { name: '💳 NMX Corporate ($50k)', value: 'NMX Corporate' },
+                        { name: '💳 NMX Corporate Plus ($100k)', value: 'NMX Corporate Plus' },
+                        { name: '💳 NMX Enterprise ($200k)', value: 'NMX Enterprise' },
+                        { name: '💳 NMX Conglomerate ($350k)', value: 'NMX Conglomerate' },
+                        { name: '💳 NMX Supreme ($500k)', value: 'NMX Supreme' }
                     ]
                 },
                 { name: 'foto_dni', description: 'Foto del DNI/Identificación', type: 11, required: true },
@@ -643,6 +655,9 @@ client.once('ready', async () => {
                                 { name: 'NMX Rubí', value: 'NMX Rubí' },
                                 { name: 'NMX Black', value: 'NMX Black' },
                                 { name: 'NMX Diamante', value: 'NMX Diamante' },
+                                { name: 'NMX Zafiro', value: 'NMX Zafiro' },
+                                { name: 'NMX Platino Elite', value: 'NMX Platino Elite' },
+                                { name: '--- EMPRESARIAL ---', value: 'separator_business' },
                                 { name: 'NMX Business Start', value: 'NMX Business Start' },
                                 { name: 'NMX Business Gold', value: 'NMX Business Gold' },
                                 { name: 'NMX Business Platinum', value: 'NMX Business Platinum' },
@@ -888,21 +903,72 @@ client.once('ready', async () => {
             options: [
                 {
                     name: 'crear',
-                    description: 'Registrar una nueva empresa ($50k)',
+                    description: 'Registrar una nueva empresa ($250k trámite + local + vehículos)',
                     type: 1,
                     options: [
-                        { name: 'nombre', description: 'Nombre de la empresa', type: 3, required: true },
-                        { name: 'dueño', description: 'Dueño de la empresa', type: 6, required: true },
-                        { name: 'tipo_local', description: 'Rubro (Taller, Restaurante, etc)', type: 3, required: true },
-                        { name: 'costo_tramite', description: 'Costo del trámite administrativo', type: 10, required: true },
+                        { name: 'nombre', description: 'Nombre legal de la empresa (único)', type: 3, required: true },
+                        { name: 'dueño', description: 'Dueño y responsable legal', type: 6, required: true },
+                        {
+                            name: 'tipo_local',
+                            description: 'Tamaño del local/propiedad',
+                            type: 3,
+                            required: true,
+                            choices: [
+                                { name: 'Pequeño ($850k)', value: 'pequeño' },
+                                { name: 'Mediano ($1.75M)', value: 'mediano' },
+                                { name: 'Grande ($3.2M)', value: 'grande' },
+                                { name: 'Gigante ($5M)', value: 'gigante' }
+                            ]
+                        },
                         { name: 'logo', description: 'Logo de la empresa', type: 11, required: true },
                         { name: 'foto_local', description: 'Foto del local/establecimiento (Opcional)', type: 11, required: false },
-                        { name: 'co_dueño', description: 'Co-Dueño (Opcional)', type: 6, required: false },
-                        { name: 'es_privada', description: '¿Es empresa privada? (Paga impuestos)', type: 5, required: false },
-                        { name: 'vehiculos', description: 'Cantidad de vehículos asignados', type: 10, required: false },
-                        { name: 'costo_local', description: 'Costo del local/propiedad', type: 10, required: false },
-                        { name: 'costo_vehiculos', description: 'Costo total de vehículos', type: 10, required: false },
-                        { name: 'ubicacion', description: 'Ubicación RP', type: 3, required: false }
+                        { name: 'ubicacion', description: 'Ubicación RP del negocio', type: 3, required: false },
+                        { name: 'co_dueño', description: 'Co-Dueño (Máx. 1)', type: 6, required: false },
+                        {
+                            name: 'es_privada',
+                            description: '¿Es empresa privada? (Sí = más impuestos)',
+                            type: 5,
+                            required: false
+                        },
+                        {
+                            name: 'vehiculo_1',
+                            description: 'Primer vehículo (opcional)',
+                            type: 3,
+                            required: false,
+                            choices: [
+                                { name: 'Ejecutiva Ligera ($420k)', value: 'ejecutiva_ligera' },
+                                { name: 'Operativa de Servicio ($550k)', value: 'operativa_servicio' },
+                                { name: 'Carga Pesada ($850k)', value: 'carga_pesada' },
+                                { name: 'Ejecutiva Premium ($1.2M)', value: 'ejecutiva_premium' },
+                                { name: 'Asistencia Industrial ($1.5M)', value: 'asistencia_industrial' }
+                            ]
+                        },
+                        {
+                            name: 'vehiculo_2',
+                            description: 'Segundo vehículo (opcional)',
+                            type: 3,
+                            required: false,
+                            choices: [
+                                { name: 'Ejecutiva Ligera ($420k)', value: 'ejecutiva_ligera' },
+                                { name: 'Operativa de Servicio ($550k)', value: 'operativa_servicio' },
+                                { name: 'Carga Pesada ($850k)', value: 'carga_pesada' },
+                                { name: 'Ejecutiva Premium ($1.2M)', value: 'ejecutiva_premium' },
+                                { name: 'Asistencia Industrial ($1.5M)', value: 'asistencia_industrial' }
+                            ]
+                        },
+                        {
+                            name: 'vehiculo_3',
+                            description: 'Tercer vehículo (opcional)',
+                            type: 3,
+                            required: false,
+                            choices: [
+                                { name: 'Ejecutiva Ligera ($420k)', value: 'ejecutiva_ligera' },
+                                { name: 'Operativa de Servicio ($550k)', value: 'operativa_servicio' },
+                                { name: 'Carga Pesada ($850k)', value: 'carga_pesada' },
+                                { name: 'Ejecutiva Premium ($1.2M)', value: 'ejecutiva_premium' },
+                                { name: 'Asistencia Industrial ($1.5M)', value: 'asistencia_industrial' }
+                            ]
+                        }
                     ]
                 },
                 {
