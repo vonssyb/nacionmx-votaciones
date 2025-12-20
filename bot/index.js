@@ -1635,37 +1635,54 @@ client.on('interactionCreate', async interaction => {
 
         const tierInfo = CARD_TIERS[targetTier];
 
-        console.log('[DEBUG] Upgrade - Tier info:', { targetTier, cost: tierInfo.cost, userRealBalance: realBalance });
+        // Extract bank balance from UnbelievaBoat response
+        const bankBalance = typeof realBalance === 'object' ? realBalance.bank : realBalance;
+
+        console.log('[DEBUG] Upgrade - Tier info:', { targetTier, cost: tierInfo.cost, bankBalance });
 
         // Check balance (use REAL balance from UnbelievaBoat)
-        if (realBalance < tierInfo.cost) {
+        if (bankBalance < tierInfo.cost) {
             return interaction.reply({
-                content: `❌ **Fondos insuficientes**\n\nCosto: **$${tierInfo.cost.toLocaleString()}**\nTu saldo: **$${realBalance.toLocaleString()}**\nTarjeta: ${card.card_tier}\nID: ${cardId.slice(0, 8)}...`,
+                content: `❌ **Fondos insuficientes**\n\nCosto: **$${tierInfo.cost.toLocaleString()}**\nTu saldo: **$${bankBalance.toLocaleString()}**\nTarjeta: ${card.card_tier}\nID: ${cardId.slice(0, 8)}...`,
                 ephemeral: true
             });
         }
 
-        // Deduct cost and update card
-        const newBalance = card.balance - tierInfo.cost;
+        // Deduct money from UnbelievaBoat (source of truth)
+        await billingService.ubService.removeMoney(
+            interaction.guildId,
+            card.discord_user_id,
+            tierInfo.cost,
+            `Mejora de tarjeta a ${targetTier}`,
+            'bank'
+        );
 
+        // Update card tier in Supabase (for display only, NOT for balance validation)
         const { error: updateError } = await supabase
             .from('debit_cards')
             .update({
-                card_tier: targetTier,
-                balance: newBalance,
-                max_balance: tierInfo.max_balance
+                card_tier: targetTier
             })
             .eq('id', cardId);
 
         if (updateError) {
             console.error('[upgrade] Error:', updateError);
-            await interaction.deferReply({ ephemeral: true });
+            // Rollback the money deduction
+            await billingService.ubService.addMoney(
+                interaction.guildId,
+                card.discord_user_id,
+                tierInfo.cost,
+                'Rollback: Error en mejora de tarjeta',
+                'bank'
+            );
             return interaction.followUp({ content: '❌ Error al procesar la mejora.', ephemeral: true });
         }
 
         // Success - update original message to remove buttons
         await interaction.deferUpdate();
         await interaction.editReply({ components: [] });
+
+        const newBalance = bankBalance - tierInfo.cost;
 
         await interaction.followUp({
             content: `✅ **¡Mejora Completada!**\n\n🎉 Nueva tarjeta: **${targetTier}**\n💰 Costo: $${tierInfo.cost.toLocaleString()}\n💳 Nuevo saldo: $${newBalance.toLocaleString()}\n📊 Límite: ${tierInfo.max_balance === Infinity ? '♾️ Ilimitado' : '$' + tierInfo.max_balance.toLocaleString()}`,
