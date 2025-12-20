@@ -5383,11 +5383,10 @@ async function handleExtraCommands(interaction) {
                         // Create in DB (continue from line 5254)
                         await companyService.createCompany({
                             name: name,
-                            logo_url: logo ? logo.url : null,
+                            logo_url: logo.url,
                             industry_type: type,
                             owner_ids: ownerIds,
                             location: location,
-                            employee_count: 0,
                             is_private: isPrivate,
                             vehicles: vehicles,
                             status: 'active'
