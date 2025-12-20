@@ -2853,6 +2853,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                             // *** CREDIT CARD LOGIC (Original) ***
                             const { error: insertError } = await supabase.from('credit_cards').insert([{
                                 citizen_id: citizen.id,
+                                discord_user_id: targetUser.id,
                                 card_type: cardType,
                                 card_name: cardType,
                                 card_limit: stats.limit,
