@@ -3124,7 +3124,6 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             await interaction.editReply(`✅ **${target.username}** agregado a **${groupName}** con sueldo $${salary}.`);
         }
         else if (subCmd === 'pagar') {
-            await interaction.deferReply();
             const groupName = interaction.options.getString('grupo');
 
             const { data: group } = await supabase.from('payroll_groups').select('id').eq('name', groupName).eq('owner_discord_id', interaction.user.id).single();
