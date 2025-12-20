@@ -8,12 +8,9 @@
 ALTER TABLE credit_cards 
 ADD COLUMN IF NOT EXISTS discord_user_id TEXT;
 
--- 2. Update existing rows with discord_user_id from linked citizen
-UPDATE credit_cards cc
-SET discord_user_id = c.discord_user_id
-FROM citizens c
-WHERE cc.citizen_id = c.id
-  AND cc.discord_user_id IS NULL;
+-- 2. NOTE: Existing rows will have NULL discord_user_id
+--    They will be populated when users use their cards
+--    Future inserts will include discord_user_id from the start
 
 -- 3. Create index for faster lookups
 CREATE INDEX IF NOT EXISTS idx_credit_cards_discord_user_id 
