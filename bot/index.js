@@ -1598,6 +1598,52 @@ client.on('interactionCreate', async interaction => {
         return;
     }
 
+    // STRING SELECT MENU: Company Selection
+    if (interaction.customId === 'select_company_menu') {
+        await interaction.deferUpdate();
+
+        const companyId = interaction.values[0];
+        const { data: company } = await supabase
+            .from('companies')
+            .select('*')
+            .eq('id', companyId)
+            .single();
+
+        if (!company) {
+            return interaction.editReply({ content: '❌ Empresa no encontrada.', components: [] });
+        }
+
+        const embed = new EmbedBuilder()
+            .setTitle(`🏢 ${company.name} - Panel de Control`)
+            .setColor(0x5865F2)
+            .setDescription(`Gestión completa de tu empresa`)
+            .addFields(
+                { name: '💰 Saldo', value: `$${(company.balance || 0).toLocaleString()}`, inline: true },
+                { name: '👥 Empleados', value: `${(company.employee_count || 0)}`, inline: true },
+                { name: '🚗 Vehículos', value: `${company.vehicles || 0}`, inline: true },
+                { name: '📍 Ubicación', value: company.location || 'No especificada', inline: true },
+                { name: '🏷️ Tipo', value: company.industry_type, inline: true },
+                { name: '🔒 Privacidad', value: company.is_private ? 'Privada' : 'Pública', inline: true }
+            )
+            .setThumbnail(company.logo_url)
+            .setFooter({ text: 'Sistema Empresar ial Nación MX' })
+            .setTimestamp();
+
+        const row1 = new ActionRowBuilder().addComponents(
+            new ButtonBuilder().setCustomId(`company_hire_${companyId}`).setLabel('👥 Contratar').setStyle(ButtonStyle.Success),
+            new ButtonBuilder().setCustomId(`company_fire_${companyId}`).setLabel('🚫 Despedir').setStyle(ButtonStyle.Danger),
+            new ButtonBuilder().setCustomId(`company_payroll_${companyId}`).setLabel('💵 Pagar Nómina').setStyle(ButtonStyle.Primary)
+        );
+
+        const row2 = new ActionRowBuilder().addComponents(
+            new ButtonBuilder().setCustomId(`company_withdraw_${companyId}`).setLabel('💸 Retirar Fondos').setStyle(ButtonStyle.Secondary),
+            new ButtonBuilder().setCustomId(`company_stats_${companyId}`).setLabel('📊 Estadísticas').setStyle(ButtonStyle.Secondary)
+        );
+
+        await interaction.editReply({ embeds: [embed], components: [row1, row2] });
+        return;
+    }
+
     if (interaction.isButton()) { return; }
 
     const { commandName } = interaction;
@@ -5475,6 +5521,34 @@ async function handleExtraCommands(interaction) {
 
                 if (!companies || companies.length === 0) {
                     return interaction.editReply('❌ No tienes una empresa registrada.');
+                }
+
+                // If user has multiple companies, show selector
+                if (companies.length > 1) {
+                    const selectMenu = new StringSelectMenuBuilder()
+                        .setCustomId('select_company_menu')
+                        .setPlaceholder('Selecciona una empresa')
+                        .addOptions(companies.map(c => ({
+                            label: c.name,
+                            description: `${c.industry_type} - ${c.location || 'Sin ubicación'}`,
+                            value: c.id,
+                            emoji: '🏢'
+                        })));
+
+                    const row = new ActionRowBuilder().addComponents(selectMenu);
+
+                    const selectorEmbed = new EmbedBuilder()
+                        .setTitle('🏢 Selecciona una Empresa')
+                        .setColor(0x5865F2)
+                        .setDescription(`Tienes **${companies.length} empresas**. Selecciona cuál deseas gestionar:`)
+                        .addFields(companies.map(c => ({
+                            name: `${c.name}`,
+                            value: `📍 ${c.location || 'N/A'} • 🏷️ ${c.industry_type}`,
+                            inline: false
+                        })));
+
+                    await interaction.editReply({ embeds: [selectorEmbed], components: [row] });
+                    return; // Wait for selection
                 }
 
                 const company = companies[0];
