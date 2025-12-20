@@ -896,6 +896,7 @@ client.once('ready', async () => {
                         { name: 'tipo_local', description: 'Rubro (Taller, Restaurante, etc)', type: 3, required: true },
                         { name: 'costo_tramite', description: 'Costo del trámite administrativo', type: 10, required: true },
                         { name: 'logo', description: 'Logo de la empresa', type: 11, required: true },
+                        { name: 'foto_local', description: 'Foto del local/establecimiento (Opcional)', type: 11, required: false },
                         { name: 'co_dueño', description: 'Co-Dueño (Opcional)', type: 6, required: false },
                         { name: 'es_privada', description: '¿Es empresa privada? (Paga impuestos)', type: 5, required: false },
                         { name: 'vehiculos', description: 'Cantidad de vehículos asignados', type: 10, required: false },
