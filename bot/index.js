@@ -3869,9 +3869,17 @@ async function requestPaymentMethod(interaction, userId, amount, description) {
         .setDescription(`**${description}**\n\n💰 Total a pagar: **$${amount.toLocaleString()}**\n\nElige cómo deseas pagar:`)
         .setFooter({ text: 'Banco Nacional - Métodos de Pago' });
 
-    const msg = await interaction.editReply({ embeds: [embed], components: [paymentRow] });
+    // Handle both command interactions and button interactions
+    let msg;
+    if (interaction.isButton && interaction.isButton()) {
+        // Button interaction - use update
+        msg = await interaction.update({ embeds: [embed], components: [paymentRow], fetchReply: true });
+    } else {
+        // Command interaction - use editReply
+        msg = await interaction.editReply({ embeds: [embed], components: [paymentRow] });
+    }
 
-    const filter = i => i.user.id === interaction.user.id && i.customId.startsWith('genpay_');
+    const filter = i => i.user.id === userId && i.customId.startsWith('genpay_');
     const collector = msg.createMessageComponentCollector({ filter, time: 60000 });
 
     return new Promise((resolve) => {
