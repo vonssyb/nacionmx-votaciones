@@ -1,5 +1,6 @@
 const axios = require('axios');
 const CacheService = require('./CacheService');
+const logger = require('./Logger');
 
 class UnbelievableBoatService {
     constructor(token) {
@@ -20,7 +21,7 @@ class UnbelievableBoatService {
         setInterval(() => {
             const cleaned = this.balanceCache.cleanup();
             if (cleaned > 0) {
-                console.log(`[CACHE] Cleaned ${cleaned} expired entries`);
+                logger.debug(`Cache cleanup: ${cleaned} expired entries removed`);
             }
         }, 300000);
     }
@@ -43,7 +44,7 @@ class UnbelievableBoatService {
                     const retryAfter = error.response.headers['retry-after'] || error.response.data?.retry_after || 60;
                     const waitTime = Math.min(retryAfter * 1000, 60000); // Max 60 seconds
 
-                    console.warn(`⏱️ Rate limited. Waiting ${retryAfter}s before retry (${attempt + 1}/${maxRetries + 1})...`);
+                    logger.warn(`Rate limited by UnbelievaBoat API. Waiting ${retryAfter}s before retry (${attempt + 1}/${maxRetries + 1})`);
 
                     if (attempt < maxRetries) {
                         await new Promise(resolve => setTimeout(resolve, waitTime));
@@ -69,18 +70,18 @@ class UnbelievableBoatService {
         // Try cache first
         const cached = this.balanceCache.get(cacheKey);
         if (cached) {
-            console.log(`[CACHE HIT] ${cacheKey}`);
+            logger.debug(`Cache hit: ${cacheKey}`);
             return cached;
         }
 
         // Cache miss - fetch from API
-        console.log(`[CACHE MISS] ${cacheKey}`);
+        logger.debug(`Cache miss: ${cacheKey}`);
         const result = await this.retryWithBackoff(async () => {
             try {
                 const response = await this.client.get(`/guilds/${guildId}/users/${userId}`);
                 return response.data;
             } catch (error) {
-                console.error('Error fetching balance:', error.response?.data || error.message);
+                logger.errorWithContext('Failed to fetch user balance from UnbelievaBoat', error, { guildId, userId });
                 throw error;
             }
         });
@@ -110,7 +111,7 @@ class UnbelievableBoatService {
                 const response = await this.client.patch(`/guilds/${guildId}/users/${userId}`, payload);
                 return { success: true, newBalance: response.data };
             } catch (error) {
-                console.error('Error removing money:', error.response?.data || error.message);
+                logger.errorWithContext('Failed to remove money from user', error, { guildId, userId, amount, type });
                 throw new Error(error.response?.data?.message || error.message);
             }
         });
@@ -135,7 +136,7 @@ class UnbelievableBoatService {
                 const response = await this.client.patch(`/guilds/${guildId}/users/${userId}`, payload);
                 return { success: true, newBalance: response.data };
             } catch (error) {
-                console.error('Error adding money:', error.response?.data || error.message);
+                logger.errorWithContext('Failed to add money to user', error, { guildId, userId, amount, type });
                 throw new Error(error.response?.data?.message || error.message);
             }
         });
