@@ -4950,10 +4950,10 @@ async function handleExtraCommands(interaction) {
                 }
 
                 // Check Max Balance Limit (Tier based)
-                const tier = CARD_TIERS[card.card_type];
+                const tier = CARD_TIERS[card.card_tier || 'NMX Débito'];
                 const maxBal = tier ? (tier.max_balance || Infinity) : Infinity;
                 if ((bankBalance + monto) > maxBal) {
-                    return interaction.editReply(`⛔ **Límite de Saldo Excedido**\nTu tarjeta **${card.card_type}** tiene un límite de almacenamiento de **$${maxBal.toLocaleString()}**.\nActual: $${bankBalance.toLocaleString()} + Depósito: $${monto.toLocaleString()} > Límite.\n\n💡 **Mejora a NMX Débito Gold para almacenamiento ilimitado.**`);
+                    return interaction.editReply(`⛔ **Límite de Saldo Excedido**\nTu tarjeta **${card.card_tier || 'NMX Débito'}** tiene un límite de almacenamiento de **$${maxBal.toLocaleString()}**.\nActual: $${bankBalance.toLocaleString()} + Depósito: $${monto.toLocaleString()} > Límite.\n\n💡 **Mejora a NMX Débito Gold para almacenamiento ilimitado.**`);
                 }
 
                 // Transfer from cash to bank
