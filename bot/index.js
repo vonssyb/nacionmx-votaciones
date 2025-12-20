@@ -1597,14 +1597,17 @@ client.on('interactionCreate', async interaction => {
 
 
         // Parse customId: btn_udp_upgrade_{cardId}_{TierName_With_Underscores}
+        // Example: btn_udp_upgrade_123_NMX_Débito_Gold
         const parts = interaction.customId.split('_');
         const cardId = parts[3];
-        const targetTierParts = parts.slice(4); // Everything after cardId
-        const targetTier = targetTierParts.join(' '); // e.g., "NMX Débito Gold"
+        const targetTierRaw = parts.slice(4).join('_'); // Rejoin: "NMX_Débito_Gold"
+        const targetTier = targetTierRaw.replace(/_/g, ' '); // Convert to: "NMX Débito Gold"
+
+        console.log('[DEBUG] Upgrade button - Target tier:', targetTier, '| Available tiers:', Object.keys(CARD_TIERS));
 
         if (!targetTier || !CARD_TIERS[targetTier]) {
             return interaction.followUp({
-                content: `❌ Error: Nivel de tarjeta inválido (${targetTier})`,
+                content: `❌ Error: Nivel de tarjeta inválido.\nBuscado: "${targetTier}"\nDisponibles: ${Object.keys(CARD_TIERS).filter(k => k.includes('Débito')).join(', ')}`,
                 ephemeral: true
             });
         }
