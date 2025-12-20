@@ -5251,9 +5251,9 @@ async function handleExtraCommands(interaction) {
                             .setDescription(`**🏢 Registro de Empresa: ${name}**\n\n💰 Total: **$${totalCost.toLocaleString()}**\n\nElige método de pago:`);
 
                         const payRow = new ActionRowBuilder().addComponents(
-                            new ButtonBuilder().setCustomId('pay_cash').setLabel('💵 Efectivo').setStyle(ButtonStyle.Success),
-                            new ButtonBuilder().setCustomId('pay_bank').setLabel('🏦 Banco').setStyle(ButtonStyle.Primary),
-                            new ButtonBuilder().setCustomId('pay_cancel').setLabel('❌ Cancelar').setStyle(ButtonStyle.Danger)
+                            new ButtonBuilder().setCustomId('empresa_pay_cash').setLabel('💵 Efectivo').setStyle(ButtonStyle.Success),
+                            new ButtonBuilder().setCustomId('empresa_pay_bank').setLabel('🏦 Banco').setStyle(ButtonStyle.Primary),
+                            new ButtonBuilder().setCustomId('empresa_pay_cancel').setLabel('❌ Cancelar').setStyle(ButtonStyle.Danger)
                         );
 
                         await i.update({ embeds: [paymentEmbed], components: [payRow] });
@@ -5364,7 +5364,7 @@ async function handleExtraCommands(interaction) {
                 });
 
                 paymentCollector.on('collect', async pi => {
-                    if (pi.customId === 'pay_cancel') {
+                    if (pi.customId === 'empresa_pay_cancel') {
                         await pi.update({ content: '🚫 Pago cancelado.', embeds: [], components: [] });
                         return paymentCollector.stop();
                     }
@@ -5373,7 +5373,7 @@ async function handleExtraCommands(interaction) {
                         await pi.deferUpdate();
 
                         // Process payment
-                        const method = pi.customId === 'pay_cash' ? 'cash' : 'bank';
+                        const method = pi.customId === 'empresa_pay_cash' ? 'cash' : 'bank';
                         await billingService.ubService.removeMoney(interaction.guildId, ownerUser.id, totalCost, `🏢 Registro de Empresa: ${name}`, method);
 
                         // Prepare IDs
