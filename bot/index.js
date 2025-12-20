@@ -1586,14 +1586,9 @@ client.on('interactionCreate', async interaction => {
         await interaction.editReply(`✅ **¡Ganancia Cobrada!**\nHas recibido **$${inv.payout_amount.toLocaleString()}** en tu cuenta.`);
     }
 
+
     // BUTTON: Debit Card Upgrade (User accepts offer)
     if (interaction.isButton() && interaction.customId.startsWith('btn_udp_upgrade_')) {
-        try {
-            await interaction.deferUpdate(); // Acknowledge button click immediately
-        } catch (err) {
-            console.error('[ERROR] Failed to defer btn_udp_upgrade:', err);
-            return;
-        }
 
 
         // Parse customId: btn_udp_upgrade_{cardId}_{TierName_With_Underscores}
@@ -1655,11 +1650,13 @@ client.on('interactionCreate', async interaction => {
 
         if (updateError) {
             console.error('[upgrade] Error:', updateError);
-            return interaction.reply({ content: '❌ Error al procesar la mejora.', ephemeral: true });
+            await interaction.deferReply({ ephemeral: true });
+            return interaction.followUp({ content: '❌ Error al procesar la mejora.', ephemeral: true });
         }
 
-        // Success - disable buttons and show result
-        await interaction.update({ components: [] });
+        // Success - update original message to remove buttons
+        await interaction.deferUpdate();
+        await interaction.editReply({ components: [] });
 
         await interaction.followUp({
             content: `✅ **¡Mejora Completada!**\n\n🎉 Nueva tarjeta: **${targetTier}**\n💰 Costo: $${tierInfo.cost.toLocaleString()}\n💳 Nuevo saldo: $${newBalance.toLocaleString()}\n📊 Límite: ${tierInfo.max_balance === Infinity ? '♾️ Ilimitado' : '$' + tierInfo.max_balance.toLocaleString()}`,
