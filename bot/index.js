@@ -5446,7 +5446,7 @@ async function handleExtraCommands(interaction) {
             return; // Prevent falling through to other empresa subcommands
         }
         else if (subcommand === 'menu') {
-            await interaction.deferReply({ flags: 64 });
+            await interaction.deferReply({ ephemeral: false });
             try {
                 const { data: companies } = await supabase
                     .from('companies')
