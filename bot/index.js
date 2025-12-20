@@ -2640,8 +2640,10 @@ client.on('interactionCreate', async interaction => {
     }
 
     else if (commandName === 'registrar-tarjeta') {
+        // DEFER IMMEDIATELY before anything else
+        await interaction.deferReply({ ephemeral: false });
+
         try {
-            await interaction.deferReply({ ephemeral: false });
 
             // === ROLE-BASED AUTHORIZATION ===
             const BANKER_ROLES = {
