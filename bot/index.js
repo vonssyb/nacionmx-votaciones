@@ -2503,9 +2503,19 @@ client.on('interactionCreate', async interaction => {
         try {
             await interaction.deferReply({ ephemeral: false });
 
-            // 1. Role Check (Staff Banco: 1450591546524307689)
-            if (!interaction.member.roles.cache.has('1450591546524307689') && !interaction.member.permissions.has('Administrator')) {
-                return interaction.editReply('⛔ No tienes permisos para registrar tarjetas (Rol Staff Banco Requerido).');
+            // === ROLE-BASED AUTHORIZATION ===
+            const BANKER_ROLES = {
+                REGULAR: '1450591546524307689',      // Banquero
+                EXECUTIVE: '1451291919320748275'     // Ejecutivo Banquero
+            };
+
+            const isExecutiveBanker = interaction.member.roles.cache.has(BANKER_ROLES.EXECUTIVE);
+            const isRegularBanker = interaction.member.roles.cache.has(BANKER_ROLES.REGULAR);
+            const isAdmin = interaction.member.permissions.has('Administrator');
+
+            // Check if user has any banker role or is admin
+            if (!isExecutiveBanker && !isRegularBanker && !isAdmin) {
+                return interaction.editReply('⛔ **Permiso Denegado**\n\nSolo el personal bancario puede registrar tarjetas.\n👥 Roles requeridos: Banquero o Ejecutivo Banquero');
             }
 
             const targetUser = interaction.options.getUser('usuario');
@@ -2520,6 +2530,30 @@ client.on('interactionCreate', async interaction => {
             const cardType = interaction.options.getString('tipo');
 
             if (cardType.startsWith('separator')) return interaction.editReply('❌ Selección inválida: Has elegido un separador.');
+
+            // === CARD TYPE AUTHORIZATION (Banker Tier) ===
+            const regularBankerAllowedCards = [
+                'NMX Débito', 'NMX Débito Plus', 'NMX Débito Gold',
+                'NMX Start', 'NMX Básica', 'NMX Plus', 'NMX Plata',
+                'NMX Oro', 'NMX Rubí', 'NMX Black', 'NMX Diamante'
+            ];
+
+            // Regular bankers can only offer cards up to Diamante
+            if (isRegularBanker && !isExecutiveBanker && !isAdmin) {
+                if (!regularBankerAllowedCards.includes(cardType)) {
+                    return interaction.editReply(
+                        `⛔ **Permiso Denegado**\n\n` +
+                        `No tienes autorización para ofrecer **${cardType}**.\n\n` +
+                        `💼 **Banquero Regular:**\n` +
+                        `└ Tarjetas de débito\n` +
+                        `└ Tarjetas personales hasta **NMX Diamante**\n\n` +
+                        `👔 **Ejecutivo Banquero:**\n` +
+                        `└ Todas las tarjetas personales\n` +
+                        `└ Tarjetas empresariales\n` +
+                        `└ Tarjetas premium (Zafiro, Platino Elite)`
+                    );
+                }
+            }
 
             // Business Card Validation
             if (cardType.includes('Business') || cardType.includes('Corporate')) {
