@@ -5232,19 +5232,21 @@ async function handleExtraCommands(interaction) {
 
                     if (i.customId === 'confirm_company') {
                         hasResponded = true;
-                        // Don't deferUpdate here, let requestPaymentMethod handle it
 
-                        // Use universal payment system with button interaction
-                        const paymentResult = await requestPaymentMethod(
-                            i, // Use button interaction, not original interaction
-                            ownerUser.id,
-                            totalCost,
-                            `🏢 Registro de Empresa: ${name}`
+                        // Show payment options directly
+                        const paymentEmbed = new EmbedBuilder()
+                            .setTitle('💳 Selecciona Método de Pago')
+                            .setColor(0xFFD700)
+                            .setDescription(`**🏢 Registro de Empresa: ${name}**\n\n💰 Total: **$${totalCost.toLocaleString()}**\n\nElige método de pago:`);
+
+                        const payRow = new ActionRowBuilder().addComponents(
+                            new ButtonBuilder().setCustomId('pay_cash').setLabel('💵 Efectivo').setStyle(ButtonStyle.Success),
+                            new ButtonBuilder().setCustomId('pay_bank').setLabel('🏦 Banco').setStyle(ButtonStyle.Primary),
+                            new ButtonBuilder().setCustomId('pay_cancel').setLabel('❌ Cancelar').setStyle(ButtonStyle.Danger)
                         );
 
-                        if (!paymentResult.success) {
-                            return i.update({ content: paymentResult.error, embeds: [], components: [] });
-                        }
+                        await i.update({ embeds: [paymentEmbed], components: [payRow] });
+                        return; // Exit collector, new one will handle payment
 
                         // Prepare IDs
                         const ownerIds = [ownerUser.id];
@@ -5342,6 +5344,81 @@ async function handleExtraCommands(interaction) {
 
                 collector.on('end', collected => {
                     if (!hasResponded) interaction.editReply({ content: '⚠️ Tiempo de espera agotado. Intenta de nuevo.', components: [] });
+                });
+
+                // Payment button collector
+                const paymentCollector = msg.createMessageComponentCollector({
+                    filter: pi => pi.user.id === interaction.user.id && (pi.customId === 'pay_cash' || pi.customId === 'pay_bank' || pi.customId === 'pay_cancel'),
+                    time: 120000
+                });
+
+                paymentCollector.on('collect', async pi => {
+                    if (pi.customId === 'pay_cancel') {
+                        await pi.update({ content: '🚫 Pago cancelado.', embeds: [], components: [] });
+                        return paymentCollector.stop();
+                    }
+
+                    try {
+                        await pi.deferUpdate();
+
+                        // Process payment
+                        const method = pi.customId === 'pay_cash' ? 'cash' : 'bank';
+                        await billingService.ubService.removeMoney(interaction.guildId, ownerUser.id, totalCost, `🏢 Registro de Empresa: ${name}`, method);
+
+                        // Prepare IDs
+                        const ownerIds = [ownerUser.id];
+                        if (coOwnerUser) ownerIds.push(coOwnerUser.id);
+
+                        // Create in DB (continue from line 5254)
+                        await companyService.createCompany({
+                            name: name,
+                            logo_url: logo ? logo.url : null,
+                            industry_type: type,
+                            owner_ids: ownerIds,
+                            location: location,
+                            employee_count: 0,
+                            is_private: isPrivate,
+                            vehicles: vehicles,
+                            status: 'active'
+                        });
+
+                        const successEmbed = new EmbedBuilder()
+                            .setTitle(`✅ Empresa Registrada: ${name}`)
+                            .setColor(0x00FF00)
+                            .setThumbnail(logo ? logo.url : null)
+                            .addFields(
+                                { name: '🏷️ Industria', value: type, inline: true },
+                                { name: '📍 Ubicación', value: location, inline: true },
+                                { name: '🔒 Tipo', value: isPrivate ? 'Privada' : 'Pública', inline: true },
+                                { name: '👤 Dueño', value: `<@${ownerUser.id}>`, inline: true },
+                                { name: '💰 Inversión Total', value: `$${totalCost.toLocaleString()}`, inline: true },
+                                { name: '💳 Método de Pago', value: method === 'cash' ? '💵 Efectivo' : '🏦 Banco', inline: true }
+                            )
+                            .setTimestamp();
+
+                        await interaction.editReply({ content: null, embeds: [successEmbed], components: [] });
+
+                        // Send DM to owner (if not staff)
+                        if (ownerUser.id !== interaction.user.id) {
+                            try {
+                                const welcomeEmbed = new EmbedBuilder()
+                                    .setTitle(`🎉 ¡Felicidades! Tu empresa "${name}" ha sido registrada`)
+                                    .setColor(0x00D9FF)
+                                    .setDescription(`**${interaction.user.tag}** ha registrado tu empresa en Nación MX.`)
+                                    .setThumbnail(logo ? logo.url : null);
+
+                                await ownerUser.send({ embeds: [welcomeEmbed] });
+                            } catch (dmError) {
+                                console.log('Could not send DM to owner:', dmError.message);
+                            }
+                        }
+                        paymentCollector.stop();
+
+                    } catch (payError) {
+                        console.error('Payment error:', payError);
+                        await interaction.editReply({ content: `❌ Error procesando pago: ${payError.message}`, embeds: [], components: [] });
+                        paymentCollector.stop();
+                    }
                 });
 
             } catch (error) {
