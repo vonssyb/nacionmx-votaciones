@@ -5100,7 +5100,7 @@ async function handleExtraCommands(interaction) {
                     .setColor(0x00CED1)
                     .setDescription(`Detalles de tu cuenta bancaria NMX`)
                     .addFields(
-                        { name: '💳 Tipo de Tarjeta', value: card.card_type || 'NMX Débito', inline: true },
+                        { name: '💳 Tipo de Tarjeta', value: card.card_tier || 'NMX Débito', inline: true },
                         { name: '🔢 Número de Tarjeta', value: `\`${card.card_number}\``, inline: false },
                         { name: '💰 Saldo en Banco', value: `$${bankBalance.toLocaleString()}`, inline: true },
                         { name: '📅 Fecha de Creación', value: `<t:${Math.floor(new Date(card.created_at).getTime() / 1000)}:D>`, inline: true },
