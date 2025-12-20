@@ -4556,8 +4556,22 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             const targetUser = interaction.options.getUser('usuario');
 
             try {
-                const card = await getDebitCard(targetUser.id);
-                if (!card) return interaction.editReply(`❌ ${targetUser.username} no tiene una tarjeta de débito activa.`);
+                // Get TARGET USER's active debit card (the one being upgraded)
+                const { data: card, error: cardError } = await supabase
+                    .from('debit_cards')
+                    .select('*')
+                    .eq('discord_user_id', targetUser.id)
+                    .eq('status', 'active')
+                    .order('created_at', { ascending: false })
+                    .limit(1)
+                    .maybeSingle();
+
+                if (cardError || !card) {
+                    console.error('[mejorar] Card lookup error:', cardError);
+                    return interaction.editReply(`❌ ${targetUser.username} no tiene una tarjeta de débito activa.`);
+                }
+
+                console.log('[DEBUG] /debito mejorar - Found card:', { id: card.id, tier: card.card_tier, balance: card.balance, userId: targetUser.id });
 
                 const currentTier = card.card_tier || 'NMX Débito';
                 let nextTier = null;
