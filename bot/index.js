@@ -5359,7 +5359,7 @@ async function handleExtraCommands(interaction) {
 
                 // Payment button collector
                 const paymentCollector = msg.createMessageComponentCollector({
-                    filter: pi => pi.user.id === interaction.user.id && (pi.customId === 'pay_cash' || pi.customId === 'pay_bank' || pi.customId === 'pay_cancel'),
+                    filter: pi => pi.user.id === interaction.user.id && pi.customId.startsWith('empresa_pay_'),
                     time: 120000
                 });
 
