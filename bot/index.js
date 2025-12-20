@@ -3871,8 +3871,8 @@ async function requestPaymentMethod(interaction, userId, amount, description) {
 
     // Handle both command interactions and button interactions
     let msg;
-    if (interaction.isButton && interaction.isButton()) {
-        // Button interaction - use update
+    if (interaction.isMessageComponent && interaction.isMessageComponent()) {
+        // Button/Component interaction - use update
         msg = await interaction.update({ embeds: [embed], components: [paymentRow], fetchReply: true });
     } else {
         // Command interaction - use editReply
