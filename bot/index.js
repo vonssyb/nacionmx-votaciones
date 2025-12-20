@@ -1615,8 +1615,6 @@ client.on('interactionCreate', async interaction => {
             .eq('id', cardId)
             .single();
 
-        console.log('[DEBUG] Upgrade - Card lookup:', { cardId, found: !!card, error: cardError, balance: card?.balance });
-
         if (cardError || !card) {
             return interaction.reply({
                 content: `❌ Tarjeta no encontrada.\nID buscado: ${cardId}\nError: ${cardError?.message || 'Unknown'}`,
@@ -1624,14 +1622,25 @@ client.on('interactionCreate', async interaction => {
             });
         }
 
+        // Get REAL balance from UnbelievaBoat (not Supabase cache)
+        const realBalance = await billingService.ubService.getUserBalance(interaction.guildId, card.discord_user_id, 'bank');
+
+        console.log('[DEBUG] Upgrade - Card lookup:', {
+            cardId,
+            found: true,
+            supabaseBalance: card.balance,
+            realBalance: realBalance,
+            userId: card.discord_user_id
+        });
+
         const tierInfo = CARD_TIERS[targetTier];
 
-        console.log('[DEBUG] Upgrade - Tier info:', { targetTier, cost: tierInfo.cost, userBalance: card.balance });
+        console.log('[DEBUG] Upgrade - Tier info:', { targetTier, cost: tierInfo.cost, userRealBalance: realBalance });
 
-        // Check balance
-        if (card.balance < tierInfo.cost) {
+        // Check balance (use REAL balance from UnbelievaBoat)
+        if (realBalance < tierInfo.cost) {
             return interaction.reply({
-                content: `❌ **Fondos insuficientes**\n\nCosto: **$${tierInfo.cost.toLocaleString()}**\nTu saldo: **$${card.balance.toLocaleString()}**\nTarjeta: ${card.card_tier}\nID: ${cardId.slice(0, 8)}...`,
+                content: `❌ **Fondos insuficientes**\n\nCosto: **$${tierInfo.cost.toLocaleString()}**\nTu saldo: **$${realBalance.toLocaleString()}**\nTarjeta: ${card.card_tier}\nID: ${cardId.slice(0, 8)}...`,
                 ephemeral: true
             });
         }
@@ -4571,7 +4580,16 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                     return interaction.editReply(`❌ ${targetUser.username} no tiene una tarjeta de débito activa.`);
                 }
 
-                console.log('[DEBUG] /debito mejorar - Found card:', { id: card.id, tier: card.card_tier, balance: card.balance, userId: targetUser.id });
+                // Get REAL balance from UnbelievaBoat API (not Supabase cache)
+                const realBalance = await billingService.ubService.getUserBalance(interaction.guildId, targetUser.id, 'bank');
+
+                console.log('[DEBUG] /debito mejorar - Found card:', {
+                    id: card.id,
+                    tier: card.card_tier,
+                    supabaseBalance: card.balance,
+                    realBalance: realBalance,
+                    userId: targetUser.id
+                });
 
                 const currentTier = card.card_tier || 'NMX Débito';
                 let nextTier = null;
