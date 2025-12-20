@@ -1595,40 +1595,66 @@ client.on('interactionCreate', async interaction => {
             return;
         }
 
-        const parts = interaction.customId.split('_'); // btn, udp, upgrade, cardId, targetTierIndex
+
+        // Parse customId: btn_udp_upgrade_{cardId}_{TierName_With_Underscores}
+        const parts = interaction.customId.split('_');
         const cardId = parts[3];
-        const tierIndex = parseInt(parts[4]);
+        const targetTierParts = parts.slice(4); // Everything after cardId
+        const targetTier = targetTierParts.join(' '); // e.g., "NMX Débito Gold"
 
-        const TIERS = ['NMX Start', 'NMX Básica', 'NMX Plus', 'NMX Plata', 'NMX Oro', 'NMX Rubí', 'NMX Black', 'NMX Diamante'];
-        const newType = TIERS[tierIndex];
+        if (!targetTier || !CARD_TIERS[targetTier]) {
+            return interaction.followUp({
+                content: `❌ Error: Nivel de tarjeta inválido (${targetTier})`,
+                ephemeral: true
+            });
+        }
 
-        if (!newType) return interaction.followUp({ content: '❌ Error de datos.', ephemeral: true });
 
-        // Stats Map again (Centralize this if possible later)
-        const statsMap = {
-            'NMX Start': { limit: 15000, interest: 15 },
-            'NMX Básica': { limit: 30000, interest: 12 },
-            'NMX Plus': { limit: 50000, interest: 10 },
-            'NMX Plata': { limit: 100000, interest: 8 },
-            'NMX Oro': { limit: 250000, interest: 7 },
-            'NMX Rubí': { limit: 500000, interest: 5 },
-            'NMX Black': { limit: 1000000, interest: 3 },
-            'NMX Diamante': { limit: 5000000, interest: 1 }
-        };
-        const stats = statsMap[newType];
+        // Fetch current card
+        const { data: card, error: cardError } = await supabase
+            .from('debit_cards')
+            .select('*')
+            .eq('id', cardId)
+            .single();
 
-        // Update DB
-        const { error } = await supabase.from('credit_cards').update({
-            card_type: newType,
-            credit_limit: stats.limit,
-            interest_rate: stats.interest
-        }).eq('id', cardId);
+        if (cardError || !card) {
+            return interaction.followUp({ content: '❌ Tarjeta no encontrada.', ephemeral: true });
+        }
 
-        if (error) return interaction.followUp({ content: '❌ Error al procesar la mejora.', ephemeral: true });
+        const tierInfo = CARD_TIERS[targetTier];
 
-        // Disable Button
+        // Check balance
+        if (card.balance < tierInfo.cost) {
+            return interaction.followUp({
+                content: `❌ **Fondos insuficientes**\n\nCosto: **$${tierInfo.cost.toLocaleString()}**\nTu saldo: **$${card.balance.toLocaleString()}**`,
+                ephemeral: true
+            });
+        }
+
+        // Deduct cost and update card
+        const newBalance = card.balance - tierInfo.cost;
+
+        const { error: updateError } = await supabase
+            .from('debit_cards')
+            .update({
+                card_tier: targetTier,
+                balance: newBalance,
+                max_balance: tierInfo.max_balance
+            })
+            .eq('id', cardId);
+
+        if (updateError) {
+            console.error('[upgrade] Error:', updateError);
+            return interaction.followUp({ content: '❌ Error al procesar la mejora.', ephemeral: true });
+        }
+
+        // Success - disable buttons and show result
         await interaction.editReply({ components: [] });
-        await interaction.followUp({ content: `🎉 **¡Mejora Exitosa!** Tu tarjeta ahora es nivel **${newType}**. Disfruta de tu nuevo límite de $${stats.limit.toLocaleString()}.`, ephemeral: false });
+
+        await interaction.followUp({
+            content: `✅ **¡Mejora Completada!**\n\n🎉 Nueva tarjeta: **${targetTier}**\n💰 Costo: $${tierInfo.cost.toLocaleString()}\n💳 Nuevo saldo: $${newBalance.toLocaleString()}\n📊 Límite: ${tierInfo.max_balance === Infinity ? '♾️ Ilimitado' : '$' + tierInfo.max_balance.toLocaleString()}`,
+            ephemeral: false
+        });
     }
 
     // EMPRESA COBRAR - Payment Buttons
