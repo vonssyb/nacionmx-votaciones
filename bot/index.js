@@ -1586,12 +1586,18 @@ client.on('interactionCreate', async interaction => {
         await interaction.editReply(`✅ **¡Ganancia Cobrada!**\nHas recibido **$${inv.payout_amount.toLocaleString()}** en tu cuenta.`);
     }
 
-    // BUTTON: Upgrade Accept
-    if (interaction.isButton() && interaction.customId.startsWith('btn_upgrade_')) {
-        await interaction.deferUpdate();
-        const parts = interaction.customId.split('_'); // btn, upgrade, cardId, tierIndex
-        const cardId = parts[2];
-        const tierIndex = parseInt(parts[3]);
+    // BUTTON: Debit Card Upgrade (User accepts offer)
+    if (interaction.isButton() && interaction.customId.startsWith('btn_udp_upgrade_')) {
+        try {
+            await interaction.deferUpdate(); // Acknowledge button click immediately
+        } catch (err) {
+            console.error('[ERROR] Failed to defer btn_udp_upgrade:', err);
+            return;
+        }
+
+        const parts = interaction.customId.split('_'); // btn, udp, upgrade, cardId, targetTierIndex
+        const cardId = parts[3];
+        const tierIndex = parseInt(parts[4]);
 
         const TIERS = ['NMX Start', 'NMX Básica', 'NMX Plus', 'NMX Plata', 'NMX Oro', 'NMX Rubí', 'NMX Black', 'NMX Diamante'];
         const newType = TIERS[tierIndex];
