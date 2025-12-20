@@ -909,6 +909,19 @@ client.once('ready', async () => {
                     ]
                 },
                 {
+                    name: 'credito-pagar',
+                    description: 'Pagar deuda de tarjeta empresarial',
+                    type: 1,
+                    options: [
+                        { name: 'monto', description: 'Cantidad a pagar', type: 10, required: true }
+                    ]
+                },
+                {
+                    name: 'credito-info',
+                    description: 'Ver estado de crédito empresarial',
+                    type: 1
+                },
+                {
                     name: 'listar-usuario',
                     description: '👮 Ver empresas de un usuario (STAFF ONLY)',
                     type: 1,
@@ -1641,6 +1654,74 @@ client.on('interactionCreate', async interaction => {
         );
 
         await interaction.editReply({ embeds: [embed], components: [row1, row2] });
+        return;
+    }
+
+    // BUTTON: Pay Business Credit Card Debt
+    if (interaction.isButton() && interaction.customId.startsWith('pay_biz_debt_')) {
+        await interaction.deferUpdate();
+
+        const parts = interaction.customId.split('_');
+        const method = parts[3]; // 'cash' or 'bank'
+        const cardId = parts[4];
+        const amount = parseFloat(parts[5]);
+
+        try {
+            // Get card info
+            const { data: card } = await supabase
+                .from('business_credit_cards')
+                .select('*, companies!inner(name)')
+                .eq('id', cardId)
+                .single();
+
+            if (!card) {
+                return interaction.followUp({ content: '❌ Tarjeta no encontrada.', ephemeral: true });
+            }
+
+            // Remove money from user
+            await billingService.ubService.removeMoney(
+                interaction.guildId,
+                interaction.user.id,
+                amount,
+                `Pago tarjeta empresarial: ${card.companies.name}`,
+                method
+            );
+
+            // Reduce debt
+            const newDebt = (card.current_balance || 0) - amount;
+            await supabase
+                .from('business_credit_cards')
+                .update({
+                    current_balance: newDebt,
+                    updated_at: new Date().toISOString()
+                })
+                .eq('id', cardId);
+
+            const successEmbed = new EmbedBuilder()
+                .setTitle('✅ Pago de Deuda Exitoso')
+                .setColor(0x00FF00)
+                .setDescription(`Se abonó **$${amount.toLocaleString()}** a tu tarjeta empresarial`)
+                .addFields(
+                    { name: '🏢 Empresa', value: card.companies.name, inline: true },
+                    { name: '💳 Tarjeta', value: card.card_name, inline: true },
+                    { name: '\u200b', value: '\u200b', inline: true },
+                    { name: '💰 Abono', value: `$${amount.toLocaleString()}`, inline: true },
+                    { name: '📊 Deuda Anterior', value: `$${(card.current_balance || 0).toLocaleString()}`, inline: true },
+                    { name: '📈 Nueva Deuda', value: `$${newDebt.toLocaleString()}`, inline: true },
+                    { name: '💳 Método', value: method === 'cash' ? '💵 Efectivo' : '🏦 Banco', inline: false }
+                )
+                .setFooter({ text: '¡Excelente manejo financiero!' })
+                .setTimestamp();
+
+            await interaction.editReply({ embeds: [successEmbed], components: [] });
+
+        } catch (error) {
+            console.error('[pay_biz_debt] Error:', error);
+            await interaction.followUp({
+                content: `❌ Error procesando pago: ${error.message}`,
+                ephemeral: true
+            });
+        }
         return;
     }
 
@@ -5993,6 +6074,210 @@ async function handleExtraCommands(interaction) {
             } catch (error) {
                 console.error(error);
                 await interaction.editReply('❌ Error procesando solicitud de crédito.');
+            }
+        }
+
+        else if (subcommand === 'credito-pagar') {
+            await interaction.deferReply({ ephemeral: false });
+
+            const monto = interaction.options.getNumber('monto');
+
+            if (monto <= 0) {
+                return interaction.editReply('❌ El monto debe ser mayor a 0.');
+            }
+
+            try {
+                // Get user's companies
+                const { data: companies } = await supabase
+                    .from('companies')
+                    .select('*')
+                    .contains('owner_ids', [interaction.user.id])
+                    .eq('status', 'active');
+
+                if (!companies || companies.length === 0) {
+                    return interaction.editReply('❌ No tienes empresas registradas.');
+                }
+
+                // Get business credit cards
+                const companyIds = companies.map(c => c.id);
+                const { data: bizCards } = await supabase
+                    .from('business_credit_cards')
+                    .select('*, companies!inner(name)')
+                    .in('company_id', companyIds)
+                    .eq('status', 'active');
+
+                if (!bizCards || bizCards.length === 0) {
+                    return interaction.editReply('❌ No tienes tarjetas empresariales activas.');
+                }
+
+                // If multiple cards, show selector
+                if (bizCards.length > 1) {
+                    const selectMenu = new StringSelectMenuBuilder()
+                        .setCustomId(`biz_credit_pay_${monto}`)
+                        .setPlaceholder('Selecciona tarjeta a pagar')
+                        .addOptions(bizCards.map(card => ({
+                            label: `${card.companies.name} - ${card.card_name}`,
+                            description: `Deuda: $${(card.current_balance || 0).toLocaleString()}`,
+                            value: card.id,
+                            emoji: '🏢'
+                        })));
+
+                    const row = new ActionRowBuilder().addComponents(selectMenu);
+
+                    return interaction.editReply({
+                        content: `💳 Selecciona qué tarjeta empresarial pagar:`,
+                        components: [row]
+                    });
+                }
+
+                const card = bizCards[0];
+                const currentDebt = card.current_balance || 0;
+
+                if (currentDebt === 0) {
+                    return interaction.editReply(`✅ **No tienes deuda**\n\n💳 ${card.card_name}\n🏢 ${card.companies.name}\n\nTu tarjeta está al corriente.`);
+                }
+
+                if (monto > currentDebt) {
+                    return interaction.editReply(`❌ **Monto excede deuda**\n\n💳 Tarjeta: ${card.card_name}\n📊 Deuda actual: $${currentDebt.toLocaleString()}\n❌ Intentas pagar: $${monto.toLocaleString()}\n\n💡 Solo puedes pagar hasta el monto de tu deuda.`);
+                }
+
+                // Check user has enough money (cash or bank only)
+                const balance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
+                const totalAvailable = (balance.cash || 0) + (balance.bank || 0);
+
+                if (totalAvailable < monto) {
+                    return interaction.editReply(`❌ **Fondos insuficientes**\n\nNecesitas: $${monto.toLocaleString()}\nTienes: $${totalAvailable.toLocaleString()}\n\n💵 Efectivo: $${(balance.cash || 0).toLocaleString()}\n🏦 Banco: $${(balance.bank || 0).toLocaleString()}`);
+                }
+
+                // Show payment method selector (cash or bank only)
+                const methods = [];
+                if ((balance.cash || 0) >= monto) {
+                    methods.push({
+                        id: 'cash',
+                        label: `💵 Efectivo ($${(balance.cash || 0).toLocaleString()})`,
+                        style: ButtonStyle.Success
+                    });
+                }
+                if ((balance.bank || 0) >= monto) {
+                    methods.push({
+                        id: 'bank',
+                        label: `🏦 Banco ($${(balance.bank || 0).toLocaleString()})`,
+                        style: ButtonStyle.Primary
+                    });
+                }
+
+                const row = new ActionRowBuilder();
+                methods.forEach(m => row.addComponents(
+                    new ButtonBuilder().setCustomId(`pay_biz_debt_${m.id}_${card.id}_${monto}`).setLabel(m.label).setStyle(m.style)
+                ));
+
+                const embed = new EmbedBuilder()
+                    .setTitle('💳 Pagar Deuda Empresarial')
+                    .setColor(0x5865F2)
+                    .setDescription(`**${card.companies.name}**\n${card.card_name}`)
+                    .addFields(
+                        { name: '📊 Deuda Actual', value: `$${currentDebt.toLocaleString()}`, inline: true },
+                        { name: '💰 A Pagar', value: `$${monto.toLocaleString()}`, inline: true },
+                        { name: '📉 Nueva Deuda', value: `$${(currentDebt - monto).toLocaleString()}`, inline: true }
+                    )
+                    .setFooter({ text: 'Selecciona método de pago' });
+
+                await interaction.editReply({ embeds: [embed], components: [row] });
+
+            } catch (error) {
+                console.error('[empresa credito-pagar] Error:', error);
+                await interaction.editReply('❌ Error procesando pago de deuda.');
+            }
+        }
+
+        else if (subcommand === 'credito-info') {
+            await interaction.deferReply({ ephemeral: false });
+
+            try {
+                // Get user's companies
+                const { data: companies } = await supabase
+                    .from('companies')
+                    .select('*')
+                    .contains('owner_ids', [interaction.user.id])
+                    .eq('status', 'active');
+
+                if (!companies || companies.length === 0) {
+                    return interaction.editReply('❌ No tienes empresas registradas.');
+                }
+
+                // Get business credit cards
+                const companyIds = companies.map(c => c.id);
+                const { data: bizCards } = await supabase
+                    .from('business_credit_cards')
+                    .select('*, companies!inner(name)')
+                    .in('company_id', companyIds)
+                    .eq('status', 'active');
+
+                if (!bizCards || bizCards.length === 0) {
+                    return interaction.editReply(`❌ **No tienes tarjetas empresariales**\n\nUsa \`/empresa credito\` para obtener una línea de crédito empresarial.`);
+                }
+
+                // If multiple cards, show all
+                if (bizCards.length > 1) {
+                    const embed = new EmbedBuilder()
+                        .setTitle('🏢 Crédito Empresarial - Resumen')
+                        .setColor(0x5865F2)
+                        .setDescription(`Tienes **${bizCards.length} tarjetas empresariales**:`)
+                        .setFooter({ text: 'Sistema de Crédito Nación MX' });
+
+                    bizCards.forEach(card => {
+                        const debt = card.current_balance || 0;
+                        const available = card.credit_limit - debt;
+                        const usage = debt > 0 ? ((debt / card.credit_limit) * 100).toFixed(1) : 0;
+
+                        embed.addFields({
+                            name: `🏢 ${card.companies.name}`,
+                            value: `💳 **${card.card_name}**\n📊 Deuda: $${debt.toLocaleString()}\n💵 Disponible: $${available.toLocaleString()}\n📈 Uso: ${usage}%\n⚡ Interés: ${card.interest_rate}% semanal`,
+                            inline: false
+                        });
+                    });
+
+                    return interaction.editReply({ embeds: [embed] });
+                }
+
+                // Single card - show detailed info
+                const card = bizCards[0];
+                const debt = card.current_balance || 0;
+                const available = card.credit_limit - debt;
+                const usage = debt > 0 ? ((debt / card.credit_limit) * 100).toFixed(1) : 0;
+                const weeklyInterest = debt * (card.interest_rate / 100);
+
+                const embed = new EmbedBuilder()
+                    .setTitle(`🏢 Crédito Empresarial - ${card.companies.name}`)
+                    .setColor(debt > card.credit_limit * 0.7 ? 0xFF0000 : 0x00FF00)
+                    .setDescription(`Estado de tu tarjeta empresarial`)
+                    .addFields(
+                        { name: '💳 Tarjeta', value: card.card_name, inline: true },
+                        { name: '📋 Tipo', value: card.card_type, inline: true },
+                        { name: '\u200b', value: '\u200b', inline: true },
+                        { name: '💰 Límite de Crédito', value: `$${card.credit_limit.toLocaleString()}`, inline: true },
+                        { name: '📊 Deuda Actual', value: `$${debt.toLocaleString()}`, inline: true },
+                        { name: '💵 Disponible', value: `$${available.toLocaleString()}`, inline: true },
+                        { name: '📈 Uso del Crédito', value: `${usage}%`, inline: true },
+                        { name: '⚡ Tasa de Interés', value: `${card.interest_rate}% semanal`, inline: true },
+                        { name: '💸 Interés Semanal', value: `$${weeklyInterest.toLocaleString()}`, inline: true }
+                    )
+                    .setFooter({ text: 'Usa /empresa credito-pagar para abonar a tu deuda' })
+                    .setTimestamp();
+
+                if (debt > card.credit_limit * 0.7) {
+                    embed.addFields({
+                        name: '⚠️ ADVERTENCIA',
+                        value: 'Estás usando más del 70% de tu crédito. Considera hacer un pago pronto.',
+                        inline: false
+                    });
+                }
+
+                await interaction.editReply({ embeds: [embed] });
+
+            } catch (error) {
+                console.error('[empresa credito-info] Error:', error);
+                await interaction.editReply('❌ Error obteniendo información de crédito.');
             }
         }
     }
