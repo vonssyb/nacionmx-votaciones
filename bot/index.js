@@ -2386,16 +2386,32 @@ client.on('interactionCreate', async interaction => {
             }
 
             // 3. Send Interactive Offer
+            const isDebit = cardType.includes('Débito');
             const offerEmbed = new EmbedBuilder()
-                .setTitle('💳 Oferta de Tarjeta de Crédito')
+                .setTitle(isDebit ? '💳 Oferta de Tarjeta de Débito' : '💳 Oferta de Tarjeta de Crédito')
                 .setColor(0xD4AF37)
-                .setDescription(`Hola <@${targetUser.id}>,\nEl Banco Nacional te ofrece una tarjeta **${cardType}**.\n\n**Titular:** ${holderName}\n\n**Detalles del Contrato:**`)
-                .addFields(
+                .setDescription(`Hola <@${targetUser.id}>,\nEl Banco Nacional te ofrece una tarjeta **${cardType}**.\n\n**Titular:** ${holderName}\n\n**Detalles del Contrato:**`);
+
+            // Add fields based on card type
+            if (isDebit) {
+                // Debit cards show max_balance, not credit limit
+                offerEmbed.addFields(
+                    { name: 'Límite de Almacenamiento', value: stats.max_balance === Infinity ? 'Ilimitado ♾️' : `$${stats.max_balance.toLocaleString()}`, inline: true },
+                    { name: 'Costo Apertura', value: `$${stats.cost.toLocaleString()}`, inline: true },
+                    { name: 'Tipo', value: '🏦 Débito', inline: true },
+                    { name: 'Notas', value: notes }
+                );
+            } else {
+                // Credit cards show limit and interest
+                offerEmbed.addFields(
                     { name: 'Límite', value: `$${stats.limit.toLocaleString()}`, inline: true },
                     { name: 'Interés Semanal', value: `${stats.interest}%`, inline: true },
                     { name: 'Costo Apertura', value: `$${stats.cost.toLocaleString()}`, inline: true },
                     { name: 'Notas', value: notes }
-                )
+                );
+            }
+
+            offerEmbed
                 .setThumbnail(dniPhoto.url)
                 .setFooter({ text: 'Tienes 5 minutos para aceptar. Revisa los términos antes.' });
 
