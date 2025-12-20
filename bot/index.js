@@ -4674,11 +4674,11 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
 
     // IMPORTANT: Only delegate if interaction was NOT handled above
     // This prevents duplicate processing causing "Unknown interaction" errors
-    if (!interaction.replied && !interaction.deferred) {
-        console.log(`[DEBUG] Delegating interaction ${interaction.customId || interaction.commandName} to handleExtraCommands`);
-
-        await handleExtraCommands(interaction);
-    }
+    //     if (!interaction.replied && !interaction.deferred) {
+    //         console.log(`[DEBUG] Delegating interaction ${interaction.customId || interaction.commandName} to handleExtraCommands`);
+    // 
+    //         await handleExtraCommands(interaction);
+    //     }
 });
 
 // Global Error Handlers to prevent crash
