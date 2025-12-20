@@ -877,7 +877,7 @@ client.once('ready', async () => {
                         { name: 'costo_tramite', description: 'Costo del trámite administrativo', type: 10, required: true },
                         { name: 'co_dueño', description: 'Co-Dueño (Opcional)', type: 6, required: false },
                         { name: 'es_privada', description: '¿Es empresa privada? (Paga impuestos)', type: 5, required: false },
-                        { name: 'logo', description: 'Logo de la empresa', type: 11, required: false },
+                        { name: 'logo', description: 'Logo de la empresa', type: 11, required: true },
                         { name: 'vehiculos', description: 'Cantidad de vehículos asignados', type: 10, required: false },
                         { name: 'costo_local', description: 'Costo del local/propiedad', type: 10, required: false },
                         { name: 'costo_vehiculos', description: 'Costo total de vehículos', type: 10, required: false },
@@ -5396,7 +5396,7 @@ async function handleExtraCommands(interaction) {
                         const successEmbed = new EmbedBuilder()
                             .setTitle(`✅ Empresa Registrada: ${name}`)
                             .setColor(0x00FF00)
-                            .setThumbnail(logo ? logo.url : null)
+                            .setThumbnail(logo.url)
                             .addFields(
                                 { name: '🏷️ Industria', value: type, inline: true },
                                 { name: '📍 Ubicación', value: location, inline: true },
@@ -5407,7 +5407,7 @@ async function handleExtraCommands(interaction) {
                             )
                             .setTimestamp();
 
-                        await interaction.editReply({ content: null, embeds: [successEmbed], components: [] });
+                        await msg.edit({ content: null, embeds: [successEmbed], components: [] });
 
                         // Send DM to owner (if not staff)
                         if (ownerUser.id !== interaction.user.id) {
@@ -5416,7 +5416,7 @@ async function handleExtraCommands(interaction) {
                                     .setTitle(`🎉 ¡Felicidades! Tu empresa "${name}" ha sido registrada`)
                                     .setColor(0x00D9FF)
                                     .setDescription(`**${interaction.user.tag}** ha registrado tu empresa en Nación MX.`)
-                                    .setThumbnail(logo ? logo.url : null);
+                                    .setThumbnail(logo.url);
 
                                 await ownerUser.send({ embeds: [welcomeEmbed] });
                             } catch (dmError) {
@@ -5427,7 +5427,7 @@ async function handleExtraCommands(interaction) {
 
                     } catch (payError) {
                         console.error('Payment error:', payError);
-                        await interaction.editReply({ content: `❌ Error procesando pago: ${payError.message}`, embeds: [], components: [] });
+                        await msg.edit({ content: `❌ Error procesando pago: ${payError.message}`, embeds: [], components: [] });
                         paymentCollector.stop();
                     }
                 });
