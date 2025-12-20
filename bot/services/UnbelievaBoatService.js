@@ -1,4 +1,5 @@
 const axios = require('axios');
+const CacheService = require('./CacheService');
 
 class UnbelievableBoatService {
     constructor(token) {
@@ -11,6 +12,17 @@ class UnbelievableBoatService {
                 'Accept': 'application/json'
             }
         });
+
+        // Initialize cache with 30 second TTL
+        this.balanceCache = new CacheService(30000);
+
+        // Cleanup expired entries every 5 minutes
+        setInterval(() => {
+            const cleaned = this.balanceCache.cleanup();
+            if (cleaned > 0) {
+                console.log(`[CACHE] Cleaned ${cleaned} expired entries`);
+            }
+        }, 300000);
     }
 
     /**
@@ -52,7 +64,18 @@ class UnbelievableBoatService {
      * @param {string} userId 
      */
     async getUserBalance(guildId, userId) {
-        return this.retryWithBackoff(async () => {
+        const cacheKey = `balance:${guildId}:${userId}`;
+
+        // Try cache first
+        const cached = this.balanceCache.get(cacheKey);
+        if (cached) {
+            console.log(`[CACHE HIT] ${cacheKey}`);
+            return cached;
+        }
+
+        // Cache miss - fetch from API
+        console.log(`[CACHE MISS] ${cacheKey}`);
+        const result = await this.retryWithBackoff(async () => {
             try {
                 const response = await this.client.get(`/guilds/${guildId}/users/${userId}`);
                 return response.data;
@@ -61,6 +84,10 @@ class UnbelievableBoatService {
                 throw error;
             }
         });
+
+        // Store in cache
+        this.balanceCache.set(cacheKey, result);
+        return result;
     }
 
     /**
@@ -72,7 +99,7 @@ class UnbelievableBoatService {
      * Let's check typical behavior: Usually 'cash' adds if positive, removes if negative.
      */
     async removeMoney(guildId, userId, amount, reason = "Cobro Banco NMX", type = 'bank') {
-        return this.retryWithBackoff(async () => {
+        const result = await this.retryWithBackoff(async () => {
             try {
                 const payload = { reason: reason };
                 if (type === 'cash') {
@@ -87,13 +114,17 @@ class UnbelievableBoatService {
                 throw new Error(error.response?.data?.message || error.message);
             }
         });
+
+        // Invalidate cache after balance change
+        this.balanceCache.invalidate(`balance:${guildId}:${userId}`);
+        return result;
     }
 
     /**
      * Add money to user balance
      */
     async addMoney(guildId, userId, amount, reason = "Préstamo Banco NMX", type = 'bank') {
-        return this.retryWithBackoff(async () => {
+        const result = await this.retryWithBackoff(async () => {
             try {
                 const payload = { reason: reason };
                 if (type === 'cash') {
@@ -108,6 +139,18 @@ class UnbelievableBoatService {
                 throw new Error(error.response?.data?.message || error.message);
             }
         });
+
+        // Invalidate cache after balance change
+        this.balanceCache.invalidate(`balance:${guildId}:${userId}`);
+        return result;
+    }
+
+    /**
+     * Get cache statistics
+     * @returns {object}
+     */
+    getCacheStats() {
+        return this.balanceCache.getStats();
     }
 }
 
