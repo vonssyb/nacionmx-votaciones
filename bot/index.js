@@ -1841,6 +1841,160 @@ client.on('interactionCreate', async interaction => {
         return;
     }
 
+    // BUTTON: Company Withdraw Funds
+    if (interaction.isButton() && interaction.customId.startsWith('company_withdraw_')) {
+        await interaction.deferReply({ ephemeral: false });
+
+        const companyId = interaction.customId.split('_')[2];
+
+        try {
+            const { data: company } = await supabase
+                .from('companies')
+                .select('*')
+                .eq('id', companyId)
+                .single();
+
+            if (!company) {
+                return interaction.editReply('❌ Empresa no encontrada.');
+            }
+
+            const balance = company.balance || 0;
+
+            if (balance === 0) {
+                return interaction.editReply(`❌ **Sin fondos para retirar**\n\n🏢 ${company.name}\n💰 Balance: $0\n\nGenera ingresos con \`/empresa cobrar\``);
+            }
+
+            const embed = new EmbedBuilder()
+                .setTitle(`💸 Retirar Fondos - ${company.name}`)
+                .setColor(0xFFD700)
+                .setDescription(`Balance disponible: **$${balance.toLocaleString()}**\n\nResponde con el monto que deseas retirar.\n\n⚠️ Se cobrará **10% de impuesto** sobre el retiro.`)
+                .setFooter({ text: 'Tienes 60 segundos para responder' });
+
+            await interaction.editReply({ embeds: [embed] });
+
+            // Wait for message response
+            const filter = m => m.author.id === interaction.user.id;
+            const collected = await interaction.channel.awaitMessages({ filter, max: 1, time: 60000, errors: ['time'] })
+                .catch(() => null);
+
+            if (!collected) {
+                return interaction.followUp({ content: '⏱️ Tiempo agotado.', ephemeral: true });
+            }
+
+            const amount = parseFloat(collected.first().content.replace(/[$,]/g, ''));
+
+            if (isNaN(amount) || amount <= 0) {
+                return interaction.followUp({ content: '❌ Monto inválido.', ephemeral: true });
+            }
+
+            if (amount > balance) {
+                return interaction.followUp({ content: `❌ Fondos insuficientes. Balance: $${balance.toLocaleString()}`, ephemeral: true });
+            }
+
+            // Calculate tax (10%)
+            const tax = amount * 0.10;
+            const netAmount = amount - tax;
+
+            // Remove from company
+            await supabase
+                .from('companies')
+                .update({ balance: balance - amount })
+                .eq('id', companyId);
+
+            // Add to user (cash)
+            await billingService.ubService.addMoney(
+                interaction.guildId,
+                interaction.user.id,
+                netAmount,
+                `Retiro de ${company.name}`,
+                'cash'
+            );
+
+            const resultEmbed = new EmbedBuilder()
+                .setTitle('✅ Retiro Exitoso')
+                .setColor(0x00FF00)
+                .setDescription(`Fondos retirados de **${company.name}**`)
+                .addFields(
+                    { name: '💰 Monto Bruto', value: `$${amount.toLocaleString()}`, inline: true },
+                    { name: '📊 Impuesto (10%)', value: `$${tax.toLocaleString()}`, inline: true },
+                    { name: '💵 Recibido', value: `$${netAmount.toLocaleString()}`, inline: true }
+                )
+                .setFooter({ text: 'Los fondos están en tu efectivo personal' })
+                .setTimestamp();
+
+            await interaction.followUp({ embeds: [resultEmbed] });
+
+        } catch (error) {
+            console.error('[company_withdraw] Error:', error);
+            await interaction.editReply({ content: `❌ Error: ${error.message}` });
+        }
+        return;
+    }
+
+    // BUTTON: Company Stats
+    if (interaction.isButton() && interaction.customId.startsWith('company_stats_')) {
+        await interaction.deferReply({ ephemeral: false });
+
+        const companyId = interaction.customId.split('_')[2];
+
+        try {
+            const { data: company } = await supabase
+                .from('companies')
+                .select('*')
+                .eq('id', companyId)
+                .single();
+
+            if (!company) {
+                return interaction.editReply('❌ Empresa no encontrada.');
+            }
+
+            // Get business credit card if exists
+            const { data: bizCard } = await supabase
+                .from('business_credit_cards')
+                .select('*')
+                .eq('company_id', companyId)
+                .eq('status', 'active')
+                .single();
+
+            const embed = new EmbedBuilder()
+                .setTitle(`📊 Estadísticas - ${company.name}`)
+                .setColor(0x5865F2)
+                .setThumbnail(company.logo_url)
+                .addFields(
+                    { name: '🏷️ Industria', value: company.industry_type, inline: true },
+                    { name: '📍 Ubicación', value: company.location || 'N/A', inline: true },
+                    { name: '🔒 Tipo', value: company.is_private ? 'Privada' : 'Pública', inline: true },
+                    { name: '💰 Balance', value: `$${(company.balance || 0).toLocaleString()}`, inline: true },
+                    { name: '👥 Empleados', value: `${company.employee_count || 0}`, inline: true },
+                    { name: '🚗 Vehículos', value: `${company.vehicles || 0}`, inline: true }
+                );
+
+            if (bizCard) {
+                const debt = bizCard.current_balance || 0;
+                const available = bizCard.credit_limit - debt;
+                embed.addFields({
+                    name: '💳 Crédito Empresarial',
+                    value: `**${bizCard.card_name}**\n📊 Deuda: $${debt.toLocaleString()}\n💵 Disponible: $${available.toLocaleString()}`,
+                    inline: false
+                });
+            }
+
+            embed.addFields(
+                { name: '📅 Creada', value: `<t:${Math.floor(new Date(company.created_at).getTime() / 1000)}:R>`, inline: false }
+            );
+
+            embed.setFooter({ text: 'Sistema Empresarial Nación MX' });
+            embed.setTimestamp();
+
+            await interaction.editReply({ embeds: [embed] });
+
+        } catch (error) {
+            console.error('[company_stats] Error:', error);
+            await interaction.editReply({ content: '❌ Error obteniendo estadísticas.' });
+        }
+        return;
+    }
+
     if (interaction.isButton()) { return; }
 
     const { commandName } = interaction;
