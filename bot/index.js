@@ -3387,9 +3387,9 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
     }
 
     else if (commandName === 'rol') {
+        await interaction.deferReply({ ephemeral: false });
         const subCmd = interaction.options.getSubcommand();
         if (subCmd === 'cancelar') {
-            await interaction.deferReply({ ephemeral: false });
 
             const targetUser = interaction.options.getString('usuario');
             const reason = interaction.options.getString('razon');
@@ -3496,8 +3496,8 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
     }
 
     else if (commandName === 'fichar') {
-        const subCmd = interaction.options.getSubcommand();
         await interaction.deferReply({ ephemeral: false });
+        const subCmd = interaction.options.getSubcommand();
 
         // --- SUBCOMMAND: VINCULAR (STAFF ONLY) ---
         if (subCmd === 'vincular') {
@@ -3654,6 +3654,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
 
 
     else if (commandName === 'licencia') {
+        await interaction.deferReply({ flags: 64 });
         const subcommand = interaction.options.getSubcommand();
 
         // Staff-only check
@@ -3672,7 +3673,6 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
         };
 
         if (subcommand === 'registrar') {
-            await interaction.deferReply({ flags: 64 });
 
             try {
                 const license = licenseData[tipo];
@@ -3978,6 +3978,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
 
 
     else if (commandName === 'business') {
+        await interaction.deferReply({ flags: 64 });
         const subcommand = interaction.options.getSubcommand();
 
         // Staff-only check
@@ -3987,7 +3988,6 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
         }
 
         if (subcommand === 'vincular') {
-            await interaction.deferReply({ flags: 64 });
 
             const ownerUser = interaction.options.getUser('dueño');
             const cardType = interaction.options.getString('tipo');
@@ -4463,9 +4463,9 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
     }
 
     if (commandName === 'balanza') {
+        await interaction.deferReply();
         // Defer with error handling to prevent "Unknown interaction"
         try {
-            await interaction.deferReply();
         } catch (err) {
             console.error('[ERROR] Failed to defer balanza:', err);
             return; // Exit early if defer fails
@@ -4531,6 +4531,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
     }
 
     else if (commandName === 'debito') {
+        await interaction.deferReply();
         const subcommand = interaction.options.getSubcommand();
 
         // === PRE-VALIDATION (Before Defer) ===
@@ -4547,7 +4548,6 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
         }
 
         // Safe to defer now
-        await interaction.deferReply();
 
         if (subcommand === 'estado') {
             try {
@@ -5271,6 +5271,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
     }
 
     else if (commandName === 'depositar') {
+        await interaction.deferReply();
         const destUser = interaction.options.getUser('destinatario');
         const inputMonto = interaction.options.getString('monto');
         const razon = interaction.options.getString('razon') || 'Depósito en Efectivo';
@@ -5291,7 +5292,6 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             return interaction.reply({ content: '❌ El monto debe ser mayor a 0.', ephemeral: true });
         }
 
-        await interaction.deferReply();
 
         try {
             // 1. Check Sender CASH (OXXO Logic: You pay with cash)
@@ -5420,8 +5420,8 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
     // ===================================================================
 
     else if (commandName === 'stake') {
+        await interaction.deferReply();
         try {
-            await interaction.deferReply();
         } catch (err) {
             console.error('[ERROR] Failed to defer stake:', err);
             return;
@@ -5523,8 +5523,8 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
     }
 
     else if (commandName === 'slots') {
+        await interaction.deferReply();
         try {
-            await interaction.deferReply();
         } catch (err) {
             console.error('[ERROR] Failed to defer slots:', err);
             return;
@@ -5585,8 +5585,8 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
     }
 
     else if (commandName === 'fondos') {
+        await interaction.deferReply();
         try {
-            await interaction.deferReply();
         } catch (err) {
             console.error('[ERROR] Failed to defer fondos:', err);
             return;
