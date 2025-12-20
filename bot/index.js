@@ -4394,6 +4394,903 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
         }
     }
 
+    if (commandName === 'balanza') {
+        // Defer with error handling to prevent "Unknown interaction"
+        try {
+            await interaction.deferReply();
+        } catch (err) {
+            console.error('[ERROR] Failed to defer balanza:', err);
+            return; // Exit early if defer fails
+        }
+
+        try {
+            const cashBalance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
+            console.log(`[DEBUG] /balanza User: ${interaction.user.id} Balance Raw:`, cashBalance); // DEBUG LOG
+
+            // Resolve Citizen ID for robust lookup
+            const { data: citizen } = await supabase.from('citizens').select('id').eq('discord_id', interaction.user.id).maybeSingle();
+
+            const { data: debitCard } = await supabase.from('debit_cards').select('balance').eq('discord_user_id', interaction.user.id).eq('status', 'active').maybeSingle();
+
+            // Fetch Credit Cards via Citizen ID if available, else Discord ID
+            let creditQuery = supabase.from('credit_cards').select('*').eq('status', 'active');
+            if (citizen) {
+                creditQuery = creditQuery.eq('citizen_id', citizen.id);
+            } else {
+                creditQuery = creditQuery.eq('discord_user_id', interaction.user.id);
+            }
+            const { data: creditCards } = await creditQuery;
+
+            const cash = cashBalance.cash || 0;
+            const bank = cashBalance.bank || 0;
+            // Debit Card just checks if exists, balance comes from Bank
+            const hasDebit = debitCard ? true : false;
+
+            let creditAvailable = 0;
+            let creditDebt = 0;
+            if (creditCards) {
+                creditCards.forEach(c => {
+                    let limit = c.card_limit || c.credit_limit || 0;
+                    if (limit === 0 && c.card_type && CARD_TIERS && CARD_TIERS[c.card_type]) {
+                        limit = CARD_TIERS[c.card_type].limit || 0;
+                    }
+                    const debt = c.current_balance || 0;
+                    creditAvailable += (limit - debt);
+                    creditDebt += debt;
+                });
+            }
+
+            // Total Liquid is Cash + Bank (Debit is same as Bank) + Avail Credit
+            const totalLiquid = cash + bank + creditAvailable;
+
+            const embed = new EmbedBuilder()
+                .setTitle('💰 TU BALANZA FINANCIERA')
+                .setColor(0x00D26A)
+                .addFields(
+                    { name: '💵 EFECTIVO', value: `\`\`\`$${cash.toLocaleString()}\`\`\``, inline: true },
+                    { name: '🏦 BANCO / DÉBITO', value: `\`\`\`$${bank.toLocaleString()}\`\`\`\n${hasDebit ? '✅ Tarjeta Débito' : '📋 Cuenta Bancaria'}`, inline: true },
+                    { name: '💳 CRÉDITO', value: `\`\`\`Disponible: $${creditAvailable.toLocaleString()}\nDeuda: $${creditDebt.toLocaleString()}\`\`\``, inline: false },
+                    { name: '📊 PATRIMONIO TOTAL', value: `\`\`\`diff\n+ $${totalLiquid.toLocaleString()}\n\`\`\``, inline: false }
+                )
+                .setFooter({ text: 'Banco Nacional' })
+                .setTimestamp();
+
+            await interaction.editReply({ embeds: [embed] });
+        } catch (error) {
+            console.error(error);
+            await interaction.editReply('❌ Error obteniendo tu balanza.');
+        }
+    }
+
+    else if (commandName === 'debito') {
+        const subcommand = interaction.options.getSubcommand();
+
+        // === PRE-VALIDATION (Before Defer) ===
+        // Quick check for common failure cases
+        if (subcommand === 'estado' || subcommand === 'info') {
+            // Quick check: Does user have a debit card? (use cache if available)
+            const quickCard = await getDebitCard(interaction.user.id);
+            if (!quickCard) {
+                return interaction.reply({
+                    content: '❌ No tienes una tarjeta de débito activa. Visita el Banco Nacional para abrir tu cuenta con `/registrar-tarjeta`.',
+                    ephemeral: true
+                });
+            }
+        }
+
+        // Safe to defer now
+        await interaction.deferReply();
+
+        if (subcommand === 'estado') {
+            try {
+                const card = await getDebitCard(interaction.user.id);
+                if (!card) return interaction.editReply('❌ No tienes una tarjeta de débito activa. Visita el Banco Nacional para abrir tu cuenta con `/registrar-tarjeta`.');
+
+                const balance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
+                const bankBalance = balance.bank || 0;
+
+                const embed = new EmbedBuilder()
+                    .setTitle('💳 Estado Tarjeta Débito')
+                    .setColor(0x00CED1)
+                    .addFields(
+                        { name: 'Número', value: `\`${card.card_number}\``, inline: false },
+                        { name: 'Saldo en Banco', value: `$${bankBalance.toLocaleString()}`, inline: true },
+                        { name: 'Estado', value: '✅ Activa', inline: true }
+                    )
+                    .setTimestamp();
+                await interaction.editReply({ embeds: [embed] });
+            } catch (error) {
+                console.error(error);
+                await interaction.editReply('❌ Error consultando débito.');
+            }
+        }
+        // Add this code between line 3561 (after estado closing }) and line 3563 (before depositar comment)
+
+        // === MEJORAR (Upgrade Debit Card) ===
+        // === MEJORAR (Upgrade Debit Card - STAFF ONLY) ===
+        else if (subcommand === 'mejorar') {
+            const BANK_EXEC_ROLE_ID = '1450688555503587459';
+            if (!interaction.member.roles.cache.has(BANK_EXEC_ROLE_ID) && !interaction.member.permissions.has('Administrator')) {
+                return interaction.editReply('⛔ Solo ejecutivos bancarios pueden ofrecer mejoras.');
+            }
+
+            const targetUser = interaction.options.getUser('usuario');
+
+            try {
+                const card = await getDebitCard(targetUser.id);
+                if (!card) return interaction.editReply(`❌ ${targetUser.username} no tiene una tarjeta de débito activa.`);
+
+                const currentTier = card.card_tier || 'NMX Débito';
+                let nextTier = null;
+
+                if (currentTier === 'NMX Débito') nextTier = 'NMX Débito Plus';
+                else if (currentTier === 'NMX Débito Plus') nextTier = 'NMX Débito Gold';
+
+                if (!nextTier) {
+                    return interaction.editReply(`✨ La tarjeta de ${targetUser.username} (**${currentTier}**) ya es el nivel máximo.`);
+                }
+
+                const nextStats = CARD_TIERS[nextTier];
+                const upgradeCost = nextStats.cost;
+
+                const embed = new EmbedBuilder()
+                    .setTitle('🚀 Oferta de Mejora de Débito')
+                    .setColor(0x00CED1)
+                    .setDescription(`Hola <@${targetUser.id}>, el banco te invita a mejorar tu tarjeta **${currentTier}** a **${nextTier}**.`)
+                    .addFields(
+                        { name: '🌟 Nuevo Nivel', value: nextTier, inline: true },
+                        { name: '💎 Beneficios', value: `Límite Máximo: $${nextStats.max_balance === Infinity ? 'Ilimitado' : nextStats.max_balance.toLocaleString()}`, inline: true },
+                        { name: '💰 Costo de Mejora', value: `$${upgradeCost.toLocaleString()}`, inline: false }
+                    )
+                    .setFooter({ text: 'Acepta la oferta para procesar el cobro inmediatamente.' });
+
+                const row = new ActionRowBuilder()
+                    .addComponents(
+                        new ButtonBuilder()
+                            .setCustomId(`btn_udp_upgrade_${card.id}_${nextTier.replace(/ /g, '_')}`)
+                            .setLabel(`Aceptar Mejora ($${upgradeCost})`)
+                            .setStyle(ButtonStyle.Success)
+                            .setEmoji('💳'),
+                        new ButtonBuilder()
+                            .setCustomId(`btn_cancel_upgrade_${targetUser.id}`)
+                            .setLabel('Rechazar')
+                            .setStyle(ButtonStyle.Danger)
+                    );
+
+
+                // Send to the channel, pinging the user
+                await interaction.editReply({ content: `<@${targetUser.id}>`, embeds: [embed], components: [row] });
+
+            } catch (error) {
+                console.error(error);
+                await interaction.editReply('❌ Error procesando la oferta de mejora.');
+            }
+        }
+
+        // === TRANSFERIR (Debit to Debit - 5 min delay) ===
+        else if (subcommand === 'transferir') {
+            try {
+                const destUser = interaction.options.getUser('destinatario');
+                const inputMonto = interaction.options.getString('monto');
+
+                if (destUser.id === interaction.user.id) {
+                    return interaction.editReply('❌ No puedes transferir a ti mismo.');
+                }
+
+                // Check sender has debit card
+                const senderCard = await getDebitCard(interaction.user.id);
+                if (!senderCard) {
+                    return interaction.editReply('❌ No tienes una tarjeta de débito activa para transferir.');
+                }
+
+                // Check receiver has debit card
+                const receiverCard = await getDebitCard(destUser.id);
+                if (!receiverCard) {
+                    return interaction.editReply(`❌ **${destUser.username}** no tiene una tarjeta de débito activa para recibir transferencias.`);
+                }
+
+                // Get sender balance
+                const balance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
+                const bankBalance = balance.bank || 0;
+
+                let monto = 0;
+                if (inputMonto.toLowerCase() === 'todo' || inputMonto.toLowerCase() === 'all') {
+                    monto = bankBalance;
+                } else {
+                    monto = parseFloat(inputMonto);
+                }
+
+                if (isNaN(monto) || monto <= 0) {
+                    return interaction.editReply('❌ El monto debe ser mayor a 0.');
+                }
+
+                if (bankBalance < monto) {
+                    return interaction.editReply(`❌ Fondos insuficientes.\\n\\nSaldo en Banco: $${bankBalance.toLocaleString()}\\nIntentas transferir: $${monto.toLocaleString()}`);
+                }
+
+                // Check receiver card limit
+                console.log('[DEBUG-TRANSFER] Receiver card object:', JSON.stringify(receiverCard, null, 2));
+                console.log('[DEBUG-TRANSFER] Receiver card_tier:', receiverCard.card_tier);
+                console.log('[DEBUG-TRANSFER] Available tiers:', Object.keys(CARD_TIERS));
+
+                const receiverTier = CARD_TIERS[receiverCard.card_tier || 'NMX Débito'];
+                console.log('[DEBUG-TRANSFER] Found tier:', receiverTier);
+
+                const receiverMax = receiverTier ? (receiverTier.max_balance || Infinity) : Infinity;
+                console.log('[DEBUG-TRANSFER] Max balance:', receiverMax);
+
+                if (receiverMax !== Infinity) {
+                    const receiverBal = await billingService.ubService.getUserBalance(interaction.guildId, destUser.id);
+                    const receiverBank = receiverBal.bank || 0;
+                    console.log('[DEBUG-TRANSFER] Receiver current bank:', receiverBank);
+                    console.log('[DEBUG-TRANSFER] Would be after transfer:', receiverBank + monto);
+
+                    if ((receiverBank + monto) > receiverMax) {
+                        const errorEmbed = new EmbedBuilder()
+                            .setTitle('⛔ Transferencia Rechazada')
+                            .setColor(0xFF0000)
+                            .setDescription(`El destinatario no puede recibir esta cantidad porque excedería el límite de su tarjeta.`)
+                            .addFields(
+                                { name: '💳 Tipo de Tarjeta', value: receiverCard.card_tier || 'NMX Débito', inline: true },
+                                { name: '📊 Límite Máximo', value: `$${receiverMax.toLocaleString()}`, inline: true },
+                                { name: '💰 Saldo Actual', value: `$${receiverBank.toLocaleString()}`, inline: true },
+                                { name: '🚫 Intentas Transferir', value: `$${monto.toLocaleString()}`, inline: true },
+                                { name: '📈 Saldo Final Sería', value: `$${(receiverBank + monto).toLocaleString()}`, inline: true }
+                            )
+                            .setFooter({ text: 'El destinatario debe actualizar su tarjeta para recibir más dinero' });
+                        return interaction.editReply({ embeds: [errorEmbed] });
+                    }
+                }
+
+                // Deduct from sender immediately
+                await billingService.ubService.removeMoney(
+                    interaction.guildId,
+                    interaction.user.id,
+                    monto,
+                    `Transferencia débito a ${destUser.tag}`,
+                    'bank'
+                );
+
+                // Schedule transfer for 5 minutes
+                const releaseDate = new Date();
+                releaseDate.setMinutes(releaseDate.getMinutes() + 5);
+
+                await supabase.from('pending_transfers').insert({
+                    sender_id: interaction.user.id,
+                    receiver_id: destUser.id,
+                    amount: monto,
+                    reason: 'Transferencia Interbancaria',
+                    release_date: releaseDate.toISOString(),
+                    status: 'PENDING'
+                });
+
+                // Log transaction
+                await supabase.from('debit_transactions').insert([{
+                    debit_card_id: senderCard.id,
+                    discord_user_id: interaction.user.id,
+                    transaction_type: 'transfer_out',
+                    amount: -monto,
+                    description: `Transferencia a ${destUser.tag}`
+                }]);
+
+                const embed = new EmbedBuilder()
+                    .setTitle('⏳ Transferencia Programada')
+                    .setColor(0xFFA500)
+                    .setDescription('Tu transferencia se procesará en 5 minutos.')
+                    .addFields(
+                        { name: 'De', value: interaction.user.tag, inline: true },
+                        { name: 'Para', value: destUser.tag, inline: true },
+                        { name: 'Monto', value: `$${monto.toLocaleString()}`, inline: true },
+                        { name: 'Llegada Estimada', value: releaseDate.toLocaleTimeString('es-MX', { timeZone: 'America/Mexico_City' }), inline: false }
+                    )
+                    .setFooter({ text: 'Sistema Interbancario NMX' })
+                    .setTimestamp();
+
+                await interaction.editReply({ embeds: [embed] });
+
+                // EXECUTE TRANSFER AFTER 5 MINUTES
+                setTimeout(async () => {
+                    try {
+                        // Credit receiver
+                        await supabase
+                            .from('debit_cards')
+                            .update({ balance: receiverCard.balance + monto })
+                            .eq('id', receiverCard.id);
+
+                        // Log transaction for receiver
+                        await supabase.from('debit_transactions').insert([{
+                            debit_card_id: receiverCard.id,
+                            discord_user_id: destUser.id,
+                            transaction_type: 'transfer_in',
+                            amount: monto,
+                            description: `Giro de ${interaction.user.tag}`
+                        }]);
+
+                        // Notify receiver
+                        try {
+                            await destUser.send(`💰 **Transferencia Recibida**\n\nRecibiste **$${monto.toLocaleString()}** de ${interaction.user.username}\n🏦 Sistema Interbancario NMX`);
+                        } catch (err) {
+                            console.log('[TRANSFER] Could not DM recipient', err.message);
+                        }
+
+                        console.log(`[TRANSFER SUCCESS] $${monto} from ${interaction.user.id} to ${destUser.id}`);
+
+                    } catch (error) {
+                        console.error('[TRANSFER FAILED]', error);
+                        // ROLLBACK: Return money to sender
+                        try {
+                            await billingService.ubService.addMoney(
+                                interaction.guildId,
+                                interaction.user.id,
+                                monto,
+                                'Devolución por fallo en transferencia',
+                                'bank'
+                            );
+                            await interaction.user.send(`⚠️ **Error en Transferencia**\n\nTu transferencia de $${monto.toLocaleString()} a ${destUser.username} falló. El dinero ha sido devuelto.`);
+                        } catch (rollbackErr) {
+                            console.error('[ROLLBACK FAILED]', rollbackErr);
+                        }
+                    }
+                }, 5 * 60 * 1000); // 5 minutes
+            } catch (error) {
+                console.error(error);
+                await interaction.editReply('❌ Error procesando la transferencia.');
+            }
+        }
+
+
+        // === DEPOSITAR (Cash -> Bank) ===
+        // === DEPOSITAR (Cash -> Bank) ===
+        else if (subcommand === 'depositar') {
+
+            try {
+                const card = await getDebitCard(interaction.user.id);
+                if (!card) return interaction.editReply('❌ No tienes una tarjeta de débito activa para depositar.');
+
+                const balance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
+                const cashBalance = balance.cash || 0;
+                const bankBalance = balance.bank || 0;
+
+                const inputMonto = interaction.options.getString('monto');
+                let monto = 0;
+
+                if (inputMonto.toLowerCase() === 'todo' || inputMonto.toLowerCase() === 'all') {
+                    monto = cashBalance;
+                } else {
+                    monto = parseFloat(inputMonto);
+                }
+
+                if (isNaN(monto) || monto <= 0) return interaction.editReply('❌ El monto debe ser un número mayor a 0.');
+
+                if (cashBalance < monto) {
+                    return interaction.editReply(`❌ Fondos insuficientes en efectivo.\n\nTienes: $${cashBalance.toLocaleString()}\nIntentas depositar: $${monto.toLocaleString()}`);
+                }
+
+                // Check Max Balance Limit (Tier based)
+                const tier = CARD_TIERS[card.card_tier || 'NMX Débito'];
+                const maxBal = tier ? (tier.max_balance || Infinity) : Infinity;
+                if ((bankBalance + monto) > maxBal) {
+                    return interaction.editReply(`⛔ **Límite de Saldo Excedido**\nTu tarjeta **${card.card_tier || 'NMX Débito'}** tiene un límite de almacenamiento de **$${maxBal.toLocaleString()}**.\nActual: $${bankBalance.toLocaleString()} + Depósito: $${monto.toLocaleString()} > Límite.\n\n💡 **Mejora a NMX Débito Gold para almacenamiento ilimitado.**`);
+                }
+
+                // Transfer from cash to bank
+                await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, monto, 'Depósito bancario', 'cash');
+                await billingService.ubService.addMoney(interaction.guildId, interaction.user.id, monto, 'Depósito bancario', 'bank');
+
+                // Log transaction
+                await supabase.from('debit_transactions').insert({
+                    debit_card_id: card.id,
+                    discord_user_id: interaction.user.id,
+                    transaction_type: 'deposit',
+                    amount: monto,
+                    description: 'Depósito en sucursal/ATM'
+                });
+
+                const embed = new EmbedBuilder()
+                    .setTitle('🏧 Depósito Exitoso')
+                    .setColor(0x00FF00)
+                    .setDescription('Has depositado efectivo a tu cuenta bancaria.')
+                    .addFields(
+                        { name: 'Monto Depositado', value: `$${monto.toLocaleString()}`, inline: true },
+                        { name: 'Nuevo Saldo Banco', value: `$${(bankBalance + monto).toLocaleString()}`, inline: true }
+                    )
+                    .setTimestamp();
+
+                await interaction.editReply({ embeds: [embed] });
+
+            } catch (error) {
+                console.error(error);
+                await interaction.editReply('❌ Error realizando depósito.');
+            }
+        }
+
+        else if (subcommand === 'retirar') {
+
+            try {
+                const card = await getDebitCard(interaction.user.id);
+                if (!card) return interaction.editReply('❌ No tienes una tarjeta de débito activa.');
+
+                const balance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
+                const bankBalance = balance.bank || 0;
+
+                const inputMonto = interaction.options.getString('monto');
+                let monto = 0;
+
+                if (inputMonto.toLowerCase() === 'todo' || inputMonto.toLowerCase() === 'all') {
+                    monto = bankBalance;
+                } else {
+                    monto = parseFloat(inputMonto);
+                }
+
+                if (isNaN(monto) || monto <= 0) return interaction.editReply('❌ El monto debe ser un número mayor a 0.');
+
+                if (bankBalance < monto) {
+                    return interaction.editReply(`❌ Fondos insuficientes en banco.\n\nDisponible: $${bankBalance.toLocaleString()}\nIntentando retirar: $${monto.toLocaleString()}`);
+                }
+
+                // Transfer from bank to cash
+                await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, monto, 'Retiro de cajero', 'bank');
+                await billingService.ubService.addMoney(interaction.guildId, interaction.user.id, monto, 'Retiro de cajero', 'cash');
+
+                // Log transaction
+                await supabase.from('debit_transactions').insert({
+                    debit_card_id: card.id,
+                    discord_user_id: interaction.user.id,
+                    transaction_type: 'withdrawal',
+                    amount: -monto,
+                    description: 'Retiro en cajero automático'
+                });
+
+                const embed = new EmbedBuilder()
+                    .setTitle('🏧 Retiro Exitoso')
+                    .setColor(0x00FF00)
+                    .setDescription('Has retirado efectivo de tu cuenta bancaria.')
+                    .addFields(
+                        { name: 'Monto Retirado', value: `$${monto.toLocaleString()}`, inline: true },
+                        { name: 'Nuevo Saldo Banco', value: `$${(bankBalance - monto).toLocaleString()}`, inline: true }
+                    )
+                    .setFooter({ text: 'El efectivo está ahora en tu billetera' })
+                    .setTimestamp();
+
+                await interaction.editReply({ embeds: [embed] });
+            } catch (error) {
+                console.error(error);
+                await interaction.editReply('❌ Error realizando retiro.');
+            }
+        }
+
+
+
+
+        else if (subcommand === 'historial') {
+            try {
+                const { data: transactions } = await supabase.from('debit_transactions').select('*').eq('discord_user_id', interaction.user.id).order('created_at', { ascending: false }).limit(10);
+                if (!transactions || transactions.length === 0) return interaction.editReply('📭 Sin transacciones.');
+                const embed = new EmbedBuilder().setTitle('📋 Historial Débito').setColor(0x00CED1);
+                let desc = '';
+                transactions.forEach(tx => {
+                    const emoji = tx.amount > 0 ? '➕' : '➖';
+                    const type = tx.transaction_type === 'deposit' ? 'Depósito' : tx.transaction_type === 'transfer_in' ? 'Recibido' : tx.transaction_type === 'transfer_out' ? 'Enviado' : tx.transaction_type;
+                    desc += `${emoji} **${type}**: $${Math.abs(tx.amount).toLocaleString()} | Saldo: $${tx.balance_after.toLocaleString()}\n`;
+                });
+                embed.setDescription(desc);
+                await interaction.editReply({ embeds: [embed] });
+            } catch (error) {
+                console.error(error);
+                await interaction.editReply('❌ Error consultando historial.');
+            }
+        }
+
+        // === INFO ===
+        else if (subcommand === 'info') {
+
+            try {
+                const card = await getDebitCard(interaction.user.id);
+                if (!card) return interaction.editReply('❌ No tienes una tarjeta de débito activa.');
+
+                const balance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
+                const bankBalance = balance.bank || 0;
+
+                // Get recent transactions
+                const { data: recentTxs } = await supabase
+                    .from('debit_transactions')
+                    .select('*')
+                    .eq('discord_user_id', interaction.user.id)
+                    .order('created_at', { ascending: false })
+                    .limit(5);
+
+                let txHistory = '';
+                if (recentTxs && recentTxs.length > 0) {
+                    recentTxs.forEach(tx => {
+                        const emoji = tx.amount > 0 ? '➕' : '➖';
+                        const tipo = tx.transaction_type === 'withdrawal' ? 'Retiro' :
+                            tx.transaction_type === 'deposit' ? 'Depósito' :
+                                tx.transaction_type === 'transfer_in' ? 'Recibido' : 'Enviado';
+                        txHistory += `${emoji} ${tipo}: $${Math.abs(tx.amount).toLocaleString()}\n`;
+                    });
+                } else {
+                    txHistory = 'Sin transacciones recientes';
+                }
+
+                const embed = new EmbedBuilder()
+                    .setTitle('💳 Información Completa - Tarjeta de Débito')
+                    .setColor(0x00CED1)
+                    .setDescription(`Detalles de tu cuenta bancaria NMX`)
+                    .addFields(
+                        { name: '💳 Tipo de Tarjeta', value: card.card_tier || 'NMX Débito', inline: true },
+                        { name: '🔢 Número de Tarjeta', value: `\`${card.card_number}\``, inline: false },
+                        { name: '💰 Saldo en Banco', value: `$${bankBalance.toLocaleString()}`, inline: true },
+                        { name: '📅 Fecha de Creación', value: `<t:${Math.floor(new Date(card.created_at).getTime() / 1000)}:D>`, inline: true },
+                        { name: '✅ Estado', value: 'Activa', inline: true },
+                        { name: '📊 Últimas Transacciones', value: txHistory, inline: false }
+                    )
+                    .setFooter({ text: 'Banco Nacional MX' })
+                    .setTimestamp();
+
+                await interaction.editReply({ embeds: [embed] });
+
+            } catch (error) {
+                console.error(error);
+                await interaction.editReply('❌ Error consultando información.');
+            }
+        }
+
+        // === ADMIN COMMANDS ===
+        else if (subCommandGroup === 'admin') {
+            // Check if user is bank executive
+            const BANK_EXEC_ROLE_ID = '1450688555503587459'; // Same as company creator role
+            if (!interaction.member.roles.cache.has(BANK_EXEC_ROLE_ID) && !interaction.member.permissions.has('Administrator')) {
+                return interaction.reply({ content: '⛔ Solo ejecutivos bancarios pueden usar estos comandos.', ephemeral: true });
+            }
+
+            const adminSubCmd = interaction.options.getSubcommand();
+            const targetUser = interaction.options.getUser('usuario');
+
+            // === ADMIN INFO ===
+            if (adminSubCmd === 'info') {
+                await interaction.deferReply({ ephemeral: true });
+
+                try {
+                    const card = await getDebitCard(targetUser.id);
+                    if (!card) return interaction.editReply(`❌ ${targetUser.username} no tiene tarjeta de débito.`);
+
+                    const balance = await billingService.ubService.getUserBalance(interaction.guildId, targetUser.id);
+                    const bankBalance = balance.bank || 0;
+                    const cashBalance = balance.cash || 0;
+
+                    // Get transaction count and totals
+                    const { data: txs } = await supabase
+                        .from('debit_transactions')
+                        .select('*')
+                        .eq('discord_user_id', targetUser.id);
+
+                    const totalTransactions = txs?.length || 0;
+                    const totalDeposits = txs?.filter(t => t.amount > 0).reduce((sum, t) => sum + t.amount, 0) || 0;
+                    const totalWithdrawals = txs?.filter(t => t.amount < 0).reduce((sum, t) => sum + Math.abs(t.amount), 0) || 0;
+
+                    const embed = new EmbedBuilder()
+                        .setTitle(`👨‍💼 Análisis Bancario - ${targetUser.username}`)
+                        .setColor(0x5865F2)
+                        .setThumbnail(targetUser.displayAvatarURL())
+                        .addFields(
+                            { name: '🔢 Número de Tarjeta', value: `\`${card.card_number}\``, inline: false },
+                            { name: '💰 Saldo en Banco', value: `$${bankBalance.toLocaleString()}`, inline: true },
+                            { name: '💵 Saldo en Efectivo', value: `$${cashBalance.toLocaleString()}`, inline: true },
+                            { name: '💼 Total Combinado', value: `$${(bankBalance + cashBalance).toLocaleString()}`, inline: true },
+                            { name: '📊 Total Transacciones', value: `${totalTransactions}`, inline: true },
+                            { name: '➕ Total Depósitos', value: `$${totalDeposits.toLocaleString()}`, inline: true },
+                            { name: '➖ Total Retiros', value: `$${totalWithdrawals.toLocaleString()}`, inline: true },
+                            { name: '📅 Cuenta Creada', value: `<t:${Math.floor(new Date(card.created_at).getTime() / 1000)}:R>`, inline: false }
+                        )
+                        .setFooter({ text: 'Información Confidencial - Solo para Ejecutivos' })
+                        .setTimestamp();
+
+                    await interaction.editReply({ embeds: [embed] });
+
+                } catch (error) {
+                    console.error(error);
+                    await interaction.editReply('❌ Error consultando información.');
+                }
+            }
+
+            // === ADMIN HISTORIAL ===
+            else if (adminSubCmd === 'historial') {
+                await interaction.deferReply({ ephemeral: true });
+
+                try {
+                    const { data: transactions } = await supabase
+                        .from('debit_transactions')
+                        .select('*')
+                        .eq('discord_user_id', targetUser.id)
+                        .order('created_at', { ascending: false })
+                        .limit(20);
+
+                    if (!transactions || transactions.length === 0) {
+                        return interaction.editReply(`❌ ${targetUser.username} no tiene historial.`);
+                    }
+
+                    let description = '';
+                    transactions.forEach((tx, index) => {
+                        const emoji = tx.amount > 0 ? '➕' : '➖';
+                        let tipo = tx.transaction_type;
+                        if (tipo === 'withdrawal') tipo = 'Retiro';
+                        else if (tipo === 'deposit') tipo = 'Depósito';
+                        else if (tipo === 'transfer_in') tipo = 'Recibido';
+                        else if (tipo === 'transfer_out') tipo = 'Enviado';
+
+                        const fecha = new Date(tx.created_at);
+                        description += `${emoji} **${tipo}**: $${Math.abs(tx.amount).toLocaleString()} | <t:${Math.floor(fecha.getTime() / 1000)}:R>\n`;
+                    });
+
+                    const embed = new EmbedBuilder()
+                        .setTitle(`📋 Historial de Débito - ${targetUser.username}`)
+                        .setColor(0x00CED1)
+                        .setDescription(description)
+                        .setFooter({ text: `Mostrando últimas ${transactions.length} transacciones` })
+                        .setTimestamp();
+
+                    await interaction.editReply({ embeds: [embed] });
+
+                } catch (error) {
+                    console.error(error);
+                    await interaction.editReply('❌ Error cargando historial.');
+                }
+            }
+        }
+    }
+
+    else if (commandName === 'top-ricos') {
+        await interaction.deferReply();
+
+        try {
+            // Get all citizens with discord IDs
+            const { data: citizens } = await supabase
+                .from('citizens')
+                .select('full_name, discord_id')
+                .not('discord_id', 'is', null);
+
+            if (!citizens || citizens.length === 0) {
+                return interaction.editReply('❌ No hay datos disponibles.');
+            }
+
+            // Calculate total wealth for each citizen
+            const wealthData = [];
+
+            for (const citizen of citizens) {
+                try {
+                    // Get cash and bank balance from UnbelievaBoat
+                    const balance = await billingService.ubService.getUserBalance(interaction.guildId, citizen.discord_id);
+                    const cash = balance.cash || 0;
+                    const bank = balance.bank || 0;
+
+                    // Get debit card balance
+                    const { data: debitCard } = await supabase
+                        .from('debit_cards')
+                        .select('balance')
+                        .eq('discord_user_id', citizen.discord_id)
+                        .eq('status', 'active')
+                        .maybeSingle();
+                    const debitBalance = debitCard?.balance || 0;
+
+                    // Get investment portfolio value
+                    const { data: investments } = await supabase
+                        .from('investments')
+                        .select('quantity, ticker')
+                        .eq('discord_id', citizen.discord_id);
+
+                    let investmentsValue = 0;
+                    if (investments && investments.length > 0) {
+                        const { data: prices } = await supabase
+                            .from('market_prices')
+                            .select('ticker, current_price');
+
+                        const priceMap = {};
+                        prices?.forEach(p => priceMap[p.ticker] = p.current_price);
+
+                        investments.forEach(inv => {
+                            const price = priceMap[inv.ticker] || 0;
+                            investmentsValue += inv.quantity * price;
+                        });
+                    }
+
+                    const totalWealth = cash + bank + debitBalance + investmentsValue;
+
+                    wealthData.push({
+                        name: citizen.full_name,
+                        discord_id: citizen.discord_id,
+                        total: totalWealth,
+                        cash,
+                        bank,
+                        debit: debitBalance,
+                        investments: investmentsValue
+                    });
+                } catch (error) {
+                    console.error(`Error calculating wealth for ${citizen.full_name}:`, error);
+                }
+            }
+
+            // Sort by total wealth descending
+            wealthData.sort((a, b) => b.total - a.total);
+
+            // Take top 10
+            const top10 = wealthData.slice(0, 10);
+
+            if (top10.length === 0) {
+                return interaction.editReply('❌ No se pudieron calcular las fortunas.');
+            }
+
+            const embed = new EmbedBuilder()
+                .setTitle('💰 Top 10 - Ciudadanos Más Ricos')
+                .setColor(0xFFD700)
+                .setDescription('Ranking por patrimonio total (Efectivo + Banco + Débito + Inversiones)')
+                .setTimestamp();
+
+            let description = '';
+            top10.forEach((person, index) => {
+                const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}.`;
+
+                description += `${medal} **${person.name}** - $${person.total.toLocaleString()}\n`;
+                description += `   💵 Efectivo: $${person.cash.toLocaleString()} | 🏦 Banco: $${person.bank.toLocaleString()}\n`;
+                if (person.debit > 0 || person.investments > 0) {
+                    description += `   💳 Débito: $${person.debit.toLocaleString()} | 📈 Inversiones: $${person.investments.toLocaleString()}\n`;
+                }
+                description += '\n';
+            });
+
+            embed.setDescription(description);
+            await interaction.editReply({ embeds: [embed] });
+        } catch (error) {
+            console.error(error);
+            await interaction.editReply('❌ Error calculando el ranking de riqueza.');
+        }
+    }
+
+    else if (commandName === 'top-morosos') {
+        await interaction.deferReply();
+
+        try {
+            const { data: debtors } = await supabase
+                .from('credit_cards')
+                .select('current_balance, card_type, citizen_id, citizens!inner(full_name, discord_id)')
+                .gt('current_balance', 0)
+                .order('current_balance', { ascending: false })
+                .limit(10);
+
+            if (!debtors || debtors.length === 0) {
+                return interaction.editReply('✅ ¡No hay deudores! Todos están al corriente.');
+            }
+
+            const embed = new EmbedBuilder()
+                .setTitle('📉 Top 10 - Mayores Deudas')
+                .setColor(0xFF0000)
+                .setTimestamp();
+
+            let description = '';
+            debtors.forEach((d, index) => {
+                description += `${index + 1}. **${d.citizens.full_name}** - $${d.current_balance.toLocaleString()} (${d.card_type})\n`;
+            });
+
+            embed.setDescription(description);
+            embed.setFooter({ text: 'Recuerda pagar tus tarjetas a tiempo' });
+            await interaction.editReply({ embeds: [embed] });
+        } catch (error) {
+            console.error(error);
+            await interaction.editReply('❌ Error obteniendo el ranking.');
+        }
+    }
+
+    else if (commandName === 'depositar') {
+        const destUser = interaction.options.getUser('destinatario');
+        const inputMonto = interaction.options.getString('monto');
+        const razon = interaction.options.getString('razon') || 'Depósito en Efectivo';
+
+        // Parse Amount
+        let monto = 0;
+        // Fetch balance early to handle 'todo'
+        const balance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
+        const cash = balance.cash || 0;
+
+        if (inputMonto.toLowerCase() === 'todo' || inputMonto.toLowerCase() === 'all') {
+            monto = cash;
+        } else {
+            monto = parseFloat(inputMonto);
+        }
+
+        if (isNaN(monto) || monto <= 0) {
+            return interaction.reply({ content: '❌ El monto debe ser mayor a 0.', ephemeral: true });
+        }
+
+        await interaction.deferReply();
+
+        try {
+            // 1. Check Sender CASH (OXXO Logic: You pay with cash)
+            const balance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
+            const cash = balance.cash || 0;
+
+            if (cash < monto) {
+                return interaction.editReply(`❌ No tienes suficiente **efectivo** en mano. Tienes: $${cash.toLocaleString()}`);
+            }
+
+            // 2. Check Recipient Debit Card
+            const { data: destCard } = await supabase
+                .from('debit_cards')
+                .select('*')
+                .eq('discord_user_id', destUser.id)
+                .eq('status', 'active')
+                .maybeSingle();
+
+            if (!destCard) {
+                return interaction.editReply(`❌ El destinatario ${destUser.tag} no tiene una Tarjeta de Débito NMX activa para recibir depósitos.`);
+            }
+
+            // 3. Process Logic
+            // Remove Cash from Sender instantly
+            await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, monto, `Depósito a ${destUser.tag}`, 'cash');
+
+            // Schedule Pending Transfer (4 Hours Delay)
+            const completionTime = new Date(Date.now() + (4 * 60 * 60 * 1000)); // 4 Hours
+
+            await supabase.from('pending_transfers').insert({
+                sender_id: interaction.user.id,
+                receiver_id: destUser.id,
+                amount: monto,
+                reason: razon,
+                release_date: completionTime.toISOString(),
+                status: 'PENDING'
+            });
+
+            // 4. Response
+            const embed = new EmbedBuilder()
+                .setTitle('🏪 Depósito Realizado')
+                .setColor(0xFFA500)
+                .setDescription(`Has depositado efectivo a la cuenta de **${destUser.tag}**.`)
+                .addFields(
+                    { name: '💸 Monto', value: `$${monto.toLocaleString()}`, inline: true },
+                    { name: '💳 Destino', value: `Tarjeta NMX *${destCard.card_number.slice(-4)}`, inline: true },
+                    { name: '⏳ Tiempo estimado', value: '4 Horas', inline: false },
+                    { name: '📝 Concepto', value: razon, inline: false }
+                )
+                .setFooter({ text: 'El dinero llegará automáticamente cuando se procese.' })
+                .setTimestamp();
+
+            await interaction.editReply({ embeds: [embed] });
+
+        } catch (error) {
+            console.error(error);
+            await interaction.editReply('❌ Error procesando el depósito.');
+        }
+    }
+
+
+    else if (commandName === 'giro') {
+        await interaction.deferReply(); // Defer immediately
+
+        const destUser = interaction.options.getUser('destinatario');
+        const inputMonto = interaction.options.getString('monto');
+        const razon = interaction.options.getString('razon') || 'Giro Postal';
+
+        // Fetch balance early
+        const senderBalance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
+
+        let monto = 0;
+        if (inputMonto.toLowerCase() === 'todo' || inputMonto.toLowerCase() === 'all') {
+            monto = senderBalance.cash || 0;
+        } else {
+            monto = parseFloat(inputMonto);
+        }
+
+        if (isNaN(monto) || monto <= 0) return interaction.editReply({ content: '❌ El monto debe ser mayor a 0.' });
+        if (destUser.id === interaction.user.id) return interaction.editReply({ content: '❌ No puedes enviarte un giro a ti mismo.' });
+
+        try {
+            // Already fetched balance above.
+            if ((senderBalance.cash || 0) < monto) {
+                return interaction.editReply(`❌ Fondos insuficientes en Efectivo. Tienes $${(senderBalance.cash || 0).toLocaleString()}.`);
+            }
+
+            // 2. Create Pending Transfer FIRST (24h Delay)
+            const releaseDate = new Date();
+
     else if (commandName === 'impuestos') {
         await interaction.reply({ content: '🛠️ **Próximamente:** Sistema de impuestos dinámico.', ephemeral: true });
     }
