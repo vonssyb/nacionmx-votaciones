@@ -5714,7 +5714,7 @@ async function handleExtraCommands(interaction) {
         }
 
         else if (subcommand === 'credito') {
-            await interaction.deferReply({ flags: 64 });
+            await interaction.deferReply({ ephemeral: false });
 
             const monto = interaction.options.getNumber('monto');
             const razon = interaction.options.getString('razon');
