@@ -3879,49 +3879,151 @@ async function requestPaymentMethod(interaction, userId, amount, description) {
     const cash = balance.cash || 0;
     const bank = balance.bank || 0;
 
-    const { data: creditCards } = await supabase.from('credit_cards').select('*').eq('discord_user_id', userId).eq('status', 'active');
+    // Get personal credit cards
+    const { data: personalCards } = await supabase
+        .from('credit_cards')
+        .select('*')
+        .eq('discord_user_id', userId)
+        .eq('status', 'active');
 
-    let creditAvailable = 0;
-    if (creditCards && creditCards.length > 0) {
-        creditCards.forEach(c => {
-            const limit = c.card_limit || c.credit_limit || 0;
-            const debt = c.current_balance || 0;
-            creditAvailable += (limit - debt);
-        });
+    // Get user's companies
+    const { data: userCompanies } = await supabase
+        .from('companies')
+        .select('id')
+        .contains('owner_ids', [userId])
+        .eq('status', 'active');
+
+    // Get business credit cards from user's companies
+    let businessCards = [];
+    if (userCompanies && userCompanies.length > 0) {
+        const companyIds = userCompanies.map(c => c.id);
+        const { data: bizCards } = await supabase
+            .from('business_credit_cards')
+            .select('*, companies!inner(name)')
+            .in('company_id', companyIds)
+            .eq('status', 'active');
+
+        businessCards = bizCards || [];
     }
 
     // Check for active Debit Card
     const debitCard = await getDebitCard(userId);
 
+    // Build payment options
     const methods = [];
-    if (cash >= amount) methods.push({ id: 'cash', label: `💵 Efectivo ($${cash.toLocaleString()})`, style: ButtonStyle.Success });
-    if (bank >= amount && debitCard) methods.push({ id: 'bank', label: `🏦 Banco/Débito ($${bank.toLocaleString()})`, style: ButtonStyle.Primary });
-    if (creditAvailable >= amount) methods.push({ id: 'credit', label: `💳 Crédito (Disp: $${creditAvailable.toLocaleString()})`, style: ButtonStyle.Secondary });
 
+    // 1. Cash
+    if (cash >= amount) {
+        methods.push({
+            id: 'cash',
+            label: `💵 Efectivo ($${cash.toLocaleString()})`,
+            style: ButtonStyle.Success,
+            type: 'basic'
+        });
+    }
+
+    // 2. Bank/Debit
+    if (bank >= amount && debitCard) {
+        methods.push({
+            id: 'bank',
+            label: `🏦 Banco ($${bank.toLocaleString()})`,
+            style: ButtonStyle.Primary,
+            type: 'basic'
+        });
+    }
+
+    // 3. Personal Credit Cards
+    if (personalCards && personalCards.length > 0) {
+        personalCards.forEach(card => {
+            const limit = card.card_limit || card.credit_limit || 0;
+            const debt = card.current_balance || 0;
+            const available = limit - debt;
+
+            if (available >= amount) {
+                methods.push({
+                    id: `personal_credit_${card.id}`,
+                    label: `💳 ${card.card_name} ($${available.toLocaleString()})`,
+                    style: ButtonStyle.Secondary,
+                    type: 'personal_credit',
+                    cardId: card.id,
+                    cardData: card
+                });
+            }
+        });
+    }
+
+    // 4. Business Credit Cards
+    if (businessCards.length > 0) {
+        businessCards.forEach(card => {
+            const available = card.credit_limit - (card.current_balance || 0);
+
+            if (available >= amount) {
+                const companyName = card.companies?.name || 'Empresa';
+                methods.push({
+                    id: `business_credit_${card.id}`,
+                    label: `🏢 ${card.card_name} - ${companyName}`,
+                    style: ButtonStyle.Secondary,
+                    type: 'business_credit',
+                    cardId: card.id,
+                    cardData: card
+                });
+            }
+        });
+    }
+
+    // Check if user has any valid payment methods
     if (methods.length === 0) {
+        const personalCreditAvailable = (personalCards || []).reduce((sum, c) => {
+            const limit = c.card_limit || c.credit_limit || 0;
+            const debt = c.current_balance || 0;
+            return sum + (limit - debt);
+        }, 0);
+
+        const businessCreditAvailable = businessCards.reduce((sum, c) => {
+            return sum + (c.credit_limit - (c.current_balance || 0));
+        }, 0);
+
         return {
             success: false,
-            error: `❌ **Fondos Insuficientes**\n\nNecesitas: $${amount.toLocaleString()}\n\n💵 Efectivo: $${cash.toLocaleString()}\n🏦 Banco: $${bank.toLocaleString()}\n💳 Crédito disponible: $${creditAvailable.toLocaleString()}`
+            error: `❌ **Fondos Insuficientes**\n\nNecesitas: $${amount.toLocaleString()}\n\n💵 Efectivo: $${cash.toLocaleString()}\n🏦 Banco: $${bank.toLocaleString()}\n💳 Crédito Personal: $${personalCreditAvailable.toLocaleString()}\n🏢 Crédito Empresarial: $${businessCreditAvailable.toLocaleString()}`
         };
     }
 
-    const paymentRow = new ActionRowBuilder();
-    methods.forEach(m => paymentRow.addComponents(new ButtonBuilder().setCustomId(`genpay_${m.id}_${Date.now()}`).setLabel(m.label).setStyle(m.style)));
+    // Create buttons (max 5 per row, Discord limit)
+    const rows = [];
+    let currentRow = new ActionRowBuilder();
+    let buttonsInRow = 0;
+
+    methods.forEach((m, index) => {
+        if (buttonsInRow >= 5) {
+            rows.push(currentRow);
+            currentRow = new ActionRowBuilder();
+            buttonsInRow = 0;
+        }
+
+        currentRow.addComponents(
+            new ButtonBuilder()
+                .setCustomId(`genpay_${m.id}_${Date.now()}`)
+                .setLabel(m.label)
+                .setStyle(m.style)
+        );
+        buttonsInRow++;
+    });
+
+    if (buttonsInRow > 0) rows.push(currentRow);
 
     const embed = new EmbedBuilder()
         .setTitle('💳 Selecciona Método de Pago')
         .setColor(0xFFD700)
-        .setDescription(`**${description}**\n\n💰 Total a pagar: **$${amount.toLocaleString()}**\n\nElige cómo deseas pagar:`)
-        .setFooter({ text: 'Banco Nacional - Métodos de Pago' });
+        .setDescription(`**${description}**\n\n💰 Total: **$${amount.toLocaleString()}**\n\nElige cómo pagar:`)
+        .setFooter({ text: 'Sistema de Pagos Nación MX' });
 
     // Handle both command interactions and button interactions
     let msg;
     if (interaction.isMessageComponent && interaction.isMessageComponent()) {
-        // Button/Component interaction - use update
-        msg = await interaction.update({ embeds: [embed], components: [paymentRow], fetchReply: true });
+        msg = await interaction.update({ embeds: [embed], components: rows, fetchReply: true });
     } else {
-        // Command interaction - use editReply
-        msg = await interaction.editReply({ embeds: [embed], components: [paymentRow] });
+        msg = await interaction.editReply({ embeds: [embed], components: rows });
     }
 
     const filter = i => i.user.id === userId && i.customId.startsWith('genpay_');
@@ -3930,29 +4032,81 @@ async function requestPaymentMethod(interaction, userId, amount, description) {
     return new Promise((resolve) => {
         collector.on('collect', async i => {
             await i.deferUpdate();
-            const method = i.customId.split('_')[1];
+            const fullId = i.customId.split('_')[1];
 
             try {
-                if (method === 'cash' || method === 'bank') {
+                // Find which method was selected
+                const selectedMethod = methods.find(m => m.id === fullId || m.id.startsWith(fullId));
+
+                if (!selectedMethod) {
+                    collector.stop();
+                    return resolve({ success: false, error: '❌ Método de pago no encontrado.' });
+                }
+
+                // Process payment based on type
+                if (selectedMethod.type === 'basic') {
+                    // Cash or Bank
+                    const method = selectedMethod.id; // 'cash' or 'bank'
                     await billingService.ubService.removeMoney(interaction.guildId, userId, amount, description, method);
                     collector.stop();
-                    resolve({ success: true, method, message: `✅ Pago exitoso con ${method === 'cash' ? 'efectivo' : 'banco/débito'}.` });
-                } else if (method === 'credit') {
-                    const selectedCard = creditCards[0];
-                    const currentDebt = selectedCard.current_balance || 0;
-                    const newDebt = currentDebt + amount;
-                    await supabase.from('credit_cards').update({ current_balance: newDebt }).eq('id', selectedCard.id);
+                    resolve({
+                        success: true,
+                        method,
+                        message: `✅ Pago con ${method === 'cash' ? 'efectivo' : 'banco'}.`
+                    });
+
+                } else if (selectedMethod.type === 'personal_credit') {
+                    // Personal Credit Card
+                    const card = selectedMethod.cardData;
+                    const newDebt = (card.current_balance || 0) + amount;
+
+                    await supabase
+                        .from('credit_cards')
+                        .update({ current_balance: newDebt })
+                        .eq('id', card.id);
+
                     collector.stop();
-                    resolve({ success: true, method: 'credit', cardId: selectedCard.id, message: `✅ Pago con crédito.\nNueva deuda: $${newDebt.toLocaleString()}` });
+                    resolve({
+                        success: true,
+                        method: 'personal_credit',
+                        cardId: card.id,
+                        message: `✅ Cargo a ${card.card_name}\nNueva deuda: $${newDebt.toLocaleString()}`
+                    });
+
+                } else if (selectedMethod.type === 'business_credit') {
+                    // Business Credit Card
+                    const card = selectedMethod.cardData;
+                    const newDebt = (card.current_balance || 0) + amount;
+
+                    await supabase
+                        .from('business_credit_cards')
+                        .update({
+                            current_balance: newDebt,
+                            updated_at: new Date().toISOString()
+                        })
+                        .eq('id', card.id);
+
+                    collector.stop();
+                    resolve({
+                        success: true,
+                        method: 'business_credit',
+                        cardId: card.id,
+                        companyName: card.companies?.name,
+                        message: `✅ Cargo a tarjeta empresarial\n🏢 ${card.companies?.name}\n📊 Nueva deuda: $${newDebt.toLocaleString()}`
+                    });
                 }
+
             } catch (error) {
+                console.error('[requestPaymentMethod] Error:', error);
                 collector.stop();
                 resolve({ success: false, error: `❌ Error procesando pago: ${error.message}` });
             }
         });
 
-        collector.on('end', collected => {
-            if (collected.size === 0) resolve({ success: false, error: '❌ Tiempo agotado. Pago cancelado.' });
+        collector.on('end', (collected) => {
+            if (collected.size === 0) {
+                resolve({ success: false, error: '⏱️ Tiempo agotado. Intenta de nuevo.' });
+            }
         });
     });
 }
