@@ -2419,23 +2419,34 @@ client.on('interactionCreate', async interaction => {
                 pText += `└ Límite: **$${c.limit}** | Costo: **${c.cost}** | Interés: **${c.interest}**\n`;
             });
 
-            // Business Cards Field
-            let bText = '';
-            businessCards.forEach(c => {
-                bText += `🏢 **${c.name}**\n`;
-                bText += `└ Límite: **$${c.limit}** | Costo: **${c.cost}** | Interés: **${c.interest}**\n`;
-                bText += `└ ${c.desc}\n`;
+            // Business Cards Field - SPLIT INTO 2 TO AVOID 1024 CHAR LIMIT
+            let bText1 = '';
+            let bText2 = '';
+
+            // First 5 cards
+            businessCards.slice(0, 5).forEach(c => {
+                bText1 += `🏢 **${c.name}**\n`;
+                bText1 += `└ Límite: **$${c.limit}** | Costo: **${c.cost}** | Interés: **${c.interest}**\n`;
+                bText1 += `└ ${c.desc}\n`;
             });
 
-            bText += `\n💡 **¿Cómo solicitar?**\n`;
-            bText += `1️⃣ Abre un ticket en <#1450269843600310373>\n`;
-            bText += `2️⃣ Un asesor te ayudará con el proceso\n`;
-            bText += `3️⃣ Usa \`/empresa credito\` para usar tu línea`;
+            // Last 4 cards + instructions
+            businessCards.slice(5).forEach(c => {
+                bText2 += `🏢 **${c.name}**\n`;
+                bText2 += `└ Límite: **$${c.limit}** | Costo: **${c.cost}** | Interés: **${c.interest}**\n`;
+                bText2 += `└ ${c.desc}\n`;
+            });
+
+            bText2 += `\n💡 **¿Cómo solicitar?**\n`;
+            bText2 += `1️⃣ Abre un ticket en <#1450269843600310373>\n`;
+            bText2 += `2️⃣ Un asesor te ayudará con el proceso\n`;
+            bText2 += `3️⃣ Usa \`/empresa credito\` para usar tu línea`;
 
             embed.addFields(
                 { name: '🏦 Tarjetas de Débito', value: dText, inline: false },
-                { name: '💳 Tarjetas de Crédito Personales', value: pText, inline: true },
-                { name: '🏭 Tarjetas de Crédito Empresariales', value: bText, inline: true }
+                { name: '💳 Tarjetas de Crédito Personales', value: pText, inline: false },
+                { name: '🏭 Tarjetas Empresariales (1/2)', value: bText1, inline: false },
+                { name: '🏭 Tarjetas Empresariales (2/2)', value: bText2, inline: false }
             );
 
             embed.setFooter({ text: 'Banco Nacional RP • Intereses semanales (Domingos) • Pagos obligatorios' });
