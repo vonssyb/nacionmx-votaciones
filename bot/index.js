@@ -116,29 +116,99 @@ function updateStockPrices() {
 
 // Card Tiers Configuration (Global - used in multiple commands)
 const CARD_TIERS = {
-    'NMX Débito': { limit: 0, interest: 0, cost: 100, max_balance: 50000 },
-    'NMX Débito Plus': { limit: 0, interest: 0, cost: 500, max_balance: 150000 },
-    'NMX Débito Gold': { limit: 0, interest: 0, cost: 1000, max_balance: Infinity },
-    'NMX Start': { limit: 15000, interest: 15, cost: 2000, max_balance: Infinity },
-    'NMX Básica': { limit: 30000, interest: 12, cost: 4000, max_balance: Infinity },
-    'NMX Plus': { limit: 50000, interest: 10, cost: 6000, max_balance: Infinity },
-    'NMX Plata': { limit: 100000, interest: 8, cost: 10000, max_balance: Infinity },
-    'NMX Oro': { limit: 250000, interest: 7, cost: 15000, max_balance: Infinity },
-    'NMX Rubí': { limit: 500000, interest: 6, cost: 25000, max_balance: Infinity },
-    'NMX Black': { limit: 1000000, interest: 5, cost: 40000, max_balance: Infinity },
-    'NMX Diamante': { limit: 2000000, interest: 3, cost: 60000, max_balance: Infinity },
-    'NMX Zafiro': { limit: 5000000, interest: 2.5, cost: 100000, max_balance: Infinity },
-    'NMX Platino Elite': { limit: 10000000, interest: 2, cost: 150000, max_balance: Infinity },
-    // Business Cards
-    'NMX Business Start': { limit: 50000, interest: 2, cost: 8000, max_balance: Infinity },
-    'NMX Business Gold': { limit: 100000, interest: 1.5, cost: 15000, max_balance: Infinity },
-    'NMX Business Platinum': { limit: 200000, interest: 1.2, cost: 20000, max_balance: Infinity },
-    'NMX Business Elite': { limit: 500000, interest: 1, cost: 35000, max_balance: Infinity },
-    'NMX Corporate': { limit: 1000000, interest: 0.7, cost: 50000, max_balance: Infinity },
-    'NMX Corporate Plus': { limit: 5000000, interest: 0.5, cost: 100000, max_balance: Infinity },
-    'NMX Enterprise': { limit: 10000000, interest: 0.4, cost: 200000, max_balance: Infinity },
-    'NMX Conglomerate': { limit: 25000000, interest: 0.3, cost: 350000, max_balance: Infinity },
-    'NMX Supreme': { limit: 50000000, interest: 0.2, cost: 500000, max_balance: Infinity }
+    // DEBIT CARDS (3)
+    'NMX Débito': {
+        limit: 0, interest: 0, cost: 100, max_balance: 50000,
+        benefits: ['App móvil básica', 'Transferencias gratis', 'Soporte estándar']
+    },
+    'NMX Débito Plus': {
+        limit: 0, interest: 0, cost: 500, max_balance: 150000,
+        benefits: ['Cashback 0.5%', 'Alertas SMS', 'Retiros sin comisión']
+    },
+    'NMX Débito Gold': {
+        limit: 0, interest: 0, cost: 1000, max_balance: Infinity,
+        benefits: ['Cashback 1.5%', 'Seguro de compras', 'Soporte prioritario', 'Sin límite de saldo']
+    },
+
+    // PERSONAL CREDIT CARDS (10)
+    'NMX Start': {
+        limit: 15000, interest: 15, cost: 2000, max_balance: Infinity,
+        benefits: ['Sin anualidad 1er año', 'App móvil incluida']
+    },
+    'NMX Básica': {
+        limit: 30000, interest: 12, cost: 4000, max_balance: Infinity,
+        benefits: ['Cashback 1%', 'Seguro básico de compras', 'Meses sin intereses']
+    },
+    'NMX Plus': {
+        limit: 50000, interest: 10, cost: 6000, max_balance: Infinity,
+        benefits: ['Cashback 2%', 'Protección de compras', 'Asistencia en viajes']
+    },
+    'NMX Plata': {
+        limit: 100000, interest: 8, cost: 10000, max_balance: Infinity,
+        benefits: ['Cashback 3%', 'Seguro de viaje', 'Concierge básico', 'Acceso salas VIP (2/año)']
+    },
+    'NMX Oro': {
+        limit: 250000, interest: 7, cost: 15000, max_balance: Infinity,
+        benefits: ['Cashback 4%', 'Lounge aeropuerto ilimitado', 'Asistencia 24/7', 'Seguro médico viajes']
+    },
+    'NMX Rubí': {
+        limit: 500000, interest: 6, cost: 25000, max_balance: Infinity,
+        benefits: ['Cashback 5%', 'Concierge premium', 'Eventos exclusivos', 'Upgrades de vuelos']
+    },
+    'NMX Black': {
+        limit: 1000000, interest: 5, cost: 40000, max_balance: Infinity,
+        benefits: ['Cashback 6%', 'Priority Pass', 'Asesor financiero dedicado', 'Reservas premium']
+    },
+    'NMX Diamante': {
+        limit: 2000000, interest: 3, cost: 60000, max_balance: Infinity,
+        benefits: ['Cashback 7%', 'Mayordomo personal', 'Eventos VIP', 'Primera clase gratis']
+    },
+    'NMX Zafiro': {
+        limit: 5000000, interest: 2.5, cost: 100000, max_balance: Infinity,
+        benefits: ['Cashback 8%', 'Jet privado (-50%)', 'Reservas imposibles', 'Experiencias únicas']
+    },
+    'NMX Platino Elite': {
+        limit: 10000000, interest: 2, cost: 150000, max_balance: Infinity,
+        benefits: ['Cashback 10%', 'Jet privado ilimitado', 'Ultra exclusivo', 'Gestión patrimonial']
+    },
+
+    // BUSINESS CREDIT CARDS (9)
+    'NMX Business Start': {
+        limit: 50000, interest: 2, cost: 8000, max_balance: Infinity,
+        benefits: ['Crédito renovable', 'Reportes mensuales', 'Tarjetas empleados (3)']
+    },
+    'NMX Business Gold': {
+        limit: 100000, interest: 1.5, cost: 15000, max_balance: Infinity,
+        benefits: ['Cashback empresarial 1%', 'Reportes detallados', 'Tarjetas (10)', 'Asesoría contable']
+    },
+    'NMX Business Platinum': {
+        limit: 200000, interest: 1.2, cost: 20000, max_balance: Infinity,
+        benefits: ['Acceso prioritario', 'Sin comisiones internacionales', 'Tarjetas ilimitadas']
+    },
+    'NMX Business Elite': {
+        limit: 500000, interest: 1, cost: 35000, max_balance: Infinity,
+        benefits: ['Línea flexible', 'Seguro viajes corporativo', 'Descuentos proveedores (5%)']
+    },
+    'NMX Corporate': {
+        limit: 1000000, interest: 0.7, cost: 50000, max_balance: Infinity,
+        benefits: ['Beneficio fiscal máximo', 'Asesor financiero', 'Integración contable']
+    },
+    'NMX Corporate Plus': {
+        limit: 5000000, interest: 0.5, cost: 100000, max_balance: Infinity,
+        benefits: ['Financiamiento proyectos', 'Líneas adicionales', 'M&A advisory', 'Networking']
+    },
+    'NMX Enterprise': {
+        limit: 10000000, interest: 0.4, cost: 200000, max_balance: Infinity,
+        benefits: ['Soluciones corporativas', 'Trade finance', 'Hedging divisas', 'IPO assistance']
+    },
+    'NMX Conglomerate': {
+        limit: 25000000, interest: 0.3, cost: 350000, max_balance: Infinity,
+        benefits: ['Fiscalidad internacional', 'M&A', 'Banca de inversión', 'Family office']
+    },
+    'NMX Supreme': {
+        limit: 50000000, interest: 0.2, cost: 500000, max_balance: Infinity,
+        benefits: ['Todo incluido', 'Mercado capitales', 'Emisión deuda', 'C-Suite advisory']
+    }
 };
 
 // ==========================================
@@ -1494,7 +1564,7 @@ client.once('ready', async () => {
 
     // Start listening to Supabase changes
     // subscribeToNewCards(); // TODO: Implement this function or remove if not needed
-    subscribeToCancellations();
+    // subscribeToCancellations(); // TODO: Implement this function or remove if not needed
 });
 
 // Interaction Handler (Slash Commands)
