@@ -1285,6 +1285,68 @@ client.once('ready', async () => {
                     min_value: 1
                 }
             ]
+        },
+        // === NEW ECONOMY COMMANDS ===
+        {
+            name: 'stake',
+            description: '🔒 Staking de crypto para ingresos pasivos',
+            options: [
+                {
+                    name: 'depositar',
+                    description: 'Stakear crypto por un período fijo',
+                    type: 1,
+                    options: [
+                        { name: 'crypto', description: 'BTC, ETH o SOL', type: 3, required: true },
+                        { name: 'cantidad', description: 'Cantidad a stakear', type: 10, required: true },
+                        { name: 'dias', description: '7, 30 o 90 días', type: 4, required: true }
+                    ]
+                },
+                {
+                    name: 'mis-stakes',
+                    description: 'Ver tus stakes activos',
+                    type: 1
+                },
+                {
+                    name: 'retirar',
+                    description: 'Retirar un stake desbloqueado',
+                    type: 1,
+                    options: [
+                        { name: 'id', description: 'ID del stake (primeros 8 caracteres)', type: 3, required: true }
+                    ]
+                }
+            ]
+        },
+        {
+            name: 'slots',
+            description: '🎰 Tragamonedas con jackpot progresivo',
+            options: [
+                { name: 'apuesta', description: 'Cantidad a apostar (mín $100)', type: 4, required: true, min_value: 100 }
+            ]
+        },
+        {
+            name: 'fondos',
+            description: '💼 Fondos de inversión - Set & Forget',
+            options: [
+                {
+                    name: 'ver',
+                    description: 'Ver fondos disponibles',
+                    type: 1
+                },
+                {
+                    name: 'invertir',
+                    description: 'Invertir en un fondo',
+                    type: 1,
+                    options: [
+                        { name: 'fondo', description: 'Conservador, Balanceado o Agresivo', type: 3, required: true },
+                        { name: 'monto', description: 'Cantidad a invertir', type: 4, required: true }
+                    ]
+                },
+                {
+                    name: 'mis-fondos',
+                    description: 'Ver mis inversiones',
+                    type: 1
+                }
+            ]
         }
     ];
 
@@ -4674,7 +4736,14 @@ async function handleExtraCommands(interaction) {
     const { commandName } = interaction;
 
     if (commandName === 'balanza') {
-        await interaction.deferReply();
+        // Defer with error handling to prevent "Unknown interaction"
+        try {
+            await interaction.deferReply();
+        } catch (err) {
+            console.error('[ERROR] Failed to defer balanza:', err);
+            return; // Exit early if defer fails
+        }
+
         try {
             const cashBalance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
             console.log(`[DEBUG] /balanza User: ${interaction.user.id} Balance Raw:`, cashBalance); // DEBUG LOG
