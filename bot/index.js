@@ -4838,10 +4838,10 @@ async function handleExtraCommands(interaction) {
 
                 // Check receiver card limit
                 console.log('[DEBUG-TRANSFER] Receiver card object:', JSON.stringify(receiverCard, null, 2));
-                console.log('[DEBUG-TRANSFER] Receiver card_type:', receiverCard.card_type);
+                console.log('[DEBUG-TRANSFER] Receiver card_tier:', receiverCard.card_tier);
                 console.log('[DEBUG-TRANSFER] Available tiers:', Object.keys(CARD_TIERS));
 
-                const receiverTier = CARD_TIERS[receiverCard.card_type];
+                const receiverTier = CARD_TIERS[receiverCard.card_tier || 'NMX Débito'];
                 console.log('[DEBUG-TRANSFER] Found tier:', receiverTier);
 
                 const receiverMax = receiverTier ? (receiverTier.max_balance || Infinity) : Infinity;
@@ -4859,7 +4859,7 @@ async function handleExtraCommands(interaction) {
                             .setColor(0xFF0000)
                             .setDescription(`El destinatario no puede recibir esta cantidad porque excedería el límite de su tarjeta.`)
                             .addFields(
-                                { name: '💳 Tipo de Tarjeta', value: receiverCard.card_type, inline: true },
+                                { name: '💳 Tipo de Tarjeta', value: receiverCard.card_tier || 'NMX Débito', inline: true },
                                 { name: '📊 Límite Máximo', value: `$${receiverMax.toLocaleString()}`, inline: true },
                                 { name: '💰 Saldo Actual', value: `$${receiverBank.toLocaleString()}`, inline: true },
                                 { name: '🚫 Intentas Transferir', value: `$${monto.toLocaleString()}`, inline: true },
