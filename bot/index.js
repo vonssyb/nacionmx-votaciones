@@ -4286,9 +4286,39 @@ async function handleExtraCommands(interaction) {
                     return interaction.editReply(`❌ Fondos insuficientes.\\n\\nSaldo en Banco: $${bankBalance.toLocaleString()}\\nIntentas transferir: $${monto.toLocaleString()}`);
                 }
 
-                // Check receiver card limit - REMOVED
-                // Transfers should be allowed regardless of card limits
-                // (Limits only apply to deposits/income, not P2P transfers)
+                // Check receiver card limit
+                console.log('[DEBUG-TRANSFER] Receiver card object:', JSON.stringify(receiverCard, null, 2));
+                console.log('[DEBUG-TRANSFER] Receiver card_type:', receiverCard.card_type);
+                console.log('[DEBUG-TRANSFER] Available tiers:', Object.keys(CARD_TIERS));
+
+                const receiverTier = CARD_TIERS[receiverCard.card_type];
+                console.log('[DEBUG-TRANSFER] Found tier:', receiverTier);
+
+                const receiverMax = receiverTier ? (receiverTier.max_balance || Infinity) : Infinity;
+                console.log('[DEBUG-TRANSFER] Max balance:', receiverMax);
+
+                if (receiverMax !== Infinity) {
+                    const receiverBal = await billingService.ubService.getUserBalance(interaction.guildId, destUser.id);
+                    const receiverBank = receiverBal.bank || 0;
+                    console.log('[DEBUG-TRANSFER] Receiver current bank:', receiverBank);
+                    console.log('[DEBUG-TRANSFER] Would be after transfer:', receiverBank + monto);
+
+                    if ((receiverBank + monto) > receiverMax) {
+                        const errorEmbed = new EmbedBuilder()
+                            .setTitle('⛔ Transferencia Rechazada')
+                            .setColor(0xFF0000)
+                            .setDescription(`El destinatario no puede recibir esta cantidad porque excedería el límite de su tarjeta.`)
+                            .addFields(
+                                { name: '💳 Tipo de Tarjeta', value: receiverCard.card_type, inline: true },
+                                { name: '📊 Límite Máximo', value: `$${receiverMax.toLocaleString()}`, inline: true },
+                                { name: '💰 Saldo Actual', value: `$${receiverBank.toLocaleString()}`, inline: true },
+                                { name: '🚫 Intentas Transferir', value: `$${monto.toLocaleString()}`, inline: true },
+                                { name: '📈 Saldo Final Sería', value: `$${(receiverBank + monto).toLocaleString()}`, inline: true }
+                            )
+                            .setFooter({ text: 'El destinatario debe actualizar su tarjeta para recibir más dinero' });
+                        return interaction.editReply({ embeds: [errorEmbed] });
+                    }
+                }
 
                 // Deduct from sender immediately
                 await billingService.ubService.removeMoney(
