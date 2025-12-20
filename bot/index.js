@@ -1657,6 +1657,76 @@ client.on('interactionCreate', async interaction => {
         return;
     }
 
+    // STRING SELECT: Payroll Group Selection
+    if (interaction.customId && interaction.customId.startsWith('payroll_select_')) {
+        await interaction.deferUpdate();
+
+        const parts = interaction.customId.split('_');
+        const companyId = parts[2];
+        const groupId = interaction.values[0];
+
+        try {
+            // Get payroll group members
+            const { data: members } = await supabase
+                .from('payroll_members')
+                .select('*')
+                .eq('group_id', groupId);
+
+            if (!members || members.length === 0) {
+                return interaction.editReply({
+                    content: '❌ Este grupo no tiene empleados.\n\nAgrega empleados con `/nomina agregar`',
+                    components: []
+                });
+            }
+
+            // Calculate total
+            let total = 0;
+            members.forEach(m => total += m.salary);
+
+            // Get company info
+            const { data: company } = await supabase
+                .from('companies')
+                .select('name')
+                .eq('id', companyId)
+                .single();
+
+            // Show payment method selector (use universal requestPaymentMethod)
+            const paymentResult = await requestPaymentMethod(
+                interaction,
+                interaction.user.id,
+                total,
+                `Nómina - ${members.length} empleados`
+            );
+
+            if (!paymentResult.success) {
+                return interaction.editReply({ content: paymentResult.error, components: [] });
+            }
+
+            // Pay each employee
+            let report = `✅ **Nómina Pagada**\n\n🏢 Empresa: ${company?.name || 'N/A'}\n💰 Total: $${total.toLocaleString()}\n💳 Método: ${paymentResult.method}\n\n**Empleados:**\n`;
+
+            for (const m of members) {
+                await billingService.ubService.addMoney(
+                    interaction.guildId,
+                    m.member_discord_id,
+                    m.salary,
+                    `Nómina de ${interaction.user.username}`
+                );
+                report += `✅ <@${m.member_discord_id}>: $${m.salary.toLocaleString()}\n`;
+            }
+
+            await interaction.editReply({ content: report, components: [] });
+
+        } catch (error) {
+            console.error('[payroll_select] Error:', error);
+            await interaction.editReply({
+                content: `❌ Error procesando nómina: ${error.message}`,
+                components: []
+            });
+        }
+        return;
+    }
+
     // BUTTON: Pay Business Credit Card Debt
     if (interaction.isButton() && interaction.customId.startsWith('pay_biz_debt_')) {
         await interaction.deferUpdate();
@@ -1721,6 +1791,52 @@ client.on('interactionCreate', async interaction => {
                 content: `❌ Error procesando pago: ${error.message}`,
                 ephemeral: true
             });
+        }
+        return;
+    }
+
+    // BUTTON: Company Payroll (from panel)
+    if (interaction.isButton() && interaction.customId.startsWith('company_payroll_')) {
+        await interaction.deferReply({ ephemeral: false });
+
+        const companyId = interaction.customId.split('_')[2];
+
+        try {
+            // Get payroll groups for this company
+            const { data: groups } = await supabase
+                .from('payroll_groups')
+                .select('*')
+                .eq('owner_discord_id', interaction.user.id);
+
+            if (!groups || groups.length === 0) {
+                return interaction.editReply({
+                    content: `❌ **No tienes grupos de nómina**\n\nCrea uno con \`/nomina crear nombre:MiGrupo\``
+                });
+            }
+
+            // Show selector of payroll groups
+            const selectMenu = new StringSelectMenuBuilder()
+                .setCustomId(`payroll_select_${companyId}`)
+                .setPlaceholder('Selecciona grupo de nómina a pagar')
+                .addOptions(groups.map(g => ({
+                    label: g.name,
+                    description: `Grupo de nómina`,
+                    value: g.id.toString(),
+                    emoji: '💼'
+                })));
+
+            const row = new ActionRowBuilder().addComponents(selectMenu);
+
+            const embed = new EmbedBuilder()
+                .setTitle('💼 Pagar Nómina Empresarial')
+                .setColor(0x5865F2)
+                .setDescription(`Selecciona qué grupo de nómina pagar:`);
+
+            await interaction.editReply({ embeds: [embed], components: [row] });
+
+        } catch (error) {
+            console.error('[company_payroll] Error:', error);
+            await interaction.editReply({ content: '❌ Error obteniendo grupos de nómina.' });
         }
         return;
     }
