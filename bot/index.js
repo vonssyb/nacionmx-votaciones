@@ -5,6 +5,8 @@ const { createClient } = require('@supabase/supabase-js');
 const BillingService = require('./services/BillingService');
 const TaxService = require('./services/TaxService');
 const CompanyService = require('./services/CompanyService');
+const StakingService = require('./services/StakingService');
+const SlotsService = require('./services/SlotsService');
 const taxService = new TaxService(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY);
 const companyService = new CompanyService(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY);
 
@@ -41,6 +43,9 @@ const DISCORD_TOKEN = process.env.DISCORD_TOKEN ? process.env.DISCORD_TOKEN.trim
 
 // Initialize Billing Service
 const billingService = new BillingService(client);
+
+// Initialize Economy Services
+let stakingService, slotsService; // Will initialize after supabase is ready
 
 // -- GLOBAL STOCK MARKET SYSTEM --
 let globalStocks = [
