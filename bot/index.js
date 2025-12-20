@@ -3557,9 +3557,152 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
 
 
     if (commandName === 'saldo') {
-        await interaction.reply({ content: 'Esta función estará disponible pronto.', ephemeral: false });
+        await interaction.deferReply();
+
+        const targetUser = interaction.options.getUser('usuario') || interaction.user;
+
+        try {
+            // Get UnbelievaBoat balance
+            const balance = await billingService.ubService.getUserBalance(interaction.guildId, targetUser.id);
+
+            // Get casino chips (if any)
+            const { data: casinoData } = await supabase
+                .from('casino_chips')
+                .select('chips')
+                .eq('user_id', targetUser.id)
+                .single();
+
+            const chips = casinoData?.chips || 0;
+
+            const embed = new EmbedBuilder()
+                .setColor('#FFD700')
+                .setTitle(`💰 Saldo de ${targetUser.username}`)
+                .addFields(
+                    { name: '💵 Efectivo', value: `$${(balance.cash || 0).toLocaleString()}`, inline: true },
+                    { name: '🏦 Banco', value: `$${(balance.bank || 0).toLocaleString()}`, inline: true },
+                    { name: '💎 Total', value: `$${(balance.total || 0).toLocaleString()}`, inline: true }
+                )
+                .setTimestamp();
+
+            if (chips > 0) {
+                embed.addFields({ name: '🎰 Fichas Casino', value: `${chips.toLocaleString()} fichas`, inline: false });
+            }
+
+            await interaction.editReply({ embeds: [embed] });
+        } catch (error) {
+            console.error('[saldo] Error:', error);
+            await interaction.editReply('❌ Error al obtener el saldo.');
+        }
     }
-    else if (commandName === 'inversion') {
+    else if (commandName === 'casino') {
+        await interaction.deferReply();
+        
+        const subCmd = interaction.options.getSubcommandGroup() || interaction.options.getSubcommand();
+        const userId = interaction.user.id;
+        
+        try {
+            // FICHAS SUBCOMMAND GROUP
+            if (subCmd === 'fichas') {
+                const action = interaction.options.getSubcommand();
+                const cantidad = interaction.options.getInteger('cantidad');
+                
+                if (action === 'comprar') {
+                    // Buy chips with cash (1:1)
+                    const balance = await billingService.ubService.getUserBalance(interaction.guildId, userId);
+                    if ((balance.cash || 0) < cantidad) {
+                        return interaction.editReply(`❌ No tienes suficiente efectivo. Tienes: $${(balance.cash || 0).toLocaleString()}`);
+                    }
+                    
+                    // Deduct money
+                    await billingService.ubService.removeMoney(interaction.guildId, userId, cantidad, '[Casino] Compra dehips', 'cash');
+                    
+                    // Add chips
+                    const { data: existing } = await supabase.from('casino_chips').select('*').eq('user_id', userId).single();
+                    if (existing) {
+                        await supabase.from('casino_chips').update({
+                            chips: existing.chips + cantidad,
+                            total_bought: existing.total_bought + cantidad,
+                            updated_at: new Date().toISOString()
+                        }).eq('user_id', userId);
+                    } else {
+                        await supabase.from('casino_chips').insert({ user_id: userId, chips: cantidad, total_bought: cantidad });
+                    }
+                    
+                    return interaction.editReply(`✅ Compraste **${cantidad.toLocaleString()} fichas** por $${cantidad.toLocaleString()}.`);
+                }
+                
+                if (action === 'retirar') {
+                    // Cash out chips
+                    const { data: chipData } = await supabase.from('casino_chips').select('chips').eq('user_id', userId).single();
+                    if (!chipData || chipData.chips < cantidad) {
+                        return interaction.editReply(`❌ No tienes suficientes fichas. Tienes: ${chipData?.chips || 0} fichas`);
+                    }
+                    
+                    // Remove chips
+                    await supabase.from('casino_chips').update({
+                        chips: chipData.chips - cantidad,
+                        total_cashed_out: supabase.raw(`total_cashed_out + ${cantidad}`),
+                        updated_at: new Date().toISOString()
+                    }).eq('user_id', userId);
+                    
+                    // Add money
+                    await billingService.ubService.addMoney(interaction.guildId, userId, cantidad, '[Casino] Retiro de fichas', 'cash');
+                    
+                    return interaction.editReply(`✅ Retiraste **${cantidad.toLocaleString()} fichas** y recibiste $${cantidad.toLocaleString()}.`);
+                }
+            }
+            
+            // SALDO SUBCOMMAND
+            if (subCmd === 'saldo') {
+                const { data: chipData } = await supabase.from('casino_chips').select('*').eq('user_id', userId).single();
+                const chips = chipData?.chips || 0;
+                const gamesPlayed = chipData?.games_played || 0;
+                const totalWon = chipData?.total_won || 0;
+                const totalLost = chipData?.total_lost || 0;
+                
+                const embed = new EmbedBuilder()
+                    .setColor('#FFD700')
+                    .setTitle('🎰 Tu Perfil de Casino')
+                    .addFields(
+                        { name: '🎫 Fichas Disponibles', value: `${chips.toLocaleString()} fichas`, inline: true },
+                        { name: '🎮 Juegos Jugados', value: `${gamesPlayed}`, inline: true },
+                        { name: '💎 Neto', value: `${(totalWon - totalLost).toLocaleString()} fichas`, inline: true }
+                    )
+                    .setTimestamp();
+                
+                return interaction.editReply({ embeds: [embed] });
+            }
+            
+            // INFO SUBCOMMAND
+            if (subCmd === 'info') {
+                const embed = new EmbedBuilder()
+                    .setColor('#00FF00')
+                    .setTitle('🎰 Casino Nación MX - Guía')
+                    .setDescription('Compra fichas, juega, y gana premios!')
+                    .addFields(
+                        { name: '🎫 Fichas', value: 'Compra con `/casino fichas comprar` (1 ficha = $1)\nRetira con `/casino fichas retirar`', inline: false },
+                        { name: '🎮 Juegos Disponibles', value: '• Slots (próximamente)\n• Dice (próximamente)\n• Blackjack (próximamente)', inline: false },
+                        { name: '📊 Estadísticas', value: 'Ve tu perfil con `/casino saldo`', inline: false }
+                    );
+                
+                return interaction.editReply({ embeds: [embed] });
+            }
+            
+            // HISTORIAL & RANKING (placeholders)
+            if (subCmd === 'historial') {
+                return interaction.editReply('📊 Historial próximamente disponible.');
+            }
+            
+            if (subCmd === 'ranking') {
+                return interaction.editReply('🏆 Ranking próximamente disponible.');
+            }
+            
+        } catch (error) {
+            console.error('[casino] Error:', error);
+            return interaction.editReply('❌ Error en el casino. Intenta de nuevo.');
+        }
+    }
+        else if (commandName === 'inversion') {
         await interaction.deferReply(); // Global defer
 
         const subCmd = interaction.options.getSubcommand();
@@ -5412,7 +5555,40 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
     }
 
     else if (commandName === 'impuestos') {
-        await interaction.reply({ content: '🛠️ **Próximamente:** Sistema de impuestos dinámico.', ephemeral: true });
+        await interaction.deferReply();
+
+        // Simple tax system: 5% tax on cash holdings over $1M
+        const targetUser = interaction.options.getUser('usuario') || interaction.user;
+
+        try {
+            const balance = await billingService.ubService.getUserBalance(interaction.guildId, targetUser.id);
+            const cash = balance.cash || 0;
+
+            const TAX_THRESHOLD = 1000000;
+            const TAX_RATE = 0.05;
+
+            let taxAmount = 0;
+            if (cash > TAX_THRESHOLD) {
+                taxAmount = Math.floor((cash - TAX_THRESHOLD) * TAX_RATE);
+            }
+
+            const embed = new EmbedBuilder()
+                .setColor(taxAmount > 0 ? '#FF0000' : '#00FF00')
+                .setTitle(`💼 Estado Fiscal de ${targetUser.username}`)
+                .addFields(
+                    { name: '💵 Efectivo Actual', value: `$${cash.toLocaleString()}`, inline: true },
+                    { name: '📊 Umbral Exento', value: `$${TAX_THRESHOLD.toLocaleString()}`, inline: true },
+                    { name: '📈 Tasa de Impuesto', value: `${(TAX_RATE * 100)}%`, inline: true },
+                    { name: '💸 Impuesto Estimado', value: taxAmount > 0 ? `$${taxAmount.toLocaleString()}` : 'Exento', inline: false }
+                )
+                .setFooter({ text: 'Sistema de impuestos sobre efectivo excedente' })
+                .setTimestamp();
+
+            await interaction.editReply({ embeds: [embed] });
+        } catch (error) {
+            console.error('[impuestos] Error:', error);
+            await interaction.editReply('❌ Error al calcular impuestos.');
+        }
     }
 
     // ===================================================================
