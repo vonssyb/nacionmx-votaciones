@@ -52,6 +52,7 @@ let globalStocks = [
     // Tech Companies (volatilidad media)
     { symbol: 'TSLA', name: 'Tesla Inc.', base: 4500, current: 4500, type: 'Empresa', volatility: 0.02 },
     { symbol: 'AMZN', name: 'Amazon', base: 3200, current: 3200, type: 'Empresa', volatility: 0.015 },
+    { symbol: 'VNSSB', name: 'Vonssyb Studios', base: 2500, current: 2500, type: 'Empresa', volatility: 0.012 }, // 🎮 Premium tech
 
     // Mexican Companies (volatilidad baja, precios realistas)
     { symbol: 'PEMEX', name: 'Petróleos Mexicanos', base: 150, current: 150, type: 'Empresa', volatility: 0.02 },
