@@ -1620,16 +1620,23 @@ client.on('interactionCreate', async interaction => {
             .eq('id', cardId)
             .single();
 
+        console.log('[DEBUG] Upgrade - Card lookup:', { cardId, found: !!card, error: cardError, balance: card?.balance });
+
         if (cardError || !card) {
-            return interaction.followUp({ content: '❌ Tarjeta no encontrada.', ephemeral: true });
+            return interaction.reply({
+                content: `❌ Tarjeta no encontrada.\nID buscado: ${cardId}\nError: ${cardError?.message || 'Unknown'}`,
+                ephemeral: true
+            });
         }
 
         const tierInfo = CARD_TIERS[targetTier];
 
+        console.log('[DEBUG] Upgrade - Tier info:', { targetTier, cost: tierInfo.cost, userBalance: card.balance });
+
         // Check balance
         if (card.balance < tierInfo.cost) {
-            return interaction.followUp({
-                content: `❌ **Fondos insuficientes**\n\nCosto: **$${tierInfo.cost.toLocaleString()}**\nTu saldo: **$${card.balance.toLocaleString()}**`,
+            return interaction.reply({
+                content: `❌ **Fondos insuficientes**\n\nCosto: **$${tierInfo.cost.toLocaleString()}**\nTu saldo: **$${card.balance.toLocaleString()}**\nTarjeta: ${card.card_tier}\nID: ${cardId.slice(0, 8)}...`,
                 ephemeral: true
             });
         }
@@ -1648,11 +1655,11 @@ client.on('interactionCreate', async interaction => {
 
         if (updateError) {
             console.error('[upgrade] Error:', updateError);
-            return interaction.followUp({ content: '❌ Error al procesar la mejora.', ephemeral: true });
+            return interaction.reply({ content: '❌ Error al procesar la mejora.', ephemeral: true });
         }
 
         // Success - disable buttons and show result
-        await interaction.editReply({ components: [] });
+        await interaction.update({ components: [] });
 
         await interaction.followUp({
             content: `✅ **¡Mejora Completada!**\n\n🎉 Nueva tarjeta: **${targetTier}**\n💰 Costo: $${tierInfo.cost.toLocaleString()}\n💳 Nuevo saldo: $${newBalance.toLocaleString()}\n📊 Límite: ${tierInfo.max_balance === Infinity ? '♾️ Ilimitado' : '$' + tierInfo.max_balance.toLocaleString()}`,
