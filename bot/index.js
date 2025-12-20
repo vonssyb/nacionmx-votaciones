@@ -5395,6 +5395,7 @@ async function handleExtraCommands(interaction) {
                         const successEmbed = new EmbedBuilder()
                             .setTitle(`✅ Empresa Registrada: ${name}`)
                             .setColor(0x00FF00)
+                            .setDescription('Tu empresa ha sido registrada exitosamente en Nación MX.')
                             .setThumbnail(logo.url)
                             .addFields(
                                 { name: '🏷️ Industria', value: type, inline: true },
@@ -5404,6 +5405,25 @@ async function handleExtraCommands(interaction) {
                                 { name: '💰 Inversión Total', value: `$${totalCost.toLocaleString()}`, inline: true },
                                 { name: '💳 Método de Pago', value: method === 'cash' ? '💵 Efectivo' : '🏦 Banco', inline: true }
                             )
+                            .addFields(
+                                { name: '\u200b', value: '\u200b', inline: false },
+                                {
+                                    name: '⚠️ IMPORTANTE: Nómina Legal',
+                                    value: '**Debes registrar empleados en nómina oficial**\n\n🏛️ **Riesgos del SAT:**\n• Multas de hasta **$500,000**\n• Cierre de empresa\n• Auditorías fiscales\n\n💀 Pagar "bajo el agua" es **ILEGAL**',
+                                    inline: false
+                                },
+                                {
+                                    name: '💼 Comandos Útiles',
+                                    value: '```\n/empresa menu     - Panel control\n/empresa nomina   - Gestionar nómina\n/empresa credito  - Obtener crédito\n```',
+                                    inline: false
+                                },
+                                {
+                                    name: '🎯 Próximo Paso',
+                                    value: 'Usa `/empresa nomina crear` para agregar empleados.',
+                                    inline: false
+                                }
+                            )
+                            .setFooter({ text: 'Sistema Empresarial Nación MX • Cumple con la ley' })
                             .setTimestamp();
 
                         await msg.edit({ content: null, embeds: [successEmbed], components: [] });
