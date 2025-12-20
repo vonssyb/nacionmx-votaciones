@@ -662,7 +662,11 @@ client.once('ready', async () => {
                                 { name: 'NMX Business Gold', value: 'NMX Business Gold' },
                                 { name: 'NMX Business Platinum', value: 'NMX Business Platinum' },
                                 { name: 'NMX Business Elite', value: 'NMX Business Elite' },
-                                { name: 'NMX Corporate', value: 'NMX Corporate' }
+                                { name: 'NMX Corporate', value: 'NMX Corporate' },
+                                { name: 'NMX Corporate Plus', value: 'NMX Corporate Plus' },
+                                { name: 'NMX Enterprise', value: 'NMX Enterprise' },
+                                { name: 'NMX Conglomerate', value: 'NMX Conglomerate' },
+                                { name: 'NMX Supreme', value: 'NMX Supreme' }
                             ]
                         }
                     ]
@@ -2372,7 +2376,9 @@ client.on('interactionCreate', async interaction => {
                 { name: 'NMX Oro', limit: '250k', interest: '7%', cost: '$15k', desc: 'Estatus y comodidad.' },
                 { name: 'NMX Rubí', limit: '500k', interest: '6%', cost: '$25k', desc: 'Lujo al alcance.' },
                 { name: 'NMX Black', limit: '1M', interest: '5%', cost: '$40k', desc: 'Prestigio total.' },
-                { name: 'NMX Diamante', limit: '2M', interest: '3%', cost: '$60k', desc: 'Poder ilimitado.' }
+                { name: 'NMX Diamante', limit: '2M', interest: '3%', cost: '$60k', desc: 'Poder ilimitado.' },
+                { name: 'NMX Zafiro', limit: '5M', interest: '2.5%', cost: '$100k', desc: 'Ultra premium ⭐' },
+                { name: 'NMX Platino Elite', limit: '10M', interest: '2%', cost: '$150k', desc: 'Máximo nivel personal 👑' }
             ];
 
             const businessCards = [
@@ -2380,7 +2386,11 @@ client.on('interactionCreate', async interaction => {
                 { name: 'Business Gold', limit: '100k', interest: '1.5%', cost: '$15k', desc: 'Pymes • Mejor rendimiento • Cashback 1% en compras.' },
                 { name: 'Business Platinum', limit: '200k', interest: '1.2%', cost: '$20k', desc: 'Expansión • Acceso prioritario • Sin comisiones internacionales.' },
                 { name: 'Business Elite', limit: '500k', interest: '1%', cost: '$35k', desc: 'Corp • Línea crédito flexible • Seguro de viajes incluido.' },
-                { name: 'NMX Corporate', limit: '1M', interest: '0.7%', cost: '$50k', desc: 'Industrias • Máximo beneficio fiscal • Asesor financiero dedicado.' }
+                { name: 'NMX Corporate', limit: '1M', interest: '0.7%', cost: '$50k', desc: 'Industrias • Máximo beneficio fiscal • Asesor financiero dedicado.' },
+                { name: 'Corporate Plus', limit: '5M', interest: '0.5%', cost: '$100k', desc: 'Corporativos grandes ⭐' },
+                { name: 'Enterprise', limit: '10M', interest: '0.4%', cost: '$200k', desc: 'Empresas transnacionales 🏢' },
+                { name: 'Conglomerate', limit: '25M', interest: '0.3%', cost: '$350k', desc: 'Conglomerados 🌟' },
+                { name: 'Supreme', limit: '50M', interest: '0.2%', cost: '$500k', desc: 'Top tier empresarial 👑' }
             ];
 
             const embed = new EmbedBuilder()
