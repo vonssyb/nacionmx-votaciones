@@ -44,13 +44,20 @@ const billingService = new BillingService(client);
 
 // -- GLOBAL STOCK MARKET SYSTEM --
 let globalStocks = [
-    { symbol: 'BTC', name: 'Bitcoin', base: 850000, current: 850000, type: 'Cripto' }, // in MXN approx
-    { symbol: 'ETH', name: 'Ethereum', base: 55000, current: 55000, type: 'Cripto' },
-    { symbol: 'SOL', name: 'Solana', base: 2800, current: 2800, type: 'Cripto' },
-    { symbol: 'TSLA', name: 'Tesla Inc.', base: 4500, current: 4500, type: 'Empresa' },
-    { symbol: 'AMZN', name: 'Amazon', base: 3200, current: 3200, type: 'Empresa' },
-    { symbol: 'PEMEX', name: 'Petróleos Mexicanos', base: 18, current: 18, type: 'Empresa' },
-    { symbol: 'NMX', name: 'Nación MX Corp', base: 500, current: 500, type: 'Empresa' }
+    // Crypto (mayor volatilidad)
+    { symbol: 'BTC', name: 'Bitcoin', base: 850000, current: 850000, type: 'Cripto', volatility: 0.03 },
+    { symbol: 'ETH', name: 'Ethereum', base: 55000, current: 55000, type: 'Cripto', volatility: 0.04 },
+    { symbol: 'SOL', name: 'Solana', base: 2800, current: 2800, type: 'Cripto', volatility: 0.05 },
+
+    // Tech Companies (volatilidad media)
+    { symbol: 'TSLA', name: 'Tesla Inc.', base: 4500, current: 4500, type: 'Empresa', volatility: 0.02 },
+    { symbol: 'AMZN', name: 'Amazon', base: 3200, current: 3200, type: 'Empresa', volatility: 0.015 },
+
+    // Mexican Companies (volatilidad baja, precios realistas)
+    { symbol: 'PEMEX', name: 'Petróleos Mexicanos', base: 150, current: 150, type: 'Empresa', volatility: 0.02 },
+    { symbol: 'WALMEX', name: 'Walmart México', base: 450, current: 450, type: 'Empresa', volatility: 0.015 },
+    { symbol: 'FEMSA', name: 'FEMSA', base: 1200, current: 1200, type: 'Empresa', volatility: 0.01 },
+    { symbol: 'NMX', name: 'Nación MX Corp', base: 500, current: 500, type: 'Empresa', volatility: 0.025 }
 ];
 
 // GLOBAL CASINO SESSIONS (MULTIPLAYER)
@@ -77,21 +84,28 @@ async function getDebitCard(discordId) {
 function updateStockPrices() {
     console.log('📉 Actualizando precios de bolsa...');
     globalStocks = globalStocks.map(stock => {
-        // Fluctuation: +/- 5% random
-        const variance = (Math.random() * 0.10) - 0.05;
+        // Use stock-specific volatility (crypto more volatile than companies)
+        const volatility = stock.volatility || 0.02; // Default 2%
+
+        // Random walk: +/- volatility (e.g., ±2% to ±5% depending on asset)
+        const variance = (Math.random() * (volatility * 2)) - volatility;
         const newPrice = Math.floor(stock.current * (1 + variance));
 
-        // Safety clamps (don't let it crash to 0 or explode too fast)
-        const minPrice = stock.base * 0.1;
-        const maxPrice = stock.base * 5.0;
+        // Realistic limits: 50% to 200% of base price
+        // This prevents crashes to near-zero and unrealistic pumps
+        const minPrice = Math.floor(stock.base * 0.5);  // Can go down 50%
+        const maxPrice = Math.floor(stock.base * 2.0);  // Can go up 100%
 
         let finalPrice = newPrice;
-        if (finalPrice < minPrice) finalPrice = Math.floor(minPrice);
-        if (finalPrice > maxPrice) finalPrice = Math.floor(maxPrice);
+        if (finalPrice < minPrice) finalPrice = minPrice;
+        if (finalPrice > maxPrice) finalPrice = maxPrice;
+
+        // Extra safety: never below 1
+        if (finalPrice < 1) finalPrice = 1;
 
         return { ...stock, current: finalPrice };
     });
-    console.log('✅ Precios actualizados.');
+    console.log('✅ Precios actualizados:', globalStocks.map(s => `${s.symbol}: $${s.current}`).join(', '));
 }
 
 // Card Tiers Configuration (Global - used in multiple commands)
