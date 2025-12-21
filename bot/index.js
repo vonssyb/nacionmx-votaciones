@@ -3596,26 +3596,26 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
     }
     else if (commandName === 'casino') {
         await interaction.deferReply();
-        
+
         const subCmd = interaction.options.getSubcommandGroup() || interaction.options.getSubcommand();
         const userId = interaction.user.id;
-        
+
         try {
             // FICHAS SUBCOMMAND GROUP
             if (subCmd === 'fichas') {
                 const action = interaction.options.getSubcommand();
                 const cantidad = interaction.options.getInteger('cantidad');
-                
+
                 if (action === 'comprar') {
                     // Buy chips with cash (1:1)
                     const balance = await billingService.ubService.getUserBalance(interaction.guildId, userId);
                     if ((balance.cash || 0) < cantidad) {
                         return interaction.editReply(`❌ No tienes suficiente efectivo. Tienes: $${(balance.cash || 0).toLocaleString()}`);
                     }
-                    
+
                     // Deduct money
                     await billingService.ubService.removeMoney(interaction.guildId, userId, cantidad, '[Casino] Compra dehips', 'cash');
-                    
+
                     // Add chips
                     const { data: existing } = await supabase.from('casino_chips').select('*').eq('user_id', userId).single();
                     if (existing) {
@@ -3627,31 +3627,31 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                     } else {
                         await supabase.from('casino_chips').insert({ user_id: userId, chips: cantidad, total_bought: cantidad });
                     }
-                    
+
                     return interaction.editReply(`✅ Compraste **${cantidad.toLocaleString()} fichas** por $${cantidad.toLocaleString()}.`);
                 }
-                
+
                 if (action === 'retirar') {
                     // Cash out chips
                     const { data: chipData } = await supabase.from('casino_chips').select('chips').eq('user_id', userId).single();
                     if (!chipData || chipData.chips < cantidad) {
                         return interaction.editReply(`❌ No tienes suficientes fichas. Tienes: ${chipData?.chips || 0} fichas`);
                     }
-                    
+
                     // Remove chips
                     await supabase.from('casino_chips').update({
                         chips: chipData.chips - cantidad,
                         total_cashed_out: supabase.raw(`total_cashed_out + ${cantidad}`),
                         updated_at: new Date().toISOString()
                     }).eq('user_id', userId);
-                    
+
                     // Add money
                     await billingService.ubService.addMoney(interaction.guildId, userId, cantidad, '[Casino] Retiro de fichas', 'cash');
-                    
+
                     return interaction.editReply(`✅ Retiraste **${cantidad.toLocaleString()} fichas** y recibiste $${cantidad.toLocaleString()}.`);
                 }
             }
-            
+
             // SALDO SUBCOMMAND
             if (subCmd === 'saldo') {
                 const { data: chipData } = await supabase.from('casino_chips').select('*').eq('user_id', userId).single();
@@ -3659,7 +3659,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 const gamesPlayed = chipData?.games_played || 0;
                 const totalWon = chipData?.total_won || 0;
                 const totalLost = chipData?.total_lost || 0;
-                
+
                 const embed = new EmbedBuilder()
                     .setColor('#FFD700')
                     .setTitle('🎰 Tu Perfil de Casino')
@@ -3669,10 +3669,10 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                         { name: '💎 Neto', value: `${(totalWon - totalLost).toLocaleString()} fichas`, inline: true }
                     )
                     .setTimestamp();
-                
+
                 return interaction.editReply({ embeds: [embed] });
             }
-            
+
             // INFO SUBCOMMAND
             if (subCmd === 'info') {
                 const embed = new EmbedBuilder()
@@ -3684,25 +3684,25 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                         { name: '🎮 Juegos Disponibles', value: '• Slots (próximamente)\n• Dice (próximamente)\n• Blackjack (próximamente)', inline: false },
                         { name: '📊 Estadísticas', value: 'Ve tu perfil con `/casino saldo`', inline: false }
                     );
-                
+
                 return interaction.editReply({ embeds: [embed] });
             }
-            
+
             // HISTORIAL & RANKING (placeholders)
             if (subCmd === 'historial') {
                 return interaction.editReply('📊 Historial próximamente disponible.');
             }
-            
+
             if (subCmd === 'ranking') {
                 return interaction.editReply('🏆 Ranking próximamente disponible.');
             }
-            
+
         } catch (error) {
             console.error('[casino] Error:', error);
             return interaction.editReply('❌ Error en el casino. Intenta de nuevo.');
         }
     }
-        else if (commandName === 'inversion') {
+    else if (commandName === 'inversion') {
         await interaction.deferReply(); // Global defer
 
         const subCmd = interaction.options.getSubcommand();
@@ -4358,20 +4358,16 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 const currentPrice = stock.current;
                 const totalCost = currentPrice * cantidad;
 
-                // Request Payment Method (Cash, Debit, Credit)
-                const paymentResult = await requestPaymentMethod(
-                    interaction,
-                    interaction.user.id,
-                    totalCost,
-                    `📈 Compra de ${cantidad} acciones de ${symbol}`
-                );
-
-                if (!paymentResult.success) {
-                    return interaction.editReply({ content: paymentResult.error, components: [] });
+                // Check balance and deduct
+                const balance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
+                if ((balance.cash || 0) < totalCost) {
+                    return interaction.editReply(`❌ No tienes suficiente efectivo. Necesitas: $${totalCost.toLocaleString()}, Tienes: $${(balance.cash || 0).toLocaleString()}`);
                 }
 
+                await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, totalCost, `Compra ${cantidad} acciones ${symbol}`, 'cash');
+
                 // Payment is already processed in requestPaymentMethod
-                const methodLabel = paymentResult.method === 'credit' ? '💳 Crédito' : (paymentResult.method === 'cash' ? '💵 Efectivo' : '🏦 Banco/Débito');
+                const methodLabel = '💵 Efectivo';
 
                 // Update portfolio
                 const { data: existing } = await supabase
