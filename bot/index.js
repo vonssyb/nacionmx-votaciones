@@ -3549,7 +3549,8 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                     // Show payment selector  
                     const pmCred = await getAvailablePaymentMethods(interaction.user.id, interaction.guildId);
                     const pbCred = createPaymentButtons(pmCred, 'cred_pay');
-                    await interaction.editReply({ content: `💳 **Pago Tarjeta ${userCard.card_type}**\n💰 $${amount.toLocaleString()}\n\n**Método:**`, components: [pbCred] });
+                    const paymentEmbed = createPaymentEmbed(`💳 Pago de Crédito: ${userCard.card_type}`, amount, pmCred);
+                    await interaction.editReply({ embeds: [paymentEmbed], components: [pbCred] });
                     const fCred = i => i.user.id === interaction.user.id && i.customId.startsWith('cred_pay_');
                     const cCred = interaction.channel.createMessageComponentCollector({ filter: fCred, time: 60000, max: 1 });
                     cCred.on('collect', async (i) => {
@@ -4602,7 +4603,8 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             // Show payment selector
             const pmInv = await getAvailablePaymentMethods(interaction.user.id, interaction.guildId);
             const pbInv = createPaymentButtons(pmInv, 'inv_pay');
-            await interaction.editReply({ content: `💰 **$${amount.toLocaleString()}** x 7 días\n📈 Retorno: 5%\n\n**Método:**`, components: [pbInv] });
+            const paymentEmbed = createPaymentEmbed(`📈 Inversión a Plazo (${days} días, ${rate}% interés)`, amount, pmInv);
+            await interaction.editReply({ embeds: [paymentEmbed], components: [pbInv] });
             const fInv = i => i.user.id === interaction.user.id && i.customId.startsWith('inv_pay_');
             const cInv = interaction.channel.createMessageComponentCollector({ filter: fInv, time: 60000, max: 1 });
             cInv.on('collect', async (i) => {
@@ -4961,7 +4963,8 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             // Show payment selector
             const pmNom = await getAvailablePaymentMethods(interaction.user.id, interaction.guildId);
             const pbNom = createPaymentButtons(pmNom, 'nom_pay');
-            await interaction.editReply({ content: `💼 **Nómina${groupName ? ': ' + groupName : ''}**\n💰 $${total.toLocaleString()}\n👥 ${members.length} empleados\n\n**Método:**`, components: [pbNom] });
+            const paymentEmbed = createPaymentEmbed(`💼 Nómina${groupName ? ': ' + groupName : ''} (${members.length} empleados)`, total, pmNom);
+            await interaction.editReply({ embeds: [paymentEmbed], components: [pbNom] });
             const fNom = i => i.user.id === interaction.user.id && i.customId.startsWith('nom_pay_');
             const cNom = interaction.channel.createMessageComponentCollector({ filter: fNom, time: 60000, max: 1 });
             cNom.on('collect', async (i) => {
@@ -5553,7 +5556,8 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 // Show payment selector
                 const pmBolsa = await getAvailablePaymentMethods(interaction.user.id, interaction.guildId);
                 const pbBolsa = createPaymentButtons(pmBolsa, 'bolsa_pay');
-                await interaction.editReply({ content: `📈 **${symbol}**\n💰 **$${totalCost.toLocaleString()}**\n📊 ${cantidad} acciones\n\n**Método:**`, components: [pbBolsa] });
+                const paymentEmbed = createPaymentEmbed(`📈 Compra de ${symbol} (${cantidad} acciones)`, totalCost, pmBolsa);
+                await interaction.editReply({ embeds: [paymentEmbed], components: [pbBolsa] });
                 const fBolsa = i => i.user.id === interaction.user.id && i.customId.startsWith('bolsa_pay_');
                 const cBolsa = interaction.channel.createMessageComponentCollector({ filter: fBolsa, time: 60000, max: 1 });
                 cBolsa.on('collect', async (i) => {
