@@ -1935,6 +1935,39 @@ function createPaymentButtons(availableMethods, prefix = 'pay') {
     return new ActionRowBuilder().addComponents(buttons);
 }
 
+// Create rich payment embed with transaction details
+function createPaymentEmbed(concept, amount, availableMethods) {
+    const embed = new EmbedBuilder()
+        .setColor('#FFD700')
+        .setTitle('💰 Confirmar Pago')
+        .setDescription(`**${concept}**\n\n💵 **Total:** $${amount.toLocaleString()}`)
+        .addFields(
+            { name: '📊 Métodos Disponibles', value: getAvailableMethodsText(availableMethods), inline: false }
+        )
+        .setFooter({ text: 'Selecciona tu método de pago preferido ⬇️' })
+        .setTimestamp();
+
+    return embed;
+}
+
+function getAvailableMethodsText(methods) {
+    const available = [];
+    if (methods.cash.available) available.push('💵 **Efectivo** - Pago inmediato');
+    if (methods.debit.available) available.push('🏦 **Banco (Débito)** - Desde tu cuenta');
+    if (methods.credit.available) {
+        const credit = methods.credit.availableCredit || 0;
+        available.push(`💳 **Crédito Personal** - Disponible: $${credit.toLocaleString()}`);
+    }
+    if (methods.businessCredit.available) {
+        const bizCredit = methods.businessCredit.card;
+        const available = bizCredit ? (bizCredit.credit_limit - bizCredit.current_balance) : 0;
+        available.push(`🏢 **Crédito Empresa** - Disponible: $${available.toLocaleString()}`);
+    }
+
+    return available.join('\n') || '❌ No hay métodos de pago disponibles';
+}
+
+
 async function processPayment(method, userId, guildId, amount, description, availableMethods) {
     try {
         if (method === 'cash') {
