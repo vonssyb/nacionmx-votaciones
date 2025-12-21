@@ -3702,7 +3702,188 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             return interaction.editReply('❌ Error en el casino. Intenta de nuevo.');
         }
     }
-    else if (commandName === 'inversion') {
+    else if (commandName === 'empresa') {
+        await interaction.deferReply();
+        
+        const subCmd = interaction.options.getSubcommand();
+        const userId = interaction.user.id;
+        
+        try {
+            // ===== CREAR EMPRESA =====
+            if (subCmd === 'crear') {
+                const nombre = interaction.options.getString('nombre');
+                const dueño = interaction.options.getUser('dueño');
+                const tipoLocal = interaction.options.getString('tipo_local');
+                const logo = interaction.options.getAttachment('logo');
+                const fotoLocal = interaction.options.getAttachment('foto_local');
+                const ubicacion = interaction.options.getString('ubicacion');
+                const coDueño = interaction.options.getUser('co_dueño');
+                const esPrivada = interaction.options.getBoolean('es_privada') || false;
+                const vehiculo1 = interaction.options.getString('vehiculo_1');
+                const vehiculo2 = interaction.options.getString('vehiculo_2');
+                const vehiculo3 = interaction.options.getString('vehiculo_3');
+                
+                // Cost calculation
+                const TRAMITE_FEE = 250000;
+                const LOCAL_COSTS = {
+                    'pequeño': 850000,
+                    'mediano': 1750000,
+                    'grande': 3200000,
+                    'gigante': 5000000
+                };
+                const VEHICLE_COSTS = {
+                    'ejecutiva_ligera': 420000,
+                    'operativa_servicio': 550000,
+                    'carga_pesada': 850000,
+                    'ejecutiva_premium': 1200000,
+                    'asistencia_industrial': 1500000
+                };
+                
+                let totalCost = TRAMITE_FEE + LOCAL_COSTS[tipoLocal];
+                if (vehiculo1) totalCost += VEHICLE_COSTS[vehiculo1];
+                if (vehiculo2) totalCost += VEHICLE_COSTS[vehiculo2];
+                if (vehiculo3) totalCost += VEHICLE_COSTS[vehiculo3];
+                
+                // Check if name is unique
+                const { data: existing } = await supabase.from('companies').select('id').eq('name', nombre).maybeSingle();
+                if (existing) {
+                    return interaction.editReply(`❌ Ya existe una empresa con el nombre "${nombre}".`);
+                }
+                
+                // Check owner balance
+                const balance = await billingService.ubService.getUserBalance(interaction.guildId, dueño.id);
+                if ((balance.cash || 0) < totalCost) {
+                    return interaction.editReply(`❌ ${dueño.username} no tiene suficiente efectivo.\n💰 Necesita: $${totalCost.toLocaleString()}\n💵 Tiene: $${(balance.cash || 0).toLocaleString()}`);
+                }
+                
+                // Deduct money
+                await billingService.ubService.removeMoney(interaction.guildId, dueño.id, totalCost, `Creación de empresa: ${nombre}`, 'cash');
+                
+                // Build owner_ids array
+                const ownerIds = [dueño.id];
+                if (coDueño) ownerIds.push(coDueño.id);
+                
+                // Insert company
+                const { data: newCompany, error } = await supabase.from('companies').insert({
+                    name: nombre,
+                    logo_url: logo?.url,
+                    banner_url: fotoLocal?.url,
+                    location: ubicacion,
+                    is_private: esPrivada,
+                    owner_ids: ownerIds,
+                    vehicle_count: [vehiculo1, vehiculo2, vehiculo3].filter(v => v).length,
+                    industry_type: 'General'
+                }).select().single();
+                
+                if (error) {
+                    console.error('[empresa crear] Error:', error);
+                    // Rollback money
+                    await billingService.ubService.addMoney(interaction.guildId, dueño.id, totalCost, `Reembolso: Error creando empresa`, 'cash');
+                    return interaction.editReply('❌ Error creando la empresa. Fondos reembolsados.');
+                }
+                
+                const embed = new EmbedBuilder()
+                    .setColor('#00FF00')
+                    .setTitle('🏢 Empresa Registrada')
+                    .setThumbnail(logo?.url)
+                    .addFields(
+                        { name: '🏷️ Nombre', value: nombre, inline: true },
+                        { name: '👔 Dueño', value: `<@${dueño.id}>`, inline: true },
+                        { name: '🏠 Local', value: tipoLocal.charAt(0).toUpperCase() + tipoLocal.slice(1), inline: true },
+                        { name: '🚗 Vehículos', value: `${newCompany.vehicle_count}`, inline: true },
+                        { name: '💰 Costo Total', value: `$${totalCost.toLocaleString()}`, inline: true },
+                        { name: '🆔 ID Empresa', value: newCompany.id.substring(0, 8), inline: true }
+                    )
+                    .setTimestamp();
+                
+                if (coDueño) embed.addFields({ name: '👥 Co-Dueño', value: `<@${coDueño.id}>`, inline: true });
+                if (fotoLocal) embed.setImage(fotoLocal.url);
+                
+                return interaction.editReply({ embeds: [embed] });
+            }
+            
+            // ===== MENU =====
+            if (subCmd === 'menu') {
+                const { data: companies } = await supabase
+                    .from('companies')
+                    .select('*')
+                    .contains('owner_ids', [userId]);
+                
+                if(!companies || companies.length === 0) {
+                    return interaction.editReply('❌ No tienes ninguna empresa registrada.\nUsa `/empresa crear` para registrar una.');
+                }
+                
+                const company = companies[0]; // Show first company
+                
+                const embed = new EmbedBuilder()
+                    .setColor('#FFD700')
+                    .setTitle(`🏢 ${company.name}`)
+                    .setThumbnail(company.logo_url)
+                    .addFields(
+                        { name: '💰 Balance', value: `$${(company.balance || 0).toLocaleString()}`, inline: true },
+                        { name: '🚗 Vehículos', value: `${company.vehicle_count}`, inline: true },
+                        { name: '📍 Estado', value: company.status, inline: true }
+                    );
+                
+                if (company.location) embed.addFields({ name: '📍 Ubicación', value: company.location });
+                if (company.banner_url) embed.setImage(company.banner_url);
+                
+                return interaction.editReply({ embeds: [embed] });
+            }
+            
+            // ===== COBRAR (POS Terminal) =====
+            if (subCmd === 'cobrar') {
+                return interaction.editReply('💳 Sistema POS disponible pronto.');
+            }
+            
+            // ===== CREDITO =====
+            if (subCmd === 'credito') {
+                return interaction.editReply('💳 Crédito empresarial disponible pronto.');
+            }
+            
+            // ===== CREDITO PAGAR =====
+            if (subCmd === 'credito-pagar') {
+                return interaction.editReply('💳 Pago de crédito disponible pronto.');
+            }
+            
+            // ===== CREDITO INFO =====
+            if (subCmd === 'credito-info') {
+                return interaction.editReply('💳 Info de crédito disponible pronto.');
+            }
+            
+            // ===== LISTAR USUARIO (STAFF) =====
+            if (subCmd === 'listar-usuario') {
+                if (!interaction.member.permissions.has('Administrator')) {
+                    return interaction.editReply('⛔ Solo staff puede usar este comando.');
+                }
+                
+                const targetUser = interaction.options.getUser('usuario');
+                const { data: companies } = await supabase
+                    .from('companies')
+                    .select('*')
+                    .contains('owner_ids', [targetUser.id]);
+                
+                if (!companies || companies.length === 0) {
+                    return interaction.editReply(`ℹ️ ${targetUser.username} no tiene empresas registradas.`);
+                }
+                
+                const list = companies.map((c, i) => `${i+1}. **${c.name}** (${c.status}) - $${(c.balance || 0).toLocaleString()}`).join('\n');
+                
+                const embed = new EmbedBuilder()
+                    .setColor('#0099FF')
+                    .setTitle(`🏢 Empresas de ${targetUser.username}`)
+                    .setDescription(list)
+                    .setFooter({ text: `Total: ${companies.length} empresas` });
+                
+                return interaction.editReply({ embeds: [embed] });
+            }
+            
+        } catch (error) {
+            console.error('[empresa] Error:', error);
+            return interaction.editReply('❌ Error procesando el comando de empresa.');
+        }
+    }
+        else if (commandName === 'inversion') {
         await interaction.deferReply(); // Global defer
 
         const subCmd = interaction.options.getSubcommand();
