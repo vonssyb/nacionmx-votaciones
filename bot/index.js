@@ -4636,7 +4636,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
 
         if (game === 'slots') {
             const bet = interaction.options.getInteger('apuesta');
-            if (userChips.chips < bet) return interaction.editReply(`❌ Insufficient chips. You have: ${userChips.chips}`);
+            if (userChips.chips < bet) return interaction.editReply(`❌ Fichas insuficientes. Tienes: ${userChips.chips}`);
 
             await supabase.from('casino_chips').update({ chips: userChips.chips - bet }).eq('user_id', userId);
 
@@ -4644,6 +4644,9 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             const r1 = symbols[Math.floor(Math.random() * symbols.length)];
             const r2 = symbols[Math.floor(Math.random() * symbols.length)];
             const r3 = symbols[Math.floor(Math.random() * symbols.length)];
+
+            // ANIMATE!
+            await animateSlots(interaction, [r1, r2, r3]);
 
             let win = 0, mult = 0;
             if (r1 === r2 && r2 === r3) {
@@ -4660,18 +4663,23 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 await supabase.from('casino_chips').update({ total_lost: (userChips.total_lost || 0) + bet, games_played: (userChips.games_played || 0) + 1 }).eq('user_id', userId);
             }
 
-            const embed = new EmbedBuilder().setTitle('🎰 Slots').setDescription(`${r1} ${r2} ${r3}`).setColor(win > 0 ? 0x00FF00 : 0xFF0000).addFields({ name: 'Bet', value: `${bet}`, inline: true }, { name: 'Result', value: win > 0 ? `WIN! ${win} (${mult}x)` : 'Lost', inline: true });
-            return interaction.editReply({ embeds: [embed] });
+            const resultEmoji = win > 0 ? (mult >= 25 ? '🎉🎉🎉' : '✅') : '❌';
+            const resultText = win > 0 ? `**¡GANAS!** 💰 +${win} fichas (${mult}x)` : '**Perdiste** 💸';
+
+            return interaction.editReply(`🎰 **SLOTS**\n${r1} ${r2} ${r3}\n\n${resultEmoji} ${resultText}\n💼 Balance: ${(userChips.chips - bet + win).toLocaleString()} fichas`);
         }
 
         else if (game === 'dice') {
             const bet = interaction.options.getInteger('apuesta');
-            if (userChips.chips < bet) return interaction.editReply(`❌ Insufficient chips`);
+            if (userChips.chips < bet) return interaction.editReply(`❌ Fichas insuficientes`);
 
             await supabase.from('casino_chips').update({ chips: userChips.chips - bet }).eq('user_id', userId);
 
             const roll = Math.floor(Math.random() * 6) + Math.floor(Math.random() * 6) + 2; // 2d6 = 2-12
             const choice = interaction.options.getString('tipo') || 'alto';
+
+            // ANIMATE!
+            await animateDice(interaction);
 
             let won = false;
             if (choice === 'alto' && roll >= 8) won = true;
@@ -4688,8 +4696,11 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 await supabase.from('casino_chips').update({ total_lost: (userChips.total_lost || 0) + bet, games_played: (userChips.games_played || 0) + 1 }).eq('user_id', userId);
             }
 
-            const embed = new EmbedBuilder().setTitle('🎲 Dice').setDescription(`Roll: **${roll}** | Bet: ${choice}`).setColor(won ? 0x00FF00 : 0xFF0000).addFields({ name: won ? '✅ WIN' : '❌ LOSE', value: won ? `+${payout}` : `-${bet}` });
-            return interaction.editReply({ embeds: [embed] });
+            const diceEmoji = ['⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
+            const d1 = Math.min(Math.floor(roll / 2) - 1, 5);
+            const d2 = Math.min((roll - 2) % 6, 5);
+            const resultText = won ? `✅ **¡GANAS!** +${payout}` : `❌ **Perdiste** -${bet}`;
+            return interaction.editReply(`🎲 **DADOS**\n\n${diceEmoji[d1]} + ${diceEmoji[d2]} = **${roll}**\n\nApuesta: **${choice.toUpperCase()}**\n${resultText}\n💼 ${(userChips.chips - bet + payout).toLocaleString()} fichas`);
         }
 
         else if (game === 'blackjack') {
