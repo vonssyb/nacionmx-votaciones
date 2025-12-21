@@ -3184,21 +3184,23 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                     }
 
                     // 3. Take Money from UnbelievaBoat
-                    await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, amount, `Pago Tarjeta ${userCard.card_type}`);
-
-                } catch (ubError) {
-                    console.error("UB Payment Error:", ubError);
-                    return interaction.editReply({ content: `❌ Error verificando fondos o procesando cobro: ${ubError.message}`, ephemeral: isPrivate });
-                }
-
-                // 4. Update DB
-                const newDebt = userCard.current_balance - amount;
-                const { error: dbError } = await supabase
-                    .from('credit_cards')
-                    .update({ current_balance: newDebt, last_payment_date: new Date().toISOString() })
-                    .eq('id', userCard.id);
-
-                if (dbError) {
+                    // Show payment selector  
+                    const pmCred = await getAvailablePaymentMethods(interaction.user.id, interaction.guildId);
+                    const pbCred = createPaymentButtons(pmCred, 'cred_pay');
+                    await interaction.editReply({ content: `💳 **Pago Tarjeta ${userCard.card_type}**\n💰 $${amount.toLocaleString()}\n\n**Método:**`, components: [pbCred] });
+                    const fCred = i => i.user.id === interaction.user.id && i.customId.startsWith('cred_pay_');
+                    const cCred = interaction.channel.createMessageComponentCollector({ filter: fCred, time: 60000, max: 1 });
+                    cCred.on('collect', async (i) => {
+                        try { await i.deferUpdate(); } catch (err) { return; }
+                        const prCred = await processPayment(i.customId.replace('cred_pay_', ''), interaction.user.id, interaction.guildId, amount, `Pago Tarjeta ${userCard.card_type}`, pmCred);
+                        if (!prCred.success) return i.editReply({ content: prCred.error, components: [] });
+                        
+                        const newDebt = userCard.current_balance - amount;
+                        await supabase.from('credit_cards').update({ current_balance: newDebt }).eq('id', userCard.id);
+                        await i.editReply({ content: `✅ Pago procesado (${prCred.method})\n💳 ${userCard.card_type}\n💰 Pagado: $${amount.toLocaleString()}\n📊 Nuevo saldo: $${newDebt.toLocaleString()}`, components: [] });
+                    });
+                    cCred.on('end', c => { if (c.size === 0) interaction.editReply({ content: '⏱️ Tiempo agotado.', components: [] }); });
+                    return;
                     console.error(dbError);
                     return interaction.editReply({ content: '❌ Pago recibido en efectivo, pero error al actualizar BD. Contacta a Staff.', ephemeral: isPrivate });
                 }
