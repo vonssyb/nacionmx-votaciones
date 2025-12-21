@@ -2152,6 +2152,36 @@ client.on('interactionCreate', async interaction => {
     }
 
     // EMPRESA COBRAR - Payment Buttons
+    // BUTTON: Casino Payment
+    if (interaction.isButton() && interaction.customId.startsWith('casino_pay_')) {
+        await interaction.deferUpdate();
+        const method = interaction.customId.replace('casino_pay_', '');
+        const userId = interaction.user.id;
+
+        // Get user chips to find pending amount
+        const { data: userChips } = await supabase.from('casino_chips').select('*').eq('user_id', userId).maybeSingle();
+        if (!userChips) return interaction.followUp({ content: '❌ Error: No se encontró información de fichas.', ephemeral: true });
+
+        // For casino, we need to get the amount from the message (parse from embed or message)
+        const embedDesc = interaction.message.embeds[0]?.description;
+        const amountMatch = embedDesc.match(/\$([0-9,]+)/);
+        const amount = amountMatch ? parseInt(amountMatch[1].replace(/,/g, '')) : 0;
+
+        if (amount <= 0) return interaction.followUp({ content: '❌ No se pudo determinar el monto.', ephemeral: true });
+
+        const pm = await getAvailablePaymentMethods(userId, interaction.guildId);
+        const result = await processPayment(method, userId, interaction.guildId, amount, 'Compra de fichas casino', pm);
+
+        if (!result.success) {
+            return interaction.followUp({ content: result.error, ephemeral: true });
+        }
+
+        // Credit the chips
+        await supabase.from('casino_chips').update({ chips: (userChips.chips || 0) + amount }).eq('user_id', userId);
+
+        return interaction.followUp({ content: `✅ Pago exitoso con ${result.method}\n💰 +${amount} fichas\n🎰 Total: ${((userChips.chips || 0) + amount).toLocaleString()} fichas`, ephemeral: true });
+    }
+
     if (interaction.isButton() && interaction.customId.startsWith('pay_')) {
         const parts = interaction.customId.split('_');
         const paymentMethod = parts[1]; // cash, debit, credit, cancel
