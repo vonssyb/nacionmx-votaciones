@@ -1197,6 +1197,36 @@ client.once('ready', async () => {
             type: 1
         },
         {
+            name: 'licencia',
+            description: '🪪 Otorgar licencias oficiales a ciudadanos',
+            options: [
+                {
+                    name: 'otorgar',
+                    description: 'Otorgar una licencia a un ciudadano',
+                    type: 1,
+                    options: [
+                        {
+                            name: 'ciudadano',
+                            description: 'Ciudadano que recibirá la licencia',
+                            type: 6,
+                            required: true
+                        },
+                        {
+                            name: 'tipo',
+                            description: 'Tipo de licencia',
+                            type: 3,
+                            required: true,
+                            choices: [
+                                { name: '🚗 Licencia de Conducir - $1,200', value: 'conducir' },
+                                { name: '🔫 Licencia de Armas Cortas - $1,200', value: 'arma_corta' },
+                                { name: '🎯 Licencia de Armas Largas - $1,500 (Requiere Policía)', value: 'arma_larga' }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
             name: 'tienda',
             description: '🛒 Tienda Premium - Pases, roles y beneficios exclusivos',
             options: [
@@ -6608,6 +6638,144 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
         } catch (error) {
             console.error(error);
             await interaction.editReply('❌ Error calculando el ranking de riqueza.');
+        }
+    }
+
+    // LICENCIA COMMAND
+    else if (commandName === 'licencia') {
+        const subcommand = interaction.options.getSubcommand();
+
+        if (subcommand === 'otorgar') {
+            await interaction.deferReply();
+
+            const targetUser = interaction.options.getUser('ciudadano');
+            const tipo = interaction.options.getString('tipo');
+
+            // License configurations
+            const licenses = {
+                'conducir': {
+                    name: '🚗 Licencia de Conducir',
+                    price: 1200,
+                    roleId: '1413543909761614005',
+                    requiresPolice: false
+                },
+                'arma_corta': {
+                    name: '🔫 Licencia de Armas Cortas',
+                    price: 1200,
+                    roleId: '1413543907110682784',
+                    requiresPolice: false
+                },
+                'arma_larga': {
+                    name: '🎯 Licencia de Armas Largas',
+                    price: 1500,
+                    roleId: '1413541379803578431',
+                    requiresPolice: true,
+                    policeRoleId: '1450312637727375502'
+                }
+            };
+
+            const license = licenses[tipo];
+            if (!license) {
+                return interaction.editReply('❌ Tipo de licencia inválido.');
+            }
+
+            // Check if issuer has police role for arma_larga
+            if (license.requiresPolice) {
+                const issuerMember = await interaction.guild.members.fetch(interaction.user.id);
+                const hasPoliceRole = issuerMember.roles.cache.has(license.policeRoleId);
+                const isAdmin = issuerMember.permissions.has('Administrator');
+
+                if (!hasPoliceRole && !isAdmin) {
+                    return interaction.editReply('⛔ Solo la Policía puede otorgar Licencias de Armas Largas.');
+                }
+            }
+
+            try {
+                // Check if user already has the license (role)
+                const member = await interaction.guild.members.fetch(targetUser.id);
+                if (member.roles.cache.has(license.roleId)) {
+                    return interaction.editReply(`⚠️ ${targetUser.tag} ya tiene esta licencia.`);
+                }
+
+                // Show payment selector
+                const pmLicense = await getAvailablePaymentMethods(targetUser.id, interaction.guildId);
+                const pbLicense = createPaymentButtons(pmLicense, 'license_pay');
+                const licenseEmbed = createPaymentEmbed(license.name, license.price, pmLicense);
+
+                await interaction.editReply({
+                    content: `📋 **Emitiendo licencia para** ${targetUser.tag}`,
+                    embeds: [licenseEmbed],
+                    components: [pbLicense]
+                });
+
+                // Wait for payment
+                const filter = i => i.user.id === targetUser.id && i.customId.startsWith('license_pay_');
+                const collector = interaction.channel.createMessageComponentCollector({ filter, time: 60000, max: 1 });
+
+                collector.on('collect', async i => {
+                    try {
+                        await i.deferUpdate();
+                        const method = i.customId.replace('license_pay_', '');
+
+                        // Process payment
+                        const paymentResult = await processPayment(
+                            method,
+                            targetUser.id,
+                            interaction.guildId,
+                            license.price,
+                            `[Licencia] ${license.name}`,
+                            pmLicense
+                        );
+
+                        if (!paymentResult.success) {
+                            return i.editReply({ content: paymentResult.error, embeds: [], components: [] });
+                        }
+
+                        // Assign role
+                        await member.roles.add(license.roleId);
+
+                        // Success message
+                        const successEmbed = new EmbedBuilder()
+                            .setColor('#00FF00')
+                            .setTitle('✅ Licencia Otorgada')
+                            .setDescription(`${license.name}`)
+                            .addFields(
+                                { name: '👤 Ciudadano', value: `<@${targetUser.id}>`, inline: true },
+                                { name: '💰 Costo', value: `$${license.price.toLocaleString()}`, inline: true },
+                                { name: '💳 Método', value: paymentResult.method, inline: true },
+                                { name: '👮 Emitida por', value: interaction.user.tag, inline: true }
+                            )
+                            .setFooter({ text: 'Licencia Oficial Nación MX' })
+                            .setTimestamp();
+
+                        await i.editReply({ content: '', embeds: [successEmbed], components: [] });
+
+                        // Try to DM citizen
+                        try {
+                            await targetUser.send({
+                                content: `🪪 **Nueva Licencia Registrada**`,
+                                embeds: [successEmbed]
+                            });
+                        } catch (dmError) {
+                            console.log('Could not DM citizen:', dmError.message);
+                        }
+
+                    } catch (error) {
+                        console.error('[licencia otorgar] Error:', error);
+                        await i.editReply({ content: '❌ Error emitiendo licencia.', embeds: [], components: [] });
+                    }
+                });
+
+                collector.on('end', collected => {
+                    if (collected.size === 0) {
+                        interaction.editReply({ content: '⏰ Tiempo agotado para el pago.', embeds: [], components: [] });
+                    }
+                });
+
+            } catch (error) {
+                console.error('[licencia] Error:', error);
+                await interaction.editReply('❌ Error procesando licencia.');
+            }
         }
     }
 
