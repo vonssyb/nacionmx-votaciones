@@ -5118,40 +5118,48 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
 
             if (userChips.chips < bet) return interaction.editReply(`❌ Insufficient chips`);
 
-            await supabase.from('casino_chips').update({ chips: userChips.chips - bet }).eq('user_id', userId);
+            // Check if there's an active session
+            if (casinoSessions.roulette.active) {
+                // Join existing session
+                const timeLeft = Math.ceil((casinoSessions.roulette.closeTime - Date.now()) / 1000);
+                if (timeLeft <= 0) return interaction.editReply('⏰ La sesión de ruleta se cerró. Espera el próximo spin.');
 
-            const spin = Math.floor(Math.random() * 37); // 0-36
-            const reds = [1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36];
-            const isRed = reds.includes(spin);
-            const isBlack = spin > 0 && !isRed;
+                await supabase.from('casino_chips').update({ chips: userChips.chips - bet }).eq('user_id', userId);
 
-            let won = false, mult = 1;
+                casinoSessions.roulette.bets.push({
+                    userId,
+                    interaction,
+                    betType,
+                    numero,
+                    amount: bet,
+                    currentChips: userChips.chips,
+                    totalWon: userChips.total_won || 0,
+                    totalLost: userChips.total_lost || 0,
+                    gamesPlayed: userChips.games_played || 0
+                });
 
-            if (betType === 'numero' && spin === numero) { won = true; mult = 35; }
-            else if (betType === 'red' && isRed) { won = true; mult = 1; }
-            else if (betType === 'black' && isBlack) { won = true; mult = 1; }
-            else if (betType === 'even' && spin > 0 && spin % 2 === 0) { won = true; mult = 1; }
-            else if (betType === 'odd' && spin > 0 && spin % 2 === 1) { won = true; mult = 1; }
-            else if (betType === '1-18' && spin >= 1 && spin <= 18) { won = true; mult = 1; }
-            else if (betType === '19-36' && spin >= 19 && spin <= 36) { won = true; mult = 1; }
-            else if (betType === '1st12' && spin >= 1 && spin <= 12) { won = true; mult = 2; }
-            else if (betType === '2nd12' && spin >= 13 && spin <= 24) { won = true; mult = 2; }
-            else if (betType === '3rd12' && spin >= 25 && spin <= 36) { won = true; mult = 2; }
-            else if (betType === 'col1' && spin > 0 && (spin - 1) % 3 === 0) { won = true; mult = 2; }
-            else if (betType === 'col2' && spin > 0 && (spin - 2) % 3 === 0) { won = true; mult = 2; }
-            else if (betType === 'col3' && spin > 0 && (spin - 3) % 3 === 0) { won = true; mult = 2; }
-
-            const payout = won ? bet * (mult + 1) : 0;
-
-            if (payout > 0) {
-                await supabase.from('casino_chips').update({ chips: userChips.chips - bet + payout, total_won: (userChips.total_won || 0) + payout, games_played: (userChips.games_played || 0) + 1 }).eq('user_id', userId);
+                return interaction.editReply(`🎡 **RULETA MULTIJUGADOR**\n\n👥 Te uniste a la sesión (${casinoSessions.roulette.bets.length} jugadores)\n💰 Apuesta: ${betType.toUpperCase()} - ${bet} fichas\n⏰ Spin en **${timeLeft}s**\n\n¡Suerte! 🍀`);
             } else {
-                await supabase.from('casino_chips').update({ total_lost: (userChips.total_lost || 0) + bet, games_played: (userChips.games_played || 0) + 1 }).eq('user_id', userId);
-            }
+                // Start new session
+                const started = startRouletteSession(interaction);
+                if (!started) return interaction.editReply('❌ Error iniciando sesión.');
 
-            const color = spin === 0 ? '🟢' : isRed ? '🔴' : '🔵';
-            const resultText = won ? `✅ **¡GANAS!** +${payout} fichas (${mult + 1}x)` : `❌ **Perdiste** -${bet} fichas`;
-            return interaction.editReply(`🎡 **RULETA**\n\n${color} **${spin}**\n\nApuesta: **${betType.toUpperCase()}**\n${resultText}\n💼 ${(userChips.chips - bet + payout).toLocaleString()} fichas`);
+                await supabase.from('casino_chips').update({ chips: userChips.chips - bet }).eq('user_id', userId);
+
+                casinoSessions.roulette.bets.push({
+                    userId,
+                    interaction,
+                    betType,
+                    numero,
+                    amount: bet,
+                    currentChips: userChips.chips,
+                    totalWon: userChips.total_won || 0,
+                    totalLost: userChips.total_lost || 0,
+                    gamesPlayed: userChips.games_played || 0
+                });
+
+                return interaction.editReply(`🎡 **RULETA MULTIJUGADOR INICIADA**\n\n🎰 Sesión abierta\n👤 Tú: ${betType.toUpperCase()} - ${bet} fichas\n⏰ Otros jugadores tienen **30 segundos** para unirse\n\n¡Esperando más apuestas! 🎲`);
+            }
         }
 
         else if (game === 'crash') {
@@ -5185,32 +5193,50 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
 
             if (userChips.chips < bet) return interaction.editReply(`❌ Insufficient chips`);
 
-            await supabase.from('casino_chips').update({ chips: userChips.chips - bet }).eq('user_id', userId);
+            // Check if there's an active session
+            if (casinoSessions.race.active) {
+                // Join existing session
+                const timeLeft = Math.ceil((casinoSessions.race.closeTime - Date.now()) / 1000);
+                if (timeLeft <= 0) return interaction.editReply('⏰ La carrera se cerró. Espera la próxima.');
 
-            const horses = [
-                { id: 1, emoji: '🐴', name: 'Relámpago', pos: 0 },
-                { id: 2, emoji: '🏇', name: 'Trueno', pos: 0 },
-                { id: 3, emoji: '🐎', name: 'Viento', pos: 0 },
-                { id: 4, emoji: '🦄', name: 'Estrella', pos: 0 }
-            ];
+                await supabase.from('casino_chips').update({ chips: userChips.chips - bet }).eq('user_id', userId);
 
-            // ANIMATE!
-            await animateRace(interaction, horses);
+                const selectedHorse = casinoSessions.race.horses.find(h => h.id === horse);
 
-            horses.sort((a, b) => b.pos - a.pos);
-            const winner = horses[0].id;
-            const won = winner === horse;
-            const payout = won ? bet * 3 : 0;
+                casinoSessions.race.bets.push({
+                    userId,
+                    interaction,
+                    horseId: horse,
+                    amount: bet,
+                    currentChips: userChips.chips,
+                    totalWon: userChips.total_won || 0,
+                    totalLost: userChips.total_lost || 0,
+                    gamesPlayed: userChips.games_played || 0
+                });
 
-            if (payout > 0) {
-                await supabase.from('casino_chips').update({ chips: userChips.chips - bet + payout, total_won: (userChips.total_won || 0) + payout, games_played: (userChips.games_played || 0) + 1 }).eq('user_id', userId);
+                return interaction.editReply(`🏇 **CARRERAS MULTIJUGADOR**\n\n👥 Te uniste a la carrera (${casinoSessions.race.bets.length} jugadores)\n${selectedHorse.emoji} **${selectedHorse.name}** - ${bet} fichas\n⏰ Carrera en **${timeLeft}s**\n\n¡Que corra tu caballo! 🐎`);
             } else {
-                await supabase.from('casino_chips').update({ total_lost: (userChips.total_lost || 0) + bet, games_played: (userChips.games_played || 0) + 1 }).eq('user_id', userId);
-            }
+                // Start new session
+                const started = startRaceSession(interaction);
+                if (!started) return interaction.editReply('❌ Error iniciando sesión.');
 
-            const resultText = won ? `✅ **¡GANAS!** +${payout} fichas (3x)` : `❌ **Perdiste** -${bet} fichas`;
-            const yourHorse = horses.find(h => h.id === horse);
-            return interaction.editReply(`🏇 **CARRERAS**\n\n🏆 Ganador: ${horses[0].emoji} **${horses[0].name}**\nTu apuesta: ${yourHorse.emoji} **${yourHorse.name}**\n\n${resultText}\n💼 ${(userChips.chips - bet + payout).toLocaleString()} fichas`);
+                await supabase.from('casino_chips').update({ chips: userChips.chips - bet }).eq('user_id', userId);
+
+                const selectedHorse = casinoSessions.race.horses.find(h => h.id === horse);
+
+                casinoSessions.race.bets.push({
+                    userId,
+                    interaction,
+                    horseId: horse,
+                    amount: bet,
+                    currentChips: userChips.chips,
+                    totalWon: userChips.total_won || 0,
+                    totalLost: userChips.total_lost || 0,
+                    gamesPlayed: userChips.games_played || 0
+                });
+
+                return interaction.editReply(`🏇 **CARRERAS MULTIJUGADOR INICIADAS**\n\n🏁 Carrera abierta\n👤 Tú: ${selectedHorse.emoji} **${selectedHorse.name}** - ${bet} fichas\n⏰ Otros jugadores tienen **45 segundos** para unirse\n\n¡A las apuestas! 🎰`);
+            }
         }
 
         else if (game === 'rusa') {
