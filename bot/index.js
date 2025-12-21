@@ -1197,6 +1197,48 @@ client.once('ready', async () => {
             type: 1
         },
         {
+            name: 'tienda',
+            description: '🛒 Tienda Premium - Pases, roles y beneficios exclusivos',
+            options: [
+                {
+                    name: 'ver',
+                    description: 'Ver catálogo completo de la tienda',
+                    type: 1
+                },
+                {
+                    name: 'comprar',
+                    description: 'Comprar un item de la tienda',
+                    type: 1,
+                    options: [
+                        {
+                            name: 'item',
+                            description: 'Item a comprar',
+                            type: 3,
+                            required: true,
+                            choices: [
+                                { name: '👑 Rol Premium - $4,000,000 (30d)', value: 'premium_role' },
+                                { name: '🔫 Armas Pesadas - $320,000 (3d)', value: 'heavy_weapons' },
+                                { name: '🏎️ Coche Deportivo - $280,000 (7d)', value: 'sports_car' },
+                                { name: '🚓 Armamento SWAT - $120,000 (3d)', value: 'swat_vehicle' },
+                                { name: '🛡️ Escolta ANTIROBO - $60,000 (7d)', value: 'anti_rob' },
+                                { name: '🎨 Sticker Personalizado - $350,000 (permanente)', value: 'custom_sticker' },
+                                { name: '🎰 Casino - $600,000 (1h)', value: 'casino_access' },
+                                { name: '💚 Anti CK Seguro - $700,000 (3d, 1 uso)', value: 'anti_ck' },
+                                { name: '🚗 Vehículo Undercover - $100,000 (3d)', value: 'undercover_vehicle' },
+                                { name: '💸 Evasión Impuestos - $380,000 (7d)', value: 'tax_evasion' },
+                                { name: '📸 Fotos y Pantalla - $150,000 (7d)', value: 'content_creator' }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    name: 'mispases',
+                    description: 'Ver tus pases activos',
+                    type: 1
+                }
+            ]
+        },
+        {
             name: 'inversion',
             description: 'Sistema de Inversión a Plazo Fijo',
             options: [
@@ -6566,6 +6608,270 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
         } catch (error) {
             console.error(error);
             await interaction.editReply('❌ Error calculando el ranking de riqueza.');
+        }
+    }
+
+    // TIENDA COMMAND  
+    else if (commandName === 'tienda') {
+        const subcommand = interaction.options.getSubcommand();
+
+        if (subcommand === 'ver') {
+            await interaction.deferReply();
+
+            try {
+                const { data: items, error } = await supabase
+                    .from('store_items')
+                    .select('*')
+                    .eq('active', true)
+                    .order('display_order', { ascending: true });
+
+                if (error) throw error;
+
+                if (!items || items.length === 0) {
+                    return interaction.editReply('🛒 La tienda está vacía por el momento.');
+                }
+
+                const itemsPerPage = 3;
+                const pages = [];
+
+                for (let i = 0; i < items.length; i += itemsPerPage) {
+                    const pageItems = items.slice(i, i + itemsPerPage);
+                    const embed = new EmbedBuilder()
+                        .setTitle('🛒 Tienda Premium Nación MX')
+                        .setColor('#FFD700')
+                        .setDescription('💰 **Beneficios exclusivos para mejorar tu experiencia**\n\nUsa `/tienda comprar` para adquirir un item.')
+                        .setFooter({ text: `Página ${Math.floor(i / itemsPerPage) + 1}/${Math.ceil(items.length / itemsPerPage)}` });
+
+                    for (const item of pageItems) {
+                        const benefits = item.benefits ? item.benefits.join('\n• ') : 'Sin descripción';
+                        const duration = item.duration_days
+                            ? `⏰ ${item.duration_days} días`
+                            : item.duration_hours
+                                ? `⏰ ${item.duration_hours} hora(s)`
+                                : '♾️ Permanente';
+
+                        const extraInfo = item.max_uses ? `\n🎫 Usos: ${item.max_uses}` : '';
+                        const ticket = item.requires_ticket ? '\n📩 Requiere ticket para activación' : '';
+
+                        embed.addFields({
+                            name: `${item.icon_emoji} ${item.name} - $${item.price.toLocaleString()}`,
+                            value: `${item.description}\n\n**Beneficios:**\n• ${benefits}\n${duration}${extraInfo}${ticket}`,
+                            inline: false
+                        });
+                    }
+
+                    pages.push(embed);
+                }
+
+                if (pages.length === 1) {
+                    return interaction.editReply({ embeds: [pages[0]] });
+                }
+
+                let currentPage = 0;
+                const row = new ActionRowBuilder().addComponents(
+                    new ButtonBuilder().setCustomId('tienda_prev').setLabel('◀️ Anterior').setStyle(ButtonStyle.Secondary),
+                    new ButtonBuilder().setCustomId('tienda_next').setLabel('Siguiente ▶️').setStyle(ButtonStyle.Secondary)
+                );
+
+                await interaction.editReply({ embeds: [pages[0]], components: [row] });
+
+                const filter = i => i.user.id === interaction.user.id && i.customId.startsWith('tienda_');
+                const collector = interaction.channel.createMessageComponentCollector({ filter, time: 120000 });
+
+                collector.on('collect', async i => {
+                    if (i.customId === 'tienda_next') {
+                        currentPage = (currentPage + 1) % pages.length;
+                    } else if (i.customId === 'tienda_prev') {
+                        currentPage = (currentPage - 1 + pages.length) % pages.length;
+                    }
+                    await i.update({ embeds: [pages[currentPage]] });
+                });
+
+                collector.on('end', () => {
+                    interaction.editReply({ components: [] }).catch(() => { });
+                });
+
+            } catch (error) {
+                console.error('[tienda ver] Error:', error);
+                await interaction.editReply('❌ Error cargando la tienda.');
+            }
+        }
+
+        else if (subcommand === 'comprar') {
+            await interaction.deferReply();
+            const itemKey = interaction.options.getString('item');
+            const userId = interaction.user.id;
+
+            try {
+                const { data: item, error: itemError } = await supabase
+                    .from('store_items')
+                    .select('*')
+                    .eq('item_key', itemKey)
+                    .eq('active', true)
+                    .single();
+
+                if (itemError || !item) {
+                    return interaction.editReply('❌ Item no encontrado o no disponible.');
+                }
+
+                const { data: existing } = await supabase
+                    .from('user_purchases')
+                    .select('*')
+                    .eq('user_id', userId)
+                    .eq('item_key', itemKey)
+                    .eq('status', 'active')
+                    .maybeSingle();
+
+                if (existing) {
+                    const expiryDate = existing.expiration_date ? `\nExpira: <t:${Math.floor(new Date(existing.expiration_date).getTime() / 1000)}:R>` : '';
+                    return interaction.editReply(`⚠️ Ya tienes este item activo.${expiryDate}`);
+                }
+
+                const pmStore = await getAvailablePaymentMethods(userId, interaction.guildId);
+                const pbStore = createPaymentButtons(pmStore, 'store_pay');
+                const storeEmbed = createPaymentEmbed(`${item.icon_emoji} ${item.name}`, item.price, pmStore);
+
+                await interaction.editReply({ embeds: [storeEmbed], components: [pbStore] });
+
+                const filter = i => i.user.id === userId && i.customId.startsWith('store_pay_');
+                const collector = interaction.channel.createMessageComponentCollector({ filter, time: 60000, max: 1 });
+
+                collector.on('collect', async i => {
+                    try {
+                        await i.deferUpdate();
+                        const method = i.customId.replace('store_pay_', '');
+
+                        const paymentResult = await processPayment(method, userId, interaction.guildId, item.price, `[Tienda] ${item.name}`, pmStore);
+
+                        if (!paymentResult.success) {
+                            return i.editReply({ content: paymentResult.error, embeds: [], components: [] });
+                        }
+
+                        let expirationDate = null;
+                        if (item.duration_days) {
+                            expirationDate = new Date();
+                            expirationDate.setDate(expirationDate.getDate() + item.duration_days);
+                        } else if (item.duration_hours) {
+                            expirationDate = new Date();
+                            expirationDate.setHours(expirationDate.getHours() + item.duration_hours);
+                        }
+
+                        const { data: purchase, error: purchaseError } = await supabase
+                            .from('user_purchases')
+                            .insert({
+                                user_id: userId,
+                                item_key: itemKey,
+                                expiration_date: expirationDate ? expirationDate.toISOString() : null,
+                                status: 'active',
+                                uses_remaining: item.max_uses || null
+                            })
+                            .select()
+                            .single();
+
+                        if (purchaseError) throw purchaseError;
+
+                        await supabase.from('purchase_transactions').insert({
+                            user_id: userId,
+                            item_key: itemKey,
+                            amount_paid: item.price,
+                            payment_method: method,
+                            purchase_id: purchase.id,
+                            transaction_type: 'purchase'
+                        });
+
+                        if (item.role_id) {
+                            try {
+                                const member = await interaction.guild.members.fetch(userId);
+                                await member.roles.add(item.role_id);
+                            } catch (roleError) {
+                                console.error('[tienda] Role assignment error:', roleError);
+                            }
+                        }
+
+                        const duration = item.duration_days
+                            ? `\n⏰ Válido por **${item.duration_days} días**`
+                            : item.duration_hours
+                                ? `\n⏰ Válido por **${item.duration_hours} hora(s)**`
+                                : '\n♾️ **Permanente**';
+
+                        const ticketMsg = item.requires_ticket ? `\n\n📩 **Abre un ticket** en <#${item.ticket_channel_id}> para activar tu beneficio.` : '';
+
+                        const successEmbed = new EmbedBuilder()
+                            .setColor('#00FF00')
+                            .setTitle('✅ Compra Exitosa')
+                            .setDescription(`${item.icon_emoji} **${item.name}**\n\n💰 Pagado: $${item.price.toLocaleString()}\n💳 Método: ${paymentResult.method}${duration}${ticketMsg}`)
+                            .setFooter({ text: 'Gracias por tu compra!' })
+                            .setTimestamp();
+
+                        await i.editReply({ embeds: [successEmbed], components: [] });
+
+                    } catch (error) {
+                        console.error('[tienda comprar] Error:', error);
+                        await i.editReply({ content: '❌ Error procesando la compra.', embeds: [], components: [] });
+                    }
+                });
+
+                collector.on('end', collected => {
+                    if (collected.size === 0) {
+                        interaction.editReply({ content: '⏰ Tiempo agotado.', embeds: [], components: [] });
+                    }
+                });
+
+            } catch (error) {
+                console.error('[tienda comprar] Error:', error);
+                await interaction.editReply('❌ Error procesando la compra.');
+            }
+        }
+
+        else if (subcommand === 'mispases') {
+            await interaction.deferReply({ ephemeral: true });
+            const userId = interaction.user.id;
+
+            try {
+                const { data: purchases, error } = await supabase
+                    .from('user_purchases')
+                    .select(`
+                        *,
+                        store_items (*)
+                    `)
+                    .eq('user_id', userId)
+                    .eq('status', 'active')
+                    .order('purchase_date', { ascending: false });
+
+                if (error) throw error;
+
+                if (!purchases || purchases.length === 0) {
+                    return interaction.editReply('📦 No tienes pases activos. Visita `/tienda ver` para comprar.');
+                }
+
+                const embed = new EmbedBuilder()
+                    .setTitle('📦 Mis Pases Activos')
+                    .setColor('#FFD700')
+                    .setDescription(`Tienes **${purchases.length}** pase(s) activo(s)`);
+
+                for (const p of purchases) {
+                    const item = p.store_items;
+                    const expiry = p.expiration_date
+                        ? `Expira: <t:${Math.floor(new Date(p.expiration_date).getTime() / 1000)}:R>`
+                        : '♾️ Permanente';
+
+                    const uses = p.uses_remaining ? `\n🎫 Usos restantes: ${p.uses_remaining}` : '';
+
+                    embed.addFields({
+                        name: `${item.icon_emoji} ${item.name}`,
+                        value: `${expiry}${uses}`,
+                        inline: false
+                    });
+                }
+
+                embed.setFooter({ text: 'Los pases expirarán automáticamente' });
+
+                await interaction.editReply({ embeds: [embed] });
+
+            } catch (error) {
+                console.error('[tienda mispases] Error:', error);
+                await interaction.editReply('❌ Error cargando tus pases.');
+            }
         }
     }
 
