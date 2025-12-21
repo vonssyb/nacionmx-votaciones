@@ -4497,14 +4497,26 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             let report = `💰 **Nómina Pagada: ${groupName}**\nTotal: $${total.toLocaleString()}\n\n`;
 
             // Deduct from Owner
-            await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, total, `Pago Nómina: ${groupName}`);
-
-            // Pay Employees
-            for (const m of members) {
-                await billingService.ubService.addMoney(interaction.guildId, m.member_discord_id, m.salary, `Nómina de ${interaction.user.username}`);
-                report += `✅ <@${m.member_discord_id}>: $${m.salary.toLocaleString()}\n`;
-            }
-
+            // Show payment selector
+            const pmNom = await getAvailablePaymentMethods(interaction.user.id, interaction.guildId);
+            const pbNom = createPaymentButtons(pmNom, 'nom_pay');
+            await interaction.editReply({ content: `💼 **Nómina${groupName ? ': '+groupName : ''}**\n💰 $${total.toLocaleString()}\n👥 ${members.length} empleados\n\n**Método:**`, components: [pbNom] });
+            const fNom = i => i.user.id === interaction.user.id && i.customId.startsWith('nom_pay_');
+            const cNom = interaction.channel.createMessageComponentCollector({ filter: fNom, time: 60000, max: 1 });
+            cNom.on('collect', async (i) => {
+                try { await i.deferUpdate(); } catch (err) { return; }
+                const prNom = await processPayment(i.customId.replace('nom_pay_', ''), interaction.user.id, interaction.guildId, total, `Pago Nómina${groupName ? ': '+groupName : ''}`, pmNom);
+                if (!prNom.success) return i.editReply({ content: prNom.error, components: [] });
+                
+                let report = `💰 **Nómina Pagada** (${prNom.method})\nTotal: $${total.toLocaleString()}\n\n`;
+                for (const m of members) {
+                    await billingService.ubService.addMoney(interaction.guildId, m.member_discord_id, m.salary, `Nómina${groupName ? ' de '+groupName : ''}`);
+                    report += `✅ <@${m.member_discord_id}>: $${m.salary.toLocaleString()}\n`;
+                }
+                await i.editReply({ content: report, components: [] });
+            });
+            cNom.on('end', c => { if (c.size === 0) interaction.editReply({ content: '⏱️ Tiempo agotado.', components: [] }); });
+            return;
             await interaction.editReply(report);
         }
     }
