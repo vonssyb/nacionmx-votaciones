@@ -4780,7 +4780,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 const fBolsa = i => i.user.id === interaction.user.id && i.customId.startsWith('pay_');
                 const cBolsa = interaction.channel.createMessageComponentCollector({ filter: fBolsa, time: 60000, max: 1 });
                 cBolsa.on('collect', async (i) => {
-                    await i.deferUpdate();
+                    try { await i.deferUpdate(); } catch (err) { console.error('[bolsa] defer failed:', err.message); return; }
                     const prBolsa = await processPayment(i.customId.replace('pay_', ''), interaction.user.id, interaction.guildId, totalCost, `Compra ${cantidad} ${symbol}`, pmBolsa);
                     if (!prBolsa.success) return i.editReply({ content: prBolsa.error, components: [] });
                     
