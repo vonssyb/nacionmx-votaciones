@@ -70,20 +70,37 @@ let globalStocks = [
 const casinoSessions = {
     roulette: {
         active: false,
-        bets: [],
+        bets: [], // [{userId, username, betType, amount, interaction}]
         spinNumber: null,
         closeTime: null,
-        channel: null
+        channel: null,
+        timeout: null
     },
     race: {
         active: false,
-        bets: [],
+        bets: [], // [{userId, username, horseId, amount, interaction}]
         horses: [],
         winner: null,
         closeTime: null,
-        channel: null
+        channel: null,
+        timeout: null
     }
 };
+
+// Start a roulette session (30 sec betting window)
+function startRouletteSession(interaction) {
+    if (casinoSessions.roulette.active) return false;
+
+    casinoSessions.roulette = {
+        active: true,
+        bets: [],
+        spinNumber: Math.floor(Math.random() * 37),
+        closeTime: Date.now() + 30000,
+        channel: interaction.channelId,
+        timeout: setTimeout(() => executeRouletteSession(interaction), 30000)
+    };
+    return true;
+}
 
 // CASINO HELPER FUNCTIONS
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
@@ -140,6 +157,135 @@ async function animateCrash(interaction, crashPoint, cashout) {
         await sleep(200);
     }
 }
+
+// Execute roulette session (called after timeout)
+async function executeRouletteSession(firstInteraction) {
+    const session = casinoSessions.roulette;
+    if (!session.active || session.bets.length === 0) {
+        session.active = false;
+        return;
+    }
+
+    const spin = session.spinNumber;
+    const reds = [1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36];
+    const isRed = reds.includes(spin);
+    const isBlack = spin > 0 && !isRed;
+    const color = spin === 0 ? '🟢' : isRed ? '🔴' : '🔵';
+
+    // Animate for all players
+    for (const bet of session.bets) {
+        await animateRoulette(bet.interaction, spin);
+    }
+
+    // Calculate and distribute payouts
+    for (const bet of session.bets) {
+        let won = false, mult = 1;
+        const betType = bet.betType;
+        const numero = bet.numero;
+
+        if (betType === 'numero' && spin === numero) { won = true; mult = 35; }
+        else if (betType === 'red' && isRed) { won = true; mult = 1; }
+        else if (betType === 'black' && isBlack) { won = true; mult = 1; }
+        else if (betType === 'even' && spin > 0 && spin % 2 === 0) { won = true; mult = 1; }
+        else if (betType === 'odd' && spin > 0 && spin % 2 === 1) { won = true; mult = 1; }
+        else if (betType === '1-18' && spin >= 1 && spin <= 18) { won = true; mult = 1; }
+        else if (betType === '19-36' && spin >= 19 && spin <= 36) { won = true; mult = 1; }
+        else if (betType === '1st12' && spin >= 1 && spin <= 12) { won = true; mult = 2; }
+        else if (betType === '2nd12' && spin >= 13 && spin <= 24) { won = true; mult = 2; }
+        else if (betType === '3rd12' && spin >= 25 && spin <= 36) { won = true; mult = 2; }
+        else if (betType === 'col1' && spin > 0 && (spin - 1) % 3 === 0) { won = true; mult = 2; }
+        else if (betType === 'col2' && spin > 0 && (spin - 2) % 3 === 0) { won = true; mult = 2; }
+        else if (betType === 'col3' && spin > 0 && (spin - 3) % 3 === 0) { won = true; mult = 2; }
+
+        const payout = won ? bet.amount * (mult + 1) : 0;
+
+        if (payout > 0) {
+            await supabase.from('casino_chips').update({
+                chips: (bet.currentChips - bet.amount + payout),
+                total_won: (bet.totalWon || 0) + payout,
+                games_played: (bet.gamesPlayed || 0) + 1
+            }).eq('user_id', bet.userId);
+        } else {
+            await supabase.from('casino_chips').update({
+                total_lost: (bet.totalLost || 0) + bet.amount,
+                games_played: (bet.gamesPlayed || 0) + 1
+            }).eq('user_id', bet.userId);
+        }
+
+        const resultText = won ? `✅ **¡GANAS!** +${payout} (${mult + 1}x)` : `❌ **Perdiste** -${bet.amount}`;
+        await bet.interaction.editReply(`🎡 **RULETA MULTIJUGADOR**\n\n${color} **${spin}**\n\n👥 ${session.bets.length} jugadores\nTu apuesta: **${betType.toUpperCase()}**\n${resultText}\n💼 ${(bet.currentChips - bet.amount + payout).toLocaleString()} fichas`);
+    }
+
+    session.active = false;
+    session.bets = [];
+}
+
+// Start race session (45 sec betting window)
+function startRaceSession(interaction) {
+    if (casinoSessions.race.active) return false;
+
+    const horses = [
+        { id: 1, emoji: '🐴', name: 'Relámpago', pos: 0 },
+        { id: 2, emoji: '🏇', name: 'Trueno', pos: 0 },
+        { id: 3, emoji: '🐎', name: 'Viento', pos: 0 },
+        { id: 4, emoji: '🦄', name: 'Estrella', pos: 0 }
+    ];
+
+    casinoSessions.race = {
+        active: true,
+        bets: [],
+        horses: horses,
+        winner: null,
+        closeTime: Date.now() + 45000,
+        channel: interaction.channelId,
+        timeout: setTimeout(() => executeRaceSession(interaction), 45000)
+    };
+    return true;
+}
+
+// Execute race session
+async function executeRaceSession(firstInteraction) {
+    const session = casinoSessions.race;
+    if (!session.active || session.bets.length === 0) {
+        session.active = false;
+        return;
+    }
+
+    // Animate for all players
+    for (const bet of session.bets) {
+        await animateRace(bet.interaction, session.horses);
+    }
+
+    session.horses.sort((a, b) => b.pos - a.pos);
+    const winner = session.horses[0].id;
+
+    // Distribute payouts
+    for (const bet of session.bets) {
+        const won = winner === bet.horseId;
+        const payout = won ? bet.amount * 3 : 0;
+
+        if (payout > 0) {
+            await supabase.from('casino_chips').update({
+                chips: (bet.currentChips - bet.amount + payout),
+                total_won: (bet.totalWon || 0) + payout,
+                games_played: (bet.gamesPlayed || 0) + 1
+            }).eq('user_id', bet.userId);
+        } else {
+            await supabase.from('casino_chips').update({
+                total_lost: (bet.totalLost || 0) + bet.amount,
+                games_played: (bet.gamesPlayed || 0) + 1
+            }).eq('user_id', bet.userId);
+        }
+
+        const resultText = won ? `✅ **¡GANAS!** +${payout} (3x)` : `❌ **Perdiste** -${bet.amount}`;
+        const yourHorse = session.horses.find(h => h.id === bet.horseId);
+        await bet.interaction.editReply(`🏇 **CARRERAS MULTIJUGADOR**\n\n🏆 Ganador: ${session.horses[0].emoji} **${session.horses[0].name}**\n👥 ${session.bets.length} jugadores\nTu apuesta: ${yourHorse.emoji} **${yourHorse.name}**\n\n${resultText}\n💼 ${(bet.currentChips - bet.amount + payout).toLocaleString()} fichas`);
+    }
+
+    session.active = false;
+    session.bets = [];
+}
+
 
 async function animateRace(interaction, horses) {
     const laps = 5;
@@ -979,6 +1125,11 @@ client.once('ready', async () => {
             ]
         },
         {
+            name: 'info',
+            description: '🏢 Información pública de Nación MX (creadores, ubicación, reglas)',
+            type: 1
+        },
+        {
             name: 'rol',
             description: 'Gestión de Roles y Sanciones',
             options: [
@@ -1714,8 +1865,12 @@ async function getAvailablePaymentMethods(userId, guildId) {
                 .maybeSingle();
 
             if (creditCard) {
-                methods.credit.available = true;
-                methods.credit.card = creditCard;
+                const availableCredit = creditCard.credit_limit - creditCard.current_balance;
+                if (availableCredit > 0) {
+                    methods.credit.available = true;
+                    methods.credit.card = creditCard;
+                    methods.credit.availableCredit = availableCredit;
+                }
             }
         }
 
