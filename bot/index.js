@@ -3750,37 +3750,74 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                     return interaction.editReply(`❌ Ya existe una empresa con el nombre "${nombre}".`);
                 }
                 
-                // Check owner balance
-                const balance = await billingService.ubService.getUserBalance(interaction.guildId, dueño.id);
-                if ((balance.cash || 0) < totalCost) {
-                    return interaction.editReply(`❌ ${dueño.username} no tiene suficiente efectivo.\n💰 Necesita: $${totalCost.toLocaleString()}\n💵 Tiene: $${(balance.cash || 0).toLocaleString()}`);
-                }
+                // Show payment selector
+                const paymentRow = new ActionRowBuilder().addComponents(
+                    new ButtonBuilder().setCustomId('emp_cash').setLabel('💵 Efectivo').setStyle(ButtonStyle.Primary),
+                    new ButtonBuilder().setCustomId('emp_bank').setLabel('🏦 Banco').setStyle(ButtonStyle.Success),
+                    new ButtonBuilder().setCustomId('emp_debit').setLabel('💳 Débito').setStyle(ButtonStyle.Secondary),
+                    new ButtonBuilder().setCustomId('emp_credit').setLabel('🔖 Crédito').setStyle(ButtonStyle.Danger)
+                );
                 
-                // Deduct money
-                await billingService.ubService.removeMoney(interaction.guildId, dueño.id, totalCost, `Creación de empresa: ${nombre}`, 'cash');
+                await interaction.editReply({
+                    content: `🏢 **${nombre}**\n💰 Total: **$${totalCost.toLocaleString()}**\n\nSelecciona método de pago:`,
+                    components: [paymentRow]
+                });
                 
-                // Build owner_ids array
-                const ownerIds = [dueño.id];
-                if (coDueño) ownerIds.push(coDueño.id);
+                // Wait for payment method
+                const filter = i => i.user.id === interaction.user.id && i.customId.startsWith('emp_');
+                const collector = interaction.channel.createMessageComponentCollector({ filter, time: 60000, max: 1 });
                 
-                // Insert company
-                const { data: newCompany, error } = await supabase.from('companies').insert({
-                    name: nombre,
-                    logo_url: logo?.url,
-                    banner_url: fotoLocal?.url,
-                    location: ubicacion,
-                    is_private: esPrivada,
-                    owner_ids: ownerIds,
-                    vehicle_count: [vehiculo1, vehiculo2, vehiculo3].filter(v => v).length,
-                    industry_type: 'General'
-                }).select().single();
-                
-                if (error) {
-                    console.error('[empresa crear] Error:', error);
-                    // Rollback money
-                    await billingService.ubService.addMoney(interaction.guildId, dueño.id, totalCost, `Reembolso: Error creando empresa`, 'cash');
-                    return interaction.editReply('❌ Error creando la empresa. Fondos reembolsados.');
-                }
+                collector.on('collect', async (i) => {
+                    await i.deferUpdate();
+                    const method = i.customId.replace('emp_', '');
+                    
+                    try {
+                        // Process payment based on method
+                        if (method === 'cash' || method === 'bank') {
+                            const balance = await billingService.ubService.getUserBalance(interaction.guildId, dueño.id);
+                            const source = method === 'cash' ? 'cash' : 'bank';
+                            if ((balance[source] || 0) < totalCost) {
+                                return i.editReply({ content: `❌ Saldo insuficiente en ${source === 'cash' ? 'efectivo' : 'banco'}.`, components: [] });
+                            }
+                            await billingService.ubService.removeMoney(interaction.guildId, dueño.id, totalCost, `Empresa: ${nombre}`, source);
+                        } else if (method === 'debit' || method === 'credit') {
+                            const { data: citizen } = await supabase.from('citizens').select('id').eq('discord_id', dueño.id).maybeSingle();
+                            if (!citizen) return i.editReply({ content: '❌ Cuenta no vinculada.', components: [] });
+                            
+                            if (method === 'debit') {
+                                const { data: card } = await supabase.from('debit_cards').select('*').eq('user_id', dueño.id).eq('is_active', true).maybeSingle();
+                                if (!card) return i.editReply({ content: '❌ Sin tarjeta de débito.', components: [] });
+                                const balance = await billingService.ubService.getUserBalance(interaction.guildId, dueño.id);
+                                if ((balance.bank || 0) < totalCost) return i.editReply({ content: '❌ Saldo bancario insuficiente.', components: [] });
+                                await billingService.ubService.removeMoney(interaction.guildId, dueño.id, totalCost, `Empresa: ${nombre}`, 'bank');
+                            } else {
+                                const { data: card } = await supabase.from('credit_cards').select('*').eq('citizen_id', citizen.id).maybeSingle();
+                                if (!card) return i.editReply({ content: '❌ Sin tarjeta de crédito.', components: [] });
+                                const available = card.credit_limit - card.current_balance;
+                                if (available < totalCost) return i.editReply({ content: `❌ Crédito insuficiente ($${available.toLocaleString()}).`, components: [] });
+                                await supabase.from('credit_cards').update({ current_balance: card.current_balance + totalCost }).eq('id', card.id);
+                            }
+                        }
+                        
+                        // Create company
+                        const ownerIds = [dueño.id];
+                        if (coDueño) ownerIds.push(coDueño.id);
+                        
+                        const { data: newCompany, error } = await supabase.from('companies').insert({
+                            name: nombre,
+                            logo_url: logo?.url,
+                            banner_url: fotoLocal?.url,
+                            location: ubicacion,
+                            is_private: esPrivada,
+                            owner_ids: ownerIds,
+                            vehicle_count: [vehiculo1, vehiculo2, vehiculo3].filter(v => v).length,
+                            industry_type: 'General'
+                        }).select().single();
+                        
+                        if (error) {
+                            console.error('[empresa] Error:', error);
+                            return i.editReply({ content: '❌ Error creando empresa.', components: [] });
+                        }
                 
                 const embed = new EmbedBuilder()
                     .setColor('#00FF00')
