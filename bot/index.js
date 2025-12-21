@@ -4137,9 +4137,10 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                     // Show payment selector
                     const pmCasino = await getAvailablePaymentMethods(userId, interaction.guildId);
                     const pbCasino = createPaymentButtons(pmCasino, 'casino_pay');
+                    const paymentEmbed = createPaymentEmbed(`🎰 Fichas de Casino (${cantidad} fichas)`, cantidad, pmCasino);
 
                     await interaction.editReply({
-                        content: `🎰 **Comprar Fichas**\n💰 Monto: **$${cantidad.toLocaleString()}**\n\n**Selecciona método:**`,
+                        embeds: [paymentEmbed],
                         components: [pbCasino]
                     });
 
