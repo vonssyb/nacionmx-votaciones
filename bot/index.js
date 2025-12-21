@@ -1325,45 +1325,6 @@ client.once('ready', async () => {
                             description: '¿Es empresa privada? (Sí = más impuestos)',
                             type: 5,
                             required: false
-                        },
-                        {
-                            name: 'vehiculo_1',
-                            description: 'Primer vehículo (opcional)',
-                            type: 3,
-                            required: false,
-                            choices: [
-                                { name: 'Ejecutiva Ligera ($420k)', value: 'ejecutiva_ligera' },
-                                { name: 'Operativa de Servicio ($550k)', value: 'operativa_servicio' },
-                                { name: 'Carga Pesada ($850k)', value: 'carga_pesada' },
-                                { name: 'Ejecutiva Premium ($1.2M)', value: 'ejecutiva_premium' },
-                                { name: 'Asistencia Industrial ($1.5M)', value: 'asistencia_industrial' }
-                            ]
-                        },
-                        {
-                            name: 'vehiculo_2',
-                            description: 'Segundo vehículo (opcional)',
-                            type: 3,
-                            required: false,
-                            choices: [
-                                { name: 'Ejecutiva Ligera ($420k)', value: 'ejecutiva_ligera' },
-                                { name: 'Operativa de Servicio ($550k)', value: 'operativa_servicio' },
-                                { name: 'Carga Pesada ($850k)', value: 'carga_pesada' },
-                                { name: 'Ejecutiva Premium ($1.2M)', value: 'ejecutiva_premium' },
-                                { name: 'Asistencia Industrial ($1.5M)', value: 'asistencia_industrial' }
-                            ]
-                        },
-                        {
-                            name: 'vehiculo_3',
-                            description: 'Tercer vehículo (opcional)',
-                            type: 3,
-                            required: false,
-                            choices: [
-                                { name: 'Ejecutiva Ligera ($420k)', value: 'ejecutiva_ligera' },
-                                { name: 'Operativa de Servicio ($550k)', value: 'operativa_servicio' },
-                                { name: 'Carga Pesada ($850k)', value: 'carga_pesada' },
-                                { name: 'Ejecutiva Premium ($1.2M)', value: 'ejecutiva_premium' },
-                                { name: 'Asistencia Industrial ($1.5M)', value: 'asistencia_industrial' }
-                            ]
                         }
                     ]
                 },
@@ -4463,9 +4424,6 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 const discordServer = interaction.options.getString('discord_server');
                 const coDueño = interaction.options.getUser('co_dueño');
                 const esPrivada = interaction.options.getBoolean('es_privada') || false;
-                const vehiculo1 = interaction.options.getString('vehiculo_1');
-                const vehiculo2 = interaction.options.getString('vehiculo_2');
-                const vehiculo3 = interaction.options.getString('vehiculo_3');
 
                 // Cost calculation
                 const TRAMITE_FEE = 250000;
@@ -4475,18 +4433,8 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                     'grande': 3200000,
                     'gigante': 5000000
                 };
-                const VEHICLE_COSTS = {
-                    'ejecutiva_ligera': 420000,
-                    'operativa_servicio': 550000,
-                    'carga_pesada': 850000,
-                    'ejecutiva_premium': 1200000,
-                    'asistencia_industrial': 1500000
-                };
 
                 let totalCost = TRAMITE_FEE + LOCAL_COSTS[tipoLocal];
-                if (vehiculo1) totalCost += VEHICLE_COSTS[vehiculo1];
-                if (vehiculo2) totalCost += VEHICLE_COSTS[vehiculo2];
-                if (vehiculo3) totalCost += VEHICLE_COSTS[vehiculo3];
 
                 // Check if name is unique
                 const { data: existing } = await supabase.from('companies').select('id').eq('name', nombre).maybeSingle();
@@ -4554,7 +4502,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                             location: ubicacion,
                             is_private: esPrivada,
                             owner_ids: ownerIds,
-                            vehicle_count: [vehiculo1, vehiculo2, vehiculo3].filter(v => v).length,
+                            vehicle_count: 0,
                             industry_type: 'General',
                             discord_server: discordServer
                         }).select().single();
@@ -4580,9 +4528,24 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                             .setTimestamp();
 
                         if (coDueño) embed.addFields({ name: '👥 Co-Dueño', value: `<@${coDueño.id}>`, inline: true });
-                        if (fotoLocal) embed.setImage(fotoLocal.url);
 
-                        return i.editReply({ embeds: [embed], components: [] });
+                        // Add vehicle addition buttons
+                        const vehicleRow = new ActionRowBuilder().addComponents(
+                            new ButtonBuilder()
+                                .setCustomId(`company_addvehicle_${newCompany.id}`)
+                                .setLabel('➕ Agregar Vehículo')
+                                .setStyle(ButtonStyle.Primary),
+                            new ButtonBuilder()
+                                .setCustomId(`company_finish_${newCompany.id}`)
+                                .setLabel('✅ Finalizar')
+                                .setStyle(ButtonStyle.Success)
+                        );
+
+                        await i.editReply({
+                            content: '✅ Empresa registrada exitosamente!\n\n¿Deseas agregar vehículos a tu empresa?',
+                            embeds: [embed],
+                            components: [vehicleRow]
+                        });
                     } catch (err) {
                         console.error('[empresa crear payment]', err);
                         return i.editReply({ content: '❌ Error procesando pago.', components: [] });
