@@ -3339,6 +3339,26 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
 
                             if (insertError) throw new Error(insertError.message);
 
+                            // Send notification to channel
+                            try {
+                                const notifChannel = await client.channels.fetch('1452346918620500041');
+                                if (notifChannel) {
+                                    const notifEmbed = new EmbedBuilder()
+                                        .setColor('#00D26A')
+                                        .setTitle('💳 Nueva Tarjeta de Débito Registrada')
+                                        .addFields(
+                                            { name: '👤 Titular', value: `${holderName} (<@${targetUser.id}>)`, inline: false },
+                                            { name: '🏦 Tipo', value: cardType, inline: true },
+                                            { name: '💳 Número', value: `\`${cardNumber}\``, inline: true },
+                                            { name: '👮 Registrado por', value: `<@${interaction.user.id}>`, inline: false }
+                                        )
+                                        .setTimestamp();
+                                    await notifChannel.send({ embeds: [notifEmbed] });
+                                }
+                            } catch (notifError) {
+                                console.error('[registrar-tarjeta] Notification error:', notifError);
+                            }
+
                             await message.edit({
                                 content: `✅ **Cuenta de Débito Abierta** para **${holderName}**.\n💳 Número: \`${cardNumber}\`\n👮 **Registrado por:** <@${interaction.user.id}>`,
                                 components: []
@@ -3358,6 +3378,27 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                             }]);
 
                             if (insertError) throw new Error(insertError.message);
+
+                            // Send notification to channel
+                            try {
+                                const notifChannel = await client.channels.fetch('1452346918620500041');
+                                if (notifChannel) {
+                                    const notifEmbed = new EmbedBuilder()
+                                        .setColor('#FF6B6B')
+                                        .setTitle('🔖 Nueva Tarjeta de Crédito Registrada')
+                                        .addFields(
+                                            { name: '👤 Titular', value: `${holderName} (<@${targetUser.id}>)`, inline: false },
+                                            { name: '💳 Tipo', value: cardType, inline: true },
+                                            { name: '💰 Límite', value: `$${stats.limit.toLocaleString()}`, inline: true },
+                                            { name: '📊 Interés', value: `${stats.interest}%`, inline: true },
+                                            { name: '👮 Registrado por', value: `<@${interaction.user.id}>`, inline: false }
+                                        )
+                                        .setTimestamp();
+                                    await notifChannel.send({ embeds: [notifEmbed] });
+                                }
+                            } catch (notifError) {
+                                console.error('[registrar-tarjeta] Credit notification error:', notifError);
+                            }
 
                             await message.edit({
                                 content: `✅ **Tarjeta Activada** para **${holderName}**. Cobro de $${stats.cost.toLocaleString()} realizado.\n👮 **Registrado por:** <@${interaction.user.id}>`,
