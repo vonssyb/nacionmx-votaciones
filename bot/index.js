@@ -1580,7 +1580,7 @@ async function getAvailablePaymentMethods(userId, guildId) {
         credit: { available: false, label: '🔖 Crédito', value: 'credit', card: null },
         businessCredit: { available: false, label: '🏢 Crédito Empresa', value: 'business_credit', card: null }
     };
-    
+
     try {
         // Check debit card
         const { data: debitCard } = await supabase
@@ -1593,14 +1593,14 @@ async function getAvailablePaymentMethods(userId, guildId) {
             methods.debit.available = true;
             methods.debit.card = debitCard;
         }
-        
+
         // Check personal credit card
         const { data: citizen } = await supabase
             .from('citizens')
             .select('id')
             .eq('discord_id', userId)
             .maybeSingle();
-        
+
         if (citizen) {
             const { data: creditCard } = await supabase
                 .from('credit_cards')
@@ -1612,13 +1612,13 @@ async function getAvailablePaymentMethods(userId, guildId) {
                 methods.credit.card = creditCard;
             }
         }
-        
+
         // Check business credit (company + business credit card)
         const { data: companies } = await supabase
             .from('companies')
             .select('*')
             .contains('owner_ids', [userId]);
-        
+
         if (companies && companies.length > 0) {
             // Check if company has business credit card
             const { data: businessCard } = await supabase
@@ -1626,7 +1626,7 @@ async function getAvailablePaymentMethods(userId, guildId) {
                 .select('*')
                 .eq('company_id', companies[0].id)
                 .maybeSingle();
-            
+
             if (businessCard) {
                 methods.businessCredit.available = true;
                 methods.businessCredit.card = businessCard;
@@ -1636,41 +1636,41 @@ async function getAvailablePaymentMethods(userId, guildId) {
     } catch (error) {
         console.error('[getAvailablePaymentMethods] Error:', error);
     }
-    
+
     return methods;
 }
 
 function createPaymentButtons(availableMethods) {
     const buttons = [];
-    
+
     if (availableMethods.cash.available) {
         buttons.push(new ButtonBuilder()
             .setCustomId('pay_cash')
             .setLabel(availableMethods.cash.label)
             .setStyle(ButtonStyle.Primary));
     }
-    
+
     if (availableMethods.debit.available) {
         buttons.push(new ButtonBuilder()
             .setCustomId('pay_debit')
             .setLabel(availableMethods.debit.label)
             .setStyle(ButtonStyle.Success));
     }
-    
+
     if (availableMethods.credit.available) {
         buttons.push(new ButtonBuilder()
             .setCustomId('pay_credit')
             .setLabel(availableMethods.credit.label)
             .setStyle(ButtonStyle.Danger));
     }
-    
+
     if (availableMethods.businessCredit.available) {
         buttons.push(new ButtonBuilder()
             .setCustomId('pay_business')
             .setLabel(availableMethods.businessCredit.label)
             .setStyle(ButtonStyle.Secondary));
     }
-    
+
     return new ActionRowBuilder().addComponents(buttons);
 }
 
@@ -1684,7 +1684,7 @@ async function processPayment(method, userId, guildId, amount, description, avai
             await billingService.ubService.removeMoney(guildId, userId, amount, description, 'cash');
             return { success: true, method: '💵 Efectivo', source: 'cash' };
         }
-        
+
         if (method === 'debit') {
             if (!availableMethods.debit.available) {
                 return { success: false, error: '❌ No tienes tarjeta de débito activa.' };
@@ -1696,7 +1696,7 @@ async function processPayment(method, userId, guildId, amount, description, avai
             await billingService.ubService.removeMoney(guildId, userId, amount, description, 'bank');
             return { success: true, method: '💳 Débito', source: 'bank' };
         }
-        
+
         if (method === 'credit') {
             if (!availableMethods.credit.available || !availableMethods.credit.card) {
                 return { success: false, error: '❌ No tienes tarjeta de crédito.' };
@@ -1711,7 +1711,7 @@ async function processPayment(method, userId, guildId, amount, description, avai
             }).eq('id', creditCard.id);
             return { success: true, method: '🔖 Crédito', source: 'credit' };
         }
-        
+
         if (method === 'business') {
             if (!availableMethods.businessCredit.available || !availableMethods.businessCredit.card) {
                 return { success: false, error: '❌ No tienes crédito empresarial disponible.' };
@@ -1726,7 +1726,7 @@ async function processPayment(method, userId, guildId, amount, description, avai
             }).eq('id', businessCard.id);
             return { success: true, method: '🏢 Crédito Empresa', source: 'business_credit' };
         }
-        
+
         return { success: false, error: '❌ Método de pago no válido.' };
     } catch (error) {
         console.error('[processPayment] Error:', error);
@@ -3774,28 +3774,44 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 const cantidad = interaction.options.getInteger('cantidad');
 
                 if (action === 'comprar') {
-                    // Buy chips with cash (1:1)
-                    const balance = await billingService.ubService.getUserBalance(interaction.guildId, userId);
-                    if ((balance.cash || 0) < cantidad) {
-                        return interaction.editReply(`❌ No tienes suficiente efectivo. Tienes: $${(balance.cash || 0).toLocaleString()}`);
-                    }
+                    // Show payment selector
+                    const pmCasino = await getAvailablePaymentMethods(userId, interaction.guildId);
+                    const pbCasino = createPaymentButtons(pmCasino);
 
-                    // Deduct money
-                    await billingService.ubService.removeMoney(interaction.guildId, userId, cantidad, '[Casino] Compra dehips', 'cash');
+                    await interaction.editReply({
+                        content: `🎰 **Comprar Fichas**\n💰 Monto: **$${cantidad.toLocaleString()}**\n\n**Selecciona método:**`,
+                        components: [pbCasino]
+                    });
 
-                    // Add chips
-                    const { data: existing } = await supabase.from('casino_chips').select('*').eq('user_id', userId).single();
-                    if (existing) {
-                        await supabase.from('casino_chips').update({
-                            chips: existing.chips + cantidad,
-                            total_bought: existing.total_bought + cantidad,
-                            updated_at: new Date().toISOString()
-                        }).eq('user_id', userId);
-                    } else {
-                        await supabase.from('casino_chips').insert({ user_id: userId, chips: cantidad, total_bought: cantidad });
-                    }
+                    const fCas = i => i.user.id === userId && i.customId.startsWith('pay_');
+                    const cCas = interaction.channel.createMessageComponentCollector({ filter: fCas, time: 60000, max: 1 });
 
-                    return interaction.editReply(`✅ Compraste **${cantidad.toLocaleString()} fichas** por $${cantidad.toLocaleString()}.`);
+                    cCas.on('collect', async (i) => {
+                        await i.deferUpdate();
+                        const prCas = await processPayment(i.customId.replace('pay_', ''), userId, interaction.guildId, cantidad, '[Casino] Compra fichas', pmCasino);
+
+                        if (!prCas.success) return i.editReply({ content: prCas.error, components: [] });
+
+                        // Add chips
+                        const { data: existing } = await supabase.from('casino_chips').select('*').eq('user_id', userId).single();
+                        if (existing) {
+                            await supabase.from('casino_chips').update({
+                                chips: existing.chips + cantidad,
+                                total_bought: existing.total_bought + cantidad,
+                                updated_at: new Date().toISOString()
+                            }).eq('user_id', userId);
+                        } else {
+                            await supabase.from('casino_chips').insert({ user_id: userId, chips: cantidad, total_bought: cantidad });
+                        }
+
+                        return i.editReply({ content: `✅ Compraste **${cantidad.toLocaleString()} fichas** por $${cantidad.toLocaleString()} (${prCas.method}).`, components: [] });
+                    });
+
+                    cCas.on('end', collected => {
+                        if (collected.size === 0) interaction.editReply({ content: '⏱️ Tiempo agotado.', components: [] });
+                    });
+
+                    return; // Exit comprar
                 }
 
                 if (action === 'retirar') {
@@ -3871,10 +3887,10 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
     }
     else if (commandName === 'empresa') {
         await interaction.deferReply();
-        
+
         const subCmd = interaction.options.getSubcommand();
         const userId = interaction.user.id;
-        
+
         try {
             // ===== CREAR EMPRESA =====
             if (subCmd === 'crear') {
@@ -3889,7 +3905,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 const vehiculo1 = interaction.options.getString('vehiculo_1');
                 const vehiculo2 = interaction.options.getString('vehiculo_2');
                 const vehiculo3 = interaction.options.getString('vehiculo_3');
-                
+
                 // Cost calculation
                 const TRAMITE_FEE = 250000;
                 const LOCAL_COSTS = {
@@ -3905,18 +3921,18 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                     'ejecutiva_premium': 1200000,
                     'asistencia_industrial': 1500000
                 };
-                
+
                 let totalCost = TRAMITE_FEE + LOCAL_COSTS[tipoLocal];
                 if (vehiculo1) totalCost += VEHICLE_COSTS[vehiculo1];
                 if (vehiculo2) totalCost += VEHICLE_COSTS[vehiculo2];
                 if (vehiculo3) totalCost += VEHICLE_COSTS[vehiculo3];
-                
+
                 // Check if name is unique
                 const { data: existing } = await supabase.from('companies').select('id').eq('name', nombre).maybeSingle();
                 if (existing) {
                     return interaction.editReply(`❌ Ya existe una empresa con el nombre "${nombre}".`);
                 }
-                
+
                 // Show payment selector
                 const paymentRow = new ActionRowBuilder().addComponents(
                     new ButtonBuilder().setCustomId('emp_cash').setLabel('💵 Efectivo').setStyle(ButtonStyle.Primary),
@@ -3924,20 +3940,20 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                     new ButtonBuilder().setCustomId('emp_debit').setLabel('💳 Débito').setStyle(ButtonStyle.Secondary),
                     new ButtonBuilder().setCustomId('emp_credit').setLabel('🔖 Crédito').setStyle(ButtonStyle.Danger)
                 );
-                
+
                 await interaction.editReply({
                     content: `🏢 **${nombre}**\n💰 Total: **$${totalCost.toLocaleString()}**\n\nSelecciona método de pago:`,
                     components: [paymentRow]
                 });
-                
+
                 // Wait for payment method
                 const filter = i => i.user.id === interaction.user.id && i.customId.startsWith('emp_');
                 const collector = interaction.channel.createMessageComponentCollector({ filter, time: 60000, max: 1 });
-                
+
                 collector.on('collect', async (i) => {
                     await i.deferUpdate();
                     const method = i.customId.replace('emp_', '');
-                    
+
                     try {
                         // Process payment based on method
                         if (method === 'cash' || method === 'bank') {
@@ -3950,7 +3966,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                         } else if (method === 'debit' || method === 'credit') {
                             const { data: citizen } = await supabase.from('citizens').select('id').eq('discord_id', dueño.id).maybeSingle();
                             if (!citizen) return i.editReply({ content: '❌ Cuenta no vinculada.', components: [] });
-                            
+
                             if (method === 'debit') {
                                 const { data: card } = await supabase.from('debit_cards').select('*').eq('user_id', dueño.id).eq('is_active', true).maybeSingle();
                                 if (!card) return i.editReply({ content: '❌ Sin tarjeta de débito.', components: [] });
@@ -3965,11 +3981,11 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                                 await supabase.from('credit_cards').update({ current_balance: card.current_balance + totalCost }).eq('id', card.id);
                             }
                         }
-                        
+
                         // Create company
                         const ownerIds = [dueño.id];
                         if (coDueño) ownerIds.push(coDueño.id);
-                        
+
                         const { data: newCompany, error } = await supabase.from('companies').insert({
                             name: nombre,
                             logo_url: logo?.url,
@@ -3980,13 +3996,13 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                             vehicle_count: [vehiculo1, vehiculo2, vehiculo3].filter(v => v).length,
                             industry_type: 'General'
                         }).select().single();
-                        
+
                         if (error) {
                             console.error('[empresa] Error:', error);
                             return i.editReply({ content: '❌ Error creando empresa.', components: [] });
                         }
-                
-                        
+
+
                         const embed = new EmbedBuilder()
                             .setColor('#00FF00')
                             .setTitle('🏢 Empresa Registrada')
@@ -4000,39 +4016,39 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                                 { name: '🆔 ID Empresa', value: newCompany.id.substring(0, 8), inline: true }
                             )
                             .setTimestamp();
-                        
+
                         if (coDueño) embed.addFields({ name: '👥 Co-Dueño', value: `<@${coDueño.id}>`, inline: true });
                         if (fotoLocal) embed.setImage(fotoLocal.url);
-                        
+
                         return i.editReply({ embeds: [embed], components: [] });
                     } catch (err) {
                         console.error('[empresa crear payment]', err);
                         return i.editReply({ content: '❌ Error procesando pago.', components: [] });
                     }
                 });
-                
+
                 collector.on('end', collected => {
                     if (collected.size === 0) {
                         interaction.editReply({ content: '⏱️ Tiempo agotado.', components: [] });
                     }
                 });
-                
+
                 return; // Exit crear subcommand
             }
-            
+
             // ===== MENU =====
             if (subCmd === 'menu') {
                 const { data: companies } = await supabase
                     .from('companies')
                     .select('*')
                     .contains('owner_ids', [userId]);
-                
-                if(!companies || companies.length === 0) {
+
+                if (!companies || companies.length === 0) {
                     return interaction.editReply('❌ No tienes ninguna empresa registrada.\nUsa `/empresa crear` para registrar una.');
                 }
-                
+
                 const company = companies[0]; // Show first company
-                
+
                 const embed = new EmbedBuilder()
                     .setColor('#FFD700')
                     .setTitle(`🏢 ${company.name}`)
@@ -4042,66 +4058,66 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                         { name: '🚗 Vehículos', value: `${company.vehicle_count}`, inline: true },
                         { name: '📍 Estado', value: company.status, inline: true }
                     );
-                
+
                 if (company.location) embed.addFields({ name: '📍 Ubicación', value: company.location });
                 if (company.banner_url) embed.setImage(company.banner_url);
-                
+
                 return interaction.editReply({ embeds: [embed] });
             }
-            
+
             // ===== COBRAR (POS Terminal) =====
             if (subCmd === 'cobrar') {
                 return interaction.editReply('💳 Sistema POS disponible pronto.');
             }
-            
+
             // ===== CREDITO =====
             if (subCmd === 'credito') {
                 return interaction.editReply('💳 Crédito empresarial disponible pronto.');
             }
-            
+
             // ===== CREDITO PAGAR =====
             if (subCmd === 'credito-pagar') {
                 return interaction.editReply('💳 Pago de crédito disponible pronto.');
             }
-            
+
             // ===== CREDITO INFO =====
             if (subCmd === 'credito-info') {
                 return interaction.editReply('💳 Info de crédito disponible pronto.');
             }
-            
+
             // ===== LISTAR USUARIO (STAFF) =====
             if (subCmd === 'listar-usuario') {
                 if (!interaction.member.permissions.has('Administrator')) {
                     return interaction.editReply('⛔ Solo staff puede usar este comando.');
                 }
-                
+
                 const targetUser = interaction.options.getUser('usuario');
                 const { data: companies } = await supabase
                     .from('companies')
                     .select('*')
                     .contains('owner_ids', [targetUser.id]);
-                
+
                 if (!companies || companies.length === 0) {
                     return interaction.editReply(`ℹ️ ${targetUser.username} no tiene empresas registradas.`);
                 }
-                
-                const list = companies.map((c, i) => `${i+1}. **${c.name}** (${c.status}) - $${(c.balance || 0).toLocaleString()}`).join('\n');
-                
+
+                const list = companies.map((c, i) => `${i + 1}. **${c.name}** (${c.status}) - $${(c.balance || 0).toLocaleString()}`).join('\n');
+
                 const embed = new EmbedBuilder()
                     .setColor('#0099FF')
                     .setTitle(`🏢 Empresas de ${targetUser.username}`)
                     .setDescription(list)
                     .setFooter({ text: `Total: ${companies.length} empresas` });
-                
+
                 return interaction.editReply({ embeds: [embed] });
             }
-            
+
         } catch (error) {
             console.error('[empresa] Error:', error);
             return interaction.editReply('❌ Error procesando el comando de empresa.');
         }
     }
-        else if (commandName === 'inversion') {
+    else if (commandName === 'inversion') {
         await interaction.deferReply(); // Global defer
 
         const subCmd = interaction.options.getSubcommand();
