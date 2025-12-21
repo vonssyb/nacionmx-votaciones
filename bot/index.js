@@ -3201,16 +3201,6 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                     });
                     cCred.on('end', c => { if (c.size === 0) interaction.editReply({ content: '⏱️ Tiempo agotado.', components: [] }); });
                     return;
-                    console.error(dbError);
-                    return interaction.editReply({ content: '❌ Pago recibido en efectivo, pero error al actualizar BD. Contacta a Staff.', ephemeral: isPrivate });
-                }
-
-                await interaction.editReply({ content: `✅ **Pago Exitoso**. \nHas pagado **$${amount.toLocaleString()}**.\nTu deuda restante es: **$${newDebt.toLocaleString()}**.`, ephemeral: isPrivate });
-
-            } catch (err) {
-                console.error("Payment Critical Error:", err);
-                await interaction.editReply({ content: `❌ Error procesando el pago: ${err.message}`, ephemeral: isPrivate });
-            }
         }
 
 

@@ -60,7 +60,7 @@ let globalStocks = [
     { symbol: 'VNSSB', name: 'Vonssyb Studios', base: 2500, current: 2500, type: 'Empresa', volatility: 0.012 }, // 🎮 Premium tech
 
     // Mexican Companies (volatilidad baja, precios realistas)
-    { symbol: 'PEMEX', name: 'Petróleos Mexicanos', base: 150, current: 150, type: 'Empresa', volatility: 0.02 },
+    { symbol: 'ALPEK', name: 'Alpek S.A.B. de C.V.', base: 150, current: 150, type: 'Empresa', volatility: 0.02 },
     { symbol: 'WALMEX', name: 'Walmart México', base: 450, current: 450, type: 'Empresa', volatility: 0.015 },
     { symbol: 'FEMSA', name: 'FEMSA', base: 1200, current: 1200, type: 'Empresa', volatility: 0.01 },
     { symbol: 'NMX', name: 'Nación MX Corp', base: 500, current: 500, type: 'Empresa', volatility: 0.025 }
@@ -1582,31 +1582,34 @@ async function getAvailablePaymentMethods(userId, guildId) {
     };
 
     try {
+
         // Check debit card
-        const { data: debitCard } = await supabase
+        const { data: debitCard, error: debitError } = await supabase
             .from('debit_cards')
             .select('*')
-            .eq('user_id', userId)
-            .eq('is_active', true)
+            .eq('discord_user_id', userId)
+            .eq('status', 'active')
             .maybeSingle();
+
         if (debitCard) {
             methods.debit.available = true;
             methods.debit.card = debitCard;
         }
 
         // Check personal credit card
-        const { data: citizen } = await supabase
+        const { data: citizen, error: citError } = await supabase
             .from('citizens')
             .select('id')
             .eq('discord_id', userId)
             .maybeSingle();
 
         if (citizen) {
-            const { data: creditCard } = await supabase
+            const { data: creditCard, error: credError } = await supabase
                 .from('credit_cards')
                 .select('*')
                 .eq('citizen_id', citizen.id)
                 .maybeSingle();
+
             if (creditCard) {
                 methods.credit.available = true;
                 methods.credit.card = creditCard;
@@ -1614,14 +1617,14 @@ async function getAvailablePaymentMethods(userId, guildId) {
         }
 
         // Check business credit (company + business credit card)
-        const { data: companies } = await supabase
+        const { data: companies, error: compError } = await supabase
             .from('companies')
             .select('*')
             .contains('owner_ids', [userId]);
 
         if (companies && companies.length > 0) {
             // Check if company has business credit card
-            const { data: businessCard } = await supabase
+            const { data: businessCard, error: bizError } = await supabase
                 .from('business_credit_cards')
                 .select('*')
                 .eq('company_id', companies[0].id)
@@ -3181,21 +3184,23 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                     }
 
                     // 3. Take Money from UnbelievaBoat
-                    await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, amount, `Pago Tarjeta ${userCard.card_type}`);
+                    // Show payment selector  
+                    const pmCred = await getAvailablePaymentMethods(interaction.user.id, interaction.guildId);
+                    const pbCred = createPaymentButtons(pmCred, 'cred_pay');
+                    await interaction.editReply({ content: `💳 **Pago Tarjeta ${userCard.card_type}**\n💰 $${amount.toLocaleString()}\n\n**Método:**`, components: [pbCred] });
+                    const fCred = i => i.user.id === interaction.user.id && i.customId.startsWith('cred_pay_');
+                    const cCred = interaction.channel.createMessageComponentCollector({ filter: fCred, time: 60000, max: 1 });
+                    cCred.on('collect', async (i) => {
+                        try { await i.deferUpdate(); } catch (err) { return; }
+                        const prCred = await processPayment(i.customId.replace('cred_pay_', ''), interaction.user.id, interaction.guildId, amount, `Pago Tarjeta ${userCard.card_type}`, pmCred);
+                        if (!prCred.success) return i.editReply({ content: prCred.error, components: [] });
 
-                } catch (ubError) {
-                    console.error("UB Payment Error:", ubError);
-                    return interaction.editReply({ content: `❌ Error verificando fondos o procesando cobro: ${ubError.message}`, ephemeral: isPrivate });
-                }
-
-                // 4. Update DB
-                const newDebt = userCard.current_balance - amount;
-                const { error: dbError } = await supabase
-                    .from('credit_cards')
-                    .update({ current_balance: newDebt, last_payment_date: new Date().toISOString() })
-                    .eq('id', userCard.id);
-
-                if (dbError) {
+                        const newDebt = userCard.current_balance - amount;
+                        await supabase.from('credit_cards').update({ current_balance: newDebt }).eq('id', userCard.id);
+                        await i.editReply({ content: `✅ Pago procesado (${prCred.method})\n💳 ${userCard.card_type}\n💰 Pagado: $${amount.toLocaleString()}\n📊 Nuevo saldo: $${newDebt.toLocaleString()}`, components: [] });
+                    });
+                    cCred.on('end', c => { if (c.size === 0) interaction.editReply({ content: '⏱️ Tiempo agotado.', components: [] }); });
+                    return;
                     console.error(dbError);
                     return interaction.editReply({ content: '❌ Pago recibido en efectivo, pero error al actualizar BD. Contacta a Staff.', ephemeral: isPrivate });
                 }
@@ -4135,6 +4140,38 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             }
 
             // Remove Money
+            // Show payment selector
+            const pmInv = await getAvailablePaymentMethods(interaction.user.id, interaction.guildId);
+            const pbInv = createPaymentButtons(pmInv, 'inv_pay');
+            await interaction.editReply({ content: `💰 **$${amount.toLocaleString()}** x 7 días\n📈 Retorno: 5%\n\n**Método:**`, components: [pbInv] });
+            const fInv = i => i.user.id === interaction.user.id && i.customId.startsWith('inv_pay_');
+            const cInv = interaction.channel.createMessageComponentCollector({ filter: fInv, time: 60000, max: 1 });
+            cInv.on('collect', async (i) => {
+                try { await i.deferUpdate(); } catch (err) { console.error('[inv] defer:', err.message); return; }
+                const prInv = await processPayment(i.customId.replace('inv_pay_', ''), interaction.user.id, interaction.guildId, amount, 'Inversión Plazo Fijo', pmInv);
+                if (!prInv.success) return i.editReply({ content: prInv.error, components: [] });
+
+                // Calculate Dates and Profit
+                const now = new Date();
+                const endDate = new Date(now.getTime() + (7 * 24 * 60 * 60 * 1000));
+                const interestRate = 5;
+                const payout = amount + (amount * (interestRate / 100));
+
+                // Insert DB
+                await supabase.from('investments').insert([{
+                    discord_id: interaction.user.id,
+                    invested_amount: amount,
+                    interest_rate: interestRate,
+                    start_date: now.toISOString(),
+                    end_date: endDate.toISOString(),
+                    payout_amount: payout,
+                    status: 'active'
+                }]);
+
+                await i.editReply({ content: `✅ Inversión creada (${prInv.method}). Retorno: **$${payout.toLocaleString()}** en 7 días.`, components: [] });
+            });
+            cInv.on('end', c => { if (c.size === 0) interaction.editReply({ content: '⏱️ Tiempo agotado.', components: [] }); });
+            return;
             await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, amount, `Inversión Plazo Fijo`);
 
             // Calculate Dates and Profit
@@ -4462,14 +4499,26 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             let report = `💰 **Nómina Pagada: ${groupName}**\nTotal: $${total.toLocaleString()}\n\n`;
 
             // Deduct from Owner
-            await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, total, `Pago Nómina: ${groupName}`);
+            // Show payment selector
+            const pmNom = await getAvailablePaymentMethods(interaction.user.id, interaction.guildId);
+            const pbNom = createPaymentButtons(pmNom, 'nom_pay');
+            await interaction.editReply({ content: `💼 **Nómina${groupName ? ': ' + groupName : ''}**\n💰 $${total.toLocaleString()}\n👥 ${members.length} empleados\n\n**Método:**`, components: [pbNom] });
+            const fNom = i => i.user.id === interaction.user.id && i.customId.startsWith('nom_pay_');
+            const cNom = interaction.channel.createMessageComponentCollector({ filter: fNom, time: 60000, max: 1 });
+            cNom.on('collect', async (i) => {
+                try { await i.deferUpdate(); } catch (err) { return; }
+                const prNom = await processPayment(i.customId.replace('nom_pay_', ''), interaction.user.id, interaction.guildId, total, `Pago Nómina${groupName ? ': ' + groupName : ''}`, pmNom);
+                if (!prNom.success) return i.editReply({ content: prNom.error, components: [] });
 
-            // Pay Employees
-            for (const m of members) {
-                await billingService.ubService.addMoney(interaction.guildId, m.member_discord_id, m.salary, `Nómina de ${interaction.user.username}`);
-                report += `✅ <@${m.member_discord_id}>: $${m.salary.toLocaleString()}\n`;
-            }
-
+                let report = `💰 **Nómina Pagada** (${prNom.method})\nTotal: $${total.toLocaleString()}\n\n`;
+                for (const m of members) {
+                    await billingService.ubService.addMoney(interaction.guildId, m.member_discord_id, m.salary, `Nómina${groupName ? ' de ' + groupName : ''}`);
+                    report += `✅ <@${m.member_discord_id}>: $${m.salary.toLocaleString()}\n`;
+                }
+                await i.editReply({ content: report, components: [] });
+            });
+            cNom.on('end', c => { if (c.size === 0) interaction.editReply({ content: '⏱️ Tiempo agotado.', components: [] }); });
+            return;
             await interaction.editReply(report);
         }
     }
@@ -4781,7 +4830,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 const cBolsa = interaction.channel.createMessageComponentCollector({ filter: fBolsa, time: 60000, max: 1 });
                 cBolsa.on('collect', async (i) => {
                     try { await i.deferUpdate(); } catch (err) { console.error('[bolsa] defer failed:', err.message); return; }
-                    const prBolsa = await processPayment(i.customId.replace('casino_pay_', ''), interaction.user.id, interaction.guildId, totalCost, `Compra ${cantidad} ${symbol}`, pmBolsa);
+                    const prBolsa = await processPayment(i.customId.replace('bolsa_pay_', ''), interaction.user.id, interaction.guildId, totalCost, `Compra ${cantidad} ${symbol}`, pmBolsa);
                     if (!prBolsa.success) return i.editReply({ content: prBolsa.error, components: [] });
 
                     // Update portfolio
