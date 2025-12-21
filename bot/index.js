@@ -3201,6 +3201,10 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                     });
                     cCred.on('end', c => { if (c.size === 0) interaction.editReply({ content: '⏱️ Tiempo agotado.', components: [] }); });
                     return;
+                } catch (err) {
+                    console.error('[credito] Error:', err);
+                    return interaction.editReply({ content: '❌ Error procesando pago.', components: [] });
+                }
 
 
 
