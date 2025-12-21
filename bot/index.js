@@ -4517,9 +4517,228 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             });
             cNom.on('end', c => { if (c.size === 0) interaction.editReply({ content: '⏱️ Tiempo agotado.', components: [] }); });
             return;
-            await interaction.editReply(report);
         }
     }
+
+    else if (commandName === 'jugar') {
+        await interaction.deferReply();
+        const game = interaction.options.getSubcommand();
+        const userId = interaction.user.id;
+
+        // Get user chips
+        const { data: userChips } = await supabase.from('casino_chips').select('*').eq('user_id', userId).maybeSingle();
+        if (!userChips || userChips.chips < 10) {
+            return interaction.editReply('❌ No tienes suficientes fichas. Compra con `/casino fichas comprar`');
+        }
+
+        if (game === 'slots') {
+            const bet = interaction.options.getInteger('apuesta');
+            if (userChips.chips < bet) return interaction.editReply(`❌ Insufficient chips. You have: ${userChips.chips}`);
+
+            await supabase.from('casino_chips').update({ chips: userChips.chips - bet }).eq('user_id', userId);
+
+            const symbols = ['🍒', '🍋', '🍊', '⭐', '💎'];
+            const r1 = symbols[Math.floor(Math.random() * symbols.length)];
+            const r2 = symbols[Math.floor(Math.random() * symbols.length)];
+            const r3 = symbols[Math.floor(Math.random() * symbols.length)];
+
+            let win = 0, mult = 0;
+            if (r1 === r2 && r2 === r3) {
+                mult = r1 === '💎' ? 50 : r1 === '⭐' ? 25 : 10;
+                win = bet * mult;
+            } else if (r1 === r2 || r2 === r3 || r1 === r3) {
+                mult = 2;
+                win = bet * 2;
+            }
+
+            if (win > 0) {
+                await supabase.from('casino_chips').update({ chips: userChips.chips - bet + win, total_won: (userChips.total_won || 0) + win, games_played: (userChips.games_played || 0) + 1 }).eq('user_id', userId);
+            } else {
+                await supabase.from('casino_chips').update({ total_lost: (userChips.total_lost || 0) + bet, games_played: (userChips.games_played || 0) + 1 }).eq('user_id', userId);
+            }
+
+            const embed = new EmbedBuilder().setTitle('🎰 Slots').setDescription(`${r1} ${r2} ${r3}`).setColor(win > 0 ? 0x00FF00 : 0xFF0000).addFields({ name: 'Bet', value: `${bet}`, inline: true }, { name: 'Result', value: win > 0 ? `WIN! ${win} (${mult}x)` : 'Lost', inline: true });
+            return interaction.editReply({ embeds: [embed] });
+        }
+
+        else if (game === 'dice') {
+            const bet = interaction.options.getInteger('apuesta');
+            if (userChips.chips < bet) return interaction.editReply(`❌ Insufficient chips`);
+
+            await supabase.from('casino_chips').update({ chips: userChips.chips - bet }).eq('user_id', userId);
+
+            const roll = Math.floor(Math.random() * 6) + Math.floor(Math.random() * 6) + 2; // 2d6 = 2-12
+            const choice = interaction.options.getString('tipo') || 'alto';
+
+            let won = false;
+            if (choice === 'alto' && roll >= 8) won = true;
+            if (choice === 'bajo' && roll <= 6) won = true;
+            if (choice === 'par' && roll % 2 === 0) won = true;
+            if (choice === 'impar' && roll % 2 === 1) won = true;
+            if (choice === 'siete' && roll === 7) won = true;
+
+            const payout = choice === 'siete' ? (won ? bet * 4 : 0) : (won ? bet * 2 : 0);
+
+            if (payout > 0) {
+                await supabase.from('casino_chips').update({ chips: userChips.chips - bet + payout, total_won: (userChips.total_won || 0) + payout, games_played: (userChips.games_played || 0) + 1 }).eq('user_id', userId);
+            } else {
+                await supabase.from('casino_chips').update({ total_lost: (userChips.total_lost || 0) + bet, games_played: (userChips.games_played || 0) + 1 }).eq('user_id', userId);
+            }
+
+            const embed = new EmbedBuilder().setTitle('🎲 Dice').setDescription(`Roll: **${roll}** | Bet: ${choice}`).setColor(won ? 0x00FF00 : 0xFF0000).addFields({ name: won ? '✅ WIN' : '❌ LOSE', value: won ? `+${payout}` : `-${bet}` });
+            return interaction.editReply({ embeds: [embed] });
+        }
+
+        else if (game === 'blackjack') {
+            const bet = interaction.options.getInteger('apuesta');
+            if (userChips.chips < bet) return interaction.editReply(`❌ Insufficient chips`);
+
+            await supabase.from('casino_chips').update({ chips: userChips.chips - bet }).eq('user_id', userId);
+
+            const card = () => Math.min(Math.floor(Math.random() * 13) + 1, 10);
+            let pTotal = card() + card();
+            let dTotal = card() + card();
+            while (pTotal < 17) pTotal += card();
+            while (dTotal < 17) dTotal += card();
+
+            let result = '', payout = 0;
+            if (pTotal > 21) result = '❌ Bust';
+            else if (dTotal > 21) { result = '✅ Dealer bust - WIN'; payout = bet * 2; }
+            else if (pTotal > dTotal) { result = '✅ WIN'; payout = bet * 2; }
+            else if (pTotal === dTotal) { result = '🟡 TIE'; payout = bet; }
+            else result = '❌ Dealer wins';
+
+            if (payout > 0) {
+                await supabase.from('casino_chips').update({ chips: userChips.chips - bet + payout, total_won: (userChips.total_won || 0) + (payout - bet), games_played: (userChips.games_played || 0) + 1 }).eq('user_id', userId);
+            } else {
+                await supabase.from('casino_chips').update({ total_lost: (userChips.total_lost || 0) + bet, games_played: (userChips.games_played || 0) + 1 }).eq('user_id', userId);
+            }
+
+            const embed = new EmbedBuilder().setTitle('🃏 Blackjack').addFields({ name: 'You', value: `${pTotal}`, inline: true }, { name: 'Dealer', value: `${dTotal}`, inline: true }, { name: 'Result', value: result }).setColor(payout >= bet * 2 ? 0x00FF00 : payout > 0 ? 0xFFFF00 : 0xFF0000);
+            return interaction.editReply({ embeds: [embed] });
+        }
+
+        else if (game === 'ruleta') {
+            const betType = interaction.options.getString('tipo');
+            const bet = interaction.options.getInteger('apuesta');
+            const numero = interaction.options.getInteger('numero');
+
+            if (userChips.chips < bet) return interaction.editReply(`❌ Insufficient chips`);
+
+            await supabase.from('casino_chips').update({ chips: userChips.chips - bet }).eq('user_id', userId);
+
+            const spin = Math.floor(Math.random() * 37); // 0-36
+            const reds = [1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36];
+            const isRed = reds.includes(spin);
+            const isBlack = spin > 0 && !isRed;
+
+            let won = false, mult = 1;
+
+            if (betType === 'numero' && spin === numero) { won = true; mult = 35; }
+            else if (betType === 'red' && isRed) { won = true; mult = 1; }
+            else if (betType === 'black' && isBlack) { won = true; mult = 1; }
+            else if (betType === 'even' && spin > 0 && spin % 2 === 0) { won = true; mult = 1; }
+            else if (betType === 'odd' && spin > 0 && spin % 2 === 1) { won = true; mult = 1; }
+            else if (betType === '1-18' && spin >= 1 && spin <= 18) { won = true; mult = 1; }
+            else if (betType === '19-36' && spin >= 19 && spin <= 36) { won = true; mult = 1; }
+            else if (betType === '1st12' && spin >= 1 && spin <= 12) { won = true; mult = 2; }
+            else if (betType === '2nd12' && spin >= 13 && spin <= 24) { won = true; mult = 2; }
+            else if (betType === '3rd12' && spin >= 25 && spin <= 36) { won = true; mult = 2; }
+            else if (betType === 'col1' && spin > 0 && (spin - 1) % 3 === 0) { won = true; mult = 2; }
+            else if (betType === 'col2' && spin > 0 && (spin - 2) % 3 === 0) { won = true; mult = 2; }
+            else if (betType === 'col3' && spin > 0 && (spin - 3) % 3 === 0) { won = true; mult = 2; }
+
+            const payout = won ? bet * (mult + 1) : 0;
+
+            if (payout > 0) {
+                await supabase.from('casino_chips').update({ chips: userChips.chips - bet + payout, total_won: (userChips.total_won || 0) + payout, games_played: (userChips.games_played || 0) + 1 }).eq('user_id', userId);
+            } else {
+                await supabase.from('casino_chips').update({ total_lost: (userChips.total_lost || 0) + bet, games_played: (userChips.games_played || 0) + 1 }).eq('user_id', userId);
+            }
+
+            const color = spin === 0 ? '🟢' : isRed ? '🔴' : '🔵';
+            const embed = new EmbedBuilder().setTitle('🎡 Roulette').setDescription(`${color} Number: **${spin}**`).addFields({ name: won ? '✅ WIN' : '❌ LOSE', value: won ? `+${payout} (${mult + 1}x)` : `-${bet}` }).setColor(won ? 0x00FF00 : 0xFF0000);
+            return interaction.editReply({ embeds: [embed] });
+        }
+
+        else if (game === 'crash') {
+            const bet = interaction.options.getInteger('apuesta');
+            if (userChips.chips < bet) return interaction.editReply(`❌ Insufficient chips`);
+
+            await supabase.from('casino_chips').update({ chips: userChips.chips - bet }).eq('user_id', userId);
+
+            const crashPoint = Math.random() < 0.03 ? 1.00 : (0.99 / (1 - Math.random()));
+            const capped = Math.min(crashPoint, 50);
+            const cashout = 1.5 + Math.random() * 2;
+
+            let payout = 0;
+            if (cashout < capped) {
+                payout = Math.floor(bet * cashout);
+                await supabase.from('casino_chips').update({ chips: userChips.chips - bet + payout, total_won: (userChips.total_won || 0) + (payout - bet), games_played: (userChips.games_played || 0) + 1 }).eq('user_id', userId);
+            } else {
+                await supabase.from('casino_chips').update({ total_lost: (userChips.total_lost || 0) + bet, games_played: (userChips.games_played || 0) + 1 }).eq('user_id', userId);
+            }
+
+            const embed = new EmbedBuilder().setTitle('🚀 Crash').setDescription(`Crash: **${capped.toFixed(2)}x**\nYour cashout: **${cashout.toFixed(2)}x**`).addFields({ name: payout > 0 ? '✅ WIN' : '❌ LOSE', value: payout > 0 ? `+${payout}` : `-${bet}` }).setColor(payout > 0 ? 0x00FF00 : 0xFF0000);
+            return interaction.editReply({ embeds: [embed] });
+        }
+
+        else if (game === 'race') {
+            const bet = interaction.options.getInteger('apuesta');
+            const horse = interaction.options.getInteger('caballo');
+
+            if (userChips.chips < bet) return interaction.editReply(`❌ Insufficient chips`);
+
+            await supabase.from('casino_chips').update({ chips: userChips.chips - bet }).eq('user_id', userId);
+
+            const horses = [
+                { id: 1, name: '🐴 Relámpago', pos: 0 },
+                { id: 2, name: '🏇 Trueno', pos: 0 },
+                { id: 3, name: '🐎 Viento', pos: 0 },
+                { id: 4, name: '🦄 Estrella', pos: 0 }
+            ];
+
+            for (let i = 0; i < 10; i++) {
+                horses.forEach(h => h.pos += Math.random() * 10);
+            }
+
+            horses.sort((a, b) => b.pos - a.pos);
+            const winner = horses[0].id;
+            const won = winner === horse;
+            const payout = won ? bet * 3 : 0;
+
+            if (payout > 0) {
+                await supabase.from('casino_chips').update({ chips: userChips.chips - bet + payout, total_won: (userChips.total_won || 0) + payout, games_played: (userChips.games_played || 0) + 1 }).eq('user_id', userId);
+            } else {
+                await supabase.from('casino_chips').update({ total_lost: (userChips.total_lost || 0) + bet, games_played: (userChips.games_played || 0) + 1 }).eq('user_id', userId);
+            }
+
+            const embed = new EmbedBuilder().setTitle('🏇 Horse Race').setDescription(`🏆 Winner: ${horses[0].name}\nYour bet: ${horses.find(h => h.id === horse).name}`).addFields({ name: won ? '✅ WIN' : '❌ LOSE', value: won ? `+${payout} (3x)` : `-${bet}` }).setColor(won ? 0x00FF00 : 0xFF0000);
+            return interaction.editReply({ embeds: [embed] });
+        }
+
+        else if (game === 'rusa') {
+            const bet = interaction.options.getInteger('apuesta');
+            if (userChips.chips < bet) return interaction.editReply(`❌ Insufficient chips`);
+
+            await supabase.from('casino_chips').update({ chips: userChips.chips - bet }).eq('user_id', userId);
+
+            const chamber = Math.floor(Math.random() * 6) + 1;
+            const survived = chamber !== 1; // 1 bullet in chamber 1
+
+            const payout = survived ? bet * 5 : 0;
+
+            if (survived) {
+                await supabase.from('casino_chips').update({ chips: userChips.chips - bet + payout, total_won: (userChips.total_won || 0) + payout, games_played: (userChips.games_played || 0) + 1 }).eq('user_id', userId);
+            } else {
+                await supabase.from('casino_chips').update({ total_lost: (userChips.total_lost || 0) + bet, games_played: (userChips.games_played || 0) + 1 }).eq('user_id', userId);
+            }
+
+            const embed = new EmbedBuilder().setTitle('🔫 Russian Roulette').setDescription(survived ? '💥 *Click* - Empty chamber!' : '💀 **BANG!** You\'re dead!').addFields({ name: survived ? '✅ SURVIVED' : '☠️ ELIMINATED', value: survived ? `+${payout} chips (5x)` : `Lost ${bet} chips` }).setColor(survived ? 0x00FF00 : 0x000000);
+            return interaction.editReply({ embeds: [embed] });
+        }
+    }
+
 
     else if (commandName === 'dar-robo') {
         await interaction.deferReply();
