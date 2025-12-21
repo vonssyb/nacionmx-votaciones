@@ -3814,6 +3814,72 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
         }
     }
 
+    else if (commandName === 'info') {
+        await interaction.deferReply();
+
+        let currentPage = 0;
+        const pages = [
+            new EmbedBuilder()
+                .setColor('#FFD700')
+                .setTitle('🏢 Nación MX - Información General')
+                .setDescription('**Servidor de Roleplay Mexicano**\nUn espacio dedicado a recrear la vida en México con un sistema económico realista.')
+                .addFields(
+                    { name: '📍 Ubicación', value: 'Ciudad de México, México 🇲🇽', inline: true },
+                    { name: '📅 Fundación', value: '2024', inline: true },
+                    { name: '👥 Modalidad', value: 'Roleplay Semi-Serio', inline: true },
+                    { name: '💼 Sistema Económico', value: 'Banco, Tarjetas, Inversiones, Casino, Empresas', inline: false },
+                    { name: '🎮 Actividades', value: '• Sistema bancario completo\n• Casino con 7 juegos\n• Mercado de acciones\n• Sistema empresarial\n• Inversiones a plazo fijo', inline: false }
+                )
+                .setFooter({ text: 'Página 1/3 • Usa los botones para navegar' }),
+
+            new EmbedBuilder()
+                .setColor('#00FF00')
+                .setTitle('👨‍💻 Equipo de Nación MX')
+                .setDescription('**Equipo de desarrollo y administración**')
+                .addFields(
+                    { name: '🏆 Fundadores', value: '• **Gonzalez** - Creador Principal\n• **Staff Team** - Equipo de Administración', inline: false },
+                    { name: '💻 Desarrollo', value: '• Sistema Bancario Completo\n• Bot Multi-funcional\n• Portal Web Integrado\n• Sistema de Casino\n• Gestión Empresarial', inline: false },
+                    { name: '📱 Contacto', value: 'Discord: Servidor Nación MX', inline: false }
+                )
+                .setFooter({ text: 'Página 2/3 • Gracias por ser parte de Nación MX' }),
+
+            new EmbedBuilder()
+                .setColor('#FF0000')
+                .setTitle('📜 Reglas Principales')
+                .setDescription('**Normas básicas del servidor**')
+                .addFields(
+                    { name: '✅ Hacer', value: '• Respetar a todos\n• Seguir el roleplay\n• Reportar bugs\n• Usar comandos apropiadamente\n• Divertirse', inline: true },
+                    { name: '❌ No Hacer', value: '• Spam o flood\n• Toxicidad\n• Abuso de bugs\n• Meta-gaming\n• Power-gaming', inline: true },
+                    { name: '⚠️ Sanciones', value: '**1ra:** Advertencia\n**2da:** Mute temporal\n**3ra:** Kick\n**4ta:** Ban', inline: false },
+                    { name: '📞 Soporte', value: 'Usa `/ayuda` o contacta al staff', inline: false }
+                )
+                .setFooter({ text: 'Página 3/3 • ¡Disfruta Nación MX!' })
+        ];
+
+        const row = new ActionRowBuilder().addComponents(
+            new ButtonBuilder().setCustomId('info_prev').setLabel('◀️ Anterior').setStyle(ButtonStyle.Primary).setDisabled(true),
+            new ButtonBuilder().setCustomId('info_next').setLabel('Siguiente ▶️').setStyle(ButtonStyle.Primary)
+        );
+
+        const message = await interaction.editReply({ embeds: [pages[0]], components: [row] });
+
+        const collector = message.createMessageComponentCollector({ time: 120000 });
+
+        collector.on('collect', async i => {
+            if (i.user.id !== interaction.user.id) return i.reply({ content: '❌ Solo quien ejecutó el comando puede navegar.', ephemeral: true });
+            await i.deferUpdate();
+            if (i.customId === 'info_next') currentPage++;
+            else if (i.customId === 'info_prev') currentPage--;
+            const newRow = new ActionRowBuilder().addComponents(
+                new ButtonBuilder().setCustomId('info_prev').setLabel('◀️ Anterior').setStyle(ButtonStyle.Primary).setDisabled(currentPage === 0),
+                new ButtonBuilder().setCustomId('info_next').setLabel('Siguiente ▶️').setStyle(ButtonStyle.Primary).setDisabled(currentPage === pages.length - 1)
+            );
+            await i.editReply({ embeds: [pages[currentPage]], components: [newRow] });
+        });
+
+        collector.on('end', () => interaction.editReply({ components: [] }).catch(() => { }));
+    }
+
     else if (commandName === 'rol') {
         await interaction.deferReply({ ephemeral: false });
         const subCmd = interaction.options.getSubcommand();
