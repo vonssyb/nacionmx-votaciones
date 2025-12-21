@@ -1636,11 +1636,6 @@ async function getAvailablePaymentMethods(userId, guildId) {
                 methods.businessCredit.company = companies[0];
             }
         }
-            cash: methods.cash.available,
-            debit: methods.debit.available,
-            credit: methods.credit.available,
-            business: methods.businessCredit.available
-        });
     } catch (error) {
         console.error('[getAvailablePaymentMethods] Error:', error);
     }
