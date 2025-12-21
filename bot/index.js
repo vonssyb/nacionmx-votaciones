@@ -6646,8 +6646,6 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
         const subcommand = interaction.options.getSubcommand();
 
         if (subcommand === 'otorgar') {
-            await interaction.deferReply();
-
             const targetUser = interaction.options.getUser('ciudadano');
             const tipo = interaction.options.getString('tipo');
 
