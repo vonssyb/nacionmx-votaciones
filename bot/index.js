@@ -1316,9 +1316,9 @@ client.once('ready', async () => {
                             ]
                         },
                         { name: 'logo', description: 'Logo de la empresa', type: 11, required: true },
+                        { name: 'discord_server', description: 'Enlace del servidor de Discord', type: 3, required: true },
                         { name: 'foto_local', description: 'Foto del local/establecimiento (Opcional)', type: 11, required: false },
                         { name: 'ubicacion', description: 'Ubicación RP del negocio', type: 3, required: false },
-                        { name: 'discord_server', description: 'Enlace del servidor de Discord', type: 3, required: true },
                         { name: 'co_dueño', description: 'Co-Dueño (Máx. 1)', type: 6, required: false },
                         {
                             name: 'es_privada',
