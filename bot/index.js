@@ -3850,67 +3850,71 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
     else if (commandName === 'info') {
         await interaction.deferReply();
 
-        let currentPage = 0;
-        const pages = [
-            new EmbedBuilder()
-                .setColor('#FFD700')
-                .setTitle('🏢 Nación MX - Información General')
-                .setDescription('**Servidor de Roleplay Mexicano**\nUn espacio dedicado a recrear la vida en México con un sistema económico realista.')
-                .addFields(
-                    { name: '📍 Ubicación', value: 'Ciudad de México, México 🇲🇽', inline: true },
-                    { name: '📅 Fundación', value: '2024', inline: true },
-                    { name: '👥 Modalidad', value: 'Roleplay Semi-Serio', inline: true },
-                    { name: '💼 Sistema Económico', value: 'Banco, Tarjetas, Inversiones, Casino, Empresas', inline: false },
-                    { name: '🎮 Actividades', value: '• Sistema bancario completo\n• Casino con 7 juegos\n• Mercado de acciones\n• Sistema empresarial\n• Inversiones a plazo fijo', inline: false }
-                )
-                .setFooter({ text: 'Página 1/3 • Usa los botones para navegar' }),
+        try {
+            const { data: companies, error } = await supabase.from('companies').select('*').order('created_at', { ascending: false });
 
-            new EmbedBuilder()
-                .setColor('#00FF00')
-                .setTitle('👨‍💻 Equipo de Nación MX')
-                .setDescription('**Equipo de desarrollo y administración**')
-                .addFields(
-                    { name: '🏆 Fundadores', value: '• **Gonzalez** - Creador Principal\n• **Staff Team** - Equipo de Administración', inline: false },
-                    { name: '💻 Desarrollo', value: '• Sistema Bancario Completo\n• Bot Multi-funcional\n• Portal Web Integrado\n• Sistema de Casino\n• Gestión Empresarial', inline: false },
-                    { name: '📱 Contacto', value: 'Discord: Servidor Nación MX', inline: false }
-                )
-                .setFooter({ text: 'Página 2/3 • Gracias por ser parte de Nación MX' }),
+            if (error) {
+                console.error('[/info] Error:', error);
+                return interaction.editReply('❌ Error obteniendo información de empresas.');
+            }
 
-            new EmbedBuilder()
-                .setColor('#FF0000')
-                .setTitle('📜 Reglas Principales')
-                .setDescription('**Normas básicas del servidor**')
-                .addFields(
-                    { name: '✅ Hacer', value: '• Respetar a todos\n• Seguir el roleplay\n• Reportar bugs\n• Usar comandos apropiadamente\n• Divertirse', inline: true },
-                    { name: '❌ No Hacer', value: '• Spam o flood\n• Toxicidad\n• Abuso de bugs\n• Meta-gaming\n• Power-gaming', inline: true },
-                    { name: '⚠️ Sanciones', value: '**1ra:** Advertencia\n**2da:** Mute temporal\n**3ra:** Kick\n**4ta:** Ban', inline: false },
-                    { name: '📞 Soporte', value: 'Usa `/ayuda` o contacta al staff', inline: false }
-                )
-                .setFooter({ text: 'Página 3/3 • ¡Disfruta Nación MX!' })
-        ];
+            if (!companies || companies.length === 0) {
+                return interaction.editReply('📋 No hay empresas registradas todavía.');
+            }
 
-        const row = new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId('info_prev').setLabel('◀️ Anterior').setStyle(ButtonStyle.Primary).setDisabled(true),
-            new ButtonBuilder().setCustomId('info_next').setLabel('Siguiente ▶️').setStyle(ButtonStyle.Primary)
-        );
+            const pages = [];
+            for (const company of companies) {
+                let ownersText = 'Sin propietarios';
+                if (company.owner_ids && company.owner_ids.length > 0) {
+                    ownersText = company.owner_ids.map(id => `<@${id}>`).join(', ');
+                }
 
-        const message = await interaction.editReply({ embeds: [pages[0]], components: [row] });
+                const embed = new EmbedBuilder()
+                    .setColor('#00D26A')
+                    .setTitle(`🏢 ${company.name || 'Sin nombre'}`)
+                    .setDescription(company.description || 'Sin descripción')
+                    .addFields(
+                        { name: '👥 Propietarios', value: ownersText, inline: false },
+                        { name: '📅 Registrada', value: new Date(company.created_at).toLocaleDateString('es-MX'), inline: true },
+                        { name: '💼 Tipo', value: company.business_type || 'No especificado', inline: true }
+                    )
+                    .setFooter({ text: `Empresa ${pages.length + 1}/${companies.length}` })
+                    .setTimestamp();
 
-        const collector = message.createMessageComponentCollector({ time: 120000 });
+                if (company.logo_url) embed.setThumbnail(company.logo_url);
+                if (company.location_photo_url) embed.setImage(company.location_photo_url);
+                if (company.address) embed.addFields({ name: '📍 Ubicación', value: company.address, inline: false });
 
-        collector.on('collect', async i => {
-            if (i.user.id !== interaction.user.id) return i.reply({ content: '❌ Solo quien ejecutó el comando puede navegar.', ephemeral: true });
-            await i.deferUpdate();
-            if (i.customId === 'info_next') currentPage++;
-            else if (i.customId === 'info_prev') currentPage--;
-            const newRow = new ActionRowBuilder().addComponents(
-                new ButtonBuilder().setCustomId('info_prev').setLabel('◀️ Anterior').setStyle(ButtonStyle.Primary).setDisabled(currentPage === 0),
-                new ButtonBuilder().setCustomId('info_next').setLabel('Siguiente ▶️').setStyle(ButtonStyle.Primary).setDisabled(currentPage === pages.length - 1)
+                pages.push(embed);
+            }
+
+            let currentPage = 0;
+            const row = new ActionRowBuilder().addComponents(
+                new ButtonBuilder().setCustomId('info_prev').setLabel('◀️').setStyle(ButtonStyle.Primary).setDisabled(true),
+                new ButtonBuilder().setCustomId('info_next').setLabel('▶️').setStyle(ButtonStyle.Primary).setDisabled(pages.length === 1)
             );
-            await i.editReply({ embeds: [pages[currentPage]], components: [newRow] });
-        });
 
-        collector.on('end', () => interaction.editReply({ components: [] }).catch(() => { }));
+            const message = await interaction.editReply({ embeds: [pages[0]], components: pages.length > 1 ? [row] : [] });
+
+            if (pages.length > 1) {
+                const collector = message.createMessageComponentCollector({ time: 180000 });
+                collector.on('collect', async i => {
+                    if (i.user.id !== interaction.user.id) return i.reply({ content: '❌ Solo tú puedes navegar.', ephemeral: true });
+                    await i.deferUpdate();
+                    if (i.customId === 'info_next') currentPage++;
+                    else currentPage--;
+                    const newRow = new ActionRowBuilder().addComponents(
+                        new ButtonBuilder().setCustomId('info_prev').setLabel('◀️').setStyle(ButtonStyle.Primary).setDisabled(currentPage === 0),
+                        new ButtonBuilder().setCustomId('info_next').setLabel('▶️').setStyle(ButtonStyle.Primary).setDisabled(currentPage === pages.length - 1)
+                    );
+                    await i.editReply({ embeds: [pages[currentPage]], components: [newRow] });
+                });
+                collector.on('end', () => interaction.editReply({ components: [] }).catch(() => { }));
+            }
+        } catch (err) {
+            console.error('[/info] Error:', err);
+            return interaction.editReply('❌ Error inesperado.');
+        }
     }
 
     else if (commandName === 'rol') {
