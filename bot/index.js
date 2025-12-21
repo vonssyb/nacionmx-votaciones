@@ -3900,20 +3900,51 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 }
 
                 const embed = new EmbedBuilder()
-                    .setColor('#00D26A')
+                    .setColor('#FFD700')  // Gold/Yellow for business
                     .setTitle(`🏢 ${company.name || 'Sin nombre'}`)
-                    .setDescription(company.description || 'Sin descripción')
+                    .setDescription(company.description || '_Sin descripción disponible_')
                     .addFields(
                         { name: '👥 Propietarios', value: ownersText, inline: false },
-                        { name: '📅 Registrada', value: new Date(company.created_at).toLocaleDateString('es-MX'), inline: true },
-                        { name: '💼 Tipo', value: company.business_type || 'No especificado', inline: true }
-                    )
-                    .setFooter({ text: `Empresa ${pages.length + 1}/${companies.length}` })
-                    .setTimestamp();
+                        { name: '💼 Tipo de Negocio', value: company.business_type || 'No especificado', inline: true },
+                        {
+                            name: '📅 Registrada', value: new Date(company.created_at).toLocaleDateString('es-MX', {
+                                year: 'numeric',
+                                month: 'long',
+                                day: 'numeric'
+                            }), inline: true
+                        }
+                    );
 
-                if (company.logo_url) embed.setThumbnail(company.logo_url);
-                if (company.location_photo_url) embed.setImage(company.location_photo_url);
-                if (company.address) embed.addFields({ name: '📍 Ubicación', value: company.address, inline: false });
+                // Address/Location
+                if (company.address) {
+                    embed.addFields({ name: '📍 Ubicación', value: company.address, inline: false });
+                }
+
+                // Contact info if available
+                if (company.phone || company.email) {
+                    let contactText = '';
+                    if (company.phone) contactText += `📞 ${company.phone}\n`;
+                    if (company.email) contactText += `📧 ${company.email}`;
+                    if (contactText) embed.addFields({ name: '📞 Contacto', value: contactText, inline: false });
+                }
+
+                // Business hours if available
+                if (company.hours) {
+                    embed.addFields({ name: '🕐 Horario', value: company.hours, inline: false });
+                }
+
+                // Add logo as thumbnail
+                if (company.logo_url) {
+                    embed.setThumbnail(company.logo_url);
+                }
+
+                // Add location photo as main image
+                if (company.location_photo_url) {
+                    embed.setImage(company.location_photo_url);
+                }
+
+                embed.setFooter({ text: `Empresa ${pages.length + 1}/${companies.length} • Directorio de Nación MX` })
+                    .setTimestamp();
 
                 pages.push(embed);
             }
