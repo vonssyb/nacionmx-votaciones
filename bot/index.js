@@ -5935,7 +5935,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
 
             // 2. Create Pending Transfer FIRST (24h Delay)
             const releaseDate = new Date();
-            releaseDate.setHours(releaseDate.getHours() + 24); // Pending for 24 hours
+            releaseDate.setHours(releaseDate.getHours() + 24);
 
             const { error: insertError } = await supabase.from('giro_transfers').insert({
                 sender_id: interaction.user.id,
@@ -5947,17 +5947,23 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             });
 
             if (insertError) {
-                console.error('[giro] Error creating transfer:', insertError);
-                return interaction.editReply(`❌ Error creando la transferencia postal.\nDetalles: ${insertError.message || JSON.stringify(insertError)}`);
+                console.error('[giro] Error:', insertError);
+                return interaction.editReply(`❌ Error creando giro.\nDetalles: ${insertError.message}`);
             }
 
-            // 3. Deduct Money from Sender NOW
-            await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, monto, `[Giro Postal] A ${destUser.tag}`);
-
-            // 4. Send Confirmation
-            await interaction.editReply({
-                content: `✅ **Giro Postal Enviado**\n\n- Destinatario: **${destUser.tag}**\n- Monto: **$${monto.toLocaleString()}**\n- Razón: ${razon}\n- **Se procesará en:** 24 horas\n\n_El dinero se debitó de tu efectivo. El destinatario lo recibirá mañana._`
+            // 3. Show payment selector
+            const pmGiro = await getAvailablePaymentMethods(interaction.user.id, interaction.guildId);
+            const pbGiro = createPaymentButtons(pmGiro);
+            await interaction.editReply({ content: `📮 **Giro Postal**\n👤 ${destUser.tag}\n💰 $${monto.toLocaleString()}\n⏰ 24h\n\n**Método:**`, components: [pbGiro] });
+            const fGiro = i => i.user.id === interaction.user.id && i.customId.startsWith('pay_');
+            const cGiro = interaction.channel.createMessageComponentCollector({ filter: fGiro, time: 60000, max: 1 });
+            cGiro.on('collect', async (i) => {
+                await i.deferUpdate();
+                const prGiro = await processPayment(i.customId.replace('pay_', ''), interaction.user.id, interaction.guildId, monto, `[Giro] ${destUser.tag}`, pmGiro);
+                if (!prGiro.success) return i.editReply({ content: prGiro.error, components: [] });
+                await i.editReply({ content: `✅ **Giro Enviado** (${prGiro.method})\n\nDestinatario: **${destUser.tag}**\nMonto: **$${monto.toLocaleString()}**\nEntrega: 24 horas`, components: [] });
             });
+            cGiro.on('end', collected => { if (collected.size === 0) interaction.editReply({ content: '⏱️ Tiempo agotado.', components: [] }); });
 
         } catch (error) {
             console.error(error);
