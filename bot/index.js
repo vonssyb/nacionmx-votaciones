@@ -1306,21 +1306,23 @@ client.once('ready', async () => {
                 // Dice
                 {
                     name: 'dice',
-                    description: '🎲 Tira un dado y apuesta alto/bajo',
+                    description: '🎲 Dados - Alto/Bajo/Par/Impar/Siete',
                     type: 1,
                     options: [
                         {
-                            name: 'direccion',
-                            description: 'Over (arriba) o Under (abajo)',
+                            name: 'tipo',
+                            description: 'Tipo de apuesta',
                             type: 3,
                             required: true,
                             choices: [
-                                { name: 'Over (Mayor que)', value: 'over' },
-                                { name: 'Under (Menor que)', value: 'under' }
+                                { name: 'Alto (8-12)', value: 'alto' },
+                                { name: 'Bajo (2-6)', value: 'bajo' },
+                                { name: 'Par', value: 'par' },
+                                { name: 'Impar', value: 'impar' },
+                                { name: 'Siete (4x)', value: 'siete' }
                             ]
                         },
-                        { name: 'numero', description: 'Número 1-99', type: 4, required: true, min_value: 1, max_value: 99 },
-                        { name: 'apuesta', description: 'Fichas a apostar', type: 4, required: true, min_value: 1 }
+                        { name: 'apuesta', description: 'Fichas a apostar', type: 4, required: true, min_value: 10 }
                     ]
                 },
                 // Blackjack
@@ -1335,7 +1337,7 @@ client.once('ready', async () => {
                 // Ruleta
                 {
                     name: 'ruleta',
-                    description: '🎡 Ruleta europea',
+                    description: '🎡 Ruleta europea - Mesa completa',
                     type: 1,
                     options: [
                         {
@@ -1344,21 +1346,29 @@ client.once('ready', async () => {
                             type: 3,
                             required: true,
                             choices: [
-                                { name: 'Rojo', value: 'red' },
-                                { name: 'Negro', value: 'black' },
-                                { name: 'Par', value: 'even' },
-                                { name: 'Impar', value: 'odd' },
-                                { name: 'Número Exacto', value: 'number' }
+                                { name: 'Rojo (1:1)', value: 'red' },
+                                { name: 'Negro (1:1)', value: 'black' },
+                                { name: 'Par (1:1)', value: 'even' },
+                                { name: 'Impar (1:1)', value: 'odd' },
+                                { name: '1-18 (1:1)', value: '1-18' },
+                                { name: '19-36 (1:1)', value: '19-36' },
+                                { name: '1st 12 (2:1)', value: '1st12' },
+                                { name: '2nd 12 (2:1)', value: '2nd12' },
+                                { name: '3rd 12 (2:1)', value: '3rd12' },
+                                { name: 'Columna 1 (2:1)', value: 'col1' },
+                                { name: 'Columna 2 (2:1)', value: 'col2' },
+                                { name: 'Columna 3 (2:1)', value: 'col3' },
+                                { name: 'Número (35:1)', value: 'numero' }
                             ]
                         },
-                        { name: 'apuesta', description: 'Fichas a apostar', type: 4, required: true, min_value: 1 },
-                        { name: 'numero', description: 'Si elegiste número exacto (0-36)', type: 4, required: false, min_value: 0, max_value: 36 }
+                        { name: 'apuesta', description: 'Fichas a apostar', type: 4, required: true, min_value: 10 },
+                        { name: 'numero', description: 'Si elegiste número (0-36)', type: 4, required: false, min_value: 0, max_value: 36 }
                     ]
                 },
                 // Caballos
                 {
-                    name: 'caballos',
-                    description: '🐴 Carrera de caballos',
+                    name: 'race',
+                    description: '🏇 Carrera de caballos (3x)',
                     type: 1,
                     options: [
                         {
@@ -1367,7 +1377,7 @@ client.once('ready', async () => {
                             type: 4,
                             required: true,
                             choices: [
-                                { name: '🐴 Caballo 1', value: 1 },
+                                { name: '🐴 Relámpago', value: 1 },
                                 { name: '🐴 Caballo 2', value: 2 },
                                 { name: '🐴 Caballo 3', value: 3 },
                                 { name: '🐴 Caballo 4', value: 4 },
