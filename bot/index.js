@@ -6685,7 +6685,8 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             // 3. Show payment selector
             const pmGiro = await getAvailablePaymentMethods(interaction.user.id, interaction.guildId);
             const pbGiro = createPaymentButtons(pmGiro, 'giro_pay');
-            await interaction.editReply({ content: `📮 **Giro Postal**\n👤 ${destUser.tag}\n💰 $${monto.toLocaleString()}\n⏰ 24h\n\n**Método:**`, components: [pbGiro] });
+            const paymentEmbed = createPaymentEmbed(`📮 Giro a ${destUser.tag} (Entrega 24h)`, monto, pmGiro);
+            await interaction.editReply({ embeds: [paymentEmbed], components: [pbGiro] });
             const fGiro = i => i.user.id === interaction.user.id && i.customId.startsWith('giro_pay_');
             const cGiro = interaction.channel.createMessageComponentCollector({ filter: fGiro, time: 60000, max: 1 });
             cGiro.on('collect', async (i) => {
