@@ -4705,22 +4705,41 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
 
         else if (game === 'blackjack') {
             const bet = interaction.options.getInteger('apuesta');
-            if (userChips.chips < bet) return interaction.editReply(`❌ Insufficient chips`);
+            if (userChips.chips < bet) return interaction.editReply(`❌ Fichas insuficientes`);
 
             await supabase.from('casino_chips').update({ chips: userChips.chips - bet }).eq('user_id', userId);
 
             const card = () => Math.min(Math.floor(Math.random() * 13) + 1, 10);
             let pTotal = card() + card();
             let dTotal = card() + card();
-            while (pTotal < 17) pTotal += card();
-            while (dTotal < 17) dTotal += card();
+
+            // ANIMATE!
+            await interaction.editReply(`🃏 **BLACKJACK**\n\nRepartiendo cartas...`);
+            await sleep(800);
+            await interaction.editReply(`🃏 **BLACKJACK**\n\nTu mano: **${pTotal}**\nDealer: **?**`);
+            await sleep(800);
+
+            while (pTotal < 17) {
+                pTotal += card();
+                await interaction.editReply(`🃏 **BLACKJACK**\n\nTomas carta...\nTu mano: **${pTotal}**\nDealer: **?**`);
+                await sleep(600);
+            }
+
+            await interaction.editReply(`🃏 **BLACKJACK**\n\nTu mano: **${pTotal}**\nDealer revela: **${dTotal}**`);
+            await sleep(800);
+
+            while (dTotal < 17) {
+                dTotal += card();
+                await interaction.editReply(`🃏 **BLACKJACK**\n\nTu mano: **${pTotal}**\nDealer toma: **${dTotal}**`);
+                await sleep(600);
+            }
 
             let result = '', payout = 0;
-            if (pTotal > 21) result = '❌ Bust';
-            else if (dTotal > 21) { result = '✅ Dealer bust - WIN'; payout = bet * 2; }
-            else if (pTotal > dTotal) { result = '✅ WIN'; payout = bet * 2; }
-            else if (pTotal === dTotal) { result = '🟡 TIE'; payout = bet; }
-            else result = '❌ Dealer wins';
+            if (pTotal > 21) result = '❌ Te pasaste!';
+            else if (dTotal > 21) { result = '✅ Dealer se pasó - GANAS'; payout = bet * 2; }
+            else if (pTotal > dTotal) { result = '✅ GANAS'; payout = bet * 2; }
+            else if (pTotal === dTotal) { result = '🟡 EMPATE'; payout = bet; }
+            else result = '❌ Dealer gana';
 
             if (payout > 0) {
                 await supabase.from('casino_chips').update({ chips: userChips.chips - bet + payout, total_won: (userChips.total_won || 0) + (payout - bet), games_played: (userChips.games_played || 0) + 1 }).eq('user_id', userId);
@@ -4728,8 +4747,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 await supabase.from('casino_chips').update({ total_lost: (userChips.total_lost || 0) + bet, games_played: (userChips.games_played || 0) + 1 }).eq('user_id', userId);
             }
 
-            const embed = new EmbedBuilder().setTitle('🃏 Blackjack').addFields({ name: 'You', value: `${pTotal}`, inline: true }, { name: 'Dealer', value: `${dTotal}`, inline: true }, { name: 'Result', value: result }).setColor(payout >= bet * 2 ? 0x00FF00 : payout > 0 ? 0xFFFF00 : 0xFF0000);
-            return interaction.editReply({ embeds: [embed] });
+            return interaction.editReply(`🃏 **BLACKJACK**\n\nTu mano: **${pTotal}**\nDealer: **${dTotal}**\n\n${result}\n💼 ${(userChips.chips - bet + payout).toLocaleString()} fichas`);
         }
 
         else if (game === 'ruleta') {
@@ -4771,19 +4789,22 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             }
 
             const color = spin === 0 ? '🟢' : isRed ? '🔴' : '🔵';
-            const embed = new EmbedBuilder().setTitle('🎡 Roulette').setDescription(`${color} Number: **${spin}**`).addFields({ name: won ? '✅ WIN' : '❌ LOSE', value: won ? `+${payout} (${mult + 1}x)` : `-${bet}` }).setColor(won ? 0x00FF00 : 0xFF0000);
-            return interaction.editReply({ embeds: [embed] });
+            const resultText = won ? `✅ **¡GANAS!** +${payout} fichas (${mult + 1}x)` : `❌ **Perdiste** -${bet} fichas`;
+            return interaction.editReply(`🎡 **RULETA**\n\n${color} **${spin}**\n\nApuesta: **${betType.toUpperCase()}**\n${resultText}\n💼 ${(userChips.chips - bet + payout).toLocaleString()} fichas`);
         }
 
         else if (game === 'crash') {
             const bet = interaction.options.getInteger('apuesta');
-            if (userChips.chips < bet) return interaction.editReply(`❌ Insufficient chips`);
+            if (userChips.chips < bet) return interaction.editReply(`❌ Fichas insuficientes`);
 
             await supabase.from('casino_chips').update({ chips: userChips.chips - bet }).eq('user_id', userId);
 
             const crashPoint = Math.random() < 0.03 ? 1.00 : (0.99 / (1 - Math.random()));
             const capped = Math.min(crashPoint, 50);
             const cashout = 1.5 + Math.random() * 2;
+
+            // ANIMATE!
+            await animateCrash(interaction, capped, cashout);
 
             let payout = 0;
             if (cashout < capped) {
@@ -4793,8 +4814,8 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 await supabase.from('casino_chips').update({ total_lost: (userChips.total_lost || 0) + bet, games_played: (userChips.games_played || 0) + 1 }).eq('user_id', userId);
             }
 
-            const embed = new EmbedBuilder().setTitle('🚀 Crash').setDescription(`Crash: **${capped.toFixed(2)}x**\nYour cashout: **${cashout.toFixed(2)}x**`).addFields({ name: payout > 0 ? '✅ WIN' : '❌ LOSE', value: payout > 0 ? `+${payout}` : `-${bet}` }).setColor(payout > 0 ? 0x00FF00 : 0xFF0000);
-            return interaction.editReply({ embeds: [embed] });
+            const resultText = payout > 0 ? `✅ **¡GANAS!** +${payout} fichas` : `💥 **CRASH!** Perdiste -${bet}`;
+            return interaction.editReply(`🚀 **CRASH**\n\n💥 Crashed en: **${capped.toFixed(2)}x**\nTu cashout: **${cashout.toFixed(2)}x**\n\n${resultText}\n💼 ${(userChips.chips - bet + payout).toLocaleString()} fichas`);
         }
 
         else if (game === 'race') {
@@ -4806,15 +4827,14 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             await supabase.from('casino_chips').update({ chips: userChips.chips - bet }).eq('user_id', userId);
 
             const horses = [
-                { id: 1, name: '🐴 Relámpago', pos: 0 },
-                { id: 2, name: '🏇 Trueno', pos: 0 },
-                { id: 3, name: '🐎 Viento', pos: 0 },
-                { id: 4, name: '🦄 Estrella', pos: 0 }
+                { id: 1, emoji: '🐴', name: 'Relámpago', pos: 0 },
+                { id: 2, emoji: '🏇', name: 'Trueno', pos: 0 },
+                { id: 3, emoji: '🐎', name: 'Viento', pos: 0 },
+                { id: 4, emoji: '🦄', name: 'Estrella', pos: 0 }
             ];
 
-            for (let i = 0; i < 10; i++) {
-                horses.forEach(h => h.pos += Math.random() * 10);
-            }
+            // ANIMATE!
+            await animateRace(interaction, horses);
 
             horses.sort((a, b) => b.pos - a.pos);
             const winner = horses[0].id;
@@ -4827,18 +4847,37 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 await supabase.from('casino_chips').update({ total_lost: (userChips.total_lost || 0) + bet, games_played: (userChips.games_played || 0) + 1 }).eq('user_id', userId);
             }
 
-            const embed = new EmbedBuilder().setTitle('🏇 Horse Race').setDescription(`🏆 Winner: ${horses[0].name}\nYour bet: ${horses.find(h => h.id === horse).name}`).addFields({ name: won ? '✅ WIN' : '❌ LOSE', value: won ? `+${payout} (3x)` : `-${bet}` }).setColor(won ? 0x00FF00 : 0xFF0000);
-            return interaction.editReply({ embeds: [embed] });
+            const resultText = won ? `✅ **¡GANAS!** +${payout} fichas (3x)` : `❌ **Perdiste** -${bet} fichas`;
+            const yourHorse = horses.find(h => h.id === horse);
+            return interaction.editReply(`🏇 **CARRERAS**\n\n🏆 Ganador: ${horses[0].emoji} **${horses[0].name}**\nTu apuesta: ${yourHorse.emoji} **${yourHorse.name}**\n\n${resultText}\n💼 ${(userChips.chips - bet + payout).toLocaleString()} fichas`);
         }
 
         else if (game === 'rusa') {
             const bet = interaction.options.getInteger('apuesta');
-            if (userChips.chips < bet) return interaction.editReply(`❌ Insufficient chips`);
+            if (userChips.chips < bet) return interaction.editReply(`❌ Fichas insuficientes`);
 
             await supabase.from('casino_chips').update({ chips: userChips.chips - bet }).eq('user_id', userId);
 
+            // MAXIMUM TENSION!
+            await interaction.editReply(`🔫 **RULETA RUSA**\n\nCargando revólver...\n⚫⚫⚫⚫⚫🔴`);
+            await sleep(1200);
+
+            await interaction.editReply(`🔫 **RULETA RUSA**\n\nGirando tambor...\n🔄🔄🔄`);
+            await sleep(1200);
+
+            await interaction.editReply(`🔫 **RULETA RUSA**\n\nApuntando...\n😰😰😰`);
+            await sleep(1500);
+
             const chamber = Math.floor(Math.random() * 6) + 1;
             const survived = chamber !== 1; // 1 bullet in chamber 1
+
+            if (survived) {
+                await interaction.editReply(`🔫 **RULETA RUSA**\n\n***CLICK***\n💥 Cámara vacía!`);
+                await sleep(800);
+            } else {
+                await interaction.editReply(`🔫 **RULETA RUSA**\n\n***BANG!***\n💀💀💀`);
+                await sleep(800);
+            }
 
             const payout = survived ? bet * 5 : 0;
 
@@ -4848,8 +4887,8 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 await supabase.from('casino_chips').update({ total_lost: (userChips.total_lost || 0) + bet, games_played: (userChips.games_played || 0) + 1 }).eq('user_id', userId);
             }
 
-            const embed = new EmbedBuilder().setTitle('🔫 Russian Roulette').setDescription(survived ? '💥 *Click* - Empty chamber!' : '💀 **BANG!** You\'re dead!').addFields({ name: survived ? '✅ SURVIVED' : '☠️ ELIMINATED', value: survived ? `+${payout} chips (5x)` : `Lost ${bet} chips` }).setColor(survived ? 0x00FF00 : 0x000000);
-            return interaction.editReply({ embeds: [embed] });
+            const resultText = survived ? `✅ **¡SOBREVIVISTE!**\n💰 +${payout} fichas (5x)` : `☠️ **ELIMINADO**\n💸 Perdiste ${bet} fichas`;
+            return interaction.editReply(`🔫 **RULETA RUSA**\n\nCámara: **${chamber}/6**\n${survived ? '💥 *Click*' : '💀 **BANG!**'}\n\n${resultText}\n💼 ${(userChips.chips - bet + payout).toLocaleString()} fichas`);
         }
     }
 
