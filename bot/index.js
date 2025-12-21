@@ -3920,12 +3920,9 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                     embed.addFields({ name: '📍 Ubicación', value: company.address, inline: false });
                 }
 
-                // Contact info if available
-                if (company.phone || company.email) {
-                    let contactText = '';
-                    if (company.phone) contactText += `📞 ${company.phone}\n`;
-                    if (company.email) contactText += `📧 ${company.email}`;
-                    if (contactText) embed.addFields({ name: '📞 Contacto', value: contactText, inline: false });
+                // Discord server (required)
+                if (company.discord_server) {
+                    embed.addFields({ name: '💬 Servidor Discord', value: company.discord_server, inline: false });
                 }
 
                 // Business hours if available
