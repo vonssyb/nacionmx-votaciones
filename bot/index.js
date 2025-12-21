@@ -2771,6 +2771,165 @@ client.on('interactionCreate', async interaction => {
         return;
     }
 
+    // ============================================================
+    // COMPANY VEHICLE ADDITION HANDLERS
+    // ============================================================
+
+    // BUTTON: Add Vehicle to Company
+    if (interaction.isButton() && interaction.customId.startsWith('company_addvehicle_')) {
+        const companyId = interaction.customId.split('_')[2];
+
+        try {
+            const { data: company } = await supabase
+                .from('companies')
+                .select('*')
+                .eq('id', companyId)
+                .single();
+
+            if (!company) {
+                return interaction.reply({ content: '❌ Empresa no encontrada.', ephemeral: true });
+            }
+
+            if (!company.owner_ids.includes(interaction.user.id)) {
+                return interaction.reply({ content: '⛔ Solo los dueños pueden agregar vehículos.', ephemeral: true });
+            }
+
+            const vehicleMenu = new StringSelectMenuBuilder()
+                .setCustomId(`vehicle_select_${companyId}`)
+                .setPlaceholder('Selecciona el tipo de vehículo')
+                .addOptions([
+                    { label: 'Ejecutiva Ligera', description: '$420,000 - Vehículo ligero para ejecutivos', value: 'ejecutiva_ligera', emoji: '🚗' },
+                    { label: 'Operativa de Servicio', description: '$550,000 - Vehículo para operaciones', value: 'operativa_servicio', emoji: '🚙' },
+                    { label: 'Carga Pesada', description: '$850,000 - Camión de carga', value: 'carga_pesada', emoji: '🚚' },
+                    { label: 'Ejecutiva Premium', description: '$1,200,000 - Vehículo premium de lujo', value: 'ejecutiva_premium', emoji: '🚘' },
+                    { label: 'Asistencia Industrial', description: '$1,500,000 - Vehículo industrial pesado', value: 'asistencia_industrial', emoji: '🚛' }
+                ]);
+
+            const row = new ActionRowBuilder().addComponents(vehicleMenu);
+
+            await interaction.reply({
+                content: `🚗 **Selecciona el tipo de vehículo para ${company.name}**`,
+                components: [row],
+                ephemeral: true
+            });
+
+        } catch (error) {
+            console.error('[company_addvehicle]', error);
+            await interaction.reply({ content: '❌ Error cargando opciones.', ephemeral: true });
+        }
+        return;
+    }
+
+    // SELECT MENU: Vehicle Type Selection
+    if (interaction.isStringSelectMenu() && interaction.customId.startsWith('vehicle_select_')) {
+        await interaction.deferUpdate();
+
+        const companyId = interaction.customId.split('_')[2];
+        const vehicleType = interaction.values[0];
+
+        const VEHICLE_COSTS = {
+            'ejecutiva_ligera': 420000,
+            'operativa_servicio': 550000,
+            'carga_pesada': 850000,
+            'ejecutiva_premium': 1200000,
+            'asistencia_industrial': 1500000
+        };
+
+        const VEHICLE_NAMES = {
+            'ejecutiva_ligera': '🚗 Ejecutiva Ligera',
+            'operativa_servicio': '🚙 Operativa de Servicio',
+            'carga_pesada': '🚚 Carga Pesada',
+            'ejecutiva_premium': '🚘 Ejecutiva Premium',
+            'asistencia_industrial': '🚛 Asistencia Industrial'
+        };
+
+        const cost = VEHICLE_COSTS[vehicleType];
+        const name = VEHICLE_NAMES[vehicleType];
+
+        try {
+            const pmVehicle = await getAvailablePaymentMethods(interaction.user.id, interaction.guildId);
+            const pbVehicle = createPaymentButtons(pmVehicle, 'vehicle_pay');
+            const vehicleEmbed = createPaymentEmbed(name, cost, pmVehicle);
+
+            await interaction.editReply({
+                content: `💰 **Compra de vehículo para la empresa**`,
+                embeds: [vehicleEmbed],
+                components: [pbVehicle]
+            });
+
+            const filter = i => i.user.id === interaction.user.id && i.customId.startsWith('vehicle_pay_');
+            const collector = interaction.channel.createMessageComponentCollector({ filter, time: 60000, max: 1 });
+
+            collector.on('collect', async i => {
+                try {
+                    await i.deferUpdate();
+                    const method = i.customId.replace('vehicle_pay_', '');
+
+                    const paymentResult = await processPayment(method, interaction.user.id, interaction.guildId, cost, `[Vehículo] ${name}`, pmVehicle);
+
+                    if (!paymentResult.success) {
+                        return i.editReply({ content: paymentResult.error, embeds: [], components: [] });
+                    }
+
+                    const { data: company } = await supabase.from('companies').select('vehicle_count').eq('id', companyId).single();
+                    await supabase.from('companies').update({ vehicle_count: (company.vehicle_count || 0) + 1 }).eq('id', companyId);
+
+                    const vehicleRow = new ActionRowBuilder().addComponents(
+                        new ButtonBuilder().setCustomId(`company_addvehicle_${companyId}`).setLabel('➕ Agregar Otro Vehículo').setStyle(ButtonStyle.Primary),
+                        new ButtonBuilder().setCustomId(`company_finish_${companyId}`).setLabel('✅ Finalizar').setStyle(ButtonStyle.Success)
+                    );
+
+                    const successEmbed = new EmbedBuilder()
+                        .setColor('#00FF00')
+                        .setTitle('✅ Vehículo Agregado')
+                        .setDescription(`${name}\n\n💰 Pagado: $${cost.toLocaleString()}\n💳 Método: ${paymentResult.method}`)
+                        .addFields({ name: '🚗 Total de Vehículos', value: `${(company.vehicle_count || 0) + 1}`, inline: true })
+                        .setTimestamp();
+
+                    await i.editReply({ content: '¿Deseas agregar más vehículos?', embeds: [successEmbed], components: [vehicleRow] });
+
+                } catch (error) {
+                    console.error('[vehicle payment]', error);
+                    await i.editReply({ content: '❌ Error procesando pago.', embeds: [], components: [] });
+                }
+            });
+
+            collector.on('end', collected => {
+                if (collected.size === 0) {
+                    interaction.editReply({ content: '⏰ Tiempo agotado.', embeds: [], components: [] });
+                }
+            });
+
+        } catch (error) {
+            console.error('[vehicle_select]', error);
+            await interaction.editReply({ content: '❌ Error procesando vehículo.', components: [] });
+        }
+        return;
+    }
+
+    // BUTTON: Finish Adding Vehicles
+    if (interaction.isButton() && interaction.customId.startsWith('company_finish_')) {
+        const companyId = interaction.customId.split('_')[2];
+
+        try {
+            const { data: company } = await supabase.from('companies').select('name, vehicle_count').eq('id', companyId).single();
+
+            const finalEmbed = new EmbedBuilder()
+                .setColor('#FFD700')
+                .setTitle('🏢 Empresa Completada')
+                .setDescription(`**${company.name}**\n\nRegistro finalizado exitosamente.`)
+                .addFields({ name: '🚗 Vehículos Registrados', value: `${company.vehicle_count || 0}`, inline: true })
+                .setTimestamp();
+
+            await interaction.update({ content: '✅ Configuración de empresa completada!', embeds: [finalEmbed], components: [] });
+
+        } catch (error) {
+            console.error('[company_finish]', error);
+            await interaction.update({ content: '✅ Empresa finalizada.', components: [] });
+        }
+        return;
+    }
+
     // BUTTON: Company Stats
     if (interaction.isButton() && interaction.customId.startsWith('company_stats_')) {
         await interaction.deferReply({ ephemeral: false });
