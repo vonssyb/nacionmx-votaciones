@@ -1582,31 +1582,38 @@ async function getAvailablePaymentMethods(userId, guildId) {
     };
 
     try {
+        console.log(`[getAvailablePaymentMethods] Checking for user: ${userId}`);
+
         // Check debit card
-        const { data: debitCard } = await supabase
+        const { data: debitCard, error: debitError } = await supabase
             .from('debit_cards')
             .select('*')
-            .eq('user_id', userId)
+            .eq('discord_user_id', userId)
             .eq('is_active', true)
             .maybeSingle();
+
+        console.log(`[getAvailablePaymentMethods] Debit card:`, { found: !!debitCard, error: debitError?.message });
         if (debitCard) {
             methods.debit.available = true;
             methods.debit.card = debitCard;
         }
 
         // Check personal credit card
-        const { data: citizen } = await supabase
+        const { data: citizen, error: citError } = await supabase
             .from('citizens')
             .select('id')
             .eq('discord_id', userId)
             .maybeSingle();
 
+        console.log(`[getAvailablePaymentMethods] Citizen:`, { found: !!citizen, error: citError?.message });
         if (citizen) {
-            const { data: creditCard } = await supabase
+            const { data: creditCard, error: credError } = await supabase
                 .from('credit_cards')
                 .select('*')
                 .eq('citizen_id', citizen.id)
                 .maybeSingle();
+
+            console.log(`[getAvailablePaymentMethods] Credit card:`, { found: !!creditCard, error: credError?.message });
             if (creditCard) {
                 methods.credit.available = true;
                 methods.credit.card = creditCard;
@@ -1614,25 +1621,33 @@ async function getAvailablePaymentMethods(userId, guildId) {
         }
 
         // Check business credit (company + business credit card)
-        const { data: companies } = await supabase
+        const { data: companies, error: compError } = await supabase
             .from('companies')
             .select('*')
             .contains('owner_ids', [userId]);
 
+        console.log(`[getAvailablePaymentMethods] Companies:`, { found: companies?.length || 0, error: compError?.message });
         if (companies && companies.length > 0) {
             // Check if company has business credit card
-            const { data: businessCard } = await supabase
+            const { data: businessCard, error: bizError } = await supabase
                 .from('business_credit_cards')
                 .select('*')
                 .eq('company_id', companies[0].id)
                 .maybeSingle();
 
+            console.log(`[getAvailablePaymentMethods] Business card:`, { found: !!businessCard, error: bizError?.message });
             if (businessCard) {
                 methods.businessCredit.available = true;
                 methods.businessCredit.card = businessCard;
                 methods.businessCredit.company = companies[0];
             }
         }
+        console.log(`[getAvailablePaymentMethods] Final methods:`, {
+            cash: methods.cash.available,
+            debit: methods.debit.available,
+            credit: methods.credit.available,
+            business: methods.businessCredit.available
+        });
     } catch (error) {
         console.error('[getAvailablePaymentMethods] Error:', error);
     }
