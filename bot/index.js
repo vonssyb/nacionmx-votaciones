@@ -4773,69 +4773,34 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 const currentPrice = stock.current;
                 const totalCost = currentPrice * cantidad;
 
-                // Check balance and deduct
-                const balance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
-                if ((balance.cash || 0) < totalCost) {
-                    return interaction.editReply(`❌ No tienes suficiente efectivo. Necesitas: $${totalCost.toLocaleString()}, Tienes: $${(balance.cash || 0).toLocaleString()}`);
-                }
-
-                await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, totalCost, `Compra ${cantidad} acciones ${symbol}`, 'cash');
-
-                // Payment is already processed in requestPaymentMethod
-                const methodLabel = '💵 Efectivo';
-
-                // Update portfolio
-                const { data: existing } = await supabase
-                    .from('stock_portfolios')
-                    .select('*')
-                    .eq('discord_user_id', interaction.user.id)
-                    .eq('stock_symbol', symbol)
-                    .single();
-
-                if (existing) {
-                    const totalShares = existing.shares + cantidad;
-                    const newAvgPrice = ((existing.avg_buy_price * existing.shares) + (currentPrice * cantidad)) / totalShares;
-
-                    await supabase
-                        .from('stock_portfolios')
-                        .update({ shares: totalShares, avg_buy_price: newAvgPrice })
-                        .eq('discord_user_id', interaction.user.id)
-                        .eq('stock_symbol', symbol);
-                } else {
-                    await supabase
-                        .from('stock_portfolios')
-                        .insert({
-                            discord_user_id: interaction.user.id,
-                            stock_symbol: symbol,
-                            shares: cantidad,
-                            avg_buy_price: currentPrice
-                        });
-                }
-
-                // Log transaction
-                await supabase
-                    .from('stock_transactions')
-                    .insert({
-                        discord_user_id: interaction.user.id,
-                        stock_symbol: symbol,
-                        transaction_type: 'BUY',
-                        shares: cantidad,
-                        price_per_share: currentPrice,
-                        total_amount: totalCost
-                    });
-
-                const embed = new EmbedBuilder()
-                    .setTitle('✅ Compra Exitosa')
-                    .setColor(0x00FF00)
-                    .setDescription(`Has comprado **${cantidad} acciones de ${symbol}**`)
-                    .addFields(
-                        { name: 'Precio por Acción', value: `$${currentPrice.toLocaleString()}`, inline: true },
-                        { name: 'Total Pagado', value: `$${totalCost.toLocaleString()}`, inline: true },
-                        { name: 'Balance Restante', value: `$${(balance.bank - totalCost).toLocaleString()}`, inline: true }
-                    )
-                    .setTimestamp();
-
-                await interaction.editReply({ embeds: [embed] });
+                // Show payment selector
+                const pmBolsa = await getAvailablePaymentMethods(interaction.user.id, interaction.guildId);
+                const pbBolsa = createPaymentButtons(pmBolsa);
+                await interaction.editReply({ content: `📈 **${symbol}**\n💰 **$${totalCost.toLocaleString()}**\n📊 ${cantidad} acciones\n\n**Método:**`, components: [pbBolsa] });
+                const fBolsa = i => i.user.id === interaction.user.id && i.customId.startsWith('pay_');
+                const cBolsa = interaction.channel.createMessageComponentCollector({ filter: fBolsa, time: 60000, max: 1 });
+                cBolsa.on('collect', async (i) => {
+                    await i.deferUpdate();
+                    const prBolsa = await processPayment(i.customId.replace('pay_', ''), interaction.user.id, interaction.guildId, totalCost, `Compra ${cantidad} ${symbol}`, pmBolsa);
+                    if (!prBolsa.success) return i.editReply({ content: prBolsa.error, components: [] });
+                    
+                    // Update portfolio
+                    const { data: existing } = await supabase.from('stock_portfolios').select('*').eq('discord_user_id', interaction.user.id).eq('stock_symbol', symbol).single();
+                    if (existing) {
+                        const totalShares = existing.shares + cantidad;
+                        const newAvgPrice = ((existing.avg_buy_price * existing.shares) + (currentPrice * cantidad)) / totalShares;
+                        await supabase.from('stock_portfolios').update({ shares: totalShares, avg_buy_price: newAvgPrice }).eq('discord_user_id', interaction.user.id).eq('stock_symbol', symbol);
+                    } else {
+                        await supabase.from('stock_portfolios').insert({ discord_user_id: interaction.user.id, stock_symbol: symbol, shares: cantidad, avg_buy_price: currentPrice });
+                    }
+                    
+                    // Log transaction
+                    await supabase.from('stock_transactions').insert({ discord_user_id: interaction.user.id, stock_symbol: symbol, transaction_type: 'BUY', shares: cantidad, price_per_share: currentPrice, total_amount: totalCost });
+                    
+                    const embed = new EmbedBuilder().setTitle('✅ Compra Exitosa').setColor(0x00FF00).setDescription(`Has comprado **${cantidad} acciones de ${symbol}**`).addFields({ name: 'Precio', value: `$${currentPrice.toLocaleString()}`, inline: true }, { name: 'Total', value: `$${totalCost.toLocaleString()}`, inline: true }, { name: 'Método', value: prBolsa.method, inline: true }).setTimestamp();
+                    await i.editReply({ embeds: [embed], components: [] });
+                });
+                cBolsa.on('end', collected => { if (collected.size === 0) interaction.editReply({ content: '⏱️ Tiempo agotado.', components: [] }); });
             } catch (error) {
                 console.error('Error comprando acciones:', error);
                 await interaction.editReply({ content: '❌ Error procesando la compra. Intenta de nuevo.', ephemeral: false });
