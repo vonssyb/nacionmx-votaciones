@@ -1318,6 +1318,7 @@ client.once('ready', async () => {
                         { name: 'logo', description: 'Logo de la empresa', type: 11, required: true },
                         { name: 'foto_local', description: 'Foto del local/establecimiento (Opcional)', type: 11, required: false },
                         { name: 'ubicacion', description: 'Ubicación RP del negocio', type: 3, required: false },
+                        { name: 'discord_server', description: 'Enlace del servidor de Discord', type: 3, required: true },
                         { name: 'co_dueño', description: 'Co-Dueño (Máx. 1)', type: 6, required: false },
                         {
                             name: 'es_privada',
@@ -4459,6 +4460,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 const logo = interaction.options.getAttachment('logo');
                 const fotoLocal = interaction.options.getAttachment('foto_local');
                 const ubicacion = interaction.options.getString('ubicacion');
+                const discordServer = interaction.options.getString('discord_server');
                 const coDueño = interaction.options.getUser('co_dueño');
                 const esPrivada = interaction.options.getBoolean('es_privada') || false;
                 const vehiculo1 = interaction.options.getString('vehiculo_1');
@@ -4553,7 +4555,8 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                             is_private: esPrivada,
                             owner_ids: ownerIds,
                             vehicle_count: [vehiculo1, vehiculo2, vehiculo3].filter(v => v).length,
-                            industry_type: 'General'
+                            industry_type: 'General',
+                            discord_server: discordServer
                         }).select().single();
 
                         if (error) {
