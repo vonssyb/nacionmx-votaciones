@@ -1589,7 +1589,7 @@ async function getAvailablePaymentMethods(userId, guildId) {
             .from('debit_cards')
             .select('*')
             .eq('discord_user_id', userId)
-            .eq('is_active', true)
+            .eq('status', 'active')
             .maybeSingle();
 
         console.log(`[getAvailablePaymentMethods] Debit card:`, { found: !!debitCard, error: debitError?.message });
