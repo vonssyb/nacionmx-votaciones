@@ -3877,7 +3877,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                     .setDescription('Compra fichas, juega, y gana premios!')
                     .addFields(
                         { name: '🎫 Fichas', value: 'Compra con `/casino fichas comprar` (1 ficha = $1)\nRetira con `/casino fichas retirar`', inline: false },
-                        { name: '🎮 Juegos Disponibles', value: '• Slots (próximamente)\n• Dice (próximamente)\n• Blackjack (próximamente)', inline: false },
+                        { name: '🎮 Juegos Disponibles', value: '**🎰 Slots** `/jugar slots`\n**🎲 Dados** `/jugar dice` - Par/Impar/Alto/Bajo/Siete\n**🃏 Blackjack** `/jugar blackjack`\n**🎡 Ruleta** `/jugar ruleta` - Mesa completa\n**🚀 Crash** `/jugar crash`\n**🏇 Carreras** `/jugar race`\n**🔫 Ruleta Rusa** `/jugar rusa` - ⚠️ 5x o muerte', inline: false },
                         { name: '📊 Estadísticas', value: 'Ve tu perfil con `/casino saldo`', inline: false }
                     );
 
