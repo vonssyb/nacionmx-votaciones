@@ -1640,33 +1640,33 @@ async function getAvailablePaymentMethods(userId, guildId) {
     return methods;
 }
 
-function createPaymentButtons(availableMethods) {
+function createPaymentButtons(availableMethods, prefix = 'pay') {
     const buttons = [];
 
     if (availableMethods.cash.available) {
         buttons.push(new ButtonBuilder()
-            .setCustomId('pay_cash')
+            .setCustomId(`${prefix}_cash`)
             .setLabel(availableMethods.cash.label)
             .setStyle(ButtonStyle.Primary));
     }
 
     if (availableMethods.debit.available) {
         buttons.push(new ButtonBuilder()
-            .setCustomId('pay_debit')
+            .setCustomId(`${prefix}_debit`)
             .setLabel(availableMethods.debit.label)
             .setStyle(ButtonStyle.Success));
     }
 
     if (availableMethods.credit.available) {
         buttons.push(new ButtonBuilder()
-            .setCustomId('pay_credit')
+            .setCustomId(`${prefix}_credit`)
             .setLabel(availableMethods.credit.label)
             .setStyle(ButtonStyle.Danger));
     }
 
     if (availableMethods.businessCredit.available) {
         buttons.push(new ButtonBuilder()
-            .setCustomId('pay_business')
+            .setCustomId(`${prefix}_business`)
             .setLabel(availableMethods.businessCredit.label)
             .setStyle(ButtonStyle.Secondary));
     }
@@ -3776,19 +3776,19 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 if (action === 'comprar') {
                     // Show payment selector
                     const pmCasino = await getAvailablePaymentMethods(userId, interaction.guildId);
-                    const pbCasino = createPaymentButtons(pmCasino);
+                    const pbCasino = createPaymentButtons(pmCasino, 'casino_pay');
 
                     await interaction.editReply({
                         content: `🎰 **Comprar Fichas**\n💰 Monto: **$${cantidad.toLocaleString()}**\n\n**Selecciona método:**`,
                         components: [pbCasino]
                     });
 
-                    const fCas = i => i.user.id === userId && i.customId.startsWith('pay_');
+                    const fCas = i => i.user.id === userId && i.customId.startsWith('casino_pay_');
                     const cCas = interaction.channel.createMessageComponentCollector({ filter: fCas, time: 60000, max: 1 });
 
                     cCas.on('collect', async (i) => {
                         await i.deferUpdate();
-                        const prCas = await processPayment(i.customId.replace('pay_', ''), userId, interaction.guildId, cantidad, '[Casino] Compra fichas', pmCasino);
+                        const prCas = await processPayment(i.customId.replace('bolsa_pay_', ''), userId, interaction.guildId, cantidad, '[Casino] Compra fichas', pmCasino);
 
                         if (!prCas.success) return i.editReply({ content: prCas.error, components: [] });
 
@@ -4775,15 +4775,15 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
 
                 // Show payment selector
                 const pmBolsa = await getAvailablePaymentMethods(interaction.user.id, interaction.guildId);
-                const pbBolsa = createPaymentButtons(pmBolsa);
+                const pbBolsa = createPaymentButtons(pmBolsa, 'bolsa_pay');
                 await interaction.editReply({ content: `📈 **${symbol}**\n💰 **$${totalCost.toLocaleString()}**\n📊 ${cantidad} acciones\n\n**Método:**`, components: [pbBolsa] });
-                const fBolsa = i => i.user.id === interaction.user.id && i.customId.startsWith('pay_');
+                const fBolsa = i => i.user.id === interaction.user.id && i.customId.startsWith('bolsa_pay_');
                 const cBolsa = interaction.channel.createMessageComponentCollector({ filter: fBolsa, time: 60000, max: 1 });
                 cBolsa.on('collect', async (i) => {
                     try { await i.deferUpdate(); } catch (err) { console.error('[bolsa] defer failed:', err.message); return; }
-                    const prBolsa = await processPayment(i.customId.replace('pay_', ''), interaction.user.id, interaction.guildId, totalCost, `Compra ${cantidad} ${symbol}`, pmBolsa);
+                    const prBolsa = await processPayment(i.customId.replace('casino_pay_', ''), interaction.user.id, interaction.guildId, totalCost, `Compra ${cantidad} ${symbol}`, pmBolsa);
                     if (!prBolsa.success) return i.editReply({ content: prBolsa.error, components: [] });
-                    
+
                     // Update portfolio
                     const { data: existing } = await supabase.from('stock_portfolios').select('*').eq('discord_user_id', interaction.user.id).eq('stock_symbol', symbol).single();
                     if (existing) {
@@ -4793,10 +4793,10 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                     } else {
                         await supabase.from('stock_portfolios').insert({ discord_user_id: interaction.user.id, stock_symbol: symbol, shares: cantidad, avg_buy_price: currentPrice });
                     }
-                    
+
                     // Log transaction
                     await supabase.from('stock_transactions').insert({ discord_user_id: interaction.user.id, stock_symbol: symbol, transaction_type: 'BUY', shares: cantidad, price_per_share: currentPrice, total_amount: totalCost });
-                    
+
                     const embed = new EmbedBuilder().setTitle('✅ Compra Exitosa').setColor(0x00FF00).setDescription(`Has comprado **${cantidad} acciones de ${symbol}**`).addFields({ name: 'Precio', value: `$${currentPrice.toLocaleString()}`, inline: true }, { name: 'Total', value: `$${totalCost.toLocaleString()}`, inline: true }, { name: 'Método', value: prBolsa.method, inline: true }).setTimestamp();
                     await i.editReply({ embeds: [embed], components: [] });
                 });
@@ -5918,13 +5918,13 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
 
             // 3. Show payment selector
             const pmGiro = await getAvailablePaymentMethods(interaction.user.id, interaction.guildId);
-            const pbGiro = createPaymentButtons(pmGiro);
+            const pbGiro = createPaymentButtons(pmGiro, 'giro_pay');
             await interaction.editReply({ content: `📮 **Giro Postal**\n👤 ${destUser.tag}\n💰 $${monto.toLocaleString()}\n⏰ 24h\n\n**Método:**`, components: [pbGiro] });
-            const fGiro = i => i.user.id === interaction.user.id && i.customId.startsWith('pay_');
+            const fGiro = i => i.user.id === interaction.user.id && i.customId.startsWith('giro_pay_');
             const cGiro = interaction.channel.createMessageComponentCollector({ filter: fGiro, time: 60000, max: 1 });
             cGiro.on('collect', async (i) => {
                 await i.deferUpdate();
-                const prGiro = await processPayment(i.customId.replace('pay_', ''), interaction.user.id, interaction.guildId, monto, `[Giro] ${destUser.tag}`, pmGiro);
+                const prGiro = await processPayment(i.customId.replace('casino_pay_', ''), interaction.user.id, interaction.guildId, monto, `[Giro] ${destUser.tag}`, pmGiro);
                 if (!prGiro.success) return i.editReply({ content: prGiro.error, components: [] });
                 await i.editReply({ content: `✅ **Giro Enviado** (${prGiro.method})\n\nDestinatario: **${destUser.tag}**\nMonto: **$${monto.toLocaleString()}**\nEntrega: 24 horas`, components: [] });
             });
