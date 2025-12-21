@@ -4252,7 +4252,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
 
                     cCas.on('collect', async (i) => {
                         await i.deferUpdate();
-                        const prCas = await processPayment(i.customId.replace('bolsa_pay_', ''), userId, interaction.guildId, cantidad, '[Casino] Compra fichas', pmCasino);
+                        const prCas = await processPayment(i.customId.replace('casino_pay_', ''), userId, interaction.guildId, cantidad, '[Casino] Compra fichas', pmCasino);
 
                         if (!prCas.success) return i.editReply({ content: prCas.error, components: [] });
 
@@ -6686,7 +6686,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             const cGiro = interaction.channel.createMessageComponentCollector({ filter: fGiro, time: 60000, max: 1 });
             cGiro.on('collect', async (i) => {
                 await i.deferUpdate();
-                const prGiro = await processPayment(i.customId.replace('casino_pay_', ''), interaction.user.id, interaction.guildId, monto, `[Giro] ${destUser.tag}`, pmGiro);
+                const prGiro = await processPayment(i.customId.replace('giro_pay_', ''), interaction.user.id, interaction.guildId, monto, `[Giro] ${destUser.tag}`, pmGiro);
                 if (!prGiro.success) return i.editReply({ content: prGiro.error, components: [] });
                 await i.editReply({ content: `✅ **Giro Enviado** (${prGiro.method})\n\nDestinatario: **${destUser.tag}**\nMonto: **$${monto.toLocaleString()}**\nEntrega: 24 horas`, components: [] });
             });
