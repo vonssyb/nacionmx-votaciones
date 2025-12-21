@@ -1568,6 +1568,173 @@ client.once('ready', async () => {
 });
 
 // Interaction Handler (Slash Commands)
+
+// ========================================
+// UNIVERSAL PAYMENT SYSTEM
+// ========================================
+
+async function getAvailablePaymentMethods(userId, guildId) {
+    const methods = {
+        cash: { available: true, label: '💵 Efectivo', value: 'cash' },
+        debit: { available: false, label: '💳 Débito', value: 'debit', card: null },
+        credit: { available: false, label: '🔖 Crédito', value: 'credit', card: null },
+        businessCredit: { available: false, label: '🏢 Crédito Empresa', value: 'business_credit', card: null }
+    };
+    
+    try {
+        // Check debit card
+        const { data: debitCard } = await supabase
+            .from('debit_cards')
+            .select('*')
+            .eq('user_id', userId)
+            .eq('is_active', true)
+            .maybeSingle();
+        if (debitCard) {
+            methods.debit.available = true;
+            methods.debit.card = debitCard;
+        }
+        
+        // Check personal credit card
+        const { data: citizen } = await supabase
+            .from('citizens')
+            .select('id')
+            .eq('discord_id', userId)
+            .maybeSingle();
+        
+        if (citizen) {
+            const { data: creditCard } = await supabase
+                .from('credit_cards')
+                .select('*')
+                .eq('citizen_id', citizen.id)
+                .maybeSingle();
+            if (creditCard) {
+                methods.credit.available = true;
+                methods.credit.card = creditCard;
+            }
+        }
+        
+        // Check business credit (company + business credit card)
+        const { data: companies } = await supabase
+            .from('companies')
+            .select('*')
+            .contains('owner_ids', [userId]);
+        
+        if (companies && companies.length > 0) {
+            // Check if company has business credit card
+            const { data: businessCard } = await supabase
+                .from('business_credit_cards')
+                .select('*')
+                .eq('company_id', companies[0].id)
+                .maybeSingle();
+            
+            if (businessCard) {
+                methods.businessCredit.available = true;
+                methods.businessCredit.card = businessCard;
+                methods.businessCredit.company = companies[0];
+            }
+        }
+    } catch (error) {
+        console.error('[getAvailablePaymentMethods] Error:', error);
+    }
+    
+    return methods;
+}
+
+function createPaymentButtons(availableMethods) {
+    const buttons = [];
+    
+    if (availableMethods.cash.available) {
+        buttons.push(new ButtonBuilder()
+            .setCustomId('pay_cash')
+            .setLabel(availableMethods.cash.label)
+            .setStyle(ButtonStyle.Primary));
+    }
+    
+    if (availableMethods.debit.available) {
+        buttons.push(new ButtonBuilder()
+            .setCustomId('pay_debit')
+            .setLabel(availableMethods.debit.label)
+            .setStyle(ButtonStyle.Success));
+    }
+    
+    if (availableMethods.credit.available) {
+        buttons.push(new ButtonBuilder()
+            .setCustomId('pay_credit')
+            .setLabel(availableMethods.credit.label)
+            .setStyle(ButtonStyle.Danger));
+    }
+    
+    if (availableMethods.businessCredit.available) {
+        buttons.push(new ButtonBuilder()
+            .setCustomId('pay_business')
+            .setLabel(availableMethods.businessCredit.label)
+            .setStyle(ButtonStyle.Secondary));
+    }
+    
+    return new ActionRowBuilder().addComponents(buttons);
+}
+
+async function processPayment(method, userId, guildId, amount, description, availableMethods) {
+    try {
+        if (method === 'cash') {
+            const balance = await billingService.ubService.getUserBalance(guildId, userId);
+            if ((balance.cash || 0) < amount) {
+                return { success: false, error: `❌ Efectivo insuficiente.\nNecesitas: $${amount.toLocaleString()}\nTienes: $${(balance.cash || 0).toLocaleString()}` };
+            }
+            await billingService.ubService.removeMoney(guildId, userId, amount, description, 'cash');
+            return { success: true, method: '💵 Efectivo', source: 'cash' };
+        }
+        
+        if (method === 'debit') {
+            if (!availableMethods.debit.available) {
+                return { success: false, error: '❌ No tienes tarjeta de débito activa.' };
+            }
+            const balance = await billingService.ubService.getUserBalance(guildId, userId);
+            if ((balance.bank || 0) < amount) {
+                return { success: false, error: `❌ Saldo bancario insuficiente.\nNecesitas: $${amount.toLocaleString()}\nTienes: $${(balance.bank || 0).toLocaleString()}` };
+            }
+            await billingService.ubService.removeMoney(guildId, userId, amount, description, 'bank');
+            return { success: true, method: '💳 Débito', source: 'bank' };
+        }
+        
+        if (method === 'credit') {
+            if (!availableMethods.credit.available || !availableMethods.credit.card) {
+                return { success: false, error: '❌ No tienes tarjeta de crédito.' };
+            }
+            const creditCard = availableMethods.credit.card;
+            const available = creditCard.credit_limit - creditCard.current_balance;
+            if (available < amount) {
+                return { success: false, error: `❌ Crédito insuficiente.\nDisponible: $${available.toLocaleString()}\nNecesitas: $${amount.toLocaleString()}` };
+            }
+            await supabase.from('credit_cards').update({
+                current_balance: creditCard.current_balance + amount
+            }).eq('id', creditCard.id);
+            return { success: true, method: '🔖 Crédito', source: 'credit' };
+        }
+        
+        if (method === 'business') {
+            if (!availableMethods.businessCredit.available || !availableMethods.businessCredit.card) {
+                return { success: false, error: '❌ No tienes crédito empresarial disponible.' };
+            }
+            const businessCard = availableMethods.businessCredit.card;
+            const available = businessCard.credit_limit - businessCard.current_balance;
+            if (available < amount) {
+                return { success: false, error: `❌ Crédito empresarial insuficiente.\nDisponible: $${available.toLocaleString()}\nNecesitas: $${amount.toLocaleString()}` };
+            }
+            await supabase.from('business_credit_cards').update({
+                current_balance: businessCard.current_balance + amount
+            }).eq('id', businessCard.id);
+            return { success: true, method: '🏢 Crédito Empresa', source: 'business_credit' };
+        }
+        
+        return { success: false, error: '❌ Método de pago no válido.' };
+    } catch (error) {
+        console.error('[processPayment] Error:', error);
+        return { success: false, error: '❌ Error procesando el pago.' };
+    }
+}
+
+
 client.on('interactionCreate', async interaction => {
     console.log(`[DEBUG] RAW INTERACTION: ${interaction.isCommand() ? 'CMD' : 'BTN/OTHER'} ${interaction.commandName || interaction.customId}`);
     // BUTTON: Investment Collection
