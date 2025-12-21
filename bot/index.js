@@ -60,7 +60,7 @@ let globalStocks = [
     { symbol: 'VNSSB', name: 'Vonssyb Studios', base: 2500, current: 2500, type: 'Empresa', volatility: 0.012 }, // 🎮 Premium tech
 
     // Mexican Companies (volatilidad baja, precios realistas)
-    { symbol: 'PEMEX', name: 'Petróleos Mexicanos', base: 150, current: 150, type: 'Empresa', volatility: 0.02 },
+    { symbol: 'ALPEK', name: 'Alpek S.A.B. de C.V.', base: 150, current: 150, type: 'Empresa', volatility: 0.02 },
     { symbol: 'WALMEX', name: 'Walmart México', base: 450, current: 450, type: 'Empresa', volatility: 0.015 },
     { symbol: 'FEMSA', name: 'FEMSA', base: 1200, current: 1200, type: 'Empresa', volatility: 0.01 },
     { symbol: 'NMX', name: 'Nación MX Corp', base: 500, current: 500, type: 'Empresa', volatility: 0.025 }
@@ -3194,7 +3194,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                         try { await i.deferUpdate(); } catch (err) { return; }
                         const prCred = await processPayment(i.customId.replace('cred_pay_', ''), interaction.user.id, interaction.guildId, amount, `Pago Tarjeta ${userCard.card_type}`, pmCred);
                         if (!prCred.success) return i.editReply({ content: prCred.error, components: [] });
-                        
+
                         const newDebt = userCard.current_balance - amount;
                         await supabase.from('credit_cards').update({ current_balance: newDebt }).eq('id', userCard.id);
                         await i.editReply({ content: `✅ Pago procesado (${prCred.method})\n💳 ${userCard.card_type}\n💰 Pagado: $${amount.toLocaleString()}\n📊 Nuevo saldo: $${newDebt.toLocaleString()}`, components: [] });
@@ -4502,17 +4502,17 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             // Show payment selector
             const pmNom = await getAvailablePaymentMethods(interaction.user.id, interaction.guildId);
             const pbNom = createPaymentButtons(pmNom, 'nom_pay');
-            await interaction.editReply({ content: `💼 **Nómina${groupName ? ': '+groupName : ''}**\n💰 $${total.toLocaleString()}\n👥 ${members.length} empleados\n\n**Método:**`, components: [pbNom] });
+            await interaction.editReply({ content: `💼 **Nómina${groupName ? ': ' + groupName : ''}**\n💰 $${total.toLocaleString()}\n👥 ${members.length} empleados\n\n**Método:**`, components: [pbNom] });
             const fNom = i => i.user.id === interaction.user.id && i.customId.startsWith('nom_pay_');
             const cNom = interaction.channel.createMessageComponentCollector({ filter: fNom, time: 60000, max: 1 });
             cNom.on('collect', async (i) => {
                 try { await i.deferUpdate(); } catch (err) { return; }
-                const prNom = await processPayment(i.customId.replace('nom_pay_', ''), interaction.user.id, interaction.guildId, total, `Pago Nómina${groupName ? ': '+groupName : ''}`, pmNom);
+                const prNom = await processPayment(i.customId.replace('nom_pay_', ''), interaction.user.id, interaction.guildId, total, `Pago Nómina${groupName ? ': ' + groupName : ''}`, pmNom);
                 if (!prNom.success) return i.editReply({ content: prNom.error, components: [] });
-                
+
                 let report = `💰 **Nómina Pagada** (${prNom.method})\nTotal: $${total.toLocaleString()}\n\n`;
                 for (const m of members) {
-                    await billingService.ubService.addMoney(interaction.guildId, m.member_discord_id, m.salary, `Nómina${groupName ? ' de '+groupName : ''}`);
+                    await billingService.ubService.addMoney(interaction.guildId, m.member_discord_id, m.salary, `Nómina${groupName ? ' de ' + groupName : ''}`);
                     report += `✅ <@${m.member_discord_id}>: $${m.salary.toLocaleString()}\n`;
                 }
                 await i.editReply({ content: report, components: [] });
