@@ -1901,6 +1901,29 @@ async function getAvailablePaymentMethods(userId, guildId) {
     return methods;
 }
 
+function createPaymentReceipt(concept, amount, method, txId) {
+    const methodIcons = {
+        'cash': '💵 Efectivo',
+        'debit': '🏦 Banco (Débito)',
+        'credit': '💳 Crédito Personal',
+        'business': '🏢 Crédito Empresa'
+    };
+
+    const embed = new EmbedBuilder()
+        .setColor('#00FF00')
+        .setTitle('✅ Pago Exitoso')
+        .addFields(
+            { name: '🧾 Concepto', value: concept, inline: false },
+            { name: '💰 Monto', value: `$${amount.toLocaleString()}`, inline: true },
+            { name: '💳 Método', value: methodIcons[method] || method, inline: true },
+            { name: '🔖 ID Transacción', value: `\`${txId}\``, inline: false }
+        )
+        .setFooter({ text: 'Nación MX - Sistema de Pagos' })
+        .setTimestamp();
+
+    return embed;
+}
+
 function createPaymentButtons(availableMethods, prefix = 'pay') {
     const buttons = [];
 
