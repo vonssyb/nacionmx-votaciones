@@ -3205,6 +3205,11 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                     console.error('[credito] Error:', err);
                     return interaction.editReply({ content: '❌ Error procesando pago.', components: [] });
                 }
+            } catch (err) {
+                console.error('[credito-pagar] Error:', err);
+                return interaction.editReply({ content: '❌ Error procesando solicitud.', ephemeral: isPrivate });
+            }
+        }
 
 
 
