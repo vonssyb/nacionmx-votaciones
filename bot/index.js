@@ -4135,6 +4135,38 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             }
 
             // Remove Money
+            // Show payment selector
+            const pmInv = await getAvailablePaymentMethods(interaction.user.id, interaction.guildId);
+            const pbInv = createPaymentButtons(pmInv, 'inv_pay');
+            await interaction.editReply({ content: `💰 **$${amount.toLocaleString()}** x 7 días\n📈 Retorno: 5%\n\n**Método:**`, components: [pbInv] });
+            const fInv = i => i.user.id === interaction.user.id && i.customId.startsWith('inv_pay_');
+            const cInv = interaction.channel.createMessageComponentCollector({ filter: fInv, time: 60000, max: 1 });
+            cInv.on('collect', async (i) => {
+                try { await i.deferUpdate(); } catch (err) { console.error('[inv] defer:', err.message); return; }
+                const prInv = await processPayment(i.customId.replace('inv_pay_', ''), interaction.user.id, interaction.guildId, amount, 'Inversión Plazo Fijo', pmInv);
+                if (!prInv.success) return i.editReply({ content: prInv.error, components: [] });
+
+                // Calculate Dates and Profit
+                const now = new Date();
+                const endDate = new Date(now.getTime() + (7 * 24 * 60 * 60 * 1000));
+                const interestRate = 5;
+                const payout = amount + (amount * (interestRate / 100));
+
+                // Insert DB
+                await supabase.from('investments').insert([{
+                    discord_id: interaction.user.id,
+                    invested_amount: amount,
+                    interest_rate: interestRate,
+                    start_date: now.toISOString(),
+                    end_date: endDate.toISOString(),
+                    payout_amount: payout,
+                    status: 'active'
+                }]);
+
+                await i.editReply({ content: `✅ Inversión creada (${prInv.method}). Retorno: **$${payout.toLocaleString()}** en 7 días.`, components: [] });
+            });
+            cInv.on('end', c => { if (c.size === 0) interaction.editReply({ content: '⏱️ Tiempo agotado.', components: [] }); });
+            return;
             await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, amount, `Inversión Plazo Fijo`);
 
             // Calculate Dates and Profit
