@@ -3819,24 +3819,38 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                             return i.editReply({ content: '❌ Error creando empresa.', components: [] });
                         }
                 
-                const embed = new EmbedBuilder()
-                    .setColor('#00FF00')
-                    .setTitle('🏢 Empresa Registrada')
-                    .setThumbnail(logo?.url)
-                    .addFields(
-                        { name: '🏷️ Nombre', value: nombre, inline: true },
-                        { name: '👔 Dueño', value: `<@${dueño.id}>`, inline: true },
-                        { name: '🏠 Local', value: tipoLocal.charAt(0).toUpperCase() + tipoLocal.slice(1), inline: true },
-                        { name: '🚗 Vehículos', value: `${newCompany.vehicle_count}`, inline: true },
-                        { name: '💰 Costo Total', value: `$${totalCost.toLocaleString()}`, inline: true },
-                        { name: '🆔 ID Empresa', value: newCompany.id.substring(0, 8), inline: true }
-                    )
-                    .setTimestamp();
+                        
+                        const embed = new EmbedBuilder()
+                            .setColor('#00FF00')
+                            .setTitle('🏢 Empresa Registrada')
+                            .setThumbnail(logo?.url)
+                            .addFields(
+                                { name: '🏷️ Nombre', value: nombre, inline: true },
+                                { name: '👔 Dueño', value: `<@${dueño.id}>`, inline: true },
+                                { name: '🏠 Local', value: tipoLocal.charAt(0).toUpperCase() + tipoLocal.slice(1), inline: true },
+                                { name: '🚗 Vehículos', value: `${newCompany.vehicle_count}`, inline: true },
+                                { name: '💰 Costo Total', value: `$${totalCost.toLocaleString()}`, inline: true },
+                                { name: '🆔 ID Empresa', value: newCompany.id.substring(0, 8), inline: true }
+                            )
+                            .setTimestamp();
+                        
+                        if (coDueño) embed.addFields({ name: '👥 Co-Dueño', value: `<@${coDueño.id}>`, inline: true });
+                        if (fotoLocal) embed.setImage(fotoLocal.url);
+                        
+                        return i.editReply({ embeds: [embed], components: [] });
+                    } catch (err) {
+                        console.error('[empresa crear payment]', err);
+                        return i.editReply({ content: '❌ Error procesando pago.', components: [] });
+                    }
+                });
                 
-                if (coDueño) embed.addFields({ name: '👥 Co-Dueño', value: `<@${coDueño.id}>`, inline: true });
-                if (fotoLocal) embed.setImage(fotoLocal.url);
+                collector.on('end', collected => {
+                    if (collected.size === 0) {
+                        interaction.editReply({ content: '⏱️ Tiempo agotado.', components: [] });
+                    }
+                });
                 
-                return interaction.editReply({ embeds: [embed] });
+                return; // Exit crear subcommand
             }
             
             // ===== MENU =====
