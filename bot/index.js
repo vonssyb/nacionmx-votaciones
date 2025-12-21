@@ -1817,8 +1817,7 @@ client.once('ready', async () => {
     }
 
     // Start listening to Supabase changes
-    // subscribeToNewCards(); // TODO: Implement this function or remove if not needed
-    // subscribeToCancellations(); // TODO: Implement this function or remove if not needed
+
 });
 
 // Interaction Handler (Slash Commands)
@@ -4435,12 +4434,12 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 });
 
                 // Wait for payment method
-                const filter = i => i.user.id === interaction.user.id && i.customId.startsWith('emp_');
+                const filter = i => i.user.id === interaction.user.id && (i.customId.startsWith('emp_pay_') || i.customId.startsWith('emp_'));
                 const collector = interaction.channel.createMessageComponentCollector({ filter, time: 60000, max: 1 });
 
                 collector.on('collect', async (i) => {
                     await i.deferUpdate();
-                    const method = i.customId.replace('emp_', '');
+                    const method = i.customId.replace('emp_pay_', '').replace('emp_', ''); // Support both old and new
 
                     try {
                         // Process payment based on method
