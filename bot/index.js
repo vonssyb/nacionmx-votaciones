@@ -66,6 +66,100 @@ let globalStocks = [
     { symbol: 'NMX', name: 'Nación MX Corp', base: 500, current: 500, type: 'Empresa', volatility: 0.025 }
 ];
 
+// CASINO SESSION MANAGERS (Multiplayer)
+const casinoSessions = {
+    roulette: {
+        active: false,
+        bets: [],
+        spinNumber: null,
+        closeTime: null,
+        channel: null
+    },
+    race: {
+        active: false,
+        bets: [],
+        horses: [],
+        winner: null,
+        closeTime: null,
+        channel: null
+    }
+};
+
+// CASINO HELPER FUNCTIONS
+const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+async function animateSlots(interaction, symbols) {
+    const frames = [
+        '🎰 **GIRANDO...**\n⚡⚡⚡',
+        `🎰 **SLOTS**\n${symbols[0]} ? ?`,
+        `🎰 **SLOTS**\n${symbols[0]} ${symbols[1]} ?`,
+        `🎰 **SLOTS**\n${symbols[0]} ${symbols[1]} ${symbols[2]}`
+    ];
+    for (let i = 0; i < frames.length; i++) {
+        await interaction.editReply(frames[i]);
+        await sleep(i === 0 ? 800 : 600);
+    }
+}
+
+async function animateDice(interaction) {
+    const frames = [
+        '🎲 **Lanzando dados...**\n🎲🎲',
+        '🎲 **Lanzando dados...**\n🎲🎲\n.',
+        '🎲 **Lanzando dados...**\n🎲🎲\n..',
+        '🎲 **Lanzando dados...**\n🎲🎲\n...'
+    ];
+    for (const frame of frames) {
+        await interaction.editReply(frame);
+        await sleep(400);
+    }
+}
+
+async function animateRoulette(interaction, spin) {
+    const sequence = [];
+    for (let i = 0; i < 8; i++) {
+        sequence.push(Math.floor(Math.random() * 37));
+    }
+    sequence.push(spin);
+
+    for (let i = 0; i < sequence.length; i++) {
+        const delay = i < 5 ? 300 : i < 7 ? 500 : 800;
+        await interaction.editReply(`🎡 **GIRANDO...**\n\n🔵 ${sequence[i]}`);
+        await sleep(delay);
+    }
+}
+
+async function animateCrash(interaction, crashPoint, cashout) {
+    let mult = 1.00;
+    const steps = 15;
+    const increment = (cashout - 1.00) / steps;
+
+    while (mult < cashout && mult < crashPoint) {
+        mult += increment;
+        const emoji = mult < 1.5 ? '🚀' : mult < 2.5 ? '🚀🚀' : '🚀🚀🚀';
+        await interaction.editReply(`${emoji} **SUBIENDO!**\n\n**${mult.toFixed(2)}x**`);
+        await sleep(200);
+    }
+}
+
+async function animateRace(interaction, horses) {
+    const laps = 5;
+    for (let lap = 1; lap <= laps; lap++) {
+        horses.forEach(h => h.pos += Math.random() * 20);
+        horses.sort((a, b) => b.pos - a.pos);
+
+        let display = `🏁 **Vuelta ${lap}/${laps}**\n\n`;
+        horses.forEach((h, idx) => {
+            const bars = Math.floor(h.pos / 20);
+            const track = '━'.repeat(Math.min(bars, 10));
+            display += `${idx === 0 ? '🔥' : '　'}${h.emoji}${track}\n`;
+        });
+
+        await interaction.editReply(display);
+        await sleep(1000);
+    }
+}
+
+
 // GLOBAL CASINO SESSIONS (MULTIPLAYER)
 let raceSession = {
     isOpen: false,
@@ -214,7 +308,6 @@ const CARD_TIERS = {
 // ==========================================
 // 🎮 GLOBAL GAME SESSIONS & HELPERS
 // ==========================================
-const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 // Helper to check chips (Global)
 async function checkChips(userId, amount) {
