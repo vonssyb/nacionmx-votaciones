@@ -5495,226 +5495,383 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             await interaction.editReply('❌ Error procesando el robo.');
         }
     }
-    else if (commandName === 'trabajar') {
-        await interaction.deferReply();
-        const JOB_COOLDOWN = 60 * 60 * 1000;
-        const jobKey = `job_${interaction.user.id}`;
-        const lastJob = casinoSessions[jobKey] || 0;
+// ENHANCED TRABAJAR & CRIMEN HANDLERS
+// Copy this content to replace the current handlers in index.js
 
-        if (Date.now() - lastJob < JOB_COOLDOWN) {
-            const remaining = Math.ceil((JOB_COOLDOWN - (Date.now() - lastJob)) / 60000);
-            return interaction.editReply(`⏳ **Estás cansado**\nDebes descansar **${remaining} minutos**.`);
-        }
+else if (commandName === 'trabajar') {
+    await interaction.deferReply();
+    const JOB_COOLDOWN = 60 * 60 * 1000;
+    const jobKey = `job_${interaction.user.id}`;
+    const lastJob = casinoSessions[jobKey] || 0;
 
-        const JOBS = [
-            // --- MATH ---
-            { title: '🥖 Panadero', desc: '5 bolillos ($3) + 2 conchas ($8). ¿Total?', type: 'math', a: '31', pay: [1000, 1500] },
-            { title: '🚕 Taxista', desc: 'Base $20 + 12km ($5/km). ¿Total?', type: 'math', a: '80', pay: [1200, 1800] },
-            { title: '🏗️ Arquitecto', desc: 'Área 8m x 6m. ¿m²?', type: 'math', a: '48', pay: [2500, 4000] },
-            { title: '🏫 Profesor', desc: '15 niños x 4 lápices. ¿Total?', type: 'math', a: '60', pay: [1800, 2400] },
-            { title: '📈 Contador', desc: 'Ganancia: 5000 - 3500. ¿Neto?', type: 'math', a: '1500', pay: [2200, 3000] },
-
-            // --- MEMORY (Visual Embeds) ---
-            { title: '🧠 Bibliotecario', desc: 'Memoriza el código:', type: 'memory', text: 'XJ-9', opts: ['XJ-9', 'XK-8', 'XJ-6'], correct: 'XJ-9', pay: [1500, 2000] },
-            { title: '🍸 Bartender', desc: 'Orden: "Martini Seco, Aceituna"', type: 'memory', text: 'Martini Seco', opts: ['Martini Dulce', 'Martini Seco', 'Vodka'], correct: 'Martini Seco', pay: [1200, 1800] },
-            { title: '🏨 Recepcionista', desc: 'Huésped Habitación 101: "Sr. Smith"', type: 'memory', text: 'Sr. Smith', opts: ['Sr. White', 'Sr. Smith', 'Sr. Black'], correct: 'Sr. Smith', pay: [1300, 1900] },
-            { title: '👨‍✈️ Piloto', desc: 'Torre de control: "Pista 4-Bravo"', type: 'memory', text: '4-Bravo', opts: ['4-Alpha', '4-Bravo', '3-Bravo'], correct: '4-Bravo', pay: [4000, 6000] },
-            { title: '👨‍🍳 Chef', desc: 'El cliente es alérgico a: "Nueces"', type: 'memory', text: 'Nueces', opts: ['Lácteos', 'Nueces', 'Gluten'], correct: 'Nueces', pay: [1600, 2200] },
-
-            // --- WIRES (Visual Interaction) ---
-            { title: '⚡ Electricista', desc: 'Corta el cable AZUL.', type: 'wires', order: 'Azul', opts: ['Rojo', 'Azul', 'Verde'], correct: 'Azul', pay: [2000, 3000] },
-            { title: '🛠️ Mecánico', desc: 'Conecta el borne ROJO.', type: 'wires', order: 'Rojo', opts: ['Negro', 'Rojo', 'Amarillo'], correct: 'Rojo', pay: [1500, 2500] },
-            { title: '📡 Técnico Redes', desc: 'Reinicia el servidor VERDE.', type: 'wires', order: 'Verde', opts: ['Rojo', 'Verde', 'Amarillo'], correct: 'Verde', pay: [2200, 3500] },
-            { title: '🎬 Ing. Sonido', desc: 'Sube el fader NEGRO (Micrófono).', type: 'wires', order: 'Negro', opts: ['Negro', 'Blanco', 'Gris'], correct: 'Negro', pay: [1800, 2800] },
-            { title: '🚒 Bombero', desc: 'Abre la válvula ROJA de presión.', type: 'wires', order: 'Rojo', opts: ['Rojo', 'Azul', 'Verde'], correct: 'Rojo', pay: [2500, 3800] },
-
-            // --- SNAKE/NAV (Directional) ---
-            { title: '🚚 Repartidor', desc: 'Destino al NORTE.', type: 'snake', dest: 'Norte', opts: ['⬆️', '⬇️', '⬅️'], correct: '⬆️', pay: [1000, 1500] },
-            { title: '🚜 Agricultor', desc: 'Surco al ESTE.', type: 'snake', dest: 'Este', opts: ['⬅️', '➡️', '⬆️'], correct: '➡️', pay: [1200, 1600] },
-            { title: '🚂 Maquinista', desc: 'Vía libre al SUR.', type: 'snake', dest: 'Sur', opts: ['⬆️', '⬇️', '⬅️'], correct: '⬇️', pay: [2000, 3000] },
-            { title: '🚁 Rescatista', desc: 'Viento fuerte del OESTE. Vuela contra él.', type: 'snake', dest: 'Oeste', opts: ['⬅️', '➡️', '⬆️'], correct: '⬅️', pay: [3000, 5000] },
-            { title: '🚌 Chofer', desc: 'Parada a la DERECHA.', type: 'snake', dest: 'Derecha', opts: ['⬅️', '➡️', '⬆️'], correct: '➡️', pay: [1100, 1500] },
-
-            // --- MINES (Luck/Logic) ---
-            { title: '⛏️ Minero', desc: 'Excava donde haya oro (Suerte).', type: 'mines', opts: ['1', '2', '3'], correct: 'random', pay: [3000, 5000] },
-            { title: '🏺 Arqueólogo', desc: 'Desentierra la reliquia sin romperla.', type: 'mines', opts: ['A', 'B', 'C'], correct: 'random', pay: [4000, 7000] },
-            { title: '🎣 Pescador', desc: 'Lanza la red en la zona con peces.', type: 'mines', opts: ['Zona 1', 'Zona 2', 'Zona 3'], correct: 'random', pay: [1500, 2500] },
-
-            // --- TYPING ---
-            { title: '💻 Programador', desc: 'Arregla: sudo rm -rf /virus', type: 'typing', text: 'sudo rm -rf /virus', pay: [5000, 8000] },
-            { title: '📝 Secretario', desc: 'Escribe: NMX-8821-XP', type: 'typing', text: 'NMX-8821-XP', pay: [1500, 2200] },
-
-            // --- CHOICE ---
-            { title: '🔧 Mecánico', desc: 'Auto calienta. ¿Revisar?', type: 'choice', opts: ['Llantas', 'Radiador', 'Frenos'], correct: 'Radiador', pay: [1500, 2500] }
-        ];
-
-        const job = JOBS[Math.floor(Math.random() * JOBS.length)];
-        const embed = new EmbedBuilder().setTitle(`${job.title}`).setDescription(`**Instrucción:** ${job.desc}\n\n*Tienes 20 seg.*`).setColor(0xFFA500);
-
-        if (job.type === 'memory') {
-            embed.addFields({ name: 'MEMORIZA:', value: `\`${job.text}\`` });
-            const msg = await interaction.editReply({ embeds: [embed] });
-            setTimeout(async () => {
-                const row = new ActionRowBuilder();
-                job.opts.forEach(o => row.addComponents(new ButtonBuilder().setCustomId(`job_${o}`).setLabel(o).setStyle(ButtonStyle.Primary)));
-                const hiddenEmbed = new EmbedBuilder().setTitle(job.title).setDescription('¿Cuál era el código?').setColor(0xFFA500);
-                await interaction.editReply({ embeds: [hiddenEmbed], components: [row] });
-            }, 3500);
-        }
-        else if (job.type === 'math' || job.type === 'typing') {
-            if (job.type === 'typing') embed.addFields({ name: 'Escribe:', value: `\`${job.text}\`` });
-            await interaction.editReply({ embeds: [embed] });
-        }
-        else {
-            const row = new ActionRowBuilder();
-            const opts = job.type === 'mines' ? job.opts : [...job.opts].sort(() => Math.random() - 0.5);
-            opts.forEach(o => row.addComponents(new ButtonBuilder().setCustomId(`job_${o}`).setLabel(o).setStyle(job.type === 'wires' ? ButtonStyle.Danger : ButtonStyle.Primary)));
-            await interaction.editReply({ embeds: [embed], components: [row] });
-        }
-
-        if (job.type === 'math' || job.type === 'typing') {
-            const filter = m => m.author.id === interaction.user.id;
-            const collector = interaction.channel.createMessageCollector({ filter, time: 25000, max: 1 });
-            collector.on('collect', async m => {
-                if (m.content.trim() === (job.type === 'math' ? job.a : job.text)) {
-                    const pay = Math.floor(Math.random() * (job.pay[1] - job.pay[0] + 1)) + job.pay[0];
-                    await billingService.ubService.addMoney(interaction.guildId, interaction.user.id, pay, `Job: ${job.title}`, 'cash');
-                    casinoSessions[jobKey] = Date.now();
-                    m.react('✅');
-                    await interaction.channel.send(`✅ ¡Bien! Ganaste **$${pay}**`);
-                } else {
-                    m.react('❌');
-                    await interaction.channel.send(`❌ Incorrecto.`);
-                }
-            });
-        } else {
-            const filter = i => i.user.id === interaction.user.id && i.customId.startsWith('job_');
-            const collector = interaction.channel.createMessageComponentCollector({ filter, time: 25000, max: 1 });
-            collector.on('collect', async i => {
-                const sel = i.customId.replace('job_', '');
-                let win = false;
-                if (job.type === 'mines') { win = Math.random() > 0.33; }
-                else { win = sel === job.correct; }
-
-                if (win) {
-                    const pay = Math.floor(Math.random() * (job.pay[1] - job.pay[0] + 1)) + job.pay[0];
-                    await billingService.ubService.addMoney(interaction.guildId, interaction.user.id, pay, `Job: ${job.title}`, 'cash');
-                    casinoSessions[jobKey] = Date.now();
-                    await i.update({ embeds: [new EmbedBuilder().setTitle('✅ Excelente').setColor('#00FF00').setDescription(`Ganaste **$${pay.toLocaleString()}**`)], components: [] });
-                } else {
-                    await i.update({ content: `❌ Error.`, embeds: [], components: [] });
-                }
-            });
-        }
+    if (Date.now() - lastJob < JOB_COOLDOWN) {
+        const remaining = Math.ceil((JOB_COOLDOWN - (Date.now() - lastJob)) / 60000);
+        return interaction.editReply(`⏳ **Estás cansado**\nDebes descansar **${remaining} minutos**.`);
     }
 
-    else if (commandName === 'crimen') {
-        await interaction.deferReply();
-        const CRIME_COOLDOWN = 120 * 60 * 1000;
-        const crimeKey = `crime_${interaction.user.id}`;
-        const lastCrime = casinoSessions[crimeKey] || 0;
-        if (Date.now() - lastCrime < CRIME_COOLDOWN) {
-            const min = Math.ceil((CRIME_COOLDOWN - (Date.now() - lastCrime)) / 60000);
-            return interaction.editReply(`🚓 **Buscado**\nEscóndete **${min} min**.`);
-        }
+    // Enhanced job selection with visuals
+    const jobs = [
+        { title: '🧠 Bibliotecario', desc: 'Código: XJ-9-DELTA', type: 'memory', code: 'XJ-9-DELTA', opts: ['XJ-9-DELTA', 'XK-9-DELTA', 'XJ-8-DELTA'], pay: [2000, 3000] },
+        { title: '💣 Técnico EOD', desc: 'Cable correcto: VERDE', type: 'wires', wire: 'VERDE', opts: ['🔴 ROJO', '🟢 VERDE', '🔵 AZUL'], pay: [3000, 5000] },
+        { title: '🚁 Piloto Rescate', desc: 'Víctima al NORTE', type: 'nav', dir: 'NORTE', opts: ['⬆️ NORTE', '⬇️ SUR', '⬅️ OESTE'], pay: [3500, 5500] },
+        { title: '⛏️ Minero', desc: 'Elige veta (suerte)', type: 'luck', opts: ['⛏️ VETA 1', '⛏️ VETA 2', '⛏️ VETA 3'], pay: [4000, 7000] },
+        { title: '💻 Programador', desc: 'sudo rm -rf /virus', type: 'typing', cmd: 'sudo rm -rf /virus', pay: [5500, 8500] },
+        { title: '🧮 Contador', desc: '8500 - 3200 = ?', type: 'math', ans: '5300', pay: [2500, 3500] }
+    ];
 
-        const CRIMES = [
-            // --- WIRES (High Stakes) ---
-            { title: '💣 Desactivar Bomba', desc: 'Corta el cable VERDE.', type: 'wires', order: 'Verde', opts: ['Rojo', 'Verde', 'Azul'], correct: 'Verde', pay: [80000, 100000] },
-            { title: '🚗 Robo Auto', desc: 'Puentea el ROJO.', type: 'wires', order: 'Rojo', opts: ['Rojo', 'Negro', 'Blanco'], correct: 'Rojo', pay: [20000, 40000] },
-            { title: '🏢 Sabotaje Corporativo', desc: 'Corta la fibra AMARILLA.', type: 'wires', order: 'Amarillo', opts: ['Amarillo', 'Azul', 'Gris'], correct: 'Amarillo', pay: [45000, 70000] },
-            { title: '🚪 Hackeo Puerta', desc: 'Cruza los cables AZULES.', type: 'wires', order: 'Azul', opts: ['Rojo', 'Azul', 'Negro'], correct: 'Azul', pay: [25000, 50000] },
-            { title: '🔋 Robo Generador', desc: 'Desconecta la fase NEGRA.', type: 'wires', order: 'Negro', opts: ['Verde', 'Blanco', 'Negro'], correct: 'Negro', pay: [30000, 55000] },
+    const job = jobs[Math.floor(Math.random() * jobs.length)];
 
-            // --- MEMORY (Heist Codes) ---
-            { title: '🔐 Caja Fuerte', desc: 'Memoriza: 99-11-22', type: 'memory', text: '99-11-22', opts: ['99-11-22', '11-99-22', '22-11-99'], correct: '99-11-22', pay: [50000, 90000] },
-            { title: '🖼️ Robo de Arte', desc: 'El objetivo es el cuadro "Sol Naciente"', type: 'memory', text: 'Sol Naciente', opts: ['Luna Llena', 'Sol Naciente', 'Estrella'], correct: 'Sol Naciente', pay: [60000, 110000] },
-            { title: '🗝️ Copia Llave', desc: 'La llave maestra es la "Plateada con Muesca"', type: 'memory', text: 'Plateada', opts: ['Dorada', 'Negra', 'Plateada'], correct: 'Plateada', pay: [20000, 35000] },
-            { title: '📛 Falsificación ID', desc: 'El nombre falso es "Carlos Vega"', type: 'memory', text: 'Carlos Vega', opts: ['Juan Perez', 'Carlos Vega', 'Luis Diaz'], correct: 'Carlos Vega', pay: [15000, 25000] },
-            { title: '📱 PIN Celular', desc: 'PIN desbloqueo: 1234', type: 'memory', text: '1234', opts: ['1234', '4321', '1111'], correct: '1234', pay: [10000, 20000] },
+    // Create richvisual embed
+    const embed = new EmbedBuilder()
+        .setTitle(`${job.title}`)
+        .setColor(0xFFA500)
+        .setDescription(`**Tarea:** ${job.desc}\n\n💰 Pago: $${job.pay[0].toLocaleString()} - $${job.pay[1].toLocaleString()}`)
+        .setFooter({ text: '⏱️ Tienes 20 segundos' })
+        .setTimestamp();
 
-            // --- SNAKE (Escape/Chase) ---
-            { title: '🚓 Persecución Policial', desc: 'Bloqueo al frente. ¡Gira IZQUIERDA!', type: 'snake', dest: 'Izquierda', opts: ['⬅️', '➡️', '⬆️'], correct: '⬅️', pay: [30000, 60000] },
-            { title: '🏍️ Escape en Moto', desc: 'Callejón sin salida. ¡Sube por la RAMPA!', type: 'snake', dest: 'Rampa', opts: ['⬆️', '⬇️', '⬅️'], correct: '⬆️', pay: [25000, 50000] },
-            { title: '🏃 Fuga a Pie', desc: 'Perros policía. ¡Salta la valla (ARRIBA)!', type: 'snake', dest: 'Arriba', opts: ['⬇️', '⬆️', '➡️'], correct: '⬆️', pay: [15000, 25000] },
-            { title: '🚤 Huida en Lancha', desc: 'Rocas al frente. Esquiva a DERECHA.', type: 'snake', dest: 'Derecha', opts: ['⬅️', '➡️', '⬆️'], correct: '➡️', pay: [40000, 75000] },
-            { title: '🚁 Evasión Aérea', desc: 'Misil detectado. ¡Baja ALTITUD!', type: 'snake', dest: 'Abajo', opts: ['⬆️', '⬇️', '⬅️'], correct: '⬇️', pay: [80000, 150000] },
+    // Add visual ASCII art based on type
+    if (job.type === 'memory') {
+        embed.addFields({ name: '📚 MEMORIZA:', value: `\`\`\`\n${job.code}\n\`\`\`` });
+        await interaction.editReply({ embeds: [embed] });
 
-            // --- MINES (High Risk) ---
-            { title: '🏰 Asalto Mansión', desc: 'Cruza el jardín (Suerte 50%).', type: 'mines', opts: ['A', 'B', 'C'], correct: 'random', pay: [60000, 120000] },
-            { title: '🧨 Campo Minado', desc: 'Cruza la frontera (Suerte).', type: 'mines', opts: ['Camino 1', 'Camino 2', 'Camino 3'], correct: 'random', pay: [40000, 80000] },
-            { title: '🔫 Ruleta Rusa', desc: '¿Jalas el gatillo? (Muy arriesgado).', type: 'mines', opts: ['1', '2', '3'], correct: 'random', pay: [50000, 100000] },
-
-            // --- TYPING/MATH ---
-            { title: '💻 Hacking FBI', desc: 'Inyecta: override_security_protocol', type: 'typing', text: 'override_security_protocol', pay: [40000, 90000] },
-            { title: '🏦 Robo Banco', desc: 'Clave: 125 x 8.', type: 'math', a: '1000', pay: [80000, 100000] },
-        ];
-
-        const job = CRIMES[Math.floor(Math.random() * CRIMES.length)];
-        const embed = new EmbedBuilder().setTitle(`☠️ ${job.title}`).setDescription(`**Misión:** ${job.desc}\n\n*20 seg para completar.*`).setColor(0x880000);
-
-        if (job.type === 'memory') {
-            embed.addFields({ name: 'MEMORIZA:', value: `\`${job.text}\`` });
-            const msg = await interaction.editReply({ embeds: [embed] });
-            setTimeout(async () => {
-                const row = new ActionRowBuilder();
-                job.opts.forEach(o => row.addComponents(new ButtonBuilder().setCustomId(`crime_${o}`).setLabel(o).setStyle(ButtonStyle.Danger)));
-                const hiddenEmbed = new EmbedBuilder().setTitle(job.title).setDescription('¿Cuál era el código?').setColor(0x880000);
-                await interaction.editReply({ embeds: [hiddenEmbed], components: [row] });
-            }, 3500);
-        }
-        else if (job.type === 'math' || job.type === 'typing') {
-            if (job.type === 'typing') embed.addFields({ name: 'Escribe:', value: `\`${job.text}\`` });
+        // Countdown animation
+        for (let i = 3; i > 0; i--) {
+            await new Promise(r => setTimeout(r, 1000));
+            embed.setFooter({ text: `⏰ Desapareciendo en ${i}...` });
             await interaction.editReply({ embeds: [embed] });
         }
-        else {
-            const row = new ActionRowBuilder();
-            const opts = job.type === 'mines' ? job.opts : [...job.opts].sort(() => Math.random() - 0.5);
-            opts.forEach(o => row.addComponents(new ButtonBuilder().setCustomId(`crime_${o}`).setLabel(o).setStyle(ButtonStyle.Danger)));
-            await interaction.editReply({ embeds: [embed], components: [row] });
-        }
 
-        if (job.type === 'math' || job.type === 'typing') {
-            const filter = m => m.author.id === interaction.user.id;
-            const collector = interaction.channel.createMessageCollector({ filter, time: 25000, max: 1 });
-            collector.on('collect', async m => {
-                if (m.content.trim() === (job.type === 'math' ? job.a : job.text)) {
-                    const pay = Math.floor(Math.random() * (job.pay[1] - job.pay[0] + 1)) + job.pay[0];
-                    await billingService.ubService.addMoney(interaction.guildId, interaction.user.id, pay, `Crime: ${job.title}`, 'cash');
-                    casinoSessions[crimeKey] = Date.now();
-                    m.react('😈');
-                    await interaction.channel.send(`💸 Éxito. Ganaste **$${pay}**`);
-                } else {
-                    const fine = Math.floor(Math.random() * (20000 - 5000 + 1)) + 5000;
-                    await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, fine, 'Multa', 'cash');
-                    casinoSessions[crimeKey] = Date.now();
-                    m.react('🚔');
-                    await interaction.channel.send(`🚨 **ARRESTADO**. Multa: **$${fine}**`);
-                }
-            });
-        } else {
-            const filter = i => i.user.id === interaction.user.id && i.customId.startsWith('crime_');
-            const collector = interaction.channel.createMessageComponentCollector({ filter, time: 25000, max: 1 });
-            collector.on('collect', async i => {
-                const sel = i.customId.replace('crime_', '');
-                let win = false;
-                if (job.type === 'mines') { win = Math.random() > 0.5; }
-                else { win = sel === job.correct; }
+        // Hide and ask
+        embed.setDescription(`¿Cuál era el código?`);
+        embed.spliceFields(0, 1);
+        embed.setFooter({ text: '❓ Selecciona la respuesta correcta' });
 
-                if (win) {
-                    const pay = Math.floor(Math.random() * (job.pay[1] - job.pay[0] + 1)) + job.pay[0];
-                    await billingService.ubService.addMoney(interaction.guildId, interaction.user.id, pay, `Crime: ${job.title}`, 'cash');
-                    casinoSessions[crimeKey] = Date.now();
-                    await i.update({ embeds: [new EmbedBuilder().setTitle('💸 Éxito').setColor('#00FF00').setDescription(`Ganaste **$${pay.toLocaleString()}**`)], components: [] });
-                } else {
-                    const fine = Math.floor(Math.random() * (20000 - 5000 + 1)) + 5000;
-                    await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, fine, 'Multa', 'cash');
-                    casinoSessions[crimeKey] = Date.now();
-                    await i.update({ content: `🚨 **ARRESTADO**. Fallaste. Multa: **$${fine}**.`, embeds: [], components: [] });
-                }
-            });
-        }
+        const row = new ActionRowBuilder();
+        job.opts.forEach(opt =>
+            row.addComponents(new ButtonBuilder()
+                .setCustomId(`job_${opt}`)
+                .setLabel(opt)
+                .setStyle(ButtonStyle.Primary))
+        );
+        await interaction.editReply({ embeds: [embed], components: [row] });
+
+    } else if (job.type === 'wires') {
+        embed.addFields({
+            name: '💣 PANEL DE CONTROL',
+            value: `\`\`\`\n🔴 ROJO\n🟢 VERDE\n🔵 AZUL\n\`\`\`\n⚠️ ¡Corta el cable ${job.wire}!`
+        });
+
+        const row = new ActionRowBuilder();
+        job.opts.forEach(opt =>
+            row.addComponents(new ButtonBuilder()
+                .setCustomId(`job_${opt}`)
+                .setLabel(opt)
+                .setStyle(opt.includes('VERDE') ? ButtonStyle.Success : ButtonStyle.Danger))
+        );
+        await interaction.editReply({ embeds: [embed], components: [row] });
+
+    } else if (job.type === 'nav') {
+        embed.addFields({
+            name: '🗺️ MAPA',
+            value: `\`\`\`\n     🏔️\n  ⬅️ 🚁 ➡️\n     ⬇️\n\`\`\`\n🎯 Destino: **${job.dir}**`
+        });
+
+        const row = new ActionRowBuilder();
+        job.opts.forEach(opt =>
+            row.addComponents(new ButtonBuilder()
+                .setCustomId(`job_${opt}`)
+                .setLabel(opt)
+                .setStyle(ButtonStyle.Primary))
+        );
+        await interaction.editReply({ embeds: [embed], components: [row] });
+
+    } else if (job.type === 'luck') {
+        embed.addFields({
+            name: '⛏️ MINA DE ORO',
+            value: `\`\`\`\n[1] 💎 ?\n[2] 💎 ?\n[3] 💎 ?\n\`\`\`\n🎲 Probabilidad: 50%`
+        });
+
+        const row = new ActionRowBuilder();
+        job.opts.forEach(opt =>
+            row.addComponents(new ButtonBuilder()
+                .setCustomId(`job_${opt}`)
+                .setLabel(opt)
+                .setStyle(ButtonStyle.Secondary))
+        );
+        await interaction.editReply({ embeds: [embed], components: [row] });
+
+    } else if (job.type === 'typing') {
+        embed.addFields({
+            name: '💻 TERMINAL',
+            value: `\`\`\`bash\n$ ${job.cmd}\n> _\n\`\`\`\n⌨️ Escribe el comando exacto`
+        });
+        await interaction.editReply({ embeds: [embed] });
+
+    } else if (job.type === 'math') {
+        embed.addFields({
+            name: '🧮 CALCULADORA',
+            value: `\`\`\`\n${job.desc}\n= ???\n\`\`\`\n🔢 Escribe tu respuesta`
+        });
+        await interaction.editReply({ embeds: [embed] });
     }
+
+    // Collector for button/message responses
+    if (job.type === 'typing' || job.type === 'math') {
+        const filter = m => m.author.id === interaction.user.id;
+        const collector = interaction.channel.createMessageCollector({ filter, time: 20000, max: 1 });
+
+        collector.on('collect', async m => {
+            const userAnswer = m.content.trim();
+            const correct = (job.type === 'typing' && userAnswer === job.cmd) ||
+                (job.type === 'math' && userAnswer === job.ans);
+
+            if (correct) {
+                const pay = Math.floor(Math.random() * (job.pay[1] - job.pay[0] + 1)) + job.pay[0];
+                await billingService.ubService.addMoney(interaction.guildId, interaction.user.id, pay, `Trabajo: ${job.title}`, 'cash');
+                casinoSessions[jobKey] = Date.now();
+
+                const successEmbed = new EmbedBuilder()
+                    .setTitle('✅ ¡EXCELENTE TRABAJO!')
+                    .setColor(0x00FF00)
+                    .setDescription(`Has completado: **${job.title}**`)
+                    .addFields({ name: '💰 Ganancia', value: `$${pay.toLocaleString()}`, inline: true })
+                    .setFooter({ text: '¡Sigue así!' });
+
+                m.react('✅');
+                await interaction.followUp({ embeds: [successEmbed] });
+            } else {
+                m.react('❌');
+                await interaction.followUp(`❌ Incorrecto. ${job.type === 'math' ? `La respuesta era: ${job.ans}` : ''}`);
+            }
+        });
+
+    } else {
+        const filter = i => i.user.id === interaction.user.id && i.customId.startsWith('job_');
+        const collector = interaction.channel.createMessageComponentCollector({ filter, time: 20000, max: 1 });
+
+        collector.on('collect', async i => {
+            const selected = i.customId.replace('job_', '');
+            let win = false;
+
+            if (job.type === 'memory') win = selected === job.code;
+            else if (job.type === 'wires') win = selected.includes(job.wire);
+            else if (job.type === 'nav') win = selected.includes(job.dir);
+            else if (job.type === 'luck') win = Math.random() > 0.5;
+
+            if (win) {
+                const pay = Math.floor(Math.random() * (job.pay[1] - job.pay[0] + 1)) + job.pay[0];
+                await billingService.ubService.addMoney(interaction.guildId, interaction.user.id, pay, `Trabajo: ${job.title}`, 'cash');
+                casinoSessions[jobKey] = Date.now();
+
+                const successEmbed = new EmbedBuilder()
+                    .setTitle('✅ ¡EXCELENTE TRABAJO!')
+                    .setColor(0x00FF00)
+                    .setDescription(`Has completado: **${job.title}**`)
+                    .addFields({ name: '💰 Ganancia', value: `$${pay.toLocaleString()}`, inline: true })
+                    .setFooter({ text: '¡Descansa y vuelve en 1 hora!' })
+                    .setTimestamp();
+
+                await i.update({ embeds: [successEmbed], components: [] });
+            } else {
+                await i.update({
+                    content: `❌ **Fallaste** en ${job.title}. Inténtalo de nuevo en 1 hora.`,
+                    embeds: [],
+                    components: []
+                });
+                casinoSessions[jobKey] = Date.now();
+            }
+        });
+
+        collector.on('end', collected => {
+            if (collected.size === 0) {
+                interaction.followUp('⏱️ Se acabó el tiempo.').catch(() => { });
+            }
+        });
+    }
+}
+
+else if (commandName === 'crimen') {
+    await interaction.deferReply();
+    const CRIME_COOLDOWN = 120 * 60 * 1000;
+    const crimeKey = `crime_${interaction.user.id}`;
+    const lastCrime = casinoSessions[crimeKey] || 0;
+
+    if (Date.now() - lastCrime < CRIME_COOLDOWN) {
+        const min = Math.ceil((CRIME_COOLDOWN - (Date.now() - lastCrime)) / 60000);
+        return interaction.editReply(`🚓 **Buscado por la policía**\nEscóndete **${min} minutos**.`);
+    }
+
+    // Enhanced crimes with higher risks/rewards
+    const crimes = [
+        { title: '💣 Bomba Nuclear', desc: 'Cable correcto: VERDE', type: 'wires', wire: 'VERDE', opts: ['🔴 ROJO', '🟢 VERDE', '🔵 AZUL'], pay: [100000, 150000], fine: [20000, 35000] },
+        { title: '🏛️ Museo Nacional', desc: 'Sala 3 - Código 842', type: 'memory', code: 'Sala 3 - 842', opts: ['Sala 3 - 842', 'Sala 2 - 842', 'Sala 3 - 824'], pay: [80000, 130000], fine: [15000, 25000] },
+        { title: '🚓 Persecución', desc: 'Escapar a la IZQUIERDA', type: 'nav', dir: 'IZQUIERDA', opts: ['⬅️ IZQUIERDA', '➡️ DERECHA', '⬆️ ACELERAR'], pay: [50000, 90000], fine: [10000, 18000] },
+        { title: '💎 Mansión', desc: 'Cruzar jardín minado', type: 'luck', opts: ['🚶 RUTA A', '🚶 RUTA B', '🚶 RUTA C'], pay: [90000, 160000], fine: [25000, 40000] },
+        { title: '💻 Hackeo Banco', desc: 'inject_sql_admin_bypass', type: 'typing', cmd: 'inject_sql_admin_bypass', pay: [60000, 110000], fine: [12000, 22000] }
+    ];
+
+    const crime = crimes[Math.floor(Math.random() * crimes.length)];
+
+    const embed = new EmbedBuilder()
+        .setTitle(`☠️ ${crime.title}`)
+        .setColor(0x880000)
+        .setDescription(`**Misión:** ${crime.desc}\n\n💰 Botín: $${crime.pay[0].toLocaleString()} - $${crime.pay[1].toLocaleString()}\n🚨 Multa si fallas: $${crime.fine[0].toLocaleString()} - $${crime.fine[1].toLocaleString()}`)
+        .setFooter({ text: '⚠️ ALTO RIESGO - 20 Segundos' })
+        .setTimestamp();
+
+    // Similar structure to trabajar but with crime visuals
+    if (crime.type === 'memory') {
+        embed.addFields({ name: '🔐 MEMORIZA EL PLAN:', value: `\`\`\`\n${crime.code}\n\`\`\`` });
+        await interaction.editReply({ embeds: [embed] });
+
+        for (let i = 3; i > 0; i--) {
+            await new Promise(r => setTimeout(r, 1000));
+            embed.setFooter({ text: `⏰ Destruyendo evidencia en ${i}...` });
+            await interaction.editReply({ embeds: [embed] });
+        }
+
+        embed.setDescription(`🕵️ ¿Cuál era el plan?`);
+        embed.spliceFields(0, 1);
+
+        const row = new ActionRowBuilder();
+        crime.opts.forEach(opt =>
+            row.addComponents(new ButtonBuilder()
+                .setCustomId(`crime_${opt}`)
+                .setLabel(opt)
+                .setStyle(ButtonStyle.Danger))
+        );
+        await interaction.editReply({ embeds: [embed], components: [row] });
+
+    } else if (crime.type === 'wires') {
+        embed.addFields({
+            name: '💣 BOMBA NUCLEAR',
+            value: `\`\`\`\n╔═══════════╗\n║  ☢️ PELIGRO ☢️  ║\n║  🔴 🟢 🔵  ║\n║  10:00:00  ║\n╚═══════════╝\n\`\`\`\n⚠️ ¡CORTA EL CABLE ${crime.wire}!`
+        });
+
+        const row = new ActionRowBuilder();
+        crime.opts.forEach(opt =>
+            row.addComponents(new ButtonBuilder()
+                .setCustomId(`crime_${opt}`)
+                .setLabel(opt)
+                .setStyle(ButtonStyle.Danger))
+        );
+        await interaction.editReply({ embeds: [embed], components: [row] });
+
+    } else if (crime.type === 'nav') {
+        embed.addFields({
+            name: '🚔 PERSECUCIÓN',
+            value: `\`\`\`\n  🚗💨\n━━━┃━━━\n🚓 ↑ 🚧\n━━━━━━━\n\`\`\`\n⚡ Gira a la ${crime.dir} ¡YA!`
+        });
+
+        const row = new ActionRowBuilder();
+        crime.opts.forEach(opt =>
+            row.addComponents(new ButtonBuilder()
+                .setCustomId(`crime_${opt}`)
+                .setLabel(opt)
+                .setStyle(ButtonStyle.Danger))
+        );
+        await interaction.editReply({ embeds: [embed], components: [row] });
+
+    } else if (crime.type === 'luck') {
+        embed.addFields({
+            name: '🏰 JARDÍN MINADO',
+            value: `\`\`\`\n🏰 MANSIÓN 🏰\n[A] [B] [C]\n 💀  ?  💀\n\`\`\`\n⚠️ Probabilidad de éxito: 50%`
+        });
+
+        const row = new ActionRowBuilder();
+        crime.opts.forEach(opt =>
+            row.addComponents(new ButtonBuilder()
+                .setCustomId(`crime_${opt}`)
+                .setLabel(opt)
+                .setStyle(ButtonStyle.Danger))
+        );
+        await interaction.editReply({ embeds: [embed], components: [row] });
+
+    } else if (crime.type === 'typing') {
+        embed.addFields({
+            name: '🖥️ TERMINAL BANCARIA',
+            value: `\`\`\`bash\n🏦 BANCO CENTRAL\n> ACCESO DENEGADO\n> BYPASS...\n$ ${crime.cmd}\n\`\`\`\n⌨️ Ejecuta el comando`
+        });
+        await interaction.editReply({ embeds: [embed] });
+    }
+
+    // Collector (same logic but with crime penalties)
+    if (crime.type === 'typing') {
+        const filter = m => m.author.id === interaction.user.id;
+        const collector = interaction.channel.createMessageCollector({ filter, time: 20000, max: 1 });
+
+        collector.on('collect', async m => {
+            if (m.content.trim() === crime.cmd) {
+                const pay = Math.floor(Math.random() * (crime.pay[1] - crime.pay[0] + 1)) + crime.pay[0];
+                await billingService.ubService.addMoney(interaction.guildId, interaction.user.id, pay, `Crimen: ${crime.title}`, 'cash');
+                casinoSessions[crimeKey] = Date.now();
+
+                const successEmbed = new EmbedBuilder()
+                    .setTitle('💸 ¡ÉXITO CRIMINAL!')
+                    .setColor(0x00FF00)
+                    .setDescription(`Completaste: **${crime.title}**`)
+                    .addFields({ name: '💰 Botín', value: `$${pay.toLocaleString()}`, inline: true })
+                    .setFooter({ text: 'Aléjate de la escena del crimen' });
+
+                m.react('😈');
+                await interaction.followUp({ embeds: [successEmbed] });
+            } else {
+                const fine = Math.floor(Math.random() * (crime.fine[1] - crime.fine[0] + 1)) + crime.fine[0];
+                await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, fine, `Multa: ${crime.title}`, 'cash');
+                casinoSessions[crimeKey] = Date.now();
+                m.react('🚔');
+                await interaction.followUp(`🚨 **ARRESTADO**. Fallaste. Multa: **$${fine.toLocaleString()}**`);
+            }
+        });
+
+    } else {
+        const filter = i => i.user.id === interaction.user.id && i.customId.startsWith('crime_');
+        const collector = interaction.channel.createMessageComponentCollector({ filter, time: 20000, max: 1 });
+
+        collector.on('collect', async i => {
+            const selected = i.customId.replace('crime_', '');
+            let win = false;
+
+            if (crime.type === 'memory') win = selected === crime.code;
+            else if (crime.type === 'wires') win = selected.includes(crime.wire);
+            else if (crime.type === 'nav') win = selected.includes(crime.dir);
+            else if (crime.type === 'luck') win = Math.random() > 0.5;
+
+            if (win) {
+                const pay = Math.floor(Math.random() * (crime.pay[1] - crime.pay[0] + 1)) + crime.pay[0];
+                await billingService.ubService.addMoney(interaction.guildId, interaction.user.id, pay, `Crimen: ${crime.title}`, 'cash');
+                casinoSessions[crimeKey] = Date.now();
+
+                const successEmbed = new EmbedBuilder()
+                    .setTitle('💸 ¡ÉXITO CRIMINAL!')
+                    .setColor(0x00FF00)
+                    .setDescription(`Completaste: **${crime.title}**`)
+                    .addFields({ name: '💰 Botín', value: `$${pay.toLocaleString()}`, inline: true })
+                    .setFooter({ text: 'Escóndete por 2 horas' })
+                    .setTimestamp();
+
+                await i.update({ embeds: [successEmbed], components: [] });
+            } else {
+                const fine = Math.floor(Math.random() * (crime.fine[1] - crime.fine[0] + 1)) + crime.fine[0];
+                await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, fine, `Multa: ${crime.title}`, 'cash');
+                casinoSessions[crimeKey] = Date.now();
+
+                await i.update({
+                    content: `🚨 **ARRESTADO** en ${crime.title}. Multa: **$${fine.toLocaleString()}**`,
+                    embeds: [],
+                    components: []
+                });
+            }
+        });
+
+        collector.on('end', collected => {
+            if (collected.size === 0) {
+                interaction.followUp('⏱️ Tiempo agotado. La policía te atrapó.').catch(() => { });
+                casinoSessions[crimeKey] = Date.now();
+            }
+        });
+    }
+}
 
     else if (commandName === 'bolsa') {
         await interaction.deferReply();
