@@ -4691,13 +4691,14 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                             local_type: tipoLocal || 'pequeño',
                             local_photo_url: fotoLocal ? fotoLocal.url : null,
                             location: ubicacion,
-                            // ERROR FIX: co_owner_id column does not exist, using owner_ids array instead
-                            // co_owner_id: coDueño ? coDueño.id : null, 
+                            // co_owner_id restored as requested
+                            co_owner_id: coDueño ? coDueño.id : null,
                             is_private: esPrivada,
                             owner_ids: ownerIds,
                             vehicle_count: 0,
-                            industry_type: 'General'
-                            // discord_server: discordServer -- REMOVED: Column does not exist in DB
+                            industry_type: 'General',
+                            // discord_server restored as requested
+                            discord_server: discordServer
                         }).select().single();
 
                         if (error) {
