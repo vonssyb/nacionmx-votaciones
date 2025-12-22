@@ -4696,8 +4696,8 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                             is_private: esPrivada,
                             owner_ids: ownerIds,
                             vehicle_count: 0,
-                            industry_type: 'General',
-                            discord_server: discordServer
+                            industry_type: 'General'
+                            // discord_server: discordServer -- REMOVED: Column does not exist in DB
                         }).select().single();
 
                         if (error) {
