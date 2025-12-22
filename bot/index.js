@@ -3644,26 +3644,21 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
 
                             if (insertError) throw new Error(insertError.message);
 
-                            // Send notification to channel
-                            try {
-                                const notifChannel = await client.channels.fetch('1452346918620500041');
-                                if (notifChannel) {
-                                    const notifEmbed = new EmbedBuilder()
-                                        .setColor('#FF6B6B')
-                                        .setTitle('🔖 Nueva Tarjeta de Crédito Registrada')
-                                        .addFields(
-                                            { name: '👤 Titular', value: `${holderName} (<@${targetUser.id}>)`, inline: false },
-                                            { name: '💳 Tipo', value: cardType, inline: true },
-                                            { name: '💰 Límite', value: `$${stats.limit.toLocaleString()}`, inline: true },
-                                            { name: '📊 Interés', value: `${stats.interest}%`, inline: true },
-                                            { name: '👮 Registrado por', value: `<@${interaction.user.id}>`, inline: false }
-                                        )
-                                        .setTimestamp();
-                                    await notifChannel.send({ embeds: [notifEmbed] });
-                                }
-                            } catch (notifError) {
-                                console.error('[registrar-tarjeta] Credit notification error:', notifError);
-                            }
+                            // LOGGING: New Card
+                            const logEmbed = new EmbedBuilder()
+                                .setTitle('🔖 Nueva Tarjeta de Crédito Registrada')
+                                .setColor('#FFD700')
+                                .addFields(
+                                    { name: '👤 Titular', value: `${holderName} (<@${targetUser.id}>)`, inline: false },
+                                    { name: '💳 Tipo', value: cardType, inline: true },
+                                    { name: '💰 Límite', value: `$${stats.limit.toLocaleString()}`, inline: true },
+                                    { name: '📊 Interés', value: `${stats.interest}%`, inline: true },
+                                    { name: '👮 Registrado por', value: `<@${interaction.user.id}>`, inline: false }
+                                )
+                                .setFooter({ text: 'Banco Nacional RP' })
+                                .setTimestamp();
+
+                            logToChannel(targetUser.client.guilds.cache.get(interaction.guildId), LOG_CREACION_TARJETA, logEmbed);
 
                             await message.edit({
                                 content: `✅ **Tarjeta Activada** para **${holderName}**. Cobro de $${stats.cost.toLocaleString()} realizado.\n👮 **Registrado por:** <@${interaction.user.id}>`,
