@@ -6429,15 +6429,33 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
         const subCmd = interaction.options.getSubcommand();
         const balance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
 
-        if (subCmd === 'saldo') {
+        if (subCmd === 'estado') {
+            // Fetch debit card info
+            const { data: debitCard } = await supabase
+                .from('debit_cards')
+                .select('*')
+                .eq('discord_user_id', interaction.user.id)
+                .eq('status', 'active')
+                .maybeSingle();
+
             const embed = new EmbedBuilder()
                 .setTitle('💳 Estado de Cuenta')
                 .setColor('#2F3136')
                 .addFields(
                     { name: '🏦 Banco', value: `$${(balance.bank || 0).toLocaleString()}`, inline: true },
                     { name: '💵 Efectivo', value: `$${(balance.cash || 0).toLocaleString()}`, inline: true },
-                    { name: '💰 Patrimonio', value: `$${((balance.bank || 0) + (balance.cash || 0)).toLocaleString()}`, inline: false }
+                    { name: '💰 Patrimonio Total', value: `$${((balance.bank || 0) + (balance.cash || 0)).toLocaleString()}`, inline: false }
                 );
+
+            if (debitCard) {
+                embed.addFields(
+                    { name: '💳 Tarjeta', value: `${debitCard.card_type}`, inline: true },
+                    { name: '🔢 Número', value: `**** **** **** ${debitCard.card_number.slice(-4)}`, inline: true }
+                );
+            } else {
+                embed.setFooter({ text: 'No tienes tarjeta de débito activa' });
+            }
+
             return interaction.editReply({ embeds: [embed] });
         }
 
@@ -6460,6 +6478,112 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             await billingService.ubService.addMoney(interaction.guildId, interaction.user.id, amount, 'Depósito cajero', 'bank');
             return interaction.editReply(`✅ **Depósito Exitoso**\nDepositaste $${amount.toLocaleString()} en el banco.`);
         }
+
+        if (subCmd === 'transferir') {
+            const targetUser = interaction.options.getUser('destinatario');
+            const amount = interaction.options.getNumber('monto');
+            const concepto = interaction.options.getString('concepto') || 'Transferencia';
+
+            // Self-transfer check
+            if (targetUser.id === interaction.user.id) {
+                return interaction.editReply('❌ No puedes transferirte a ti mismo.');
+            }
+
+            if (amount <= 0) return interaction.editReply('❌ Monto inválido.');
+            if ((balance.bank || 0) < amount) {
+                return interaction.editReply(`❌ **Fondos Insuficientes en Banco**\nRequiere: $${amount.toLocaleString()}\nTienes: $${(balance.bank || 0).toLocaleString()}`);
+            }
+
+            // Check recipient has debit card
+            const { data: recipientCard } = await supabase
+                .from('debit_cards')
+                .select('*')
+                .eq('discord_user_id', targetUser.id)
+                .eq('status', 'active')
+                .maybeSingle();
+
+            if (!recipientCard) {
+                return interaction.editReply(`❌ ${targetUser.tag} no tiene una tarjeta de débito activa.`);
+            }
+
+            // Remove money from sender
+            await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, amount, `Transfer a ${targetUser.tag}`, 'bank');
+
+            // Schedule transfer (5 minutes)
+            const releaseDate = new Date(Date.now() + (5 * 60 * 1000));
+
+            await supabase.from('pending_transfers').insert({
+                sender_id: interaction.user.id,
+                receiver_id: targetUser.id,
+                amount: amount,
+                reason: concepto,
+                release_date: releaseDate.toISOString(),
+                status: 'PENDING',
+                transfer_type: 'debito'
+            });
+
+            const embed = new EmbedBuilder()
+                .setTitle('💳 Transferencia Programada')
+                .setColor(0x00FF00)
+                .setDescription(`Transferencia a **${targetUser.tag}** en proceso.`)
+                .addFields(
+                    { name: '💰 Monto', value: `$${amount.toLocaleString()}`, inline: true },
+                    { name: '⏱️ Tiempo', value: '5 minutos', inline: true },
+                    { name: '📝 Concepto', value: concepto, inline: false }
+                )
+                .setFooter({ text: 'El dinero se acreditará automáticamente' })
+                .setTimestamp();
+
+            return interaction.editReply({ embeds: [embed] });
+        }
+    }
+
+    else if (commandName === 'transferir') {
+        await interaction.deferReply();
+        const targetUser = interaction.options.getUser('destinatario');
+        const amount = interaction.options.getNumber('monto');
+        const concepto = interaction.options.getString('concepto') || 'Transferencia SPEI';
+
+        // Self-transfer check
+        if (targetUser.id === interaction.user.id) {
+            return interaction.editReply('❌ No puedes transferirte a ti mismo.');
+        }
+
+        if (amount <= 0) return interaction.editReply('❌ Monto inválido.');
+
+        const balance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
+        if ((balance.bank || 0) < amount) {
+            return interaction.editReply(`❌ **Fondos Insuficientes en Banco**\nRequiere: $${amount.toLocaleString()}\nTienes: $${(balance.bank || 0).toLocaleString()}`);
+        }
+
+        // Check recipient has debit card
+        const { data: recipientCard } = await supabase
+            .from('debit_cards')
+            .select('*')
+            .eq('discord_user_id', targetUser.id)
+            .eq('status', 'active')
+            .maybeSingle();
+
+        if (!recipientCard) {
+            return interaction.editReply(`❌ ${targetUser.tag} no tiene una tarjeta de débito activa para recibir transferencias.`);
+        }
+
+        // Immediate transfer
+        await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, amount, `SPEI a ${targetUser.tag}`, 'bank');
+        await billingService.ubService.addMoney(interaction.guildId, targetUser.id, amount, `SPEI de ${interaction.user.tag}`, 'bank');
+
+        const embed = new EmbedBuilder()
+            .setTitle('⚡ Transferencia SPEI Exitosa')
+            .setColor(0x00FF00)
+            .setDescription(`Transferencia inmediata a **${targetUser.tag}** completada.`)
+            .addFields(
+                { name: '💰 Monto', value: `$${amount.toLocaleString()}`, inline: true },
+                { name: '💳 Destino', value: `*${recipientCard.card_number.slice(-4)}`, inline: true },
+                { name: '📝 Concepto', value: concepto, inline: false }
+            )
+            .setTimestamp();
+
+        return interaction.editReply({ embeds: [embed] });
     }
 
     else if (commandName === 'casino') {

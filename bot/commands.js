@@ -867,10 +867,29 @@ const commands = [
                 options: [{ name: 'monto', description: 'Cantidad a depositar', type: 10, required: true }]
             },
             {
-                name: 'saldo',
-                description: 'Ver tus saldos actuales',
+                name: 'estado',
+                description: 'Ver tu saldo bancario y número de tarjeta',
                 type: 1
+            },
+            {
+                name: 'transferir',
+                description: 'Transferir a otro usuario (Banco a Banco, 5 min)',
+                type: 1,
+                options: [
+                    { name: 'destinatario', description: 'Usuario a transferir', type: 6, required: true },
+                    { name: 'monto', description: 'Cantidad a transferir', type: 10, required: true },
+                    { name: 'concepto', description: 'Concepto de la transferencia', type: 3, required: false }
+                ]
             }
+        ]
+    },
+    {
+        name: 'transferir',
+        description: '💸 Transferencia SPEI inmediata (Solo Banco)',
+        options: [
+            { name: 'destinatario', description: 'Usuario a transferir', type: 6, required: true },
+            { name: 'monto', description: 'Cantidad a transferir', type: 10, required: true },
+            { name: 'concepto', description: 'Concepto de la transferencia', type: 3, required: false }
         ]
     }
 ];
