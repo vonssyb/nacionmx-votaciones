@@ -69,6 +69,8 @@ let globalStocks = [
 // LOG CHANNELS
 const LOG_CREACION_TARJETA = '1450343644652507136';
 const LOG_EMPRESAS = '1452346918620500041';
+const LOG_LICENCIAS = '1450262813548482665';
+const LOG_TIENDA = '1452499876737978438';
 
 // CASINO SESSION MANAGERS (Multiplayer)
 const casinoSessions = {
@@ -7378,6 +7380,19 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                             .setDescription(`${item.icon_emoji} **${item.name}**\n\n💰 Pagado: $${item.price.toLocaleString()}\n💳 Método: ${paymentResult.method}${duration}${ticketMsg}`)
                             .setFooter({ text: 'Gracias por tu compra!' })
                             .setTimestamp();
+
+                        // LOGGING: Store
+                        const logEmbed = new EmbedBuilder()
+                            .setTitle('🛒 Nueva Compra en Tienda')
+                            .setColor('#AA00FF')
+                            .addFields(
+                                { name: 'Cliente', value: `<@${userId}>`, inline: true },
+                                { name: 'Item', value: item.name, inline: true },
+                                { name: 'Precio', value: `$${item.price.toLocaleString()}`, inline: true },
+                                { name: 'Método', value: paymentResult.method, inline: true }
+                            )
+                            .setTimestamp();
+                        logToChannel(interaction.guild, LOG_TIENDA, logEmbed);
 
                         await i.editReply({ embeds: [successEmbed], components: [] });
 
