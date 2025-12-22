@@ -1099,8 +1099,14 @@ client.once('ready', async () => {
                             description: 'Congelar una tarjeta - No podrá usarse',
                             type: 1,
                             options: [
-                                { name: 'usuario', description: 'Usuario de Discord', type: 6, required: true }
+                                { name: 'usuario', description: 'Usuario de Discord', type: 6, required: true },
+                                { name: 'tipo', description: 'Tipo: debit, credit, business', type: 3, required: true }
                             ]
+                        },
+                        {
+                            name: 'economia',
+                            description: '📊 Ver estadísticas de la economía global (Inflación, Rico, etc)',
+                            type: 1
                         },
                         {
                             name: 'descongelar',
@@ -1873,12 +1879,12 @@ client.once('ready', async () => {
             console.log(`✨ Registrando SOLO 1 COMANDO (ping) en: '${GUILD_ID}'...`);
             console.log(`🔑 Client ID: ${client.user.id}`);
             // console.log('📦 Payloads:', JSON.stringify(commands, null, 2)); // Too verbose for 17 commands
-
+    
             // Timeout implementation to prevent hanging indefinitely
             const registrationTimeout = new Promise((_, reject) =>
                 setTimeout(() => reject(new Error('TIMEOUT: La conexión con Discord API tardó demasiado (>30s).')), 30000)
             );
-
+    
             try {
                 await Promise.race([
                     rest.put(Routes.applicationGuildCommands(client.user.id, GUILD_ID), { body: commands }),
@@ -7159,6 +7165,19 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                             .setTimestamp();
 
                         await i.editReply({ content: '', embeds: [successEmbed], components: [] });
+
+                        // LOGGING: License
+                        const logEmbed = new EmbedBuilder()
+                            .setTitle('🪪 Nueva Licencia Otorgada')
+                            .setColor('#00AAC0')
+                            .addFields(
+                                { name: 'Ciudadano', value: `<@${targetUser.id}>`, inline: true },
+                                { name: 'Licencia', value: licenseName, inline: true },
+                                { name: 'Costo', value: `$${cost.toLocaleString()}`, inline: true },
+                                { name: 'Autorizado por', value: `<@${interaction.user.id}>`, inline: false }
+                            )
+                            .setTimestamp();
+                        logToChannel(interaction.guild, LOG_LICENCIAS, logEmbed);
 
                         // Try to DM citizen
                         try {
