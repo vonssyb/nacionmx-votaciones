@@ -1303,6 +1303,8 @@ client.once('ready', async () => {
                     options: [
                         { name: 'nombre', description: 'Nombre legal de la empresa (único)', type: 3, required: true },
                         { name: 'dueño', description: 'Dueño y responsable legal', type: 6, required: true },
+                        { name: 'logo', description: 'Logo de la empresa', type: 11, required: true },
+                        { name: 'discord_server', description: 'Enlace del servidor de Discord', type: 3, required: true },
                         {
                             name: 'tipo_local',
                             description: 'Tamaño del local/propiedad',
@@ -1315,8 +1317,6 @@ client.once('ready', async () => {
                                 { name: 'Gigante ($5M)', value: 'gigante' }
                             ]
                         },
-                        { name: 'logo', description: 'Logo de la empresa', type: 11, required: true },
-                        { name: 'discord_server', description: 'Enlace del servidor de Discord', type: 3, required: true },
                         { name: 'foto_local', description: 'Foto del local/establecimiento (Opcional)', type: 11, required: false },
                         { name: 'ubicacion', description: 'Ubicación RP del negocio', type: 3, required: false },
                         { name: 'co_dueño', description: 'Co-Dueño (Máx. 1)', type: 6, required: false },
