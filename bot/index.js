@@ -7612,6 +7612,100 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             }
         }
 
+        // ===================================================================
+        // GAMIFICATION: CRIME & JOBS
+        // ===================================================================
+
+        else if (commandName === 'robar') {
+            await interaction.deferReply();
+            const targetUser = interaction.options.getUser('usuario');
+
+            if (targetUser.id === interaction.user.id) return interaction.editReply('❌ No te puedes robar a ti mismo.');
+            if (targetUser.bot) return interaction.editReply('❌ No puedes robar a un bot.');
+
+            // Cooldown Check (2 Hours)
+            const COOLDOWN_TIME = 2 * 60 * 60 * 1000;
+            const cooldownKey = `rob_${interaction.user.id}`;
+            const lastRob = casinoSessions[cooldownKey] || 0; // Reusing casinoSessions as simple cache or could use new Map
+
+            // Note: Ideally use a dedicated Map for cooldowns, but for now using a global object or Map is fine. 
+            // Let's assume we use a new Map for clarity or just add it to top level variable if needed.
+            // Using `lastRob` from a Map. Let's create a global map in the file scope if not exists.
+
+            if (Date.now() - lastRob < COOLDOWN_TIME) {
+                const remaining = Math.ceil((COOLDOWN_TIME - (Date.now() - lastRob)) / 60000);
+                return interaction.editReply(`⏳ **Cooldown Activo**\nDebes esperar **${remaining} minutos** para volver a robar.`);
+            }
+
+            try {
+                // Get Victim Balance
+                const victimBal = await billingService.ubService.getUserBalance(interaction.guildId, targetUser.id);
+                const victimCash = victimBal.cash || 0;
+
+                if (victimCash < 500) {
+                    return interaction.editReply(`❌ ${targetUser.username} es demasiado pobre (Menos de $500 en efectivo).`);
+                }
+
+                // RNG Logic
+                const chance = Math.random();
+                const isSuccess = chance < 0.40; // 40% Success
+
+                if (isSuccess) {
+                    // Success: Steal 5-15%
+                    const percent = (Math.random() * 0.10) + 0.05;
+                    const stealAmount = Math.floor(victimCash * percent);
+
+                    await billingService.ubService.removeMoney(interaction.guildId, targetUser.id, stealAmount, `Robado por ${interaction.user.tag}`, 'cash');
+                    await billingService.ubService.addMoney(interaction.guildId, interaction.user.id, stealAmount, `Robo a ${targetUser.tag}`, 'cash');
+
+                    // Set Cooldown
+                    casinoSessions[cooldownKey] = Date.now();
+
+                    const embed = new EmbedBuilder()
+                        .setTitle('🔫 ¡Robo Exitoso!')
+                        .setColor('#00FF00')
+                        .setDescription(`Le has robado **$${stealAmount.toLocaleString()}** a <@${targetUser.id}>.\n¡Corre antes de que llegue la policía!`)
+                        .setTimestamp();
+
+                    return interaction.editReply({ embeds: [embed] });
+
+                } else {
+                    // Fail: Fine $2000
+                    const FINE_AMOUNT = 2000;
+                    await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, FINE_AMOUNT, 'Multa por intento de robo', 'cash');
+
+                    // Set Cooldown
+                    casinoSessions[cooldownKey] = Date.now();
+
+                    const embed = new EmbedBuilder()
+                        .setTitle('🚨 ¡Te atrapó la policía!')
+                        .setColor('#FF0000')
+                        .setDescription(`Fallaste en el robo y fuiste arrestado.\n**Multa:** $${FINE_AMOUNT.toLocaleString()}`)
+                        .setImage('https://i.imgur.com/5w2qZpA.gif') // Optional generic police gif
+                        .setTimestamp();
+
+                    await interaction.editReply({ embeds: [embed] });
+
+                    // Log to Police
+                    const logEmbed = new EmbedBuilder()
+                        .setTitle('🚔 Intento de Robo Frustrado')
+                        .setColor('#FF0000')
+                        .addFields(
+                            { name: 'Criminal', value: `<@${interaction.user.id}>`, inline: true },
+                            { name: 'Víctima', value: `<@${targetUser.id}>`, inline: true },
+                            { name: 'Multa', value: `$${FINE_AMOUNT}`, inline: true },
+                            { name: 'Ubicación', value: `<#${interaction.channel.id}>`, inline: false }
+                        )
+                        .setTimestamp();
+                    logToChannel(interaction.guild, LOG_POLICIA, logEmbed);
+                }
+
+            } catch (error) {
+                console.error('[robar] Error:', error);
+                await interaction.editReply('❌ Error procesando el robo.');
+            }
+        }
+
         else if (subcommand === 'mispases') {
             await interaction.deferReply({ ephemeral: true });
             const userId = interaction.user.id;
