@@ -4632,27 +4632,27 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                     const method = i.customId.replace('emp_pay_', '').replace('emp_', ''); // Support both old and new
 
                     try {
-                        // Process payment based on method
+                        // Process payment based on method - DUEÑO PAYS, not command executor
                         if (method === 'cash' || method === 'bank') {
                             const balance = await billingService.ubService.getUserBalance(interaction.guildId, dueño.id);
                             const source = method === 'cash' ? 'cash' : 'bank';
                             if ((balance[source] || 0) < totalCost) {
-                                return i.editReply({ content: `❌ Saldo insuficiente en ${source === 'cash' ? 'efectivo' : 'banco'}.`, components: [] });
+                                return i.editReply({ content: `❌ El dueño no tiene saldo suficiente en ${source === 'cash' ? 'efectivo' : 'banco'}.`, components: [] });
                             }
                             await billingService.ubService.removeMoney(interaction.guildId, dueño.id, totalCost, `Empresa: ${nombre}`, source);
                         } else if (method === 'debit' || method === 'credit') {
                             const { data: citizen } = await supabase.from('citizens').select('id').eq('discord_id', dueño.id).maybeSingle();
-                            if (!citizen) return i.editReply({ content: '❌ Cuenta no vinculada.', components: [] });
+                            if (!citizen) return i.editReply({ content: '❌ El dueño no tiene cuenta vinculada.', components: [] });
 
                             if (method === 'debit') {
                                 const { data: card } = await supabase.from('debit_cards').select('*').eq('user_id', dueño.id).eq('is_active', true).maybeSingle();
-                                if (!card) return i.editReply({ content: '❌ Sin tarjeta de débito.', components: [] });
+                                if (!card) return i.editReply({ content: '❌ El dueño no tiene tarjeta de débito activa.', components: [] });
                                 const balance = await billingService.ubService.getUserBalance(interaction.guildId, dueño.id);
-                                if ((balance.bank || 0) < totalCost) return i.editReply({ content: '❌ Saldo bancario insuficiente.', components: [] });
+                                if ((balance.bank || 0) < totalCost) return i.editReply({ content: '❌ Saldo bancario insuficiente del dueño.', components: [] });
                                 await billingService.ubService.removeMoney(interaction.guildId, dueño.id, totalCost, `Empresa: ${nombre}`, 'bank');
                             } else {
                                 const { data: card } = await supabase.from('credit_cards').select('*').eq('citizen_id', citizen.id).maybeSingle();
-                                if (!card) return i.editReply({ content: '❌ Sin tarjeta de crédito.', components: [] });
+                                if (!card) return i.editReply({ content: '❌ El dueño no tiene tarjeta de crédito.', components: [] });
                                 const available = card.credit_limit - card.current_balance;
                                 if (available < totalCost) return i.editReply({ content: `❌ Crédito insuficiente ($${available.toLocaleString()}).`, components: [] });
                                 await supabase.from('credit_cards').update({ current_balance: card.current_balance + totalCost }).eq('id', card.id);
