@@ -5466,9 +5466,10 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 return interaction.editReply({ embeds: [embed] });
 
             } else {
-                // Fail: Fine $2000
+                // Fail: Fine goes to victim as compensation
                 const FINE_AMOUNT = 2000;
                 await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, FINE_AMOUNT, 'Multa por intento de robo', 'cash');
+                await billingService.ubService.addMoney(interaction.guildId, targetUser.id, FINE_AMOUNT, `Compensación de intento de robo por ${interaction.user.tag}`, 'cash');
 
                 // Set Cooldown
                 casinoSessions[cooldownKey] = Date.now();
@@ -5476,8 +5477,8 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 const embed = new EmbedBuilder()
                     .setTitle('🚨 ¡Te atrapó la policía!')
                     .setColor('#FF0000')
-                    .setDescription(`Fallaste en el robo y fuiste arrestado.\n**Multa:** $${FINE_AMOUNT.toLocaleString()}`)
-                    .setImage('https://media1.tenor.com/m/1k_lJcQ6q8AAAAAC/gta-busted.gif') // GTA Busted GIF
+                    .setDescription(`Fallaste en el robo y fuiste arrestado.\n**Multa:** $${FINE_AMOUNT.toLocaleString()}\n💰 La multa fue dada a <@${targetUser.id}> como compensación.`)
+                    .setImage('https://media1.tenor.com/m/1k_lJcQ6q8AAAAAC/gta-busted.gif')
                     .setTimestamp();
 
                 await interaction.editReply({ embeds: [embed] });
