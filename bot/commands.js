@@ -763,25 +763,6 @@ const commands = [
         type: 1
     },
     {
-        name: 'debito',
-        description: '💳 Gestión de Tarjeta de Débito',
-        options: [
-            {
-                name: 'estado',
-                description: 'Ver estado de tu tarjeta de débito',
-                type: 1
-            },
-            {
-                name: 'mejorar',
-                description: 'Ofrecer mejora de tarjeta (Solo Staff Bancario)',
-                type: 1,
-                options: [
-                    { name: 'usuario', description: 'Usuario a mejorar', type: 6, required: true }
-                ]
-            }
-        ]
-    },
-    {
         name: 'saldo',
         description: '🏦 Ver saldo de banco y efectivo',
         options: [
