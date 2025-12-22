@@ -5159,9 +5159,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
 
                 return interaction.editReply({ embeds: [embed] });
             }
-            if (subCmd === 'credito-info') {
-                return interaction.editReply('💳 Info de crédito disponible pronto.');
-            }
+
 
             // ===== LISTAR USUARIO (STAFF) =====
             if (subCmd === 'listar-usuario') {
