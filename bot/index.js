@@ -6083,214 +6083,170 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 }
     else if (commandName === 'trabajar') {
     await interaction.deferReply();
-
-    // 1. Cooldown Check (1 Hour)
     const JOB_COOLDOWN = 60 * 60 * 1000;
     const jobKey = `job_${interaction.user.id}`;
     const lastJob = casinoSessions[jobKey] || 0;
-
     if (Date.now() - lastJob < JOB_COOLDOWN) {
         const remaining = Math.ceil((JOB_COOLDOWN - (Date.now() - lastJob)) / 60000);
-        return interaction.editReply(`⏳ **Estás cansado**\nDebes descansar **${remaining} minutos** antes de volver a trabajar.`);
+        return interaction.editReply(`⏳ **Estás cansado**\nDebes descansar **${remaining} minutos**.`);
     }
 
-    // 2. JOB SCENARIOS (30+ Minigames)
     const JOBS = [
-        // --- MATH (Calculations) ---
         { title: '🥖 Panadero', desc: '5 bolillos ($3) + 2 conchas ($8). ¿Total?', type: 'math', a: (5 * 3 + 2 * 8).toString(), pay: [1000, 1500] },
         { title: '🚕 Taxista', desc: 'Base $20 + 12km ($5/km). ¿Total?', type: 'math', a: (20 + 5 * 12).toString(), pay: [1200, 1800] },
-        { title: '🏗️ Arquitecto', desc: 'Área de cuarto 8m x 6m. ¿m²?', type: 'math', a: (8 * 6).toString(), pay: [2500, 4000] },
-        { title: '🔋 Electricista', desc: '3 focos (60W) + 1 (100W). ¿Watts?', type: 'math', a: (3 * 60 + 100).toString(), pay: [1500, 2200] },
-        { title: '💊 Farmacéutico', desc: '50 pastillas / 6 al día. ¿Días completos?', type: 'math', a: Math.floor(50 / 6).toString(), pay: [1800, 2500] },
-        { title: '📦 Paquetería', desc: '4 cajas (15kg) + 1 (25kg). ¿Kilos?', type: 'math', a: (4 * 15 + 25).toString(), pay: [1100, 1600] },
-        { title: '⛽ Gasolinera', desc: '35 litros a $20. ¿Total?', type: 'math', a: (20 * 35).toString(), pay: [1000, 1400] },
-        { title: '🥩 Carnicero', desc: '2.5 kg carne a $120. ¿Total?', type: 'math', a: (120 * 2.5).toString(), pay: [1300, 1700] },
-        { title: '🧱 Albañil', desc: '100 ladrillos - 15 rotos. ¿Quedan?', type: 'math', a: '85', pay: [1000, 1500] },
-        { title: '🎓 Maestro', desc: '30 alumnos x 3 tareas. ¿Total?', type: 'math', a: '90', pay: [2000, 3000] },
-
-        // --- TYPING (Accuracy) ---
-        { title: '💻 Programador', desc: 'Escribe el código exacto para arreglar el bug:', type: 'typing', text: 'sudo rm -rf /virus', pay: [5000, 8000] },
-        { title: '📝 Secretario', desc: 'Transcribe el folio:', type: 'typing', text: 'NMX-8821-XP', pay: [1500, 2200] },
-        { title: '📡 Controlador Aéreo', desc: 'Código de aterrizaje:', type: 'typing', text: 'DELTA-FOX-99', pay: [4000, 6000] },
-        { title: '🔬 Químico', desc: 'Etiqueta la fórmula:', type: 'typing', text: 'H2SO4 + NaCl', pay: [3000, 5000] },
-        { title: '🚒 Bombero', desc: 'Orden por radio:', type: 'typing', text: 'FUEGO EN SECTOR 7', pay: [2500, 4000] },
-        { title: '👮 Policía', desc: 'Matrícula sospechosa:', type: 'typing', text: 'XJ-928-BZ', pay: [2200, 3500] },
-        { title: '👨‍⚖️ Juez', desc: 'Sentencia:', type: 'typing', text: 'CULPABLE', pay: [8000, 15000] },
-        { title: '🗞️ Periodista', desc: 'Titular:', type: 'typing', text: 'CRISIS EN LA BOLSA', pay: [2000, 3500] },
-        { title: '🚑 Paramédico', desc: 'Clave de emergencia:', type: 'typing', text: 'CODIGO ROJO 55', pay: [2500, 4500] },
-        { title: '🧑‍🚀 Astronauta', desc: 'Secuencia de despegue:', type: 'typing', text: 'T-MINUS 10 SEC', pay: [10000, 20000] },
-
-        // --- CHOICE (Logic/Buttons) ---
-        { title: '🔧 Mecánico', desc: 'Auto sobrecalentado. ¿Revisar?', type: 'choice', opts: ['Llantas', 'Radiador', 'Frenos'], correct: 'Radiador', pay: [1500, 2500] },
-        { title: '👨‍⚕️ Doctor', desc: 'Hueso roto. ¿Aplicar?', type: 'choice', opts: ['Curita', 'Yeso', 'Jarabe'], correct: 'Yeso', pay: [4000, 7000] },
-        { title: '👨‍🍳 Chef', desc: 'Sopa desabrida. ¿Falta?', type: 'choice', opts: ['Azúcar', 'Sal', 'Hielo'], correct: 'Sal', pay: [1800, 2600] },
-        { title: '🛫 Piloto', desc: 'Despegar avión. ¿Acción?', type: 'choice', opts: ['Frenar', 'Acelerar', 'Apagar'], correct: 'Acelerar', pay: [6000, 12000] },
-        { title: '🌾 Agricultor', desc: 'Tierra seca. ¿Acción?', type: 'choice', opts: ['Riego', 'Calor', 'Ventilador'], correct: 'Riego', pay: [1200, 1800] },
-        { title: '🔌 IT Support', desc: 'PC no prende. ¿Paso 1?', type: 'choice', opts: ['Golpear', 'Verificar cables', 'Gritar'], correct: 'Verificar cables', pay: [2000, 3000] },
-        { title: '🎨 Pintor', desc: 'Crear VERDE. ¿Mezcla?', type: 'choice', opts: ['Rojo+Azul', 'Azul+Amarillo', 'Blanco+Negro'], correct: 'Azul+Amarillo', pay: [1500, 2000] },
-        { title: '🎣 Pescador', desc: 'Atrapar peces. ¿Herramienta?', type: 'choice', opts: ['Escopeta', 'Red', 'Imán'], correct: 'Red', pay: [1000, 1500] },
-        { title: '🕵️ Detective', desc: 'Pista diferente:', type: 'choice', opts: ['🔍', '🔎', '🔦'], correct: '🔦', pay: [3000, 5000] },
-        { title: '🌲 Guardabosques', desc: 'Animal peligroso:', type: 'choice', opts: ['🐰', '🦌', '🐻'], correct: '🐻', pay: [2000, 3500] }
+        { title: '🧠 Bibliotecario', desc: 'Memoriza el código:', type: 'memory', text: 'XJ-9', opts: ['XJ-9', 'XK-8', 'XJ-6'], correct: 'XJ-9', pay: [1500, 2000] },
+        { title: '⚡ Electricista', desc: 'Corta el cable AZUL.', type: 'wires', order: 'Azul', opts: ['Rojo', 'Azul', 'Verde'], correct: 'Azul', pay: [2000, 3000] },
+        { title: '🚚 Repartidor', desc: 'La casa está al NORTE.', type: 'snake', dest: 'Norte', opts: ['⬆️', '⬇️', '⬅️'], correct: '⬆️', pay: [1000, 1500] },
+        { title: '⛏️ Minero', desc: 'Excava donde haya oro (Suerte 1/3).', type: 'mines', opts: ['1', '2', '3'], correct: 'random', pay: [3000, 5000] },
+        { title: '💻 Programador', desc: 'Arregla: sudo rm -rf /virus', type: 'typing', text: 'sudo rm -rf /virus', pay: [5000, 8000] },
+        { title: '🔧 Mecánico', desc: 'Auto calienta. ¿Revisar?', type: 'choice', opts: ['Llantas', 'Radiador', 'Frenos'], correct: 'Radiador', pay: [1500, 2500] }
     ];
 
-    // 3. Select Random Job
     const job = JOBS[Math.floor(Math.random() * JOBS.length)];
+    const embed = new EmbedBuilder().setTitle(`${job.title}`).setDescription(`**Instrucción:** ${job.desc}\n\n*Tienes 20 seg.*`).setColor(0xFFA500);
 
-    // 4. Exec Game Logic (Shared function simulation)
-    const embed = new EmbedBuilder().setTitle(`${job.title} - Turno Laboral`).setDescription(`**Instrucción:** ${job.desc}\n\n*Tienes 20 seg.*`).setColor(0xFFA500).setFooter({ text: 'Trabajo legal Nación MX' });
-
-    if (job.type === 'math' || job.type === 'typing') {
-        if (job.type === 'typing') embed.addFields({ name: 'Escribe exactamente:', value: `\`${job.text}\`` });
+    if (job.type === 'memory') {
+        embed.addFields({ name: 'MEMORIZA:', value: `\`${job.text}\`` });
+        const msg = await interaction.editReply({ embeds: [embed] });
+        setTimeout(async () => {
+            const row = new ActionRowBuilder();
+            job.opts.forEach(o => row.addComponents(new ButtonBuilder().setCustomId(`job_${o}`).setLabel(o).setStyle(ButtonStyle.Primary)));
+            const hiddenEmbed = new EmbedBuilder().setTitle(job.title).setDescription('¿Cuál era el código?').setColor(0xFFA500);
+            await interaction.editReply({ embeds: [hiddenEmbed], components: [row] });
+        }, 3000); // 3s delay
+    }
+    else if (job.type === 'math' || job.type === 'typing') {
+        if (job.type === 'typing') embed.addFields({ name: 'Escribe:', value: `\`${job.text}\`` });
         await interaction.editReply({ embeds: [embed] });
+    }
+    else {
+        const row = new ActionRowBuilder();
+        const opts = job.type === 'mines' ? job.opts : [...job.opts].sort(() => Math.random() - 0.5);
+        opts.forEach(o => row.addComponents(new ButtonBuilder().setCustomId(`job_${o}`).setLabel(o).setStyle(job.type === 'wires' ? ButtonStyle.Danger : ButtonStyle.Primary)));
+        await interaction.editReply({ embeds: [embed], components: [row] });
+    }
+
+    // Collector Logic
+    if (job.type === 'math' || job.type === 'typing') {
         const filter = m => m.author.id === interaction.user.id;
-        const collector = interaction.channel.createMessageCollector({ filter, time: 20000, max: 1 });
+        const collector = interaction.channel.createMessageCollector({ filter, time: 25000, max: 1 });
         collector.on('collect', async m => {
-            const expected = job.type === 'math' ? job.a : job.text;
-            if (m.content.trim() === expected) {
+            if (m.content.trim() === (job.type === 'math' ? job.a : job.text)) {
                 const pay = Math.floor(Math.random() * (job.pay[1] - job.pay[0] + 1)) + job.pay[0];
-                await billingService.ubService.addMoney(interaction.guildId, interaction.user.id, pay, `Trabajo: ${job.title}`, 'cash');
+                await billingService.ubService.addMoney(interaction.guildId, interaction.user.id, pay, `Job: ${job.title}`, 'cash');
                 casinoSessions[jobKey] = Date.now();
                 m.react('✅');
-                await interaction.channel.send({ content: `<@${interaction.user.id}>`, embeds: [new EmbedBuilder().setTitle('✅ ¡Excelente!').setColor('#00AA00').setDescription(`Ganaste **$${pay.toLocaleString()}**`)] });
+                await interaction.channel.send(`✅ ¡Bien! Ganaste **$${pay}**`);
             } else {
                 m.react('❌');
-                await interaction.channel.send(`❌ **Fallaste**. (${expected})`);
+                await interaction.channel.send(`❌ Incorrecto.`);
             }
         });
-        collector.on('end', c => { if (!c.size) interaction.followUp('⏰ ZzZz...'); });
-
-    } else if (job.type === 'choice') {
-        const row = new ActionRowBuilder();
-        [...job.opts].sort(() => Math.random() - 0.5).forEach(o => row.addComponents(new ButtonBuilder().setCustomId(`job_${o}`).setLabel(o).setStyle(ButtonStyle.Primary)));
-        await interaction.editReply({ embeds: [embed], components: [row] });
+    } else {
         const filter = i => i.user.id === interaction.user.id && i.customId.startsWith('job_');
-        const collector = interaction.channel.createMessageComponentCollector({ filter, time: 20000, max: 1 });
+        const collector = interaction.channel.createMessageComponentCollector({ filter, time: 25000, max: 1 });
         collector.on('collect', async i => {
             const sel = i.customId.replace('job_', '');
-            if (sel === job.correct) {
+            let win = false;
+            if (job.type === 'mines') { win = Math.random() > 0.33; } // 66% chance win
+            else { win = sel === job.correct; }
+
+            if (win) {
                 const pay = Math.floor(Math.random() * (job.pay[1] - job.pay[0] + 1)) + job.pay[0];
-                await billingService.ubService.addMoney(interaction.guildId, interaction.user.id, pay, `Trabajo: ${job.title}`, 'cash');
+                await billingService.ubService.addMoney(interaction.guildId, interaction.user.id, pay, `Job: ${job.title}`, 'cash');
                 casinoSessions[jobKey] = Date.now();
-                await i.update({ embeds: [new EmbedBuilder().setTitle('✅ ¡Bien!').setColor('#00AA00').setDescription(`Ganaste **$${pay.toLocaleString()}**`)], components: [] });
+                await i.update({ embeds: [new EmbedBuilder().setTitle('✅ Excelente').setColor('#00FF00').setDescription(`Ganaste **$${pay.toLocaleString()}**`)], components: [] });
             } else {
-                await i.update({ content: `❌ **Error**. Era ${job.correct}.`, embeds: [], components: [] });
+                await i.update({ content: `❌ Error.`, embeds: [], components: [] });
             }
         });
-        collector.on('end', c => { if (!c.size) interaction.editReply({ content: '⏰ Tiempo agotado.', components: [] }); });
     }
 }
 
-// ================== CRIMEN COMMAND (NEW) ==================
 else if (commandName === 'crimen') {
     await interaction.deferReply();
-
-    // 1. Cooldown (2 Hours)
     const CRIME_COOLDOWN = 120 * 60 * 1000;
     const crimeKey = `crime_${interaction.user.id}`;
     const lastCrime = casinoSessions[crimeKey] || 0;
     if (Date.now() - lastCrime < CRIME_COOLDOWN) {
         const min = Math.ceil((CRIME_COOLDOWN - (Date.now() - lastCrime)) / 60000);
-        return interaction.editReply(`🚓 **Buscado por la policía**\nEscóndete **${min} minutos** antes de cometer otro crimen.`);
+        return interaction.editReply(`🚓 **Buscado**\nEscóndete **${min} min**.`);
     }
 
-    // 2. CRIME SCENARIOS (30+ Minigames)
     const CRIMES = [
-        // --- HACKING (Typing) ---
-        { title: '💻 Hacking Bancario', desc: 'Inyecta el virus:', type: 'typing', text: 'inject_sql_root_ovr', pay: [30000, 80000] },
-        { title: '🏧 Skimming ATM', desc: 'Copia la tarjeta:', type: 'typing', text: 'magstripe_copy_x88', pay: [15000, 25000] },
-        { title: '📡 Interceptación', desc: 'Escucha la frecuencia:', type: 'typing', text: 'POL-FREQ-991', pay: [20000, 35000] },
-        { title: '🔓 Desbloqueo Celular', desc: 'Fuerza bruta al pass:', type: 'typing', text: 'bruteforce_apple_id', pay: [12000, 18000] },
-        { title: '💾 Base de Datos', desc: 'Borra los logs:', type: 'typing', text: 'DROP TABLE logs;', pay: [40000, 90000] },
-        { title: '🌐 Darkweb Market', desc: 'Confirma la venta:', type: 'typing', text: 'CONFIRM_BTC_SEND', pay: [25000, 50000] },
-        { title: '🔐 Ransomware', desc: 'Cifra los archivos:', type: 'typing', text: 'encrypt_all_files_now', pay: [50000, 100000] },
-        { title: '📱 SIM Swapping', desc: 'Clona la SIM:', type: 'typing', text: 'clone_sim_target_1', pay: [20000, 40000] },
-
-        // --- HEISTS (Math) ---
-        { title: '🏦 Robo Banco - Bóveda', desc: 'Código de seguridad: 125 x 8.', type: 'math', a: '1000', pay: [80000, 100000] },
-        { title: '🏪 Asalto Tienda', desc: 'La caja tiene 3 fajos de $500 y 4 de $200. ¿Total?', type: 'math', a: (3 * 500 + 4 * 200).toString(), pay: [10000, 15000] },
-        { title: '🚐 Camión Blindado', desc: 'Explosivos: 2 cargas de 40kg + 1 de 15kg. ¿Total?', type: 'math', a: '95', pay: [60000, 90000] },
-        { title: '💎 Joyería', desc: '5 diamantes ($8k c/u) + 2 relojes ($15k). ¿Botín?', type: 'math', a: (5 * 8 + 2 * 15).toString(), pay: [50000, 80000] },
-        { title: '🎰 Casino', desc: 'Contando cartas: 10 + 5 + 6 + 10. ¿Suma?', type: 'math', a: '31', pay: [40000, 70000] },
-        { title: '🎨 Museo Arte', desc: 'Valor del cuadro: 1900 + 1900 + 200. ¿Suma?', type: 'math', a: '4000', pay: [70000, 95000] },
-        { title: '🚤 Contrabando', desc: '3 lanchas con 50kg cada una. ¿Kilos?', type: 'math', a: '150', pay: [30000, 60000] },
-        { title: '🚆 Robo Tren', desc: 'Vagón 1 tiene 4 oros, Vagón 2 tiene 8. ¿Total?', type: 'math', a: '12', pay: [50000, 85000] },
-
-        // --- SMUGGLING/CHOICE (Logic) ---
-        { title: '🏎️ Robo de Auto', desc: 'El dueño se acerca. ¿Acción?', type: 'choice', opts: ['Disparar', 'Noquear', 'Correr'], correct: 'Noquear', pay: [15000, 25000] },
-        { title: '💊 Tráfico Ilegal', desc: 'Policía en frontera. ¿Dónde escondes?', type: 'choice', opts: ['Asiento', 'Llanta', 'Bolsillo'], correct: 'Llanta', pay: [35000, 60000] },
-        { title: '🏠 Allanamiento', desc: 'Perro guardián ladrando. ¿Objeto?', type: 'choice', opts: ['Bistec', 'Pistola', 'Piedra'], correct: 'Bistec', pay: [12000, 20000] },
-        { title: '🕴️ Secuestro', desc: 'El objetivo grita. ¿Acción?', type: 'choice', opts: ['Amordazar', 'Soltar', 'Explicar'], correct: 'Amordazar', pay: [60000, 100000] },
-        { title: '📦 Armas Ilegales', desc: 'Venta en callejón. ¿Lugar seguro?', type: 'choice', opts: ['Frente Comisaría', 'Sótano', 'Parque'], correct: 'Sótano', pay: [40000, 70000] },
-        { title: '💳 Clonación', desc: 'Cajero con cámara. ¿Qué usas?', type: 'choice', opts: ['Máscara', 'Gorra', 'Nada'], correct: 'Máscara', pay: [18000, 30000] },
-        { title: '🚓 Fuga Policial', desc: 'Patrulla atrás. ¿Maniobra?', type: 'choice', opts: ['Frenar', 'Giro en U', 'Acelerar recto'], correct: 'Giro en U', pay: [10000, 20000] },
-        { title: '🧪 Laboratorio', desc: 'Mezcla inestable. ¿Enfriar?', type: 'choice', opts: ['Hielo', 'Agua', 'Ventilador'], correct: 'Hielo', pay: [50000, 90000] },
-
-        // --- MEMORY/LOGIC ---
-        { title: '💣 Desactivar Bomba', desc: 'Corta el cable seguro (No Rojo, No Azul).', type: 'choice', opts: ['Rojo', 'Verde', 'Azul'], correct: 'Verde', pay: [80000, 100000] },
-        { title: '🗝️ Ganzúa', desc: 'El perno está rígido. ¿Movimiento?', type: 'choice', opts: ['Fuerte', 'Suave', 'Rápido'], correct: 'Suave', pay: [15000, 25000] },
-        { title: '🕵️ Infiltración', desc: 'Guardia dormido. ¿Paso?', type: 'choice', opts: ['Correr', 'Sigilo', 'Saltar'], correct: 'Sigilo', pay: [30000, 50000] },
-        { title: '👺 Extorsión', desc: 'Dueño no paga. ¿Amenaza?', type: 'choice', opts: ['Quemar local', 'Insultar', 'Llorar'], correct: 'Quemar local', pay: [25000, 45000] }
+        { title: '💣 Desactivar Bomba', desc: 'Corta el cable VERDE.', type: 'wires', order: 'Verde', opts: ['Rojo', 'Verde', 'Azul'], correct: 'Verde', pay: [80000, 100000] },
+        { title: '🔐 Caja Fuerte', desc: 'Memoriza: 99-11-22', type: 'memory', text: '99-11-22', opts: ['99-11-22', '11-99-22', '22-11-99'], correct: '99-11-22', pay: [50000, 90000] },
+        { title: '🏰 Asalto Mansión', desc: 'Cruza el jardín (Suerte).', type: 'mines', opts: ['A', 'B', 'C'], correct: 'random', pay: [60000, 120000] },
+        { title: '💻 Hacking', desc: 'Inyecta: inject_sql_root', type: 'typing', text: 'inject_sql_root', pay: [30000, 80000] },
+        { title: '🏦 Robo Banco', desc: 'Clave: 125 x 8.', type: 'math', a: '1000', pay: [80000, 100000] },
+        { title: '💊 Tráfico', desc: 'Policía. ¿Esconder?', type: 'choice', opts: ['Llanta', 'Asiento', 'Bolsa'], correct: 'Llanta', pay: [35000, 60000] }
     ];
 
     const job = CRIMES[Math.floor(Math.random() * CRIMES.length)];
-    const embed = new EmbedBuilder().setTitle(`☠️ ${job.title}`).setDescription(`**Misión:** ${job.desc}\n\n*20 seg para completar.*`).setColor(0x880000).setFooter({ text: 'Actividad Criminal' });
+    const embed = new EmbedBuilder().setTitle(`☠️ ${job.title}`).setDescription(`**Misión:** ${job.desc}\n\n*20 seg para completar.*`).setColor(0x880000);
 
-    if (job.type === 'math' || job.type === 'typing') {
+    if (job.type === 'memory') {
+        embed.addFields({ name: 'MEMORIZA:', value: `\`${job.text}\`` });
+        const msg = await interaction.editReply({ embeds: [embed] });
+        setTimeout(async () => {
+            const row = new ActionRowBuilder();
+            job.opts.forEach(o => row.addComponents(new ButtonBuilder().setCustomId(`crime_${o}`).setLabel(o).setStyle(ButtonStyle.Danger)));
+            const hiddenEmbed = new EmbedBuilder().setTitle(job.title).setDescription('¿Cuál era el código?').setColor(0x880000);
+            await interaction.editReply({ embeds: [hiddenEmbed], components: [row] });
+        }, 3000);
+    }
+    else if (job.type === 'math' || job.type === 'typing') {
         if (job.type === 'typing') embed.addFields({ name: 'Escribe:', value: `\`${job.text}\`` });
         await interaction.editReply({ embeds: [embed] });
+    }
+    else {
+        const row = new ActionRowBuilder();
+        const opts = job.type === 'mines' ? job.opts : [...job.opts].sort(() => Math.random() - 0.5);
+        opts.forEach(o => row.addComponents(new ButtonBuilder().setCustomId(`crime_${o}`).setLabel(o).setStyle(ButtonStyle.Danger)));
+        await interaction.editReply({ embeds: [embed], components: [row] });
+    }
+
+    if (job.type === 'math' || job.type === 'typing') {
         const filter = m => m.author.id === interaction.user.id;
-        const collector = interaction.channel.createMessageCollector({ filter, time: 20000, max: 1 });
+        const collector = interaction.channel.createMessageCollector({ filter, time: 25000, max: 1 });
         collector.on('collect', async m => {
-            const expected = job.type === 'math' ? job.a : job.text;
-            if (m.content.trim() === expected) {
+            if (m.content.trim() === (job.type === 'math' ? job.a : job.text)) {
                 const pay = Math.floor(Math.random() * (job.pay[1] - job.pay[0] + 1)) + job.pay[0];
-                await billingService.ubService.addMoney(interaction.guildId, interaction.user.id, pay, `Crimen: ${job.title}`, 'cash');
+                await billingService.ubService.addMoney(interaction.guildId, interaction.user.id, pay, `Crime: ${job.title}`, 'cash');
                 casinoSessions[crimeKey] = Date.now();
                 m.react('😈');
-                await interaction.channel.send({ content: `<@${interaction.user.id}>`, embeds: [new EmbedBuilder().setTitle('💸 ¡Crimen Exitoso!').setColor('#00FF00').setDescription(`Escapaste con **$${pay.toLocaleString()}**`)] });
+                await interaction.channel.send(`💸 Éxito. Ganaste **$${pay}**`);
             } else {
                 const fine = Math.floor(Math.random() * (20000 - 5000 + 1)) + 5000;
-                await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, fine, 'Multa Policial', 'cash');
+                await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, fine, 'Multa', 'cash');
                 casinoSessions[crimeKey] = Date.now();
                 m.react('🚔');
-                await interaction.channel.send(`<@${interaction.user.id}> 🚨 **¡ARRESTADO!** Fallaste la misión y pagaste fianza de **$${fine.toLocaleString()}**.`);
+                await interaction.channel.send(`🚨 **ARRESTADO**. Multa: **$${fine}**`);
             }
         });
-        collector.on('end', c => { if (!c.size) interaction.followUp('⏰ **Lento...** La policía llegó y huiste sin nada.'); });
-
-    } else if (job.type === 'choice') {
-        const row = new ActionRowBuilder();
-        [...job.opts].sort(() => Math.random() - 0.5).forEach(o => row.addComponents(new ButtonBuilder().setCustomId(`crime_${o}`).setLabel(o).setStyle(ButtonStyle.Danger)));
-        await interaction.editReply({ embeds: [embed], components: [row] });
+    } else {
         const filter = i => i.user.id === interaction.user.id && i.customId.startsWith('crime_');
-        const collector = interaction.channel.createMessageComponentCollector({ filter, time: 20000, max: 1 });
+        const collector = interaction.channel.createMessageComponentCollector({ filter, time: 25000, max: 1 });
         collector.on('collect', async i => {
             const sel = i.customId.replace('crime_', '');
-            if (sel === job.correct) {
+            let win = false;
+            if (job.type === 'mines') { win = Math.random() > 0.5; } // 50% chance for crime
+            else { win = sel === job.correct; }
+
+            if (win) {
                 const pay = Math.floor(Math.random() * (job.pay[1] - job.pay[0] + 1)) + job.pay[0];
-                await billingService.ubService.addMoney(interaction.guildId, interaction.user.id, pay, `Crimen: ${job.title}`, 'cash');
+                await billingService.ubService.addMoney(interaction.guildId, interaction.user.id, pay, `Crime: ${job.title}`, 'cash');
                 casinoSessions[crimeKey] = Date.now();
-                await i.update({ embeds: [new EmbedBuilder().setTitle('💸 ¡Crimen Exitoso!').setColor('#00FF00').setDescription(`Escapaste con **$${pay.toLocaleString()}**`)], components: [] });
+                await i.update({ embeds: [new EmbedBuilder().setTitle('💸 Éxito').setColor('#00FF00').setDescription(`Ganaste **$${pay.toLocaleString()}**`)], components: [] });
             } else {
                 const fine = Math.floor(Math.random() * (20000 - 5000 + 1)) + 5000;
-                await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, fine, 'Multa Policial', 'cash');
+                await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, fine, 'Multa', 'cash');
                 casinoSessions[crimeKey] = Date.now();
-                await i.update({ content: `🚨 **¡ARRESTADO!** Elegiste mal (${sel}). Pagas **$${fine.toLocaleString()}**.`, embeds: [], components: [] });
+                await i.update({ content: `🚨 **ARRESTADO**. Fallaste. Multa: **$${fine}**.`, embeds: [], components: [] });
             }
         });
-        collector.on('end', c => { if (!c.size) interaction.editReply({ content: '⏰ Tiempo agotado. Huiste.', components: [] }); });
     }
 }
-            });
-
-            collector.on('end', collected => {
-                if (collected.size === 0) interaction.editReply({ content: '⏰ Tiempo agotado.', components: [] });
-            });
-        }
-    }
-
-
-
     else if (commandName === 'bolsa') {
         await interaction.deferReply();
         const subCmd = interaction.options.getSubcommand();
