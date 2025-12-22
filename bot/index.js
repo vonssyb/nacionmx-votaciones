@@ -459,6 +459,19 @@ const CARD_TIERS = {
 // 🎮 GLOBAL GAME SESSIONS & HELPERS
 // ==========================================
 
+// LOGGING HELPER
+async function logToChannel(guild, channelId, embed) {
+    if (!guild || !channelId) return;
+    try {
+        const channel = await guild.channels.fetch(channelId).catch(() => null);
+        if (channel && channel.isTextBased()) {
+            await channel.send({ embeds: [embed] });
+        }
+    } catch (err) {
+        console.error(`[LOGGING] Failed to log to ${channelId}:`, err);
+    }
+}
+
 // Helper to check chips (Global)
 async function checkChips(userId, amount) {
     const { data: account } = await supabase
