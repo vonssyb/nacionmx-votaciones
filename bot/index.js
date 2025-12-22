@@ -5413,6 +5413,12 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
         if (targetUser.id === interaction.user.id) return interaction.editReply('❌ No te puedes robar a ti mismo.');
         if (targetUser.bot) return interaction.editReply('❌ No puedes robar a un bot.');
 
+        // Anti-Theft Protection Role Check
+        const ANTI_THEFT_ROLE_ID = '1449947645383675939';
+        if (interaction.member.roles.cache.has(ANTI_THEFT_ROLE_ID)) {
+            return interaction.editReply('🛡️ **Protección Anti-Robo Activa**\nTienes un sistema de seguridad que te impide robar a otros usuarios.');
+        }
+
         // Cooldown Check (2 Hours)
         const COOLDOWN_TIME = 2 * 60 * 60 * 1000;
         const cooldownKey = `rob_${interaction.user.id}`;
@@ -5495,383 +5501,383 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             await interaction.editReply('❌ Error procesando el robo.');
         }
     }
-// ENHANCED TRABAJAR & CRIMEN HANDLERS
-// Copy this content to replace the current handlers in index.js
+    // ENHANCED TRABAJAR & CRIMEN HANDLERS
+    // Copy this content to replace the current handlers in index.js
 
-else if (commandName === 'trabajar') {
-    await interaction.deferReply();
-    const JOB_COOLDOWN = 60 * 60 * 1000;
-    const jobKey = `job_${interaction.user.id}`;
-    const lastJob = casinoSessions[jobKey] || 0;
+    else if (commandName === 'trabajar') {
+        await interaction.deferReply();
+        const JOB_COOLDOWN = 60 * 60 * 1000;
+        const jobKey = `job_${interaction.user.id}`;
+        const lastJob = casinoSessions[jobKey] || 0;
 
-    if (Date.now() - lastJob < JOB_COOLDOWN) {
-        const remaining = Math.ceil((JOB_COOLDOWN - (Date.now() - lastJob)) / 60000);
-        return interaction.editReply(`⏳ **Estás cansado**\nDebes descansar **${remaining} minutos**.`);
-    }
+        if (Date.now() - lastJob < JOB_COOLDOWN) {
+            const remaining = Math.ceil((JOB_COOLDOWN - (Date.now() - lastJob)) / 60000);
+            return interaction.editReply(`⏳ **Estás cansado**\nDebes descansar **${remaining} minutos**.`);
+        }
 
-    // Enhanced job selection with visuals
-    const jobs = [
-        { title: '🧠 Bibliotecario', desc: 'Código: XJ-9-DELTA', type: 'memory', code: 'XJ-9-DELTA', opts: ['XJ-9-DELTA', 'XK-9-DELTA', 'XJ-8-DELTA'], pay: [2000, 3000] },
-        { title: '💣 Técnico EOD', desc: 'Cable correcto: VERDE', type: 'wires', wire: 'VERDE', opts: ['🔴 ROJO', '🟢 VERDE', '🔵 AZUL'], pay: [3000, 5000] },
-        { title: '🚁 Piloto Rescate', desc: 'Víctima al NORTE', type: 'nav', dir: 'NORTE', opts: ['⬆️ NORTE', '⬇️ SUR', '⬅️ OESTE'], pay: [3500, 5500] },
-        { title: '⛏️ Minero', desc: 'Elige veta (suerte)', type: 'luck', opts: ['⛏️ VETA 1', '⛏️ VETA 2', '⛏️ VETA 3'], pay: [4000, 7000] },
-        { title: '💻 Programador', desc: 'sudo rm -rf /virus', type: 'typing', cmd: 'sudo rm -rf /virus', pay: [5500, 8500] },
-        { title: '🧮 Contador', desc: '8500 - 3200 = ?', type: 'math', ans: '5300', pay: [2500, 3500] }
-    ];
+        // Enhanced job selection with visuals
+        const jobs = [
+            { title: '🧠 Bibliotecario', desc: 'Código: XJ-9-DELTA', type: 'memory', code: 'XJ-9-DELTA', opts: ['XJ-9-DELTA', 'XK-9-DELTA', 'XJ-8-DELTA'], pay: [2000, 3000] },
+            { title: '💣 Técnico EOD', desc: 'Cable correcto: VERDE', type: 'wires', wire: 'VERDE', opts: ['🔴 ROJO', '🟢 VERDE', '🔵 AZUL'], pay: [3000, 5000] },
+            { title: '🚁 Piloto Rescate', desc: 'Víctima al NORTE', type: 'nav', dir: 'NORTE', opts: ['⬆️ NORTE', '⬇️ SUR', '⬅️ OESTE'], pay: [3500, 5500] },
+            { title: '⛏️ Minero', desc: 'Elige veta (suerte)', type: 'luck', opts: ['⛏️ VETA 1', '⛏️ VETA 2', '⛏️ VETA 3'], pay: [4000, 7000] },
+            { title: '💻 Programador', desc: 'sudo rm -rf /virus', type: 'typing', cmd: 'sudo rm -rf /virus', pay: [5500, 8500] },
+            { title: '🧮 Contador', desc: '8500 - 3200 = ?', type: 'math', ans: '5300', pay: [2500, 3500] }
+        ];
 
-    const job = jobs[Math.floor(Math.random() * jobs.length)];
+        const job = jobs[Math.floor(Math.random() * jobs.length)];
 
-    // Create richvisual embed
-    const embed = new EmbedBuilder()
-        .setTitle(`${job.title}`)
-        .setColor(0xFFA500)
-        .setDescription(`**Tarea:** ${job.desc}\n\n💰 Pago: $${job.pay[0].toLocaleString()} - $${job.pay[1].toLocaleString()}`)
-        .setFooter({ text: '⏱️ Tienes 20 segundos' })
-        .setTimestamp();
+        // Create richvisual embed
+        const embed = new EmbedBuilder()
+            .setTitle(`${job.title}`)
+            .setColor(0xFFA500)
+            .setDescription(`**Tarea:** ${job.desc}\n\n💰 Pago: $${job.pay[0].toLocaleString()} - $${job.pay[1].toLocaleString()}`)
+            .setFooter({ text: '⏱️ Tienes 20 segundos' })
+            .setTimestamp();
 
-    // Add visual ASCII art based on type
-    if (job.type === 'memory') {
-        embed.addFields({ name: '📚 MEMORIZA:', value: `\`\`\`\n${job.code}\n\`\`\`` });
-        await interaction.editReply({ embeds: [embed] });
+        // Add visual ASCII art based on type
+        if (job.type === 'memory') {
+            embed.addFields({ name: '📚 MEMORIZA:', value: `\`\`\`\n${job.code}\n\`\`\`` });
+            await interaction.editReply({ embeds: [embed] });
 
-        // Countdown animation
-        for (let i = 3; i > 0; i--) {
-            await new Promise(r => setTimeout(r, 1000));
-            embed.setFooter({ text: `⏰ Desapareciendo en ${i}...` });
+            // Countdown animation
+            for (let i = 3; i > 0; i--) {
+                await new Promise(r => setTimeout(r, 1000));
+                embed.setFooter({ text: `⏰ Desapareciendo en ${i}...` });
+                await interaction.editReply({ embeds: [embed] });
+            }
+
+            // Hide and ask
+            embed.setDescription(`¿Cuál era el código?`);
+            embed.spliceFields(0, 1);
+            embed.setFooter({ text: '❓ Selecciona la respuesta correcta' });
+
+            const row = new ActionRowBuilder();
+            job.opts.forEach(opt =>
+                row.addComponents(new ButtonBuilder()
+                    .setCustomId(`job_${opt}`)
+                    .setLabel(opt)
+                    .setStyle(ButtonStyle.Primary))
+            );
+            await interaction.editReply({ embeds: [embed], components: [row] });
+
+        } else if (job.type === 'wires') {
+            embed.addFields({
+                name: '💣 PANEL DE CONTROL',
+                value: `\`\`\`\n🔴 ROJO\n🟢 VERDE\n🔵 AZUL\n\`\`\`\n⚠️ ¡Corta el cable ${job.wire}!`
+            });
+
+            const row = new ActionRowBuilder();
+            job.opts.forEach(opt =>
+                row.addComponents(new ButtonBuilder()
+                    .setCustomId(`job_${opt}`)
+                    .setLabel(opt)
+                    .setStyle(opt.includes('VERDE') ? ButtonStyle.Success : ButtonStyle.Danger))
+            );
+            await interaction.editReply({ embeds: [embed], components: [row] });
+
+        } else if (job.type === 'nav') {
+            embed.addFields({
+                name: '🗺️ MAPA',
+                value: `\`\`\`\n     🏔️\n  ⬅️ 🚁 ➡️\n     ⬇️\n\`\`\`\n🎯 Destino: **${job.dir}**`
+            });
+
+            const row = new ActionRowBuilder();
+            job.opts.forEach(opt =>
+                row.addComponents(new ButtonBuilder()
+                    .setCustomId(`job_${opt}`)
+                    .setLabel(opt)
+                    .setStyle(ButtonStyle.Primary))
+            );
+            await interaction.editReply({ embeds: [embed], components: [row] });
+
+        } else if (job.type === 'luck') {
+            embed.addFields({
+                name: '⛏️ MINA DE ORO',
+                value: `\`\`\`\n[1] 💎 ?\n[2] 💎 ?\n[3] 💎 ?\n\`\`\`\n🎲 Probabilidad: 50%`
+            });
+
+            const row = new ActionRowBuilder();
+            job.opts.forEach(opt =>
+                row.addComponents(new ButtonBuilder()
+                    .setCustomId(`job_${opt}`)
+                    .setLabel(opt)
+                    .setStyle(ButtonStyle.Secondary))
+            );
+            await interaction.editReply({ embeds: [embed], components: [row] });
+
+        } else if (job.type === 'typing') {
+            embed.addFields({
+                name: '💻 TERMINAL',
+                value: `\`\`\`bash\n$ ${job.cmd}\n> _\n\`\`\`\n⌨️ Escribe el comando exacto`
+            });
+            await interaction.editReply({ embeds: [embed] });
+
+        } else if (job.type === 'math') {
+            embed.addFields({
+                name: '🧮 CALCULADORA',
+                value: `\`\`\`\n${job.desc}\n= ???\n\`\`\`\n🔢 Escribe tu respuesta`
+            });
             await interaction.editReply({ embeds: [embed] });
         }
 
-        // Hide and ask
-        embed.setDescription(`¿Cuál era el código?`);
-        embed.spliceFields(0, 1);
-        embed.setFooter({ text: '❓ Selecciona la respuesta correcta' });
+        // Collector for button/message responses
+        if (job.type === 'typing' || job.type === 'math') {
+            const filter = m => m.author.id === interaction.user.id;
+            const collector = interaction.channel.createMessageCollector({ filter, time: 20000, max: 1 });
 
-        const row = new ActionRowBuilder();
-        job.opts.forEach(opt =>
-            row.addComponents(new ButtonBuilder()
-                .setCustomId(`job_${opt}`)
-                .setLabel(opt)
-                .setStyle(ButtonStyle.Primary))
-        );
-        await interaction.editReply({ embeds: [embed], components: [row] });
+            collector.on('collect', async m => {
+                const userAnswer = m.content.trim();
+                const correct = (job.type === 'typing' && userAnswer === job.cmd) ||
+                    (job.type === 'math' && userAnswer === job.ans);
 
-    } else if (job.type === 'wires') {
-        embed.addFields({
-            name: '💣 PANEL DE CONTROL',
-            value: `\`\`\`\n🔴 ROJO\n🟢 VERDE\n🔵 AZUL\n\`\`\`\n⚠️ ¡Corta el cable ${job.wire}!`
-        });
+                if (correct) {
+                    const pay = Math.floor(Math.random() * (job.pay[1] - job.pay[0] + 1)) + job.pay[0];
+                    await billingService.ubService.addMoney(interaction.guildId, interaction.user.id, pay, `Trabajo: ${job.title}`, 'cash');
+                    casinoSessions[jobKey] = Date.now();
 
-        const row = new ActionRowBuilder();
-        job.opts.forEach(opt =>
-            row.addComponents(new ButtonBuilder()
-                .setCustomId(`job_${opt}`)
-                .setLabel(opt)
-                .setStyle(opt.includes('VERDE') ? ButtonStyle.Success : ButtonStyle.Danger))
-        );
-        await interaction.editReply({ embeds: [embed], components: [row] });
+                    const successEmbed = new EmbedBuilder()
+                        .setTitle('✅ ¡EXCELENTE TRABAJO!')
+                        .setColor(0x00FF00)
+                        .setDescription(`Has completado: **${job.title}**`)
+                        .addFields({ name: '💰 Ganancia', value: `$${pay.toLocaleString()}`, inline: true })
+                        .setFooter({ text: '¡Sigue así!' });
 
-    } else if (job.type === 'nav') {
-        embed.addFields({
-            name: '🗺️ MAPA',
-            value: `\`\`\`\n     🏔️\n  ⬅️ 🚁 ➡️\n     ⬇️\n\`\`\`\n🎯 Destino: **${job.dir}**`
-        });
+                    m.react('✅');
+                    await interaction.followUp({ embeds: [successEmbed] });
+                } else {
+                    m.react('❌');
+                    await interaction.followUp(`❌ Incorrecto. ${job.type === 'math' ? `La respuesta era: ${job.ans}` : ''}`);
+                }
+            });
 
-        const row = new ActionRowBuilder();
-        job.opts.forEach(opt =>
-            row.addComponents(new ButtonBuilder()
-                .setCustomId(`job_${opt}`)
-                .setLabel(opt)
-                .setStyle(ButtonStyle.Primary))
-        );
-        await interaction.editReply({ embeds: [embed], components: [row] });
+        } else {
+            const filter = i => i.user.id === interaction.user.id && i.customId.startsWith('job_');
+            const collector = interaction.channel.createMessageComponentCollector({ filter, time: 20000, max: 1 });
 
-    } else if (job.type === 'luck') {
-        embed.addFields({
-            name: '⛏️ MINA DE ORO',
-            value: `\`\`\`\n[1] 💎 ?\n[2] 💎 ?\n[3] 💎 ?\n\`\`\`\n🎲 Probabilidad: 50%`
-        });
+            collector.on('collect', async i => {
+                const selected = i.customId.replace('job_', '');
+                let win = false;
 
-        const row = new ActionRowBuilder();
-        job.opts.forEach(opt =>
-            row.addComponents(new ButtonBuilder()
-                .setCustomId(`job_${opt}`)
-                .setLabel(opt)
-                .setStyle(ButtonStyle.Secondary))
-        );
-        await interaction.editReply({ embeds: [embed], components: [row] });
+                if (job.type === 'memory') win = selected === job.code;
+                else if (job.type === 'wires') win = selected.includes(job.wire);
+                else if (job.type === 'nav') win = selected.includes(job.dir);
+                else if (job.type === 'luck') win = Math.random() > 0.5;
 
-    } else if (job.type === 'typing') {
-        embed.addFields({
-            name: '💻 TERMINAL',
-            value: `\`\`\`bash\n$ ${job.cmd}\n> _\n\`\`\`\n⌨️ Escribe el comando exacto`
-        });
-        await interaction.editReply({ embeds: [embed] });
+                if (win) {
+                    const pay = Math.floor(Math.random() * (job.pay[1] - job.pay[0] + 1)) + job.pay[0];
+                    await billingService.ubService.addMoney(interaction.guildId, interaction.user.id, pay, `Trabajo: ${job.title}`, 'cash');
+                    casinoSessions[jobKey] = Date.now();
 
-    } else if (job.type === 'math') {
-        embed.addFields({
-            name: '🧮 CALCULADORA',
-            value: `\`\`\`\n${job.desc}\n= ???\n\`\`\`\n🔢 Escribe tu respuesta`
-        });
-        await interaction.editReply({ embeds: [embed] });
+                    const successEmbed = new EmbedBuilder()
+                        .setTitle('✅ ¡EXCELENTE TRABAJO!')
+                        .setColor(0x00FF00)
+                        .setDescription(`Has completado: **${job.title}**`)
+                        .addFields({ name: '💰 Ganancia', value: `$${pay.toLocaleString()}`, inline: true })
+                        .setFooter({ text: '¡Descansa y vuelve en 1 hora!' })
+                        .setTimestamp();
+
+                    await i.update({ embeds: [successEmbed], components: [] });
+                } else {
+                    await i.update({
+                        content: `❌ **Fallaste** en ${job.title}. Inténtalo de nuevo en 1 hora.`,
+                        embeds: [],
+                        components: []
+                    });
+                    casinoSessions[jobKey] = Date.now();
+                }
+            });
+
+            collector.on('end', collected => {
+                if (collected.size === 0) {
+                    interaction.followUp('⏱️ Se acabó el tiempo.').catch(() => { });
+                }
+            });
+        }
     }
 
-    // Collector for button/message responses
-    if (job.type === 'typing' || job.type === 'math') {
-        const filter = m => m.author.id === interaction.user.id;
-        const collector = interaction.channel.createMessageCollector({ filter, time: 20000, max: 1 });
+    else if (commandName === 'crimen') {
+        await interaction.deferReply();
+        const CRIME_COOLDOWN = 120 * 60 * 1000;
+        const crimeKey = `crime_${interaction.user.id}`;
+        const lastCrime = casinoSessions[crimeKey] || 0;
 
-        collector.on('collect', async m => {
-            const userAnswer = m.content.trim();
-            const correct = (job.type === 'typing' && userAnswer === job.cmd) ||
-                (job.type === 'math' && userAnswer === job.ans);
+        if (Date.now() - lastCrime < CRIME_COOLDOWN) {
+            const min = Math.ceil((CRIME_COOLDOWN - (Date.now() - lastCrime)) / 60000);
+            return interaction.editReply(`🚓 **Buscado por la policía**\nEscóndete **${min} minutos**.`);
+        }
 
-            if (correct) {
-                const pay = Math.floor(Math.random() * (job.pay[1] - job.pay[0] + 1)) + job.pay[0];
-                await billingService.ubService.addMoney(interaction.guildId, interaction.user.id, pay, `Trabajo: ${job.title}`, 'cash');
-                casinoSessions[jobKey] = Date.now();
+        // Enhanced crimes with higher risks/rewards
+        const crimes = [
+            { title: '💣 Bomba Nuclear', desc: 'Cable correcto: VERDE', type: 'wires', wire: 'VERDE', opts: ['🔴 ROJO', '🟢 VERDE', '🔵 AZUL'], pay: [100000, 150000], fine: [20000, 35000] },
+            { title: '🏛️ Museo Nacional', desc: 'Sala 3 - Código 842', type: 'memory', code: 'Sala 3 - 842', opts: ['Sala 3 - 842', 'Sala 2 - 842', 'Sala 3 - 824'], pay: [80000, 130000], fine: [15000, 25000] },
+            { title: '🚓 Persecución', desc: 'Escapar a la IZQUIERDA', type: 'nav', dir: 'IZQUIERDA', opts: ['⬅️ IZQUIERDA', '➡️ DERECHA', '⬆️ ACELERAR'], pay: [50000, 90000], fine: [10000, 18000] },
+            { title: '💎 Mansión', desc: 'Cruzar jardín minado', type: 'luck', opts: ['🚶 RUTA A', '🚶 RUTA B', '🚶 RUTA C'], pay: [90000, 160000], fine: [25000, 40000] },
+            { title: '💻 Hackeo Banco', desc: 'inject_sql_admin_bypass', type: 'typing', cmd: 'inject_sql_admin_bypass', pay: [60000, 110000], fine: [12000, 22000] }
+        ];
 
-                const successEmbed = new EmbedBuilder()
-                    .setTitle('✅ ¡EXCELENTE TRABAJO!')
-                    .setColor(0x00FF00)
-                    .setDescription(`Has completado: **${job.title}**`)
-                    .addFields({ name: '💰 Ganancia', value: `$${pay.toLocaleString()}`, inline: true })
-                    .setFooter({ text: '¡Sigue así!' });
+        const crime = crimes[Math.floor(Math.random() * crimes.length)];
 
-                m.react('✅');
-                await interaction.followUp({ embeds: [successEmbed] });
-            } else {
-                m.react('❌');
-                await interaction.followUp(`❌ Incorrecto. ${job.type === 'math' ? `La respuesta era: ${job.ans}` : ''}`);
+        const embed = new EmbedBuilder()
+            .setTitle(`☠️ ${crime.title}`)
+            .setColor(0x880000)
+            .setDescription(`**Misión:** ${crime.desc}\n\n💰 Botín: $${crime.pay[0].toLocaleString()} - $${crime.pay[1].toLocaleString()}\n🚨 Multa si fallas: $${crime.fine[0].toLocaleString()} - $${crime.fine[1].toLocaleString()}`)
+            .setFooter({ text: '⚠️ ALTO RIESGO - 20 Segundos' })
+            .setTimestamp();
+
+        // Similar structure to trabajar but with crime visuals
+        if (crime.type === 'memory') {
+            embed.addFields({ name: '🔐 MEMORIZA EL PLAN:', value: `\`\`\`\n${crime.code}\n\`\`\`` });
+            await interaction.editReply({ embeds: [embed] });
+
+            for (let i = 3; i > 0; i--) {
+                await new Promise(r => setTimeout(r, 1000));
+                embed.setFooter({ text: `⏰ Destruyendo evidencia en ${i}...` });
+                await interaction.editReply({ embeds: [embed] });
             }
-        });
 
-    } else {
-        const filter = i => i.user.id === interaction.user.id && i.customId.startsWith('job_');
-        const collector = interaction.channel.createMessageComponentCollector({ filter, time: 20000, max: 1 });
+            embed.setDescription(`🕵️ ¿Cuál era el plan?`);
+            embed.spliceFields(0, 1);
 
-        collector.on('collect', async i => {
-            const selected = i.customId.replace('job_', '');
-            let win = false;
+            const row = new ActionRowBuilder();
+            crime.opts.forEach(opt =>
+                row.addComponents(new ButtonBuilder()
+                    .setCustomId(`crime_${opt}`)
+                    .setLabel(opt)
+                    .setStyle(ButtonStyle.Danger))
+            );
+            await interaction.editReply({ embeds: [embed], components: [row] });
 
-            if (job.type === 'memory') win = selected === job.code;
-            else if (job.type === 'wires') win = selected.includes(job.wire);
-            else if (job.type === 'nav') win = selected.includes(job.dir);
-            else if (job.type === 'luck') win = Math.random() > 0.5;
+        } else if (crime.type === 'wires') {
+            embed.addFields({
+                name: '💣 BOMBA NUCLEAR',
+                value: `\`\`\`\n╔═══════════╗\n║  ☢️ PELIGRO ☢️  ║\n║  🔴 🟢 🔵  ║\n║  10:00:00  ║\n╚═══════════╝\n\`\`\`\n⚠️ ¡CORTA EL CABLE ${crime.wire}!`
+            });
 
-            if (win) {
-                const pay = Math.floor(Math.random() * (job.pay[1] - job.pay[0] + 1)) + job.pay[0];
-                await billingService.ubService.addMoney(interaction.guildId, interaction.user.id, pay, `Trabajo: ${job.title}`, 'cash');
-                casinoSessions[jobKey] = Date.now();
+            const row = new ActionRowBuilder();
+            crime.opts.forEach(opt =>
+                row.addComponents(new ButtonBuilder()
+                    .setCustomId(`crime_${opt}`)
+                    .setLabel(opt)
+                    .setStyle(ButtonStyle.Danger))
+            );
+            await interaction.editReply({ embeds: [embed], components: [row] });
 
-                const successEmbed = new EmbedBuilder()
-                    .setTitle('✅ ¡EXCELENTE TRABAJO!')
-                    .setColor(0x00FF00)
-                    .setDescription(`Has completado: **${job.title}**`)
-                    .addFields({ name: '💰 Ganancia', value: `$${pay.toLocaleString()}`, inline: true })
-                    .setFooter({ text: '¡Descansa y vuelve en 1 hora!' })
-                    .setTimestamp();
+        } else if (crime.type === 'nav') {
+            embed.addFields({
+                name: '🚔 PERSECUCIÓN',
+                value: `\`\`\`\n  🚗💨\n━━━┃━━━\n🚓 ↑ 🚧\n━━━━━━━\n\`\`\`\n⚡ Gira a la ${crime.dir} ¡YA!`
+            });
 
-                await i.update({ embeds: [successEmbed], components: [] });
-            } else {
-                await i.update({
-                    content: `❌ **Fallaste** en ${job.title}. Inténtalo de nuevo en 1 hora.`,
-                    embeds: [],
-                    components: []
-                });
-                casinoSessions[jobKey] = Date.now();
-            }
-        });
+            const row = new ActionRowBuilder();
+            crime.opts.forEach(opt =>
+                row.addComponents(new ButtonBuilder()
+                    .setCustomId(`crime_${opt}`)
+                    .setLabel(opt)
+                    .setStyle(ButtonStyle.Danger))
+            );
+            await interaction.editReply({ embeds: [embed], components: [row] });
 
-        collector.on('end', collected => {
-            if (collected.size === 0) {
-                interaction.followUp('⏱️ Se acabó el tiempo.').catch(() => { });
-            }
-        });
-    }
-}
+        } else if (crime.type === 'luck') {
+            embed.addFields({
+                name: '🏰 JARDÍN MINADO',
+                value: `\`\`\`\n🏰 MANSIÓN 🏰\n[A] [B] [C]\n 💀  ?  💀\n\`\`\`\n⚠️ Probabilidad de éxito: 50%`
+            });
 
-else if (commandName === 'crimen') {
-    await interaction.deferReply();
-    const CRIME_COOLDOWN = 120 * 60 * 1000;
-    const crimeKey = `crime_${interaction.user.id}`;
-    const lastCrime = casinoSessions[crimeKey] || 0;
+            const row = new ActionRowBuilder();
+            crime.opts.forEach(opt =>
+                row.addComponents(new ButtonBuilder()
+                    .setCustomId(`crime_${opt}`)
+                    .setLabel(opt)
+                    .setStyle(ButtonStyle.Danger))
+            );
+            await interaction.editReply({ embeds: [embed], components: [row] });
 
-    if (Date.now() - lastCrime < CRIME_COOLDOWN) {
-        const min = Math.ceil((CRIME_COOLDOWN - (Date.now() - lastCrime)) / 60000);
-        return interaction.editReply(`🚓 **Buscado por la policía**\nEscóndete **${min} minutos**.`);
-    }
-
-    // Enhanced crimes with higher risks/rewards
-    const crimes = [
-        { title: '💣 Bomba Nuclear', desc: 'Cable correcto: VERDE', type: 'wires', wire: 'VERDE', opts: ['🔴 ROJO', '🟢 VERDE', '🔵 AZUL'], pay: [100000, 150000], fine: [20000, 35000] },
-        { title: '🏛️ Museo Nacional', desc: 'Sala 3 - Código 842', type: 'memory', code: 'Sala 3 - 842', opts: ['Sala 3 - 842', 'Sala 2 - 842', 'Sala 3 - 824'], pay: [80000, 130000], fine: [15000, 25000] },
-        { title: '🚓 Persecución', desc: 'Escapar a la IZQUIERDA', type: 'nav', dir: 'IZQUIERDA', opts: ['⬅️ IZQUIERDA', '➡️ DERECHA', '⬆️ ACELERAR'], pay: [50000, 90000], fine: [10000, 18000] },
-        { title: '💎 Mansión', desc: 'Cruzar jardín minado', type: 'luck', opts: ['🚶 RUTA A', '🚶 RUTA B', '🚶 RUTA C'], pay: [90000, 160000], fine: [25000, 40000] },
-        { title: '💻 Hackeo Banco', desc: 'inject_sql_admin_bypass', type: 'typing', cmd: 'inject_sql_admin_bypass', pay: [60000, 110000], fine: [12000, 22000] }
-    ];
-
-    const crime = crimes[Math.floor(Math.random() * crimes.length)];
-
-    const embed = new EmbedBuilder()
-        .setTitle(`☠️ ${crime.title}`)
-        .setColor(0x880000)
-        .setDescription(`**Misión:** ${crime.desc}\n\n💰 Botín: $${crime.pay[0].toLocaleString()} - $${crime.pay[1].toLocaleString()}\n🚨 Multa si fallas: $${crime.fine[0].toLocaleString()} - $${crime.fine[1].toLocaleString()}`)
-        .setFooter({ text: '⚠️ ALTO RIESGO - 20 Segundos' })
-        .setTimestamp();
-
-    // Similar structure to trabajar but with crime visuals
-    if (crime.type === 'memory') {
-        embed.addFields({ name: '🔐 MEMORIZA EL PLAN:', value: `\`\`\`\n${crime.code}\n\`\`\`` });
-        await interaction.editReply({ embeds: [embed] });
-
-        for (let i = 3; i > 0; i--) {
-            await new Promise(r => setTimeout(r, 1000));
-            embed.setFooter({ text: `⏰ Destruyendo evidencia en ${i}...` });
+        } else if (crime.type === 'typing') {
+            embed.addFields({
+                name: '🖥️ TERMINAL BANCARIA',
+                value: `\`\`\`bash\n🏦 BANCO CENTRAL\n> ACCESO DENEGADO\n> BYPASS...\n$ ${crime.cmd}\n\`\`\`\n⌨️ Ejecuta el comando`
+            });
             await interaction.editReply({ embeds: [embed] });
         }
 
-        embed.setDescription(`🕵️ ¿Cuál era el plan?`);
-        embed.spliceFields(0, 1);
+        // Collector (same logic but with crime penalties)
+        if (crime.type === 'typing') {
+            const filter = m => m.author.id === interaction.user.id;
+            const collector = interaction.channel.createMessageCollector({ filter, time: 20000, max: 1 });
 
-        const row = new ActionRowBuilder();
-        crime.opts.forEach(opt =>
-            row.addComponents(new ButtonBuilder()
-                .setCustomId(`crime_${opt}`)
-                .setLabel(opt)
-                .setStyle(ButtonStyle.Danger))
-        );
-        await interaction.editReply({ embeds: [embed], components: [row] });
+            collector.on('collect', async m => {
+                if (m.content.trim() === crime.cmd) {
+                    const pay = Math.floor(Math.random() * (crime.pay[1] - crime.pay[0] + 1)) + crime.pay[0];
+                    await billingService.ubService.addMoney(interaction.guildId, interaction.user.id, pay, `Crimen: ${crime.title}`, 'cash');
+                    casinoSessions[crimeKey] = Date.now();
 
-    } else if (crime.type === 'wires') {
-        embed.addFields({
-            name: '💣 BOMBA NUCLEAR',
-            value: `\`\`\`\n╔═══════════╗\n║  ☢️ PELIGRO ☢️  ║\n║  🔴 🟢 🔵  ║\n║  10:00:00  ║\n╚═══════════╝\n\`\`\`\n⚠️ ¡CORTA EL CABLE ${crime.wire}!`
-        });
+                    const successEmbed = new EmbedBuilder()
+                        .setTitle('💸 ¡ÉXITO CRIMINAL!')
+                        .setColor(0x00FF00)
+                        .setDescription(`Completaste: **${crime.title}**`)
+                        .addFields({ name: '💰 Botín', value: `$${pay.toLocaleString()}`, inline: true })
+                        .setFooter({ text: 'Aléjate de la escena del crimen' });
 
-        const row = new ActionRowBuilder();
-        crime.opts.forEach(opt =>
-            row.addComponents(new ButtonBuilder()
-                .setCustomId(`crime_${opt}`)
-                .setLabel(opt)
-                .setStyle(ButtonStyle.Danger))
-        );
-        await interaction.editReply({ embeds: [embed], components: [row] });
+                    m.react('😈');
+                    await interaction.followUp({ embeds: [successEmbed] });
+                } else {
+                    const fine = Math.floor(Math.random() * (crime.fine[1] - crime.fine[0] + 1)) + crime.fine[0];
+                    await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, fine, `Multa: ${crime.title}`, 'cash');
+                    casinoSessions[crimeKey] = Date.now();
+                    m.react('🚔');
+                    await interaction.followUp(`🚨 **ARRESTADO**. Fallaste. Multa: **$${fine.toLocaleString()}**`);
+                }
+            });
 
-    } else if (crime.type === 'nav') {
-        embed.addFields({
-            name: '🚔 PERSECUCIÓN',
-            value: `\`\`\`\n  🚗💨\n━━━┃━━━\n🚓 ↑ 🚧\n━━━━━━━\n\`\`\`\n⚡ Gira a la ${crime.dir} ¡YA!`
-        });
+        } else {
+            const filter = i => i.user.id === interaction.user.id && i.customId.startsWith('crime_');
+            const collector = interaction.channel.createMessageComponentCollector({ filter, time: 20000, max: 1 });
 
-        const row = new ActionRowBuilder();
-        crime.opts.forEach(opt =>
-            row.addComponents(new ButtonBuilder()
-                .setCustomId(`crime_${opt}`)
-                .setLabel(opt)
-                .setStyle(ButtonStyle.Danger))
-        );
-        await interaction.editReply({ embeds: [embed], components: [row] });
+            collector.on('collect', async i => {
+                const selected = i.customId.replace('crime_', '');
+                let win = false;
 
-    } else if (crime.type === 'luck') {
-        embed.addFields({
-            name: '🏰 JARDÍN MINADO',
-            value: `\`\`\`\n🏰 MANSIÓN 🏰\n[A] [B] [C]\n 💀  ?  💀\n\`\`\`\n⚠️ Probabilidad de éxito: 50%`
-        });
+                if (crime.type === 'memory') win = selected === crime.code;
+                else if (crime.type === 'wires') win = selected.includes(crime.wire);
+                else if (crime.type === 'nav') win = selected.includes(crime.dir);
+                else if (crime.type === 'luck') win = Math.random() > 0.5;
 
-        const row = new ActionRowBuilder();
-        crime.opts.forEach(opt =>
-            row.addComponents(new ButtonBuilder()
-                .setCustomId(`crime_${opt}`)
-                .setLabel(opt)
-                .setStyle(ButtonStyle.Danger))
-        );
-        await interaction.editReply({ embeds: [embed], components: [row] });
+                if (win) {
+                    const pay = Math.floor(Math.random() * (crime.pay[1] - crime.pay[0] + 1)) + crime.pay[0];
+                    await billingService.ubService.addMoney(interaction.guildId, interaction.user.id, pay, `Crimen: ${crime.title}`, 'cash');
+                    casinoSessions[crimeKey] = Date.now();
 
-    } else if (crime.type === 'typing') {
-        embed.addFields({
-            name: '🖥️ TERMINAL BANCARIA',
-            value: `\`\`\`bash\n🏦 BANCO CENTRAL\n> ACCESO DENEGADO\n> BYPASS...\n$ ${crime.cmd}\n\`\`\`\n⌨️ Ejecuta el comando`
-        });
-        await interaction.editReply({ embeds: [embed] });
+                    const successEmbed = new EmbedBuilder()
+                        .setTitle('💸 ¡ÉXITO CRIMINAL!')
+                        .setColor(0x00FF00)
+                        .setDescription(`Completaste: **${crime.title}**`)
+                        .addFields({ name: '💰 Botín', value: `$${pay.toLocaleString()}`, inline: true })
+                        .setFooter({ text: 'Escóndete por 2 horas' })
+                        .setTimestamp();
+
+                    await i.update({ embeds: [successEmbed], components: [] });
+                } else {
+                    const fine = Math.floor(Math.random() * (crime.fine[1] - crime.fine[0] + 1)) + crime.fine[0];
+                    await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, fine, `Multa: ${crime.title}`, 'cash');
+                    casinoSessions[crimeKey] = Date.now();
+
+                    await i.update({
+                        content: `🚨 **ARRESTADO** en ${crime.title}. Multa: **$${fine.toLocaleString()}**`,
+                        embeds: [],
+                        components: []
+                    });
+                }
+            });
+
+            collector.on('end', collected => {
+                if (collected.size === 0) {
+                    interaction.followUp('⏱️ Tiempo agotado. La policía te atrapó.').catch(() => { });
+                    casinoSessions[crimeKey] = Date.now();
+                }
+            });
+        }
     }
-
-    // Collector (same logic but with crime penalties)
-    if (crime.type === 'typing') {
-        const filter = m => m.author.id === interaction.user.id;
-        const collector = interaction.channel.createMessageCollector({ filter, time: 20000, max: 1 });
-
-        collector.on('collect', async m => {
-            if (m.content.trim() === crime.cmd) {
-                const pay = Math.floor(Math.random() * (crime.pay[1] - crime.pay[0] + 1)) + crime.pay[0];
-                await billingService.ubService.addMoney(interaction.guildId, interaction.user.id, pay, `Crimen: ${crime.title}`, 'cash');
-                casinoSessions[crimeKey] = Date.now();
-
-                const successEmbed = new EmbedBuilder()
-                    .setTitle('💸 ¡ÉXITO CRIMINAL!')
-                    .setColor(0x00FF00)
-                    .setDescription(`Completaste: **${crime.title}**`)
-                    .addFields({ name: '💰 Botín', value: `$${pay.toLocaleString()}`, inline: true })
-                    .setFooter({ text: 'Aléjate de la escena del crimen' });
-
-                m.react('😈');
-                await interaction.followUp({ embeds: [successEmbed] });
-            } else {
-                const fine = Math.floor(Math.random() * (crime.fine[1] - crime.fine[0] + 1)) + crime.fine[0];
-                await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, fine, `Multa: ${crime.title}`, 'cash');
-                casinoSessions[crimeKey] = Date.now();
-                m.react('🚔');
-                await interaction.followUp(`🚨 **ARRESTADO**. Fallaste. Multa: **$${fine.toLocaleString()}**`);
-            }
-        });
-
-    } else {
-        const filter = i => i.user.id === interaction.user.id && i.customId.startsWith('crime_');
-        const collector = interaction.channel.createMessageComponentCollector({ filter, time: 20000, max: 1 });
-
-        collector.on('collect', async i => {
-            const selected = i.customId.replace('crime_', '');
-            let win = false;
-
-            if (crime.type === 'memory') win = selected === crime.code;
-            else if (crime.type === 'wires') win = selected.includes(crime.wire);
-            else if (crime.type === 'nav') win = selected.includes(crime.dir);
-            else if (crime.type === 'luck') win = Math.random() > 0.5;
-
-            if (win) {
-                const pay = Math.floor(Math.random() * (crime.pay[1] - crime.pay[0] + 1)) + crime.pay[0];
-                await billingService.ubService.addMoney(interaction.guildId, interaction.user.id, pay, `Crimen: ${crime.title}`, 'cash');
-                casinoSessions[crimeKey] = Date.now();
-
-                const successEmbed = new EmbedBuilder()
-                    .setTitle('💸 ¡ÉXITO CRIMINAL!')
-                    .setColor(0x00FF00)
-                    .setDescription(`Completaste: **${crime.title}**`)
-                    .addFields({ name: '💰 Botín', value: `$${pay.toLocaleString()}`, inline: true })
-                    .setFooter({ text: 'Escóndete por 2 horas' })
-                    .setTimestamp();
-
-                await i.update({ embeds: [successEmbed], components: [] });
-            } else {
-                const fine = Math.floor(Math.random() * (crime.fine[1] - crime.fine[0] + 1)) + crime.fine[0];
-                await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, fine, `Multa: ${crime.title}`, 'cash');
-                casinoSessions[crimeKey] = Date.now();
-
-                await i.update({
-                    content: `🚨 **ARRESTADO** en ${crime.title}. Multa: **$${fine.toLocaleString()}**`,
-                    embeds: [],
-                    components: []
-                });
-            }
-        });
-
-        collector.on('end', collected => {
-            if (collected.size === 0) {
-                interaction.followUp('⏱️ Tiempo agotado. La policía te atrapó.').catch(() => { });
-                casinoSessions[crimeKey] = Date.now();
-            }
-        });
-    }
-}
 
     else if (commandName === 'bolsa') {
         await interaction.deferReply();
