@@ -6334,6 +6334,77 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 await interaction.editReply({ content: '', embeds: [embed] });
             }, 4000);
         }
+
+        else if (subCmd === 'fichas') {
+            const accion = interaction.options.getString('accion');
+            const cantidad = interaction.options.getNumber('cantidad');
+
+            const FICHA_PRICE = 100; // $100 por ficha
+
+            if (accion === 'comprar') {
+                const costo = cantidad * FICHA_PRICE;
+
+                if (userCash < costo) {
+                    return interaction.editReply(`❌ **Fondos Insuficientes**\nNecesitas: $${costo.toLocaleString()}\nTienes: $${userCash.toLocaleString()}`);
+                }
+
+                await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, costo, 'Compra fichas casino', 'cash');
+
+                // Update or create chips record
+                const { data: existing } = await supabase.from('casino_chips').select('*').eq('user_id', interaction.user.id).maybeSingle();
+
+                if (existing) {
+                    await supabase.from('casino_chips').update({
+                        chips: existing.chips + cantidad
+                    }).eq('user_id', interaction.user.id);
+                } else {
+                    await supabase.from('casino_chips').insert({
+                        user_id: interaction.user.id,
+                        chips: cantidad,
+                        total_won: 0,
+                        total_lost: 0,
+                        games_played: 0
+                    });
+                }
+
+                const embed = new EmbedBuilder()
+                    .setTitle('🎰 Compra de Fichas')
+                    .setColor(0xFFD700)
+                    .setDescription(`Has comprado **${cantidad} fichas** del casino`)
+                    .addFields(
+                        { name: '💰 Costo', value: `$${costo.toLocaleString()}`, inline: true },
+                        { name: '🎲 Total Fichas', value: `${(existing?.chips || 0) + cantidad}`, inline: true }
+                    )
+                    .setFooter({ text: 'Usa las fichas en /jugar' });
+
+                return interaction.editReply({ embeds: [embed] });
+
+            } else if (accion === 'vender') {
+                const { data: chips } = await supabase.from('casino_chips').select('*').eq('user_id', interaction.user.id).maybeSingle();
+
+                if (!chips || chips.chips < cantidad) {
+                    return interaction.editReply(`❌ **Fichas Insuficientes**\nTienes: ${chips?.chips || 0} fichas`);
+                }
+
+                const ganancia = cantidad * FICHA_PRICE;
+                await supabase.from('casino_chips').update({
+                    chips: chips.chips - cantidad
+                }).eq('user_id', interaction.user.id);
+
+                await billingService.ubService.addMoney(interaction.guildId, interaction.user.id, ganancia, 'Venta fichas casino', 'cash');
+
+                const embed = new EmbedBuilder()
+                    .setTitle('💵 Venta de Fichas')
+                    .setColor(0x00FF00)
+                    .setDescription(`Has vendido **${cantidad} fichas**`)
+                    .addFields(
+                        { name: '💰 Ganancia', value: `$${ganancia.toLocaleString()}`, inline: true },
+                        { name: '🎲 Fichas Restantes', value: `${chips.chips - cantidad}`, inline: true }
+                    );
+
+                return interaction.editReply({ embeds: [embed] });
+            }
+        }
     }
 
 

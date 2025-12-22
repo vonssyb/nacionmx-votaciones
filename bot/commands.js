@@ -646,6 +646,25 @@ const commands = [
                         ]
                     }
                 ]
+            },
+            {
+                name: 'fichas',
+                description: 'Comprar o vender fichas del casino',
+                type: 1,
+                options: [
+                    {
+                        name: 'accion',
+                        description: 'Comprar o vender',
+                        type: 3,
+                        required: true,
+                        choices: [
+                            { name: '💰 Comprar Fichas', value: 'comprar' },
+                            { name: '💵 Vender Fichas', value: 'vender' }
+                        ]
+                    },
+                    { name: 'cantidad', description: 'Cantidad de fichas', type: 10, required: true }
+                ]
+
             }
         ]
     },
