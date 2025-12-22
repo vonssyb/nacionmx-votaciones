@@ -63,6 +63,7 @@ let globalStocks = [
     { symbol: 'ALPEK', name: 'Alpek S.A.B. de C.V.', base: 150, current: 150, type: 'Empresa', volatility: 0.02 },
     { symbol: 'WALMEX', name: 'Walmart México', base: 450, current: 450, type: 'Empresa', volatility: 0.015 },
     { symbol: 'FEMSA', name: 'FEMSA', base: 1200, current: 1200, type: 'Empresa', volatility: 0.01 },
+    { symbol: 'AMX', name: 'América Móvil', base: 800, current: 800, type: 'Empresa', volatility: 0.012 },
     { symbol: 'NMX', name: 'Nación MX Corp', base: 500, current: 500, type: 'Empresa', volatility: 0.025 }
 ];
 
