@@ -13,47 +13,10 @@ if (!DISCORD_TOKEN || !GUILD_ID || !CLIENT_ID) {
     process.exit(1);
 }
 
-// Import the commands directly from index.js
-const indexPath = require('path').resolve(__dirname, 'index.js');
-const indexContent = require('fs').readFileSync(indexPath, 'utf8');
+// Import the commands directly from commands.js
+const commands = require('./commands');
 
-// Extract commands array from index.js between 'const commands = [' and the matching '];'
-const startMarker = 'const commands = [';
-const startIndex = indexContent.indexOf(startMarker);
-
-if (startIndex === -1) {
-    console.error('❌ No se encontró el array de comandos en index.js');
-    process.exit(1);
-}
-
-// Find the closing bracket
-let bracketCount = 0;
-let endIndex = startIndex + startMarker.length;
-let foundStart = false;
-
-for (let i = startIndex + startMarker.length; i < indexContent.length; i++) {
-    if (indexContent[i] === '[') {
-        bracketCount++;
-        foundStart = true;
-    } else if (indexContent[i] === ']') {
-        bracketCount--;
-        if (foundStart && bracketCount === -1) {
-            endIndex = i;
-            break;
-        }
-    }
-}
-
-const commandsStr = indexContent.substring(startIndex + startMarker.length, endIndex);
-let commands;
-
-try {
-    commands = eval('[' + commandsStr + ']');
-    console.log(`✅ Extraídos ${commands.length} comandos de index.js`);
-} catch (err) {
-    console.error('❌ Error parseando comandos:', err.message);
-    process.exit(1);
-}
+console.log(`✅ Cargados ${commands.length} comandos de commands.js`);
 
 async function registerCommands() {
     const rest = new REST({ version: '10' }).setToken(DISCORD_TOKEN);
