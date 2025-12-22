@@ -7905,53 +7905,173 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
     }
 
     else if (commandName === 'casino') {
-        await interaction.deferReply({ ephemeral: true });
-        const userId = interaction.user.id;
+        await interaction.deferReply();
+        const subCmd = interaction.options.getSubcommand();
+        const bet = interaction.options.getNumber('apuesta');
 
-        try {
-            const { data: purchases, error } = await supabase
-                .from('user_purchases')
-                .select(`
-                        *,
-                        store_items (*)
-                    `)
-                .eq('user_id', userId)
-                .eq('status', 'active')
-                .order('purchase_date', { ascending: false });
+        if (bet < 100) return interaction.editReply('❌ Apuesta mínima $100.');
 
-            if (error) throw error;
+        // Validate Funds
+        const balance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
+        const userCash = balance.cash || 0;
+        if (userCash < bet) return interaction.editReply('❌ No tienes suficiente efectivo.');
 
-            if (!purchases || purchases.length === 0) {
-                return interaction.editReply('📦 No tienes pases activos. Visita `/tienda ver` para comprar.');
+        if (subCmd === 'blackjack') {
+            const suits = ['♠️', '♥️', '♣️', '♦️'];
+            const values = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
+            const deck = [];
+            for (const s of suits) for (const v of values) deck.push({ value: v, suit: s });
+            for (let i = deck.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [deck[i], deck[j]] = [deck[j], deck[i]];
             }
 
-            const embed = new EmbedBuilder()
-                .setTitle('📦 Mis Pases Activos')
-                .setColor('#FFD700')
-                .setDescription(`Tienes **${purchases.length}** pase(s) activo(s)`);
+            const getCardValue = (card) => {
+                if (['J', 'Q', 'K'].includes(card.value)) return 10;
+                if (card.value === 'A') return 11;
+                return parseInt(card.value);
+            };
 
-            for (const p of purchases) {
-                const item = p.store_items;
-                const expiry = p.expiration_date
-                    ? `Expira: <t:${Math.floor(new Date(p.expiration_date).getTime() / 1000)}:R>`
-                    : '♾️ Permanente';
+            const calculateScore = (hand) => {
+                let score = 0;
+                let aces = 0;
+                for (const card of hand) {
+                    score += getCardValue(card);
+                    if (card.value === 'A') aces++;
+                }
+                while (score > 21 && aces > 0) {
+                    score -= 10;
+                    aces--;
+                }
+                return score;
+            };
 
-                const uses = p.uses_remaining ? `\n🎫 Usos restantes: ${p.uses_remaining}` : '';
+            const playerHand = [deck.pop(), deck.pop()];
+            const dealerHand = [deck.pop(), deck.pop()];
 
-                embed.addFields({
-                    name: `${item.icon_emoji} ${item.name}`,
-                    value: `${expiry}${uses}`,
-                    inline: false
-                });
+            let playerScore = calculateScore(playerHand);
+            const dealerVisible = `**${dealerHand[0].value}${dealerHand[0].suit}** | 🎴`;
+
+            const getEmbed = (pScore, dScore, pHand, dHand, status = 'PLAYING') => {
+                const color = status === 'WIN' ? '#00FF00' : (status === 'LOSE' ? '#FF0000' : '#FFFF00');
+                return new EmbedBuilder()
+                    .setTitle('🎰 Blackjack Nación MX')
+                    .setColor(color)
+                    .addFields(
+                        { name: `Tus Cartas (${pScore})`, value: pHand.map(c => `[${c.value}${c.suit}]`).join(' '), inline: true },
+                        { name: `Dealer (${status === 'PLAYING' ? '?' : dScore})`, value: status === 'PLAYING' ? dealerVisible : dHand.map(c => `[${c.value}${c.suit}]`).join(' '), inline: true },
+                        { name: '💰 Apuesta', value: `$${bet.toLocaleString()}`, inline: false }
+                    );
+            };
+
+            const row = new ActionRowBuilder()
+                .addComponents(
+                    new ButtonBuilder().setCustomId('hit').setLabel('Pedir Carta').setStyle(ButtonStyle.Primary),
+                    new ButtonBuilder().setCustomId('stand').setLabel('Plantarse').setStyle(ButtonStyle.Success)
+                );
+
+            const msg = await interaction.editReply({ embeds: [getEmbed(playerScore, 0, playerHand, dealerHand)], components: [row] });
+
+            if (playerScore === 21) {
+                await billingService.ubService.addMoney(interaction.guildId, interaction.user.id, Math.floor(bet * 1.5), 'Blackjack Win', 'cash');
+                return interaction.editReply({ content: '🔥 **¡BLACKJACK!** Ganaste 3:2.', components: [] });
             }
 
-            embed.setFooter({ text: 'Los pases expirarán automáticamente' });
+            await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, bet, 'Blackjack Bet', 'cash');
 
-            await interaction.editReply({ embeds: [embed] });
+            const collector = msg.createMessageComponentCollector({ filter: i => i.user.id === interaction.user.id, time: 60000 });
 
-        } catch (error) {
-            console.error('[tienda mispases] Error:', error);
-            await interaction.editReply('❌ Error cargando tus pases.');
+            collector.on('collect', async i => {
+                await i.deferUpdate();
+                if (i.customId === 'hit') {
+                    playerHand.push(deck.pop());
+                    playerScore = calculateScore(playerHand);
+
+                    if (playerScore > 21) {
+                        collector.stop('bust');
+                    } else {
+                        await i.editReply({ embeds: [getEmbed(playerScore, 0, playerHand, dealerHand)], components: [row] });
+                    }
+                } else if (i.customId === 'stand') {
+                    collector.stop('stand');
+                }
+            });
+
+            collector.on('end', async (c, reason) => {
+                if (reason === 'bust') {
+                    await interaction.editReply({
+                        embeds: [getEmbed(playerScore, calculateScore(dealerHand), playerHand, dealerHand, 'LOSE').setDescription('❌ **Te pasaste!** Perdiste tu apuesta.')],
+                        components: []
+                    });
+                } else {
+                    let dealerScore = calculateScore(dealerHand);
+                    while (dealerScore < 17) {
+                        dealerHand.push(deck.pop());
+                        dealerScore = calculateScore(dealerHand);
+                    }
+
+                    let result = '';
+                    let payout = 0;
+
+                    if (dealerScore > 21 || playerScore > dealerScore) {
+                        result = 'WIN';
+                        payout = bet * 2;
+                        await billingService.ubService.addMoney(interaction.guildId, interaction.user.id, payout, 'Blackjack Win', 'cash');
+                    } else if (playerScore === dealerScore) {
+                        result = 'PUSH';
+                        payout = bet;
+                        await billingService.ubService.addMoney(interaction.guildId, interaction.user.id, payout, 'Blackjack Push', 'cash');
+                    } else {
+                        result = 'LOSE';
+                    }
+
+                    const resultMsg = result === 'WIN' ? `✅ **¡GANASTE!** (Dealer: ${dealerScore})` : (result === 'PUSH' ? '🤝 **Empate** - Apuesta devuelta.' : `❌ **Perdiste.** (Dealer: ${dealerScore})`);
+
+                    await interaction.editReply({
+                        embeds: [getEmbed(playerScore, dealerScore, playerHand, dealerHand, result).setDescription(resultMsg)],
+                        components: []
+                    });
+                }
+            });
+        }
+
+        else if (subCmd === 'ruleta') {
+            const option = interaction.options.getString('opcion');
+            await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, bet, 'Ruleta Bet', 'cash');
+            await interaction.editReply(`🎲 Girando ruleta...apostando **$${bet}** a **${option}**...`);
+
+            setTimeout(async () => {
+                const resultNum = Math.floor(Math.random() * 37);
+                const colors = { 0: 'green' };
+                const reds = [1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36];
+                for (let i = 1; i <= 36; i++) {
+                    if (!colors[i]) colors[i] = reds.includes(i) ? 'red' : 'black';
+                }
+                const resultColor = colors[resultNum];
+
+                let win = false;
+                let multiplier = 0;
+
+                if (option === 'red' && resultColor === 'red') { win = true; multiplier = 2; }
+                else if (option === 'black' && resultColor === 'black') { win = true; multiplier = 2; }
+                else if (option === 'green' && resultColor === 'green') { win = true; multiplier = 14; }
+                else if (option === 'low' && resultNum >= 1 && resultNum <= 18) { win = true; multiplier = 2; }
+                else if (option === 'high' && resultNum >= 19 && resultNum <= 36) { win = true; multiplier = 2; }
+
+                const embed = new EmbedBuilder()
+                    .setTitle(`🎰 Resultado: [ ${resultNum} ${resultColor === 'red' ? '🔴' : (resultColor === 'black' ? '⚫' : '🟢')} ]`)
+                    .setColor(win ? '#00FF00' : '#FF0000')
+                    .setTimestamp();
+
+                if (win) {
+                    const payout = bet * multiplier;
+                    await billingService.ubService.addMoney(interaction.guildId, interaction.user.id, payout, 'Ruleta Win', 'cash');
+                    embed.setDescription(`🎉 **¡GANASTE!**\nRecibes: **$${payout.toLocaleString()}**`);
+                } else {
+                    embed.setDescription(`❌ **Perdiste.**\nLa casa gana.`);
+                }
+                await interaction.editReply({ content: '', embeds: [embed] });
+            }, 4000);
         }
     }
 }
