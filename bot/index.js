@@ -66,6 +66,10 @@ let globalStocks = [
     { symbol: 'NMX', name: 'Nación MX Corp', base: 500, current: 500, type: 'Empresa', volatility: 0.025 }
 ];
 
+// LOG CHANNELS
+const LOG_CREACION_TARJETA = '1450343644652507136';
+const LOG_EMPRESAS = '1452346918620500041';
+
 // CASINO SESSION MANAGERS (Multiplayer)
 const casinoSessions = {
     roulette: {
