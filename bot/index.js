@@ -7500,11 +7500,14 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
         if (inputMonto.toLowerCase() === 'todo' || inputMonto.toLowerCase() === 'all') {
             monto = cash;
         } else {
-            monto = parseFloat(inputMonto);
+            // Remove any non-numeric chars (e.g. $, commas) to be safe
+            const cleanMonto = inputMonto.replace(/[^0-9.]/g, '');
+            monto = parseFloat(cleanMonto);
         }
 
-        if (isNaN(monto) || monto <= 0) {
-            return interaction.reply({ content: '❌ El monto debe ser mayor a 0.', ephemeral: true });
+        // Security: Check for NaN, Finite, and positive amount
+        if (isNaN(monto) || !isFinite(monto) || monto <= 0) {
+            return interaction.editReply('❌ Monto inválido. Debes ingresar un número positivo mayor a 0.');
         }
 
 
