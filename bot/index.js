@@ -4598,20 +4598,17 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 // Check if name is unique
                 const { data: existing } = await supabase.from('companies').select('id').eq('name', nombre).maybeSingle();
                 if (existing) {
-                    return interaction.editReply(`❌ Ya existe una empresa con el nombre "${nombre}".`);
+                    return interaction.editReply({ content: '❌ Nombre ya existe.' });
                 }
 
-                // Show payment selector
-                const paymentRow = new ActionRowBuilder().addComponents(
-                    new ButtonBuilder().setCustomId('emp_cash').setLabel('💵 Efectivo').setStyle(ButtonStyle.Primary),
-                    new ButtonBuilder().setCustomId('emp_bank').setLabel('🏦 Banco').setStyle(ButtonStyle.Success),
-                    new ButtonBuilder().setCustomId('emp_debit').setLabel('💳 Débito').setStyle(ButtonStyle.Secondary),
-                    new ButtonBuilder().setCustomId('emp_credit').setLabel('🔖 Crédito').setStyle(ButtonStyle.Danger)
-                );
+                // Show rich payment selector
+                const pmEmpresa = await getAvailablePaymentMethods(dueño.id, interaction.guildId);
+                const pbEmpresa = createPaymentButtons(pmEmpresa, 'emp_pay');
+                const empresaEmbed = createPaymentEmbed(`🏢 ${nombre}`, totalCost, pmEmpresa);
 
                 await interaction.editReply({
-                    content: `🏢 **${nombre}**\n💰 Total: **$${totalCost.toLocaleString()}**\n\nSelecciona método de pago:`,
-                    components: [paymentRow]
+                    embeds: [empresaEmbed],
+                    components: [pbEmpresa]
                 });
 
                 // Wait for payment method
