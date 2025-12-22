@@ -4710,7 +4710,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
 
                 collector.on('end', collected => {
                     if (collected.size === 0) {
-                        interaction.editReply({ content: '⏱️ Tiempo agotado.', components: [] });
+                        interaction.editReply({ content: '⏱️ Tiempo agotado.', components: [] }).catch(() => { });
                     }
                 });
 
