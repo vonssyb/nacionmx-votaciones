@@ -4808,6 +4808,22 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                             embeds: [embed],
                             components: [vehicleRow]
                         });
+
+                        // LOGGING: New Company
+                        const logEmbed = new EmbedBuilder()
+                            .setTitle('🏢 Nueva Empresa Registrada')
+                            .setColor('#00FF00')
+                            .addFields(
+                                { name: 'Empresa', value: nombre, inline: true },
+                                { name: 'Dueño', value: `<@${dueño.id}>`, inline: true },
+                                { name: 'Tipo Local', value: tipoLocal || 'Pequeño', inline: true },
+                                { name: 'Costo', value: `$${totalCost.toLocaleString()}`, inline: true }
+                            )
+                            .setFooter({ text: `ID: ${newCompany.id}` })
+                            .setTimestamp();
+
+                        logToChannel(interaction.guild, LOG_EMPRESAS, logEmbed);
+
                     } catch (err) {
                         console.error('[empresa crear payment ERROR]', err);
                         paymentProcessed = false;
