@@ -4576,7 +4576,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             if (subCmd === 'crear') {
                 const nombre = interaction.options.getString('nombre');
                 const dueño = interaction.options.getUser('dueño');
-                const tipoLocal = interaction.options.getString('tipo_local') || 'pequeño'; // Default to pequeño
+                const tipoLocal = interaction.options.getString('tipo_local'); // Can be null
                 const logo = interaction.options.getAttachment('logo');
                 const fotoLocal = interaction.options.getAttachment('foto_local');
                 const ubicacion = interaction.options.getString('ubicacion');
@@ -4593,7 +4593,11 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                     'gigante': 5000000
                 };
 
-                let totalCost = TRAMITE_FEE + (LOCAL_COSTS[tipoLocal] || LOCAL_COSTS['pequeño']);
+                // If no tipo_local specified, only charge tramite fee
+                let totalCost = TRAMITE_FEE;
+                if (tipoLocal) {
+                    totalCost += LOCAL_COSTS[tipoLocal];
+                }
 
                 // Check if name is unique
                 const { data: existing } = await supabase.from('companies').select('id').eq('name', nombre).maybeSingle();
@@ -4613,9 +4617,17 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
 
                 // Wait for payment method
                 const filter = i => i.user.id === interaction.user.id && (i.customId.startsWith('emp_pay_') || i.customId.startsWith('emp_'));
-                const collector = interaction.channel.createMessageComponentCollector({ filter, time: 60000, max: 1 });
+                const collector = interaction.channel.createMessageComponentCollector({ filter, time: 60000 });
+
+                let paymentProcessed = false; // Prevent duplicate payments
 
                 collector.on('collect', async (i) => {
+                    if (paymentProcessed) {
+                        // Silently ignore duplicate clicks
+                        return i.deferUpdate().catch(() => { });
+                    }
+
+                    paymentProcessed = true;
                     await i.deferUpdate();
                     const method = i.customId.replace('emp_pay_', '').replace('emp_', ''); // Support both old and new
 
@@ -4676,7 +4688,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                             .addFields(
                                 { name: '🏷️ Nombre', value: nombre, inline: true },
                                 { name: '👔 Dueño', value: `<@${dueño.id}>`, inline: true },
-                                { name: '🏠 Local', value: tipoLocal.charAt(0).toUpperCase() + tipoLocal.slice(1), inline: true },
+                                { name: '🏠 Local', value: tipoLocal ? (tipoLocal.charAt(0).toUpperCase() + tipoLocal.slice(1)) : 'Sin Local', inline: true },
                                 { name: '🚗 Vehículos', value: `${newCompany.vehicle_count}`, inline: true },
                                 { name: '💰 Costo Total', value: `$${totalCost.toLocaleString()}`, inline: true },
                                 { name: '🆔 ID Empresa', value: newCompany.id.substring(0, 8), inline: true }
