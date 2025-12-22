@@ -5048,16 +5048,117 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             }
 
             // ===== CREDITO =====
+            // ===== CREDITO (Solicitar) =====
             if (subCmd === 'credito') {
-                return interaction.editReply('💳 Crédito empresarial disponible pronto.');
+                const monto = interaction.options.getNumber('monto');
+                const razon = interaction.options.getString('razon') || 'Expansión de negocio';
+
+                // Get company
+                const { data: companies } = await supabase.from('companies').select('*').contains('owner_ids', [userId]);
+                if (!companies || companies.length === 0) return interaction.editReply('❌ No tienes empresa.');
+                const company = companies[0];
+
+                // Check active loans
+                const { data: activeLoan } = await supabase.from('company_loans')
+                    .select('*')
+                    .eq('company_id', company.id)
+                    .eq('status', 'active')
+                    .maybeSingle();
+
+                if (activeLoan) {
+                    return interaction.editReply(`❌ Ya tienes un crédito activo de **$${activeLoan.amount.toLocaleString()}**. Págalo primero.`);
+                }
+
+                if (monto > 5000000) return interaction.editReply('❌ El límite de crédito inicial es de $5,000,000.');
+
+                // Create loan
+                const { error: loanError } = await supabase.from('company_loans').insert({
+                    company_id: company.id,
+                    amount: monto,
+                    interest_rate: 0.05, // 5% weekly
+                    status: 'active',
+                    next_payment_due: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+                });
+
+                if (loanError) {
+                    console.error(loanError);
+                    return interaction.editReply('❌ Error solicitando crédito.');
+                }
+
+                // Add funds to company
+                await supabase.from('companies').update({ balance: (company.balance || 0) + monto }).eq('id', company.id);
+
+                return interaction.editReply(`✅ **Crédito Aprobado**\n\nSe han depositado **$${monto.toLocaleString()}** a la cuenta de **${company.name}**.\n📅 Primer pago (Interés + Capital) en 7 días.`);
             }
 
             // ===== CREDITO PAGAR =====
             if (subCmd === 'credito-pagar') {
-                return interaction.editReply('💳 Pago de crédito disponible pronto.');
+                const monto = interaction.options.getNumber('monto');
+
+                // Get company
+                const { data: companies } = await supabase.from('companies').select('*').contains('owner_ids', [userId]);
+                if (!companies || companies.length === 0) return interaction.editReply('❌ No tienes empresa.');
+                const company = companies[0];
+
+                // Check loan
+                const { data: activeLoan } = await supabase.from('company_loans')
+                    .select('*')
+                    .eq('company_id', company.id)
+                    .eq('status', 'active')
+                    .maybeSingle();
+
+                if (!activeLoan) return interaction.editReply('✅ No tienes deudas de crédito activas.');
+
+                if ((company.balance || 0) < monto) return interaction.editReply('❌ Fondos insuficientes en la empresa.');
+
+                // Pay
+                const remaining = activeLoan.amount - monto;
+                const newStatus = remaining <= 0 ? 'paid' : 'active';
+                const actualPay = remaining < 0 ? activeLoan.amount : monto; // Don't overpay logic simplified
+
+                // Deduct from company
+                await supabase.from('companies').update({ balance: (company.balance || 0) - actualPay }).eq('id', company.id);
+
+                // Update loan
+                await supabase.from('company_loans').update({
+                    amount: remaining <= 0 ? 0 : remaining,
+                    status: newStatus,
+                    updated_at: new Date().toISOString()
+                }).eq('id', activeLoan.id);
+
+                if (newStatus === 'paid') {
+                    return interaction.editReply(`🎉 **¡Crédito Liquidado!**\nHas pagado la totalidad de tu deuda.`);
+                } else {
+                    return interaction.editReply(`✅ **Abono Exitoso**\nPagado: $${actualPay.toLocaleString()}\nRestante: $${remaining.toLocaleString()}`);
+                }
             }
 
             // ===== CREDITO INFO =====
+            if (subCmd === 'credito-info') {
+                // Get company
+                const { data: companies } = await supabase.from('companies').select('*').contains('owner_ids', [userId]);
+                if (!companies || companies.length === 0) return interaction.editReply('❌ No tienes empresa.');
+                const company = companies[0];
+
+                const { data: activeLoan } = await supabase.from('company_loans')
+                    .select('*')
+                    .eq('company_id', company.id)
+                    .eq('status', 'active')
+                    .maybeSingle();
+
+                if (!activeLoan) return interaction.editReply('✅ **Estado:** Sin deudas activas. Eres libre.');
+
+                const embed = new EmbedBuilder()
+                    .setTitle(`📉 Estado de Crédito - ${company.name}`)
+                    .setColor('#FF0000')
+                    .addFields(
+                        { name: '💰 Deuda Actual', value: `$${activeLoan.amount.toLocaleString()}`, inline: true },
+                        { name: '📊 Tasa Interés', value: `${activeLoan.interest_rate * 100}% Semanal`, inline: true },
+                        { name: '📅 Vencimiento', value: `<t:${Math.floor(new Date(activeLoan.next_payment_due).getTime() / 1000)}:R>`, inline: false }
+                    );
+
+                return interaction.editReply({ embeds: [embed] });
+            }
             if (subCmd === 'credito-info') {
                 return interaction.editReply('💳 Info de crédito disponible pronto.');
             }
