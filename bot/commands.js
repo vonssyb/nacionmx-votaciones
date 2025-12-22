@@ -741,6 +741,99 @@ const commands = [
                 type: 1
             }
         ]
+    },
+    {
+        name: 'balanza',
+        description: '💰 Ver tu patrimonio total (Efectivo + Banco + Crédito)',
+        type: 1
+    },
+    {
+        name: 'debito',
+        description: '💳 Gestión de Tarjeta de Débito',
+        options: [
+            {
+                name: 'estado',
+                description: 'Ver estado de tu tarjeta de débito',
+                type: 1
+            },
+            {
+                name: 'mejorar',
+                description: 'Ofrecer mejora de tarjeta (Solo Staff Bancario)',
+                type: 1,
+                options: [
+                    { name: 'usuario', description: 'Usuario a mejorar', type: 6, required: true }
+                ]
+            }
+        ]
+    },
+    {
+        name: 'saldo',
+        description: '🏦 Ver saldo de banco y efectivo',
+        options: [
+            { name: 'usuario', description: 'Usuario a consultar (Opcional)', type: 6, required: false }
+        ]
+    },
+    {
+        name: 'jugar',
+        description: '🎲 Juegos de Apuestas Rápidas',
+        options: [
+            {
+                name: 'slots',
+                description: '🎰 Jugar Tragamonedas',
+                type: 1,
+                options: [
+                    { name: 'apuesta', description: 'Cantidad a apostar', type: 4, required: true }
+                ]
+            },
+            {
+                name: 'dice',
+                description: '🎲 Dados - Alto, Bajo, Par, Impar',
+                type: 1,
+                options: [
+                    { name: 'apuesta', description: 'Cantidad a apostar', type: 4, required: true },
+                    {
+                        name: 'tipo',
+                        description: 'Tu predicción',
+                        type: 3,
+                        required: true,
+                        choices: [
+                            { name: 'Mayor a 7', value: 'alto' },
+                            { name: 'Menor a 7', value: 'bajo' },
+                            { name: 'Par', value: 'par' },
+                            { name: 'Impar', value: 'impar' },
+                            { name: 'Siete (x4)', value: 'siete' }
+                        ]
+                    }
+                ]
+            }
+        ]
+    },
+    {
+        name: 'business',
+        description: '🏢 Gestión de Tarjetas Empresariales (Staff)',
+        options: [
+            {
+                name: 'vincular',
+                description: 'Vincular nueva tarjeta business a una empresa',
+                type: 1,
+                options: [
+                    { name: 'dueño', description: 'Usuario dueño de la empresa', type: 6, required: true },
+                    {
+                        name: 'tipo',
+                        description: 'Tipo de tarjeta',
+                        type: 3,
+                        required: true,
+                        choices: [
+                            { name: 'Business Start ($50k Lím)', value: 'business_start' },
+                            { name: 'Business Gold ($100k Lím)', value: 'business_gold' },
+                            { name: 'Business Platinum ($200k Lím)', value: 'business_platinum' },
+                            { name: 'Business Elite ($500k Lím)', value: 'business_elite' },
+                            { name: 'NMX Corporate ($1M Lím)', value: 'nmx_corporate' }
+                        ]
+                    }
+                ]
+            }
+        ]
     }
 ];
 
