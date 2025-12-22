@@ -5710,11 +5710,13 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
 
         // Enhanced crimes with higher risks/rewards
         const crimes = [
-            { title: '💣 Bomba Nuclear', desc: 'Cable correcto: VERDE', type: 'wires', wire: 'VERDE', opts: ['🔴 ROJO', '🟢 VERDE', '🔵 AZUL'], pay: [100000, 150000], fine: [20000, 35000] },
-            { title: '🏛️ Museo Nacional', desc: 'Sala 3 - Código 842', type: 'memory', code: 'Sala 3 - 842', opts: ['Sala 3 - 842', 'Sala 2 - 842', 'Sala 3 - 824'], pay: [80000, 130000], fine: [15000, 25000] },
-            { title: '🚓 Persecución', desc: 'Escapar a la IZQUIERDA', type: 'nav', dir: 'IZQUIERDA', opts: ['⬅️ IZQUIERDA', '➡️ DERECHA', '⬆️ ACELERAR'], pay: [50000, 90000], fine: [10000, 18000] },
-            { title: '💎 Mansión', desc: 'Cruzar jardín minado', type: 'luck', opts: ['🚶 RUTA A', '🚶 RUTA B', '🚶 RUTA C'], pay: [90000, 160000], fine: [25000, 40000] },
-            { title: '💻 Hackeo Banco', desc: 'inject_sql_admin_bypass', type: 'typing', cmd: 'inject_sql_admin_bypass', pay: [60000, 110000], fine: [12000, 22000] }
+            { title: '💣 Bomba Nuclear', desc: 'Cable correcto: VERDE', type: 'wires', wire: 'VERDE', opts: ['🔴 ROJO', '🟢 VERDE', '🔵 AZUL', '🟡 AMARILLO', '⚫ NEGRO'], pay: [100000, 150000], fine: [20000, 35000] },
+            { title: '🏛️ Museo Nacional', desc: 'Sala 3 - Código 842', type: 'memory', code: 'Sala 3 - 842', opts: ['Sala 3 - 842', 'Sala 2 - 842', 'Sala 3 - 824', 'Sala 4 - 842', 'Sala 3 - 248'], pay: [80000, 130000], fine: [15000, 25000] },
+            { title: '🚓 Persecución', desc: 'Escapar a la IZQUIERDA', type: 'nav', dir: 'IZQUIERDA', opts: ['⬅️ IZQUIERDA', '➡️ DERECHA', '⬆️ ACELERAR', '⬇️ FRENAR'], pay: [50000, 90000], fine: [10000, 18000] },
+            { title: '💎 Mansión', desc: 'Cruzar jardín minado', type: 'luck', opts: ['🚶 RUTA A', '🚶 RUTA B', '🚶 RUTA C', '🚶 RUTA D', '🚶 RUTA E'], luck: 0.25, pay: [90000, 160000], fine: [25000, 40000] },
+            { title: '💻 Hackeo Banco', desc: 'inject_root_sql_bypass_admin', type: 'typing', cmd: 'inject_root_sql_bypass_admin', pay: [60000, 110000], fine: [12000, 22000] },
+            { title: '🔐 Caja Fuerte Federal', desc: 'Código: 9-1-8-3-7', type: 'memory', code: '9-1-8-3-7', opts: ['9-1-8-3-7', '9-1-7-3-8', '1-9-8-3-7', '9-8-1-3-7', '9-1-3-8-7'], pay: [120000, 180000], fine: [30000, 45000] },
+            { title: '🚁 Escape Aéreo', desc: 'Huir al NORTE entre edificios', type: 'nav', dir: 'NORTE', opts: ['⬆️ NORTE', '⬇️ SUR', '⬅️ OESTE', '➡️ ESTE', '💨 VERTICAL'], pay: [95000, 145000], fine: [22000, 38000] }
         ];
 
         const crime = crimes[Math.floor(Math.random() * crimes.length)];
@@ -5723,7 +5725,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             .setTitle(`☠️ ${crime.title}`)
             .setColor(0x880000)
             .setDescription(`**Misión:** ${crime.desc}\n\n💰 Botín: $${crime.pay[0].toLocaleString()} - $${crime.pay[1].toLocaleString()}\n🚨 Multa si fallas: $${crime.fine[0].toLocaleString()} - $${crime.fine[1].toLocaleString()}`)
-            .setFooter({ text: '⚠️ ALTO RIESGO - 20 Segundos' })
+            .setFooter({ text: '⚠️ ALTÍSIMO RIESGO - 15 Segundos' })
             .setTimestamp();
 
         // Similar structure to trabajar but with crime visuals
@@ -5782,7 +5784,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
         } else if (crime.type === 'luck') {
             embed.addFields({
                 name: '🏰 JARDÍN MINADO',
-                value: `\`\`\`\n🏰 MANSIÓN 🏰\n[A] [B] [C]\n 💀  ?  💀\n\`\`\`\n⚠️ Probabilidad de éxito: 50%`
+                value: `\`\`\`\n🏰 MANSIÓN 🏰\n[A] [B] [C] [D] [E]\n 💀  ?  💀  ?  💀\n\`\`\`\n⚠️ Probabilidad de éxito: 25%`
             });
 
             const row = new ActionRowBuilder();
@@ -5842,7 +5844,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 if (crime.type === 'memory') win = selected === crime.code;
                 else if (crime.type === 'wires') win = selected.includes(crime.wire);
                 else if (crime.type === 'nav') win = selected.includes(crime.dir);
-                else if (crime.type === 'luck') win = Math.random() > 0.5;
+                else if (crime.type === 'luck') win = Math.random() > (crime.luck || 0.75);
 
                 if (win) {
                     const pay = Math.floor(Math.random() * (crime.pay[1] - crime.pay[0] + 1)) + crime.pay[0];
