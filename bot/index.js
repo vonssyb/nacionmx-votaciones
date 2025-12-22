@@ -6055,7 +6055,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                     .setTitle('🚨 ¡Te atrapó la policía!')
                     .setColor('#FF0000')
                     .setDescription(`Fallaste en el robo y fuiste arrestado.\n**Multa:** $${FINE_AMOUNT.toLocaleString()}`)
-                    .setImage('https://i.imgur.com/5w2qZpA.gif') // Optional generic police gif
+                    .setImage('https://media1.tenor.com/m/1k_lJcQ6q8AAAAAC/gta-busted.gif') // GTA Busted GIF
                     .setTimestamp();
 
                 await interaction.editReply({ embeds: [embed] });
@@ -6083,7 +6083,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
     else if (commandName === 'trabajar') {
         await interaction.deferReply();
 
-        // Cooldown Check (1 Hour)
+        // 1. Cooldown Check (1 Hour)
         const JOB_COOLDOWN = 60 * 60 * 1000;
         const jobKey = `job_${interaction.user.id}`;
         const lastJob = casinoSessions[jobKey] || 0;
@@ -6093,48 +6093,137 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             return interaction.editReply(`⏳ **Estás cansado**\nDebes descansar **${remaining} minutos** antes de volver a trabajar.`);
         }
 
-        // Math Challenge
-        const n1 = Math.floor(Math.random() * 100) + 1;
-        const n2 = Math.floor(Math.random() * 100) + 1;
-        const answer = (n1 + n2).toString();
+        // 2. Define Job Scenarios (The massive list of 30+ minigames)
+        // TYPE: 'math', 'typing', 'choice' (buttons), 'order' (sequence)
+        const JOBS = [
+            // --- MATH JOBS (Calculations) ---
+            { title: '🥖 Panadero', desc: 'Un cliente quiere 5 bolillos de $3 y 2 conchas de $8. ¿Total?', type: 'math', a: (5 * 3 + 2 * 8).toString(), pay: [800, 1000] },
+            { title: '🚕 Taxista', desc: 'La tarifa base es $20 más $5 por km. Recorriste 12 km. ¿Cuánto cobras?', type: 'math', a: (20 + 5 * 12).toString(), pay: [900, 1200] },
+            { title: '🏗️ Arquitecto', desc: 'Necesitas el área de un cuarto de 8m x 6m. ¿Cuántos m² son?', type: 'math', a: (8 * 6).toString(), pay: [1500, 2000] },
+            { title: '🔋 Electricista', desc: 'Si usas 3 focos de 60W y 1 de 100W, ¿cuántos Watts gastas en total?', type: 'math', a: (3 * 60 + 100).toString(), pay: [1200, 1500] },
+            { title: '💊 Farmacéutico', desc: 'Tienes 50 pastillas. El paciente toma 2 cada 8 horas (6 al día). ¿Para cuántos días completos alcanza?', type: 'math', a: Math.floor(50 / 6).toString(), pay: [1100, 1400] },
+            { title: '📦 Paquetería', desc: 'Cargas 4 cajas de 15kg y una de 25kg. ¿Peso total?', type: 'math', a: (4 * 15 + 25).toString(), pay: [800, 1100] },
+            { title: '⛽ Gasolinera', desc: 'El litro cuesta $20. El cliente pide 35 litros. ¿Total a pagar?', type: 'math', a: (20 * 35).toString(), pay: [850, 1000] },
+            { title: '🥩 Carnicero', desc: 'El kilo de res vale $120. Vendiste 2.5 kg. ¿Cuánto es?', type: 'math', a: (120 * 2.5).toString(), pay: [900, 1200] },
 
-        const challengeEmbed = new EmbedBuilder()
-            .setTitle('👷 Hora de Trabajar')
-            .setColor('#FFFF00')
-            .setDescription(`Para cobrar tu sueldo, resuelve esto:\n\n**${n1} + ${n2} = ?**\n\n*Tienes 15 segundos.*`)
-            .setFooter({ text: 'Escribe la respuesta en el chat' });
+            // --- TYPING JOBS (Accuracy) ---
+            { title: '💻 Programador', desc: 'Escribe el código exacto para arreglar el bug:', type: 'typing', text: 'sudo rm -rf /virus', pay: [2000, 3000] },
+            { title: '📝 Secretario', desc: 'Transcribe este folio rápidamente:', type: 'typing', text: 'NMX-8821-XP', pay: [1000, 1200] },
+            { title: '📡 Controlador Aéreo', desc: 'Confirma el código de aterrizaje:', type: 'typing', text: 'DELTA-FOX-99', pay: [1800, 2500] },
+            { title: '🔬 Químico', desc: 'Etiqueta la fórmula correctamente:', type: 'typing', text: 'H2SO4 + NaCl', pay: [1500, 2000] },
+            { title: '🚒 Bombero', desc: '¡Emergencia! Grita la orden por radio:', type: 'typing', text: 'FUEGO EN SECTOR 7', pay: [1200, 1600] },
+            { title: '👮 Policía', desc: 'Reporta la matrícula del sospechoso:', type: 'typing', text: 'XJ-928-BZ', pay: [1300, 1700] },
+            { title: '👨‍⚖️ Juez', desc: 'Dicta la sentencia final:', type: 'typing', text: 'CULPABLE', pay: [2500, 3500] },
+            { title: '🗞️ Periodista', desc: 'Escribe el titular de última hora:', type: 'typing', text: 'CRISIS EN LA BOLSA', pay: [1100, 1400] },
 
-        await interaction.editReply({ embeds: [challengeEmbed] });
+            // --- SELECTION JOBS (Logic/Buttons) ---
+            { title: '🔧 Mecánico', desc: 'El coche se calienta mucho. ¿Qué revisas primero?', type: 'choice', opts: ['Llantas', 'Radiador', 'Frenos'], correct: 'Radiador', pay: [1000, 1500] },
+            { title: '👨‍⚕️ Doctor', desc: 'Paciente con hueso roto. ¿Qué aplicas?', type: 'choice', opts: ['Curita', 'Yeso', 'Jarabe'], correct: 'Yeso', pay: [2000, 2800] },
+            { title: '👨‍🍳 Chef', desc: 'La sopa está desabrida. ¿Qué le falta?', type: 'choice', opts: ['Azúcar', 'Sal', 'Hielo'], correct: 'Sal', pay: [1200, 1600] },
+            { title: '🛫 Piloto', desc: 'Para despegar, ¿qué haces primero?', type: 'choice', opts: ['Frenar', 'Acelerar', 'Apagar motor'], correct: 'Acelerar', pay: [2500, 4000] },
+            { title: '🌾 Agricultor', desc: 'La tierra está muy seca. ¿Qué sistema activas?', type: 'choice', opts: ['Riego', 'Calefacción', 'Ventilador'], correct: 'Riego', pay: [900, 1300] },
+            { title: '🔌 IT Support', desc: 'La PC no prende. ¿Paso 1?', type: 'choice', opts: ['Golpearla', 'Verificar cable', 'Gritar'], correct: 'Verificar cable', pay: [1500, 2000] },
+            { title: '👷 Albañil', desc: 'Para pegar ladrillos necesitas...', type: 'choice', opts: ['Cemento', 'Resistol', 'Cinta'], correct: 'Cemento', pay: [1000, 1400] },
+            { title: '🎨 Pintor', desc: 'Para hacer color VERDE mezclas...', type: 'choice', opts: ['Rojo+Azul', 'Azul+Amarillo', 'Blanco+Negro'], correct: 'Azul+Amarillo', pay: [900, 1200] },
+            { title: '🎣 Pescador', desc: 'Para atrapar peces usas...', type: 'choice', opts: ['Escopeta', 'Red', 'Imán'], correct: 'Red', pay: [800, 1100] },
 
-        const filter = m => m.author.id === interaction.user.id;
-        const collector = interaction.channel.createMessageCollector({ filter, time: 15000, max: 1 });
+            // --- EMOJI SEQUENCE (Memory-ish) ---
+            { title: '🕵️ Detective', desc: 'Encuentra la pista diferente:', type: 'choice', opts: ['🔍', '🔎', '🔦'], correct: '🔦', pay: [1400, 1900] },
+            { title: '☕ Barista', desc: 'El cliente pidió un Espresso Doble. ¿Cuál es?', type: 'choice', opts: ['🍵', '☕', '🥤'], correct: '☕', pay: [850, 1100] },
+            { title: '🌲 Guardabosques', desc: 'Identifica el animal peligroso:', type: 'choice', opts: ['🐰', '🦌', '🐻'], correct: '🐻', pay: [1300, 1700] },
+            { title: '🚀 Astronauta', desc: 'Selecciona el planeta con anillos:', type: 'choice', opts: ['🌑', '🌍', '🪐'], correct: '🪐', pay: [3000, 5000] }
+        ];
 
-        collector.on('collect', async m => {
-            if (m.content.trim() === answer) {
-                // Success
-                const pay = Math.floor(Math.random() * (1500 - 800 + 1)) + 800; // 800 - 1500
+        // 3. Select Random Job
+        const job = JOBS[Math.floor(Math.random() * JOBS.length)];
 
-                await billingService.ubService.addMoney(interaction.guildId, interaction.user.id, pay, 'Sueldo por trabajo legal', 'cash');
-                casinoSessions[jobKey] = Date.now();
+        // 4. Build Interaction Base
+        const embed = new EmbedBuilder()
+            .setTitle(`${job.title} - Turno Laboral`)
+            .setDescription(`**Instrucción:** ${job.desc}\n\n*Tienes 20 segundos para responder.*`)
+            .setColor(0xFFA500)
+            .setFooter({ text: 'Sistema de Empleo Nación MX' });
 
-                const successEmbed = new EmbedBuilder()
-                    .setTitle('✅ Trabajo Terminado')
-                    .setColor('#00FF00')
-                    .setDescription(`Has completado tu turno y recibido **$${pay.toLocaleString()}** en efectivo.`)
-                    .setTimestamp();
+        // 5. Setup Logic by Type
+        if (job.type === 'math' || job.type === 'typing') {
+            if (job.type === 'typing') embed.addFields({ name: 'Escribe:', value: `\`${job.text}\`` });
 
-                await interaction.channel.send({ content: `<@${interaction.user.id}>`, embeds: [successEmbed] });
-            } else {
-                // Fail
-                await interaction.followUp('❌ **Respuesta Incorrecta**. Te han despedido por incompetente. Intenta más tarde.');
-            }
-        });
+            await interaction.editReply({ embeds: [embed] });
 
-        collector.on('end', collected => {
-            if (collected.size === 0) {
-                interaction.followUp('⏰ **Tiempo Agotado**. Te dormiste en el trabajo.');
-            }
-        });
+            const filter = m => m.author.id === interaction.user.id;
+            const collector = interaction.channel.createMessageCollector({ filter, time: 20000, max: 1 });
+
+            collector.on('collect', async m => {
+                const input = m.content.trim();
+                const expected = job.type === 'math' ? job.a : job.text;
+
+                // Case insensitive for text? Maybe stricter is better for "minigame" feel
+                const isCorrect = job.type === 'math' ? input === expected : input === expected;
+
+                if (isCorrect) {
+                    const finalPay = Math.floor(Math.random() * (job.pay[1] - job.pay[0] + 1)) + job.pay[0];
+                    await billingService.ubService.addMoney(interaction.guildId, interaction.user.id, finalPay, `Sueldo: ${job.title}`, 'cash');
+                    casinoSessions[jobKey] = Date.now();
+
+                    m.react('✅');
+                    await interaction.channel.send({
+                        content: `<@${interaction.user.id}>`,
+                        embeds: [new EmbedBuilder().setTitle('✅ ¡Bien hecho!').setColor('#00AA00').setDescription(`Completaste el trabajo y ganaste **$${finalPay.toLocaleString()}**`)]
+                    });
+                } else {
+                    m.react('❌');
+                    await interaction.channel.send(`<@${interaction.user.id}> ❌ **Incorrecto**. Te despidieron por incompetente. (${expected})`);
+                }
+            });
+
+            collector.on('end', collected => {
+                if (collected.size === 0) interaction.followUp('⏰ **Tiempo Agotado**. Te quedaste dormido en el trabajo.');
+            });
+
+        } else if (job.type === 'choice') {
+            // Create Buttons
+            const row = new ActionRowBuilder();
+            // Shuffle options slightly to avoid position memory if repeated? No, randomize order creation
+            const shuffledOpts = [...job.opts].sort(() => Math.random() - 0.5);
+
+            shuffledOpts.forEach(opt => {
+                row.addComponents(
+                    new ButtonBuilder()
+                        .setCustomId(`job_${opt}`)
+                        .setLabel(opt)
+                        .setStyle(ButtonStyle.Primary)
+                );
+            });
+
+            await interaction.editReply({ embeds: [embed], components: [row] });
+
+            const filter = i => i.user.id === interaction.user.id && i.customId.startsWith('job_');
+            const collector = interaction.channel.createMessageComponentCollector({ filter, time: 20000, max: 1 });
+
+            collector.on('collect', async i => {
+                const selection = i.customId.replace('job_', '');
+                if (selection === job.correct) {
+                    const finalPay = Math.floor(Math.random() * (job.pay[1] - job.pay[0] + 1)) + job.pay[0];
+                    await billingService.ubService.addMoney(interaction.guildId, interaction.user.id, finalPay, `Sueldo: ${job.title}`, 'cash');
+                    casinoSessions[jobKey] = Date.now();
+
+                    await i.update({
+                        embeds: [new EmbedBuilder().setTitle('✅ ¡Excelente Trabajo!').setColor('#00AA00').setDescription(`Elegiste correctamente **${selection}**.\nGanaste **$${finalPay.toLocaleString()}**`)],
+                        components: []
+                    });
+                } else {
+                    await i.update({
+                        content: `❌ **Error**. No era ${selection}. Causaste un accidente laboral.`,
+                        embeds: [],
+                        components: []
+                    });
+                }
+            });
+
+            collector.on('end', collected => {
+                if (collected.size === 0) interaction.editReply({ content: '⏰ Tiempo agotado.', components: [] });
+            });
+        }
     }
 
 
