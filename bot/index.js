@@ -4702,7 +4702,13 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                         if (error) {
                             console.error('[empresa] DB Error:', error);
                             paymentProcessed = false;
-                            return i.editReply({ content: '❌ Error creando empresa en BD.', components: [] });
+                            // Refund money since DB insert failed
+                            try {
+                                // TODO: Implement refund logic or better yet, do payment in transaction
+                                // For now, just show error
+                            } catch (e) { }
+
+                            return i.editReply({ content: `❌ Error creando empresa en BD: ${error.message || error.details || JSON.stringify(error)}`, components: [] });
                         }
 
                         // Add role to owner
