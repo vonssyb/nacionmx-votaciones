@@ -4806,201 +4806,224 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 return interaction.editReply({ embeds: [embed] });
             }
 
-        }
+
 
             // ===== CONTRATAR =====
             if (subCmd === 'contratar') {
-            const targetUser = interaction.options.getUser('usuario');
-            const sueldo = interaction.options.getNumber('sueldo');
-            const puesto = interaction.options.getString('puesto') || 'Empleado';
-
-            // Get owner's company
-            const { data: companies } = await supabase.from('companies').select('*').contains('owner_ids', [userId]);
-
-            if (!companies || companies.length === 0) {
-                return interaction.editReply('❌ No tienes ninguna empresa registrada.');
-            }
-            const company = companies[0]; // First company
-
-            // Check if already hired
-            const { data: existing } = await supabase.from('company_employees')
-                .select('*')
-                .eq('company_id', company.id)
-                .eq('discord_user_id', targetUser.id)
-                .eq('status', 'active')
-                .maybeSingle();
-
-            if (existing) {
-                return interaction.editReply(`❌ <@${targetUser.id}> ya es empleado de **${company.name}**.`);
-            }
-
-            // Add to employees
-            const { error } = await supabase.from('company_employees').insert({
-                company_id: company.id,
-                discord_user_id: targetUser.id,
-                salary: sueldo,
-                role: puesto,
-                status: 'active',
-                hired_at: new Date().toISOString()
-            });
-
-            if (error) {
-                console.error('[empresa contratar]', error);
-                return interaction.editReply('❌ Error al contratar empleado.');
-            }
-
-            return interaction.editReply(`✅ **Contratado:** <@${targetUser.id}> ha sido añadido a la nómina de **${company.name}** con sueldo de $${sueldo.toLocaleString()}.`);
-        }
-
-        // ===== DESPEDIR =====
-        if (subCmd === 'despedir') {
-            const targetUser = interaction.options.getUser('usuario');
-
-            // Get owner's company
-            const { data: companies } = await supabase.from('companies').select('*').contains('owner_ids', [userId]);
-
-            if (!companies || companies.length === 0) {
-                return interaction.editReply('❌ No tienes ninguna empresa registrada.');
-            }
-            const company = companies[0];
-
-            // Check if employee exists
-            const { data: employee } = await supabase.from('company_employees')
-                .select('*')
-                .eq('company_id', company.id)
-                .eq('discord_user_id', targetUser.id)
-                .eq('status', 'active')
-                .maybeSingle();
-
-            if (!employee) {
-                return interaction.editReply(`❌ <@${targetUser.id}> no es un empleado activo de **${company.name}**.`);
-            }
-
-            // Fire (update status)
-            const { error } = await supabase.from('company_employees')
-                .update({ status: 'fired', updated_at: new Date().toISOString() })
-                .eq('id', employee.id);
-
-            if (error) {
-                console.error('[empresa despedir]', error);
-                return interaction.editReply('❌ Error al despedir empleado.');
-            }
-
-            return interaction.editReply(`🚫 **Despedido:** <@${targetUser.id}> ha sido removido de la nómina de **${company.name}**.`);
-        }
-
-        // ===== EMPLEADOS =====
-        if (subCmd === 'empleados') {
-            // Get owner's company
-            const { data: companies } = await supabase.from('companies').select('*').contains('owner_ids', [userId]);
-
-            if (!companies || companies.length === 0) {
-                return interaction.editReply('❌ No tienes ninguna empresa registrada.');
-            }
-            const company = companies[0];
-
-            const { data: employees } = await supabase.from('company_employees')
-                .select('*')
-                .eq('company_id', company.id)
-                .eq('status', 'active');
-
-            if (!employees || employees.length === 0) {
-                return interaction.editReply(`🏢 **${company.name}** no tiene empleados activos.`);
-            }
-
-            const list = employees.map((e, i) =>
-                `${i + 1}. <@${e.discord_user_id}> - **${e.role}** - $${(e.salary || 0).toLocaleString()}`
-            ).join('\n');
-
-            const embed = new EmbedBuilder()
-                .setColor('#0099FF')
-                .setTitle(`👥 Empleados de ${company.name}`)
-                .setDescription(list)
-                .setFooter({ text: `Total: ${employees.length} empleados` });
-
-            return interaction.editReply({ embeds: [embed] });
-
-            // ===== CREDITO =====
-            if (subCmd === 'credito') {
-                return interaction.editReply('💳 Crédito empresarial disponible pronto.');
-            }
-
-            // ===== CREDITO PAGAR =====
-            if (subCmd === 'credito-pagar') {
-                return interaction.editReply('💳 Pago de crédito disponible pronto.');
-            }
-
-            // ===== CREDITO INFO =====
-            if (subCmd === 'credito-info') {
-                return interaction.editReply('💳 Info de crédito disponible pronto.');
-            }
-
-            // ===== LISTAR USUARIO (STAFF) =====
-            if (subCmd === 'listar-usuario') {
-                if (!interaction.member.permissions.has('Administrator')) {
-                    return interaction.editReply('⛔ Solo staff puede usar este comando.');
-                }
-
                 const targetUser = interaction.options.getUser('usuario');
-                const { data: companies } = await supabase
-                    .from('companies')
-                    .select('*')
-                    .contains('owner_ids', [targetUser.id]);
+                const sueldo = interaction.options.getNumber('sueldo');
+                const puesto = interaction.options.getString('puesto') || 'Empleado';
+
+                // Get owner's company
+                const { data: companies } = await supabase.from('companies').select('*').contains('owner_ids', [userId]);
 
                 if (!companies || companies.length === 0) {
-                    return interaction.editReply(`ℹ️ ${targetUser.username} no tiene empresas registradas.`);
+                    return interaction.editReply('❌ No tienes ninguna empresa registrada.');
+                }
+                const company = companies[0]; // First company
+
+                // Check if already hired
+                const { data: existing } = await supabase.from('company_employees')
+                    .select('*')
+                    .eq('company_id', company.id)
+                    .eq('discord_user_id', targetUser.id)
+                    .eq('status', 'active')
+                    .maybeSingle();
+
+                if (existing) {
+                    return interaction.editReply(`❌ <@${targetUser.id}> ya es empleado de **${company.name}**.`);
                 }
 
-                const list = companies.map((c, i) => `${i + 1}. **${c.name}** (${c.status}) - $${(c.balance || 0).toLocaleString()}`).join('\n');
+                // Add to employees
+                const { error } = await supabase.from('company_employees').insert({
+                    company_id: company.id,
+                    discord_user_id: targetUser.id,
+                    salary: sueldo,
+                    role: puesto,
+                    status: 'active',
+                    hired_at: new Date().toISOString()
+                });
+
+                if (error) {
+                    console.error('[empresa contratar]', error);
+                    return interaction.editReply('❌ Error al contratar empleado.');
+                }
+
+                return interaction.editReply(`✅ **Contratado:** <@${targetUser.id}> ha sido añadido a la nómina de **${company.name}** con sueldo de $${sueldo.toLocaleString()}.`);
+            }
+
+            // ===== DESPEDIR =====
+            if (subCmd === 'despedir') {
+                const targetUser = interaction.options.getUser('usuario');
+
+                // Get owner's company
+                const { data: companies } = await supabase.from('companies').select('*').contains('owner_ids', [userId]);
+
+                if (!companies || companies.length === 0) {
+                    return interaction.editReply('❌ No tienes ninguna empresa registrada.');
+                }
+                const company = companies[0];
+
+                // Check if employee exists
+                const { data: employee } = await supabase.from('company_employees')
+                    .select('*')
+                    .eq('company_id', company.id)
+                    .eq('discord_user_id', targetUser.id)
+                    .eq('status', 'active')
+                    .maybeSingle();
+
+                if (!employee) {
+                    return interaction.editReply(`❌ <@${targetUser.id}> no es un empleado activo de **${company.name}**.`);
+                }
+
+                // Fire (update status)
+                const { error } = await supabase.from('company_employees')
+                    .update({ status: 'fired', updated_at: new Date().toISOString() })
+                    .eq('id', employee.id);
+
+                if (error) {
+                    console.error('[empresa despedir]', error);
+                    return interaction.editReply('❌ Error al despedir empleado.');
+                }
+
+                return interaction.editReply(`🚫 **Despedido:** <@${targetUser.id}> ha sido removido de la nómina de **${company.name}**.`);
+            }
+
+            // ===== EMPLEADOS =====
+            if (subCmd === 'empleados') {
+                // Get owner's company
+                const { data: companies } = await supabase.from('companies').select('*').contains('owner_ids', [userId]);
+
+                if (!companies || companies.length === 0) {
+                    return interaction.editReply('❌ No tienes ninguna empresa registrada.');
+                }
+                const company = companies[0];
+
+                const { data: employees } = await supabase.from('company_employees')
+                    .select('*')
+                    .eq('company_id', company.id)
+                    .eq('status', 'active');
+
+                if (!employees || employees.length === 0) {
+                    return interaction.editReply(`🏢 **${company.name}** no tiene empleados activos.`);
+                }
+
+                const list = employees.map((e, i) =>
+                    `${i + 1}. <@${e.discord_user_id}> - **${e.role}** - $${(e.salary || 0).toLocaleString()}`
+                ).join('\n');
 
                 const embed = new EmbedBuilder()
                     .setColor('#0099FF')
-                    .setTitle(`🏢 Empresas de ${targetUser.username}`)
+                    .setTitle(`👥 Empleados de ${company.name}`)
                     .setDescription(list)
-                    .setFooter({ text: `Total: ${companies.length} empresas` });
+                    .setFooter({ text: `Total: ${employees.length} empleados` });
 
                 return interaction.editReply({ embeds: [embed] });
-            }
 
-        } catch (error) {
-            console.error('[empresa] Error:', error);
-            return interaction.editReply('❌ Error procesando el comando de empresa.');
+                // ===== CREDITO =====
+                if (subCmd === 'credito') {
+                    return interaction.editReply('💳 Crédito empresarial disponible pronto.');
+                }
+
+                // ===== CREDITO PAGAR =====
+                if (subCmd === 'credito-pagar') {
+                    return interaction.editReply('💳 Pago de crédito disponible pronto.');
+                }
+
+                // ===== CREDITO INFO =====
+                if (subCmd === 'credito-info') {
+                    return interaction.editReply('💳 Info de crédito disponible pronto.');
+                }
+
+                // ===== LISTAR USUARIO (STAFF) =====
+                if (subCmd === 'listar-usuario') {
+                    if (!interaction.member.permissions.has('Administrator')) {
+                        return interaction.editReply('⛔ Solo staff puede usar este comando.');
+                    }
+
+                    const targetUser = interaction.options.getUser('usuario');
+                    const { data: companies } = await supabase
+                        .from('companies')
+                        .select('*')
+                        .contains('owner_ids', [targetUser.id]);
+
+                    if (!companies || companies.length === 0) {
+                        return interaction.editReply(`ℹ️ ${targetUser.username} no tiene empresas registradas.`);
+                    }
+
+                    const list = companies.map((c, i) => `${i + 1}. **${c.name}** (${c.status}) - $${(c.balance || 0).toLocaleString()}`).join('\n');
+
+                    const embed = new EmbedBuilder()
+                        .setColor('#0099FF')
+                        .setTitle(`🏢 Empresas de ${targetUser.username}`)
+                        .setDescription(list)
+                        .setFooter({ text: `Total: ${companies.length} empresas` });
+
+                    return interaction.editReply({ embeds: [embed] });
+                }
+
+            } catch (error) {
+                console.error('[empresa] Error:', error);
+                return interaction.editReply('❌ Error procesando el comando de empresa.');
+            }
         }
-    }
     else if (commandName === 'inversion') {
-        await interaction.deferReply(); // Global defer
+            await interaction.deferReply(); // Global defer
 
-        const subCmd = interaction.options.getSubcommand();
+            const subCmd = interaction.options.getSubcommand();
 
-        if (subCmd === 'nueva') {
-            const amount = interaction.options.getNumber('monto');
-            if (amount < 5000) return interaction.editReply('❌ La inversión mínima es de **$5,000**.');
+            if (subCmd === 'nueva') {
+                const amount = interaction.options.getNumber('monto');
+                if (amount < 5000) return interaction.editReply('❌ La inversión mínima es de **$5,000**.');
 
-            // Check Balance
-            const balance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
-            const userMoney = balance.total || (balance.cash + balance.bank);
+                // Check Balance
+                const balance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
+                const userMoney = balance.total || (balance.cash + balance.bank);
 
-            if (userMoney < amount) {
-                return interaction.editReply(`❌ **Fondos Insuficientes**. Tienes: $${userMoney.toLocaleString()}`);
-            }
+                if (userMoney < amount) {
+                    return interaction.editReply(`❌ **Fondos Insuficientes**. Tienes: $${userMoney.toLocaleString()}`);
+                }
 
-            // Remove Money
-            // Show payment selector
-            const pmInv = await getAvailablePaymentMethods(interaction.user.id, interaction.guildId);
-            const pbInv = createPaymentButtons(pmInv, 'inv_pay');
-            const paymentEmbed = createPaymentEmbed(`📈 Inversión a Plazo (${days} días, ${rate}% interés)`, amount, pmInv);
-            await interaction.editReply({ embeds: [paymentEmbed], components: [pbInv] });
-            const fInv = i => i.user.id === interaction.user.id && i.customId.startsWith('inv_pay_');
-            const cInv = interaction.channel.createMessageComponentCollector({ filter: fInv, time: 60000, max: 1 });
-            cInv.on('collect', async (i) => {
-                try { await i.deferUpdate(); } catch (err) { console.error('[inv] defer:', err.message); return; }
-                const prInv = await processPayment(i.customId.replace('inv_pay_', ''), interaction.user.id, interaction.guildId, amount, 'Inversión Plazo Fijo', pmInv);
-                if (!prInv.success) return i.editReply({ content: prInv.error, components: [] });
+                // Remove Money
+                // Show payment selector
+                const pmInv = await getAvailablePaymentMethods(interaction.user.id, interaction.guildId);
+                const pbInv = createPaymentButtons(pmInv, 'inv_pay');
+                const paymentEmbed = createPaymentEmbed(`📈 Inversión a Plazo (${days} días, ${rate}% interés)`, amount, pmInv);
+                await interaction.editReply({ embeds: [paymentEmbed], components: [pbInv] });
+                const fInv = i => i.user.id === interaction.user.id && i.customId.startsWith('inv_pay_');
+                const cInv = interaction.channel.createMessageComponentCollector({ filter: fInv, time: 60000, max: 1 });
+                cInv.on('collect', async (i) => {
+                    try { await i.deferUpdate(); } catch (err) { console.error('[inv] defer:', err.message); return; }
+                    const prInv = await processPayment(i.customId.replace('inv_pay_', ''), interaction.user.id, interaction.guildId, amount, 'Inversión Plazo Fijo', pmInv);
+                    if (!prInv.success) return i.editReply({ content: prInv.error, components: [] });
+
+                    // Calculate Dates and Profit
+                    const now = new Date();
+                    const endDate = new Date(now.getTime() + (7 * 24 * 60 * 60 * 1000));
+                    const interestRate = 5;
+                    const payout = amount + (amount * (interestRate / 100));
+
+                    // Insert DB
+                    await supabase.from('investments').insert([{
+                        discord_id: interaction.user.id,
+                        invested_amount: amount,
+                        interest_rate: interestRate,
+                        start_date: now.toISOString(),
+                        end_date: endDate.toISOString(),
+                        payout_amount: payout,
+                        status: 'active'
+                    }]);
+
+                    await i.editReply({ content: `✅ Inversión creada (${prInv.method}). Retorno: **$${payout.toLocaleString()}** en 7 días.`, components: [] });
+                });
+                cInv.on('end', c => { if (c.size === 0) interaction.editReply({ content: '⏱️ Tiempo agotado.', components: [] }); });
+                return;
+                await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, amount, `Inversión Plazo Fijo`);
 
                 // Calculate Dates and Profit
                 const now = new Date();
-                const endDate = new Date(now.getTime() + (7 * 24 * 60 * 60 * 1000));
-                const interestRate = 5;
+                const endDate = new Date(now.getTime() + (7 * 24 * 60 * 60 * 1000)); // 7 Days
+                const interestRate = 5; // 5% weekly
                 const payout = amount + (amount * (interestRate / 100));
 
                 // Insert DB
@@ -5014,1762 +5037,1681 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                     status: 'active'
                 }]);
 
-                await i.editReply({ content: `✅ Inversión creada (${prInv.method}). Retorno: **$${payout.toLocaleString()}** en 7 días.`, components: [] });
-            });
-            cInv.on('end', c => { if (c.size === 0) interaction.editReply({ content: '⏱️ Tiempo agotado.', components: [] }); });
-            return;
-            await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, amount, `Inversión Plazo Fijo`);
-
-            // Calculate Dates and Profit
-            const now = new Date();
-            const endDate = new Date(now.getTime() + (7 * 24 * 60 * 60 * 1000)); // 7 Days
-            const interestRate = 5; // 5% weekly
-            const payout = amount + (amount * (interestRate / 100));
-
-            // Insert DB
-            await supabase.from('investments').insert([{
-                discord_id: interaction.user.id,
-                invested_amount: amount,
-                interest_rate: interestRate,
-                start_date: now.toISOString(),
-                end_date: endDate.toISOString(),
-                payout_amount: payout,
-                status: 'active'
-            }]);
-
-            // Log
-            await supabase.from('banking_transactions').insert([{
-                sender_discord_id: interaction.user.id,
-                receiver_discord_id: null,
-                amount: amount,
-                type: 'investment',
-                description: `Apertura Plazo Fijo (7 días al ${interestRate}%)`
-            }]);
-
-            const embed = new EmbedBuilder()
-                .setTitle('📈 Inversión Exitosa')
-                .setColor(0x00FF00)
-                .setDescription(`Has invertido **$${amount.toLocaleString()}**.\n\n📅 **Vencimiento:** <t:${Math.floor(endDate.getTime() / 1000)}:R>\n💰 **Retorno Esperado:** $${payout.toLocaleString()}\n\n*El dinero está bloqueado hasta la fecha de vencimiento.*`);
-
-            await interaction.editReply({ embeds: [embed] });
-        }
-        else if (subCmd === 'estado') {
-            await interaction.deferReply();
-            const { data: investments } = await supabase.from('investments')
-                .select('*')
-                .eq('discord_id', interaction.user.id)
-                .eq('status', 'active');
-
-            if (!investments || investments.length === 0) return interaction.editReply('📉 No tienes inversiones activas.');
-
-            const embed = new EmbedBuilder()
-                .setTitle('💼 Portafolio de Inversiones')
-                .setColor(0xD4AF37);
-
-            const rows = []; // Component rows (buttons)
-
-            let desc = '';
-            for (const inv of investments) {
-                const endDate = new Date(inv.end_date);
-                const isReady = new Date() >= endDate;
-                const statusIcon = isReady ? '🟢 **DISPONIBLE**' : '🔒 Bloqueado';
-
-                desc += `**ID:** \`${inv.id.split('-')[0]}\` | Inversión: **$${inv.invested_amount.toLocaleString()}**\nRetorno: **$${inv.payout_amount.toLocaleString()}** | ${statusIcon}\nVence: <t:${Math.floor(endDate.getTime() / 1000)}:R>\n\n`;
-
-                if (isReady) {
-                    rows.push(new ActionRowBuilder().addComponents(
-                        new ButtonBuilder()
-                            .setCustomId(`btn_collect_${inv.id}`)
-                            .setLabel(`Retirar $${inv.payout_amount.toLocaleString()} (ID: ${inv.id.split('-')[0]})`)
-                            .setStyle(ButtonStyle.Success)
-                    ));
-                }
-            }
-
-            embed.setDescription(desc || 'Tus inversiones aparecerán aquí.');
-
-            // Limit buttons to 5 rows
-            await interaction.editReply({ embeds: [embed], components: rows.slice(0, 5) });
-        }
-    }
-
-
-    else if (commandName === 'licencia') {
-        await interaction.deferReply({ flags: 64 });
-        const subcommand = interaction.options.getSubcommand();
-
-        // Staff-only check
-        const STAFF_ROLE_ID = '1450688555503587459';
-        if (!interaction.member.roles.cache.has(STAFF_ROLE_ID) && !interaction.member.permissions.has('Administrator')) {
-            return interaction.reply({ content: '⛔ Solo el staff puede gestionar licencias.', flags: 64 });
-        }
-
-        const targetUser = interaction.options.getUser('usuario');
-        const tipo = interaction.options.getString('tipo');
-
-        const licenseData = {
-            'conducir': { name: 'Licencia de Conducir', cost: 1200, emoji: '🚗' },
-            'armas_largas': { name: 'Licencia de Armas Largas', cost: 1500, emoji: '🔫' },
-            'armas_cortas': { name: 'Licencia de Armas Cortas', cost: 1200, emoji: '🔫' }
-        };
-
-        if (subcommand === 'registrar') {
-
-            try {
-                const license = licenseData[tipo];
-
-                // Check if already has this license FIRST
-                const { data: existing } = await supabase
-                    .from('licenses')
-                    .select('*')
-                    .eq('discord_user_id', targetUser.id)
-                    .eq('license_type', tipo)
-                    .eq('status', 'active');
-
-                if (existing && existing.length > 0) {
-                    return interaction.editReply(`⚠️ <@${targetUser.id}> ya tiene esta licencia activa.`);
-                }
-
-                // Use universal payment system
-                const paymentResult = await requestPaymentMethod(
-                    interaction,
-                    targetUser.id,
-                    license.cost,
-                    `${license.emoji} ${license.name}`
-                );
-
-                if (!paymentResult.success) {
-                    return interaction.editReply(paymentResult.error);
-                }
-
-                // Register license
-                const expiryDate = new Date();
-                expiryDate.setDate(expiryDate.getDate() + 14); // 2 weeks validity
-
-                await supabase
-                    .from('licenses')
-                    .insert({
-                        discord_user_id: targetUser.id,
-                        license_type: tipo,
-                        license_name: license.name,
-                        issued_by: interaction.user.id,
-                        issued_at: new Date().toISOString(),
-                        expires_at: expiryDate.toISOString(),
-                        status: 'active'
-                    });
-
-                const paymentMethodLabel = paymentResult.method === 'cash' ? '💵 Efectivo' : paymentResult.method === 'bank' ? '🏦 Banco/Débito' : '💳 Crédito';
-
-                const embed = new EmbedBuilder()
-                    .setTitle(`${license.emoji} Licencia Registrada`)
-                    .setColor(0x00FF00)
-                    .setDescription(`**${license.name}** otorgada exitosamente`)
-                    .addFields(
-                        { name: '👤 Ciudadano', value: `<@${targetUser.id}>`, inline: true },
-                        { name: '💵 Costo', value: `$${license.cost.toLocaleString()}`, inline: true },
-                        { name: '💳 Método de Pago', value: paymentMethodLabel, inline: true },
-                        { name: '📅 Válida hasta', value: `<t:${Math.floor(expiryDate.getTime() / 1000)}:D>`, inline: false },
-                        { name: '👮 Emitida por', value: interaction.user.tag, inline: true }
-                    )
-                    .setFooter({ text: 'Sistema de Licencias Nación MX' })
-                    .setTimestamp();
-
-                await interaction.editReply({ embeds: [embed], components: [] });
-
-                // Send receipt to citizen
-                try {
-                    await targetUser.send({
-                        content: `📜 **Nueva licencia registrada**`,
-                        embeds: [embed]
-                    });
-                } catch (dmError) {
-                    console.log('Could not DM citizen:', dmError.message);
-                }
-
-            } catch (error) {
-                console.error(error);
-                await interaction.editReply('❌ Error registrando licencia.');
-            }
-        }
-
-        else if (subcommand === 'revocar') {
-            await interaction.deferReply({ flags: 64 });
-
-            const razon = interaction.options.getString('razon');
-
-            try {
-                const { data: licenses } = await supabase
-                    .from('licenses')
-                    .select('*')
-                    .eq('discord_user_id', targetUser.id)
-                    .eq('license_type', tipo)
-                    .eq('status', 'active');
-
-                if (!licenses || licenses.length === 0) {
-                    return interaction.editReply(`❌ <@${targetUser.id}> no tiene esta licencia activa.`);
-                }
-
-                // Revoke license
-                await supabase
-                    .from('licenses')
-                    .update({
-                        status: 'revoked',
-                        revoked_by: interaction.user.id,
-                        revoked_at: new Date().toISOString(),
-                        revoke_reason: razon
-                    })
-                    .eq('id', licenses[0].id);
-
-                const license = licenseData[tipo];
-
-                const embed = new EmbedBuilder()
-                    .setTitle(`${license.emoji} Licencia Revocada`)
-                    .setColor(0xFF0000)
-                    .addFields(
-                        { name: '👤 Ciudadano', value: `<@${targetUser.id}>`, inline: true },
-                        { name: '📜 Licencia', value: license.name, inline: true },
-                        { name: '📝 Razón', value: razon, inline: false },
-                        { name: '👮 Revocada por', value: interaction.user.tag, inline: true }
-                    )
-                    .setTimestamp();
-
-                await interaction.editReply({ embeds: [embed] });
-
-                // Notify citizen
-                try {
-                    await targetUser.send({
-                        content: `⚠️ **Licencia Revocada**`,
-                        embeds: [embed]
-                    });
-                } catch (dmError) {
-                    console.log('Could not DM citizen:', dmError.message);
-                }
-
-            } catch (error) {
-                console.error(error);
-                await interaction.editReply('❌ Error revocando licencia.');
-            }
-        }
-
-        else if (subcommand === 'ver') {
-            await interaction.deferReply({ flags: 64 });
-
-            try {
-                const { data: licenses } = await supabase
-                    .from('licenses')
-                    .select('*')
-                    .eq('discord_user_id', targetUser.id)
-                    .order('issued_at', { ascending: false });
-
-                if (!licenses || licenses.length === 0) {
-                    return interaction.editReply(`📋 <@${targetUser.id}> no tiene licencias registradas.`);
-                }
-
-                const embed = new EmbedBuilder()
-                    .setTitle(`📜 Licencias de ${targetUser.tag}`)
-                    .setColor(0x5865F2)
-                    .setThumbnail(targetUser.displayAvatarURL());
-
-                const active = licenses.filter(l => l.status === 'active');
-                const revoked = licenses.filter(l => l.status === 'revoked');
-                const expired = licenses.filter(l => l.status === 'expired');
-
-                if (active.length > 0) {
-                    let activeText = '';
-                    active.forEach(l => {
-                        const license = licenseData[l.license_type];
-                        const expiryTimestamp = Math.floor(new Date(l.expires_at).getTime() / 1000);
-                        activeText += `${license.emoji} **${l.license_name}**\n└ Expira: <t:${expiryTimestamp}:R>\n`;
-                    });
-                    embed.addFields({ name: '✅ Activas', value: activeText, inline: false });
-                }
-
-                if (revoked.length > 0) {
-                    let revokedText = '';
-                    revoked.forEach(l => {
-                        const license = licenseData[l.license_type];
-                        revokedText += `${license.emoji} **${l.license_name}**\n└ Razón: ${l.revoke_reason}\n`;
-                    });
-                    embed.addFields({ name: '❌ Revocadas', value: revokedText, inline: false });
-                }
-
-                await interaction.editReply({ embeds: [embed] });
-
-            } catch (error) {
-                console.error(error);
-                await interaction.editReply('❌ Error consultando licencias.');
-            }
-        }
-    }
-
-    else if (commandName === 'nomina') {
-        await interaction.deferReply(); // Global defer
-
-        const subCmd = interaction.options.getSubcommand();
-
-        if (subCmd === 'crear') {
-            const name = interaction.options.getString('nombre');
-            await supabase.from('payroll_groups').insert([{ owner_discord_id: interaction.user.id, name: name }]);
-            await interaction.editReply(`✅ Grupo de nómina **${name}** creado.`);
-        }
-        else if (subCmd === 'agregar') {
-            const groupName = interaction.options.getString('grupo');
-            const target = interaction.options.getUser('empleado');
-            const salary = interaction.options.getNumber('sueldo');
-
-            // Find group
-            const { data: group } = await supabase.from('payroll_groups').select('id').eq('name', groupName).eq('owner_discord_id', interaction.user.id).single();
-            if (!group) return interaction.editReply('❌ No encontré ese grupo o no eres el dueño.');
-
-            await supabase.from('payroll_members').upsert([{ group_id: group.id, member_discord_id: target.id, salary: salary }]);
-            await interaction.editReply(`✅ **${target.username}** agregado a **${groupName}** con sueldo $${salary}.`);
-        }
-        else if (subCmd === 'pagar') {
-            const groupName = interaction.options.getString('grupo');
-
-            const { data: group } = await supabase.from('payroll_groups').select('id').eq('name', groupName).eq('owner_discord_id', interaction.user.id).single();
-            if (!group) return interaction.editReply('❌ Grupo no encontrado.');
-
-            const { data: members } = await supabase.from('payroll_members').select('*').eq('group_id', group.id);
-            if (!members || members.length === 0) return interaction.editReply('❌ El grupo no tiene empleados.');
-
-            let total = 0;
-            members.forEach(m => total += m.salary);
-
-            // Check Balance
-            const balance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
-            const userMoney = balance.total || (balance.cash + balance.bank);
-            if (userMoney < total) return interaction.editReply(`❌ Fondos insuficientes. Necesitas **$${total.toLocaleString()}**.`);
-
-            // Process
-            let report = `💰 **Nómina Pagada: ${groupName}**\nTotal: $${total.toLocaleString()}\n\n`;
-
-            // Deduct from Owner
-            // Show payment selector
-            const pmNom = await getAvailablePaymentMethods(interaction.user.id, interaction.guildId);
-            const pbNom = createPaymentButtons(pmNom, 'nom_pay');
-            const paymentEmbed = createPaymentEmbed(`💼 Nómina${groupName ? ': ' + groupName : ''} (${members.length} empleados)`, total, pmNom);
-            await interaction.editReply({ embeds: [paymentEmbed], components: [pbNom] });
-            const fNom = i => i.user.id === interaction.user.id && i.customId.startsWith('nom_pay_');
-            const cNom = interaction.channel.createMessageComponentCollector({ filter: fNom, time: 60000, max: 1 });
-            cNom.on('collect', async (i) => {
-                try { await i.deferUpdate(); } catch (err) { return; }
-                const prNom = await processPayment(i.customId.replace('nom_pay_', ''), interaction.user.id, interaction.guildId, total, `Pago Nómina${groupName ? ': ' + groupName : ''}`, pmNom);
-                if (!prNom.success) return i.editReply({ content: prNom.error, components: [] });
-
-                let report = `💰 **Nómina Pagada** (${prNom.method})\nTotal: $${total.toLocaleString()}\n\n`;
-                for (const m of members) {
-                    await billingService.ubService.addMoney(interaction.guildId, m.member_discord_id, m.salary, `Nómina${groupName ? ' de ' + groupName : ''}`);
-                    report += `✅ <@${m.member_discord_id}>: $${m.salary.toLocaleString()}\n`;
-                }
-                await i.editReply({ content: report, components: [] });
-            });
-            cNom.on('end', c => { if (c.size === 0) interaction.editReply({ content: '⏱️ Tiempo agotado.', components: [] }); });
-            return;
-        }
-    }
-
-    else if (commandName === 'jugar') {
-        await interaction.deferReply();
-        const game = interaction.options.getSubcommand();
-        const userId = interaction.user.id;
-
-        // Get user chips
-        const { data: userChips } = await supabase.from('casino_chips').select('*').eq('user_id', userId).maybeSingle();
-        if (!userChips || userChips.chips < 10) {
-            return interaction.editReply('❌ No tienes suficientes fichas. Compra con `/casino fichas comprar`');
-        }
-
-        if (game === 'slots') {
-            const bet = interaction.options.getInteger('apuesta');
-            if (userChips.chips < bet) return interaction.editReply(`❌ Fichas insuficientes. Tienes: ${userChips.chips}`);
-
-            await supabase.from('casino_chips').update({ chips: userChips.chips - bet }).eq('user_id', userId);
-
-            const symbols = ['🍒', '🍋', '🍊', '⭐', '💎'];
-            const r1 = symbols[Math.floor(Math.random() * symbols.length)];
-            const r2 = symbols[Math.floor(Math.random() * symbols.length)];
-            const r3 = symbols[Math.floor(Math.random() * symbols.length)];
-
-            // ANIMATE!
-            await animateSlots(interaction, [r1, r2, r3]);
-
-            let win = 0, mult = 0;
-            if (r1 === r2 && r2 === r3) {
-                mult = r1 === '💎' ? 50 : r1 === '⭐' ? 25 : 10;
-                win = bet * mult;
-            } else if (r1 === r2 || r2 === r3 || r1 === r3) {
-                mult = 2;
-                win = bet * 2;
-            }
-
-            if (win > 0) {
-                await supabase.from('casino_chips').update({ chips: userChips.chips - bet + win, total_won: (userChips.total_won || 0) + win, games_played: (userChips.games_played || 0) + 1 }).eq('user_id', userId);
-            } else {
-                await supabase.from('casino_chips').update({ total_lost: (userChips.total_lost || 0) + bet, games_played: (userChips.games_played || 0) + 1 }).eq('user_id', userId);
-            }
-
-            const resultEmoji = win > 0 ? (mult >= 25 ? '🎉🎉🎉' : '✅') : '❌';
-            const resultText = win > 0 ? `**¡GANAS!** 💰 +${win} fichas (${mult}x)` : '**Perdiste** 💸';
-
-            return interaction.editReply(`🎰 **SLOTS**\n${r1} ${r2} ${r3}\n\n${resultEmoji} ${resultText}\n💼 Balance: ${(userChips.chips - bet + win).toLocaleString()} fichas`);
-        }
-
-        else if (game === 'dice') {
-            const bet = interaction.options.getInteger('apuesta');
-            if (userChips.chips < bet) return interaction.editReply(`❌ Fichas insuficientes`);
-
-            await supabase.from('casino_chips').update({ chips: userChips.chips - bet }).eq('user_id', userId);
-
-            const roll = Math.floor(Math.random() * 6) + Math.floor(Math.random() * 6) + 2; // 2d6 = 2-12
-            const choice = interaction.options.getString('tipo') || 'alto';
-
-            // ANIMATE!
-            await animateDice(interaction);
-
-            let won = false;
-            if (choice === 'alto' && roll >= 8) won = true;
-            if (choice === 'bajo' && roll <= 6) won = true;
-            if (choice === 'par' && roll % 2 === 0) won = true;
-            if (choice === 'impar' && roll % 2 === 1) won = true;
-            if (choice === 'siete' && roll === 7) won = true;
-
-            const payout = choice === 'siete' ? (won ? bet * 4 : 0) : (won ? bet * 2 : 0);
-
-            if (payout > 0) {
-                await supabase.from('casino_chips').update({ chips: userChips.chips - bet + payout, total_won: (userChips.total_won || 0) + payout, games_played: (userChips.games_played || 0) + 1 }).eq('user_id', userId);
-            } else {
-                await supabase.from('casino_chips').update({ total_lost: (userChips.total_lost || 0) + bet, games_played: (userChips.games_played || 0) + 1 }).eq('user_id', userId);
-            }
-
-            const diceEmoji = ['⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
-            const d1 = Math.min(Math.floor(roll / 2) - 1, 5);
-            const d2 = Math.min((roll - 2) % 6, 5);
-            const resultText = won ? `✅ **¡GANAS!** +${payout}` : `❌ **Perdiste** -${bet}`;
-            return interaction.editReply(`🎲 **DADOS**\n\n${diceEmoji[d1]} + ${diceEmoji[d2]} = **${roll}**\n\nApuesta: **${choice.toUpperCase()}**\n${resultText}\n💼 ${(userChips.chips - bet + payout).toLocaleString()} fichas`);
-        }
-
-        else if (game === 'blackjack') {
-            const bet = interaction.options.getInteger('apuesta');
-            if (userChips.chips < bet) return interaction.editReply(`❌ Fichas insuficientes`);
-
-            await supabase.from('casino_chips').update({ chips: userChips.chips - bet }).eq('user_id', userId);
-
-            const card = () => Math.min(Math.floor(Math.random() * 13) + 1, 10);
-            let pTotal = card() + card();
-            let dTotal = card() + card();
-
-            // ANIMATE!
-            await interaction.editReply(`🃏 **BLACKJACK**\n\nRepartiendo cartas...`);
-            await sleep(800);
-            await interaction.editReply(`🃏 **BLACKJACK**\n\nTu mano: **${pTotal}**\nDealer: **?**`);
-            await sleep(800);
-
-            while (pTotal < 17) {
-                pTotal += card();
-                await interaction.editReply(`🃏 **BLACKJACK**\n\nTomas carta...\nTu mano: **${pTotal}**\nDealer: **?**`);
-                await sleep(600);
-            }
-
-            await interaction.editReply(`🃏 **BLACKJACK**\n\nTu mano: **${pTotal}**\nDealer revela: **${dTotal}**`);
-            await sleep(800);
-
-            while (dTotal < 17) {
-                dTotal += card();
-                await interaction.editReply(`🃏 **BLACKJACK**\n\nTu mano: **${pTotal}**\nDealer toma: **${dTotal}**`);
-                await sleep(600);
-            }
-
-            let result = '', payout = 0;
-            if (pTotal > 21) result = '❌ Te pasaste!';
-            else if (dTotal > 21) { result = '✅ Dealer se pasó - GANAS'; payout = bet * 2; }
-            else if (pTotal > dTotal) { result = '✅ GANAS'; payout = bet * 2; }
-            else if (pTotal === dTotal) { result = '🟡 EMPATE'; payout = bet; }
-            else result = '❌ Dealer gana';
-
-            if (payout > 0) {
-                await supabase.from('casino_chips').update({ chips: userChips.chips - bet + payout, total_won: (userChips.total_won || 0) + (payout - bet), games_played: (userChips.games_played || 0) + 1 }).eq('user_id', userId);
-            } else {
-                await supabase.from('casino_chips').update({ total_lost: (userChips.total_lost || 0) + bet, games_played: (userChips.games_played || 0) + 1 }).eq('user_id', userId);
-            }
-
-            return interaction.editReply(`🃏 **BLACKJACK**\n\nTu mano: **${pTotal}**\nDealer: **${dTotal}**\n\n${result}\n💼 ${(userChips.chips - bet + payout).toLocaleString()} fichas`);
-        }
-
-        else if (game === 'ruleta') {
-            const betType = interaction.options.getString('tipo');
-            const bet = interaction.options.getInteger('apuesta');
-            const numero = interaction.options.getInteger('numero');
-
-            if (userChips.chips < bet) return interaction.editReply(`❌ Insufficient chips`);
-
-            // Check if there's an active session
-            if (casinoSessions.roulette.active) {
-                // Join existing session
-                const timeLeft = Math.ceil((casinoSessions.roulette.closeTime - Date.now()) / 1000);
-                if (timeLeft <= 0) return interaction.editReply('⏰ La sesión de ruleta se cerró. Espera el próximo spin.');
-
-                await supabase.from('casino_chips').update({ chips: userChips.chips - bet }).eq('user_id', userId);
-
-                casinoSessions.roulette.bets.push({
-                    userId,
-                    interaction,
-                    betType,
-                    numero,
-                    amount: bet,
-                    currentChips: userChips.chips,
-                    totalWon: userChips.total_won || 0,
-                    totalLost: userChips.total_lost || 0,
-                    gamesPlayed: userChips.games_played || 0
-                });
-
-                return interaction.editReply(`🎡 **RULETA MULTIJUGADOR**\n\n👥 Te uniste a la sesión (${casinoSessions.roulette.bets.length} jugadores)\n💰 Apuesta: ${betType.toUpperCase()} - ${bet} fichas\n⏰ Spin en **${timeLeft}s**\n\n¡Suerte! 🍀`);
-            } else {
-                // Start new session
-                const started = startRouletteSession(interaction);
-                if (!started) return interaction.editReply('❌ Error iniciando sesión.');
-
-                await supabase.from('casino_chips').update({ chips: userChips.chips - bet }).eq('user_id', userId);
-
-                casinoSessions.roulette.bets.push({
-                    userId,
-                    interaction,
-                    betType,
-                    numero,
-                    amount: bet,
-                    currentChips: userChips.chips,
-                    totalWon: userChips.total_won || 0,
-                    totalLost: userChips.total_lost || 0,
-                    gamesPlayed: userChips.games_played || 0
-                });
-
-                return interaction.editReply(`🎡 **RULETA MULTIJUGADOR INICIADA**\n\n🎰 Sesión abierta\n👤 Tú: ${betType.toUpperCase()} - ${bet} fichas\n⏰ Otros jugadores tienen **30 segundos** para unirse\n\n¡Esperando más apuestas! 🎲`);
-            }
-        }
-
-        else if (game === 'crash') {
-            const bet = interaction.options.getInteger('apuesta');
-            if (userChips.chips < bet) return interaction.editReply(`❌ Fichas insuficientes`);
-
-            await supabase.from('casino_chips').update({ chips: userChips.chips - bet }).eq('user_id', userId);
-
-            const crashPoint = Math.random() < 0.03 ? 1.00 : (0.99 / (1 - Math.random()));
-            const capped = Math.min(crashPoint, 50);
-            const cashout = 1.5 + Math.random() * 2;
-
-            // ANIMATE!
-            await animateCrash(interaction, capped, cashout);
-
-            let payout = 0;
-            if (cashout < capped) {
-                payout = Math.floor(bet * cashout);
-                await supabase.from('casino_chips').update({ chips: userChips.chips - bet + payout, total_won: (userChips.total_won || 0) + (payout - bet), games_played: (userChips.games_played || 0) + 1 }).eq('user_id', userId);
-            } else {
-                await supabase.from('casino_chips').update({ total_lost: (userChips.total_lost || 0) + bet, games_played: (userChips.games_played || 0) + 1 }).eq('user_id', userId);
-            }
-
-            const resultText = payout > 0 ? `✅ **¡GANAS!** +${payout} fichas` : `💥 **CRASH!** Perdiste -${bet}`;
-            return interaction.editReply(`🚀 **CRASH**\n\n💥 Crashed en: **${capped.toFixed(2)}x**\nTu cashout: **${cashout.toFixed(2)}x**\n\n${resultText}\n💼 ${(userChips.chips - bet + payout).toLocaleString()} fichas`);
-        }
-
-        else if (game === 'race') {
-            const bet = interaction.options.getInteger('apuesta');
-            const horse = interaction.options.getInteger('caballo');
-
-            if (userChips.chips < bet) return interaction.editReply(`❌ Insufficient chips`);
-
-            // Check if there's an active session
-            if (casinoSessions.race.active) {
-                // Join existing session
-                const timeLeft = Math.ceil((casinoSessions.race.closeTime - Date.now()) / 1000);
-                if (timeLeft <= 0) return interaction.editReply('⏰ La carrera se cerró. Espera la próxima.');
-
-                await supabase.from('casino_chips').update({ chips: userChips.chips - bet }).eq('user_id', userId);
-
-                const selectedHorse = casinoSessions.race.horses.find(h => h.id === horse);
-
-                casinoSessions.race.bets.push({
-                    userId,
-                    interaction,
-                    horseId: horse,
-                    amount: bet,
-                    currentChips: userChips.chips,
-                    totalWon: userChips.total_won || 0,
-                    totalLost: userChips.total_lost || 0,
-                    gamesPlayed: userChips.games_played || 0
-                });
-
-                return interaction.editReply(`🏇 **CARRERAS MULTIJUGADOR**\n\n👥 Te uniste a la carrera (${casinoSessions.race.bets.length} jugadores)\n${selectedHorse.emoji} **${selectedHorse.name}** - ${bet} fichas\n⏰ Carrera en **${timeLeft}s**\n\n¡Que corra tu caballo! 🐎`);
-            } else {
-                // Start new session
-                const started = startRaceSession(interaction);
-                if (!started) return interaction.editReply('❌ Error iniciando sesión.');
-
-                await supabase.from('casino_chips').update({ chips: userChips.chips - bet }).eq('user_id', userId);
-
-                const selectedHorse = casinoSessions.race.horses.find(h => h.id === horse);
-
-                casinoSessions.race.bets.push({
-                    userId,
-                    interaction,
-                    horseId: horse,
-                    amount: bet,
-                    currentChips: userChips.chips,
-                    totalWon: userChips.total_won || 0,
-                    totalLost: userChips.total_lost || 0,
-                    gamesPlayed: userChips.games_played || 0
-                });
-
-                return interaction.editReply(`🏇 **CARRERAS MULTIJUGADOR INICIADAS**\n\n🏁 Carrera abierta\n👤 Tú: ${selectedHorse.emoji} **${selectedHorse.name}** - ${bet} fichas\n⏰ Otros jugadores tienen **45 segundos** para unirse\n\n¡A las apuestas! 🎰`);
-            }
-        }
-
-        else if (game === 'rusa') {
-            const bet = interaction.options.getInteger('apuesta');
-            if (userChips.chips < bet) return interaction.editReply(`❌ Fichas insuficientes`);
-
-            await supabase.from('casino_chips').update({ chips: userChips.chips - bet }).eq('user_id', userId);
-
-            // MAXIMUM TENSION!
-            await interaction.editReply(`🔫 **RULETA RUSA**\n\nCargando revólver...\n⚫⚫⚫⚫⚫🔴`);
-            await sleep(1200);
-
-            await interaction.editReply(`🔫 **RULETA RUSA**\n\nGirando tambor...\n🔄🔄🔄`);
-            await sleep(1200);
-
-            await interaction.editReply(`🔫 **RULETA RUSA**\n\nApuntando...\n😰😰😰`);
-            await sleep(1500);
-
-            const chamber = Math.floor(Math.random() * 6) + 1;
-            const survived = chamber !== 1; // 1 bullet in chamber 1
-
-            if (survived) {
-                await interaction.editReply(`🔫 **RULETA RUSA**\n\n***CLICK***\n💥 Cámara vacía!`);
-                await sleep(800);
-            } else {
-                await interaction.editReply(`🔫 **RULETA RUSA**\n\n***BANG!***\n💀💀💀`);
-                await sleep(800);
-            }
-
-            const payout = survived ? bet * 5 : 0;
-
-            if (survived) {
-                await supabase.from('casino_chips').update({ chips: userChips.chips - bet + payout, total_won: (userChips.total_won || 0) + payout, games_played: (userChips.games_played || 0) + 1 }).eq('user_id', userId);
-            } else {
-                await supabase.from('casino_chips').update({ total_lost: (userChips.total_lost || 0) + bet, games_played: (userChips.games_played || 0) + 1 }).eq('user_id', userId);
-            }
-
-            const resultText = survived ? `✅ **¡SOBREVIVISTE!**\n💰 +${payout} fichas (5x)` : `☠️ **ELIMINADO**\n💸 Perdiste ${bet} fichas`;
-            return interaction.editReply(`🔫 **RULETA RUSA**\n\nCámara: **${chamber}/6**\n${survived ? '💥 *Click*' : '💀 **BANG!**'}\n\n${resultText}\n💼 ${(userChips.chips - bet + payout).toLocaleString()} fichas`);
-        }
-    }
-
-
-    else if (commandName === 'dar-robo') {
-        await interaction.deferReply();
-
-        // Role Check: Junta Directiva or Admin
-        const member = interaction.member;
-        const isJuntaDirectiva = member.roles.cache.some(role =>
-            role.name.toLowerCase().includes('junta') ||
-            role.name.toLowerCase().includes('directiva') ||
-            role.name.toLowerCase().includes('admin') ||
-            role.permissions.has('Administrator')
-        );
-
-        if (!isJuntaDirectiva) {
-            return interaction.editReply('⛔ Este comando es solo para Junta Directiva.');
-        }
-
-        const targetUser = interaction.options.getUser('usuario');
-        const montoTotal = interaction.options.getInteger('monto');
-        const montoCash = Math.floor(montoTotal * 0.25); // 25% of robbery amount
-
-        try {
-            // Add cash to target user
-            await billingService.ubService.addMoney(
-                interaction.guildId,
-                targetUser.id,
-                montoCash,
-                `💰 Robo distribuido por ${interaction.user.tag}`,
-                'cash'
-            );
-
-            const embed = new EmbedBuilder()
-                .setTitle('💰 Dinero de Robo Distribuido')
-                .setColor(0x00FF00)
-                .setDescription(`Se ha distribuido el 25% del robo en efectivo.`)
-                .addFields(
-                    { name: '👤 Receptor', value: `<@${targetUser.id}>`, inline: true },
-                    { name: '💵 Monto Total del Robo', value: `$${montoTotal.toLocaleString()}`, inline: true },
-                    { name: '💰 Efectivo Entregado (25%)', value: `$${montoCash.toLocaleString()}`, inline: true },
-                    { name: '👮 Autorizado por', value: interaction.user.tag, inline: false }
-                )
-                .setTimestamp();
-
-            await interaction.editReply({ embeds: [embed] });
-
-            // Notify the recipient
-            try {
-                await targetUser.send({
-                    content: `💰 **Has recibido dinero de un robo**`,
-                    embeds: [embed]
-                });
-            } catch (dmError) {
-                console.log('Could not DM user:', dmError.message);
-            }
-
-        } catch (error) {
-            console.error('Error distribuyendo robo:', error);
-            await interaction.editReply('❌ Error al distribuir el dinero. Verifica que el usuario exista.');
-        }
-    }
-
-
-    else if (commandName === 'business') {
-        await interaction.deferReply({ flags: 64 });
-        const subcommand = interaction.options.getSubcommand();
-
-        // Staff-only check
-        const STAFF_ROLE_ID = '1450688555503587459'; // Same as empresa crear
-        if (!interaction.member.roles.cache.has(STAFF_ROLE_ID) && !interaction.member.permissions.has('Administrator')) {
-            return interaction.reply({ content: '⛔ Solo el staff puede gestionar tarjetas business.', flags: 64 });
-        }
-
-        if (subcommand === 'vincular') {
-
-            const ownerUser = interaction.options.getUser('dueño');
-            const cardType = interaction.options.getString('tipo');
-
-            try {
-                // 1. Check if owner has companies
-                const { data: companies } = await supabase
-                    .from('companies')
-                    .select('*')
-                    .contains('owner_ids', [ownerUser.id])
-                    .eq('status', 'active');
-
-                if (!companies || companies.length === 0) {
-                    return interaction.editReply(`❌ <@${ownerUser.id}> no tiene empresas registradas.`);
-                }
-
-                // 2. If has multiple companies, ask which one
-                if (companies.length > 1) {
-                    const selectMenu = new StringSelectMenuBuilder()
-                        .setCustomId(`business_select_${ownerUser.id}_${cardType}`)
-                        .setPlaceholder('Selecciona la empresa')
-                        .addOptions(
-                            companies.map(c => ({
-                                label: c.name,
-                                description: `${c.industry_type} • ${c.is_private ? 'Privada' : 'Pública'}`,
-                                value: c.id
-                            }))
-                        );
-
-                    const row = new ActionRowBuilder().addComponents(selectMenu);
-
-                    return interaction.editReply({
-                        content: `📋 <@${ownerUser.id}> tiene **${companies.length} empresas**. Selecciona a cuál vincular la tarjeta:`,
-                        components: [row]
-                    });
-                }
-
-                // 3. Only one company, proceed directly
-                const company = companies[0];
-
-                // Card data map
-                const cardData = {
-                    'business_start': { name: 'Business Start', limit: 50000, interest: 0.02, cost: 8000 },
-                    'business_gold': { name: 'Business Gold', limit: 100000, interest: 0.015, cost: 15000 },
-                    'business_platinum': { name: 'Business Platinum', limit: 200000, interest: 0.012, cost: 20000 },
-                    'business_elite': { name: 'Business Elite', limit: 500000, interest: 0.01, cost: 35000 },
-                    'nmx_corporate': { name: 'NMX Corporate', limit: 1000000, interest: 0.007, cost: 50000 }
-                };
-
-                const card = cardData[cardType];
-
-                // 4. Create business credit card
-                const { error } = await supabase
-                    .from('credit_cards')
-                    .insert({
-                        discord_id: ownerUser.id,
-                        card_type: cardType,
-                        card_name: card.name,
-                        card_limit: card.limit,
-                        current_balance: 0,
-                        interest_rate: card.interest,
-                        card_cost: card.cost,
-                        status: 'active',
-                        company_id: company.id,
-                        approved_by: interaction.user.id
-                    });
-
-                if (error) throw error;
-
-                const embed = new EmbedBuilder()
-                    .setTitle('✅ Tarjeta Business Vinculada')
-                    .setColor(0x00FF00)
-                    .setDescription(`Tarjeta **${card.name}** vinculada exitosamente.`)
-                    .addFields(
-                        { name: '🏢 Empresa', value: company.name, inline: true },
-                        { name: '👤 Dueño', value: `<@${ownerUser.id}>`, inline: true },
-                        { name: '💳 Tarjeta', value: card.name, inline: true },
-                        { name: '💰 Límite', value: `$${card.limit.toLocaleString()}`, inline: true },
-                        { name: '📊 Interés', value: `${(card.interest * 100).toFixed(2)}%`, inline: true },
-                        { name: '💵 Costo', value: `$${card.cost.toLocaleString()}`, inline: true }
-                    )
-                    .setFooter({ text: `Aprobado por ${interaction.user.tag}` })
-                    .setTimestamp();
-
-                await interaction.editReply({ embeds: [embed] });
-
-                // Send DM to owner
-                try {
-                    await ownerUser.send({
-                        embeds: [new EmbedBuilder()
-                            .setTitle('🎉 Tarjeta Business Aprobada')
-                            .setColor(0x5865F2)
-                            .setDescription(`Tu solicitud de **${card.name}** ha sido aprobada y vinculada a **${company.name}**.`)
-                            .addFields(
-                                { name: '💰 Límite de Crédito', value: `$${card.limit.toLocaleString()}`, inline: true },
-                                { name: '📊 Tasa de Interés', value: `${(card.interest * 100).toFixed(2)}%`, inline: true },
-                                { name: '💼 Uso', value: 'Usa \`/empresa credito\` para solicitar fondos.', inline: false }
-                            )
-                            .setFooter({ text: 'Sistema Financiero Nación MX' })
-                        ]
-                    });
-                } catch (dmError) {
-                    console.log('Could not DM owner:', dmError.message);
-                }
-
-            } catch (error) {
-                console.error(error);
-                await interaction.editReply('❌ Error vinculando tarjeta business.');
-            }
-        }
-
-        else if (subcommand === 'listar') {
-            await interaction.deferReply({ flags: 64 });
-
-            const targetUser = interaction.options.getUser('usuario');
-
-            try {
-                const { data: cards } = await supabase
-                    .from('credit_cards')
-                    .select('*, companies(name)')
-                    .eq('discord_id', targetUser.id)
-                    .in('card_type', ['business_start', 'business_gold', 'business_platinum', 'business_elite', 'nmx_corporate'])
-                    .eq('status', 'active');
-
-                if (!cards || cards.length === 0) {
-                    return interaction.editReply(`📋 <@${targetUser.id}> no tiene tarjetas business activas.`);
-                }
-
-                const embed = new EmbedBuilder()
-                    .setTitle(`💼 Tarjetas Business de ${targetUser.tag}`)
-                    .setColor(0x5865F2)
-                    .setDescription(`Total: **${cards.length}** tarjeta(s) activa(s)`)
-                    .setThumbnail(targetUser.displayAvatarURL());
-
-                cards.forEach(card => {
-                    const companyName = card.companies ? card.companies.name : 'Sin empresa';
-                    embed.addFields({
-                        name: `💳 ${card.card_name}`,
-                        value: `🏢 Empresa: ${companyName}\n💰 Límite: $${card.card_limit.toLocaleString()}\n📊 Deuda: $${(card.current_balance || 0).toLocaleString()}\n📈 Disponible: $${(card.card_limit - (card.current_balance || 0)).toLocaleString()}`,
-                        inline: false
-                    });
-                });
-
-                await interaction.editReply({ embeds: [embed] });
-
-            } catch (error) {
-                console.error(error);
-                await interaction.editReply('❌ Error consultando tarjetas.');
-            }
-        }
-
-        else if (subcommand === 'cancelar') {
-            await interaction.deferReply({ flags: 64 });
-
-            const targetUser = interaction.options.getUser('usuario');
-            const razon = interaction.options.getString('razon');
-
-            try {
-                // Get all active business cards
-                const { data: cards } = await supabase
-                    .from('credit_cards')
-                    .select('*')
-                    .eq('discord_id', targetUser.id)
-                    .in('card_type', ['business_start', 'business_gold', 'business_platinum', 'business_elite', 'nmx_corporate'])
-                    .eq('status', 'active');
-
-                if (!cards || cards.length === 0) {
-                    return interaction.editReply(`❌ <@${targetUser.id}> no tiene tarjetas business activas.`);
-                }
-
-                // Cancel all
-                await supabase
-                    .from('credit_cards')
-                    .update({ status: 'cancelled', cancelled_at: new Date().toISOString(), cancelled_by: interaction.user.id, cancel_reason: razon })
-                    .eq('discord_id', targetUser.id)
-                    .in('card_type', ['business_start', 'business_gold', 'business_platinum', 'business_elite', 'nmx_corporate'])
-                    .eq('status', 'active');
-
-                await interaction.editReply(`✅ Se cancelaron **${cards.length}** tarjeta(s) business de <@${targetUser.id}>.\n**Razón:** ${razon}`);
-
-            } catch (error) {
-                console.error(error);
-                await interaction.editReply('❌ Error cancelando tarjetas.');
-            }
-        }
-    }
-
-    else if (commandName === 'bolsa') {
-        await interaction.deferReply(); // Global defer to prevent timeouts
-
-        const subcommand = interaction.options.getSubcommand();
-        const hour = new Date().getHours();
-
-        if (subcommand === 'precios') {
-            const embed = new EmbedBuilder()
-                .setTitle('📈 Bolsa de Valores & Cripto')
-                .setColor(0x0000FF)
-                .setDescription(`Precios en tiempo real (MXN). Actualizados a las ${hour}:00 hrs.`)
-                .setTimestamp();
-
-            globalStocks.forEach(s => {
-                const trend = s.current > s.base ? '📈' : '📉'; // Simple trend logic vs base
-                // For better trend, we'd compare vs prev, but base is fine for now
-                embed.addFields({ name: `${trend} ${s.symbol} - ${s.name}`, value: `$${s.current.toLocaleString()} MXN`, inline: true });
-            });
-
-            await interaction.editReply({ embeds: [embed] });
-        }
-
-        else if (subcommand === 'comprar') {
-            const symbol = interaction.options.getString('symbol').toUpperCase();
-            const cantidad = interaction.options.getNumber('cantidad');
-
-            // Validate stock exists in Global
-            const stock = globalStocks.find(s => s.symbol === symbol);
-            if (!stock) {
-                return await interaction.editReply({ content: `❌ Símbolo inválido. Usa: ${globalStocks.map(s => s.symbol).join(', ')}`, ephemeral: false });
-            }
-
-            if (cantidad <= 0) {
-                return await interaction.editReply({ content: '❌ La cantidad debe ser mayor a 0.', ephemeral: false });
-            }
-
-            try {
-                const currentPrice = stock.current;
-                const totalCost = currentPrice * cantidad;
-
-                // Show payment selector
-                const pmBolsa = await getAvailablePaymentMethods(interaction.user.id, interaction.guildId);
-                const pbBolsa = createPaymentButtons(pmBolsa, 'bolsa_pay');
-                const paymentEmbed = createPaymentEmbed(`📈 Compra de ${symbol} (${cantidad} acciones)`, totalCost, pmBolsa);
-                await interaction.editReply({ embeds: [paymentEmbed], components: [pbBolsa] });
-                const fBolsa = i => i.user.id === interaction.user.id && i.customId.startsWith('bolsa_pay_');
-                const cBolsa = interaction.channel.createMessageComponentCollector({ filter: fBolsa, time: 60000, max: 1 });
-                cBolsa.on('collect', async (i) => {
-                    try { await i.deferUpdate(); } catch (err) { console.error('[bolsa] defer failed:', err.message); return; }
-                    const prBolsa = await processPayment(i.customId.replace('bolsa_pay_', ''), interaction.user.id, interaction.guildId, totalCost, `Compra ${cantidad} ${symbol}`, pmBolsa);
-                    if (!prBolsa.success) return i.editReply({ content: prBolsa.error, components: [] });
-
-                    // Update portfolio
-                    const { data: existing } = await supabase.from('stock_portfolios').select('*').eq('discord_user_id', interaction.user.id).eq('stock_symbol', symbol).single();
-                    if (existing) {
-                        const totalShares = existing.shares + cantidad;
-                        const newAvgPrice = ((existing.avg_buy_price * existing.shares) + (currentPrice * cantidad)) / totalShares;
-                        await supabase.from('stock_portfolios').update({ shares: totalShares, avg_buy_price: newAvgPrice }).eq('discord_user_id', interaction.user.id).eq('stock_symbol', symbol);
-                    } else {
-                        await supabase.from('stock_portfolios').insert({ discord_user_id: interaction.user.id, stock_symbol: symbol, shares: cantidad, avg_buy_price: currentPrice });
-                    }
-
-                    // Log transaction
-                    await supabase.from('stock_transactions').insert({ discord_user_id: interaction.user.id, stock_symbol: symbol, transaction_type: 'BUY', shares: cantidad, price_per_share: currentPrice, total_amount: totalCost });
-
-                    const embed = new EmbedBuilder().setTitle('✅ Compra Exitosa').setColor(0x00FF00).setDescription(`Has comprado **${cantidad} acciones de ${symbol}**`).addFields({ name: 'Precio', value: `$${currentPrice.toLocaleString()}`, inline: true }, { name: 'Total', value: `$${totalCost.toLocaleString()}`, inline: true }, { name: 'Método', value: prBolsa.method, inline: true }).setTimestamp();
-                    await i.editReply({ embeds: [embed], components: [] });
-                });
-                cBolsa.on('end', collected => { if (collected.size === 0) interaction.editReply({ content: '⏱️ Tiempo agotado.', components: [] }); });
-            } catch (error) {
-                console.error('Error comprando acciones:', error);
-                await interaction.editReply({ content: '❌ Error procesando la compra. Intenta de nuevo.', ephemeral: false });
-            }
-        }
-
-        else if (subcommand === 'vender') {
-            const symbol = interaction.options.getString('symbol').toUpperCase();
-            const cantidad = interaction.options.getNumber('cantidad');
-
-            // Validate stock exists in Global
-            const stock = globalStocks.find(s => s.symbol === symbol);
-            if (!stock) {
-                return await interaction.editReply({ content: `❌ Símbolo inválido. Usa: ${globalStocks.map(s => s.symbol).join(', ')}`, ephemeral: false });
-            }
-
-            if (cantidad <= 0) {
-                return await interaction.editReply({ content: '❌ La cantidad debe ser mayor a 0.', ephemeral: false });
-            }
-
-            try {
-                // Check portfolio
-                const { data: portfolio } = await supabase
-                    .from('stock_portfolios')
-                    .select('*')
-                    .eq('discord_user_id', interaction.user.id)
-                    .eq('stock_symbol', symbol)
-                    .single();
-
-                if (!portfolio || portfolio.shares < cantidad) {
-                    return await interaction.editReply({
-                        content: `❌ No tienes suficientes acciones. Tienes ${portfolio?.shares || 0} de ${symbol}.`,
-                        ephemeral: false
-                    });
-                }
-
-                const currentPrice = stock.current;
-                const totalRevenue = currentPrice * cantidad;
-                const profit = (currentPrice - portfolio.avg_buy_price) * cantidad;
-                const profitEmoji = profit >= 0 ? '📈' : '📉';
-
-                // Add money (Use BillingService wrapper if possible, or direct UB service)
-                await billingService.ubService.addMoney(interaction.guildId, interaction.user.id, totalRevenue, `Venta ${cantidad} ${symbol}`);
-
-                // Update portfolio
-                const newShares = portfolio.shares - cantidad;
-                if (newShares <= 0) {
-                    await supabase
-                        .from('stock_portfolios')
-                        .delete()
-                        .eq('discord_user_id', interaction.user.id)
-                        .eq('stock_symbol', symbol);
-                } else {
-                    await supabase
-                        .from('stock_portfolios')
-                        .update({ shares: newShares })
-                        .eq('discord_user_id', interaction.user.id)
-                        .eq('stock_symbol', symbol);
-                }
-
-                // Log transaction
-                await supabase
-                    .from('stock_transactions')
-                    .insert({
-                        discord_user_id: interaction.user.id,
-                        stock_symbol: symbol,
-                        transaction_type: 'SELL',
-                        shares: cantidad,
-                        price_per_share: currentPrice,
-                        total_amount: totalRevenue
-                    });
-
-                const embed = new EmbedBuilder()
-                    .setTitle('✅ Venta Exitosa')
-                    .setColor(profit >= 0 ? 0x00FF00 : 0xFF0000)
-                    .setDescription(`Has vendido **${cantidad} acciones de ${symbol}**`)
-                    .addFields(
-                        { name: 'Precio por Acción', value: `$${currentPrice.toLocaleString()} MXN`, inline: true },
-                        { name: 'Total Recibido', value: `$${totalRevenue.toLocaleString()} MXN`, inline: true },
-                        { name: profit >= 0 ? '📈 Ganancia' : '📉 Pérdida', value: `$${Math.abs(Math.floor(profit)).toLocaleString()} MXN`, inline: true }
-                    )
-                    .setTimestamp();
-
-                await interaction.editReply({ embeds: [embed] });
-            } catch (error) {
-                console.error('Error vendiendo acciones:', error);
-                await interaction.editReply({ content: '❌ Error procesando la venta. Intenta de nuevo.', ephemeral: false });
-            }
-        }
-
-        else if (subcommand === 'portafolio') {
-            try {
-                const { data: portfolio } = await supabase
-                    .from('stock_portfolios')
-                    .select('*')
-                    .eq('discord_user_id', interaction.user.id);
-
-                if (!portfolio || portfolio.length === 0) {
-                    return await interaction.editReply({ content: '📊 Tu portafolio está vacío. Usa `/bolsa comprar` para invertir.', ephemeral: false });
-                }
-
-                const embed = new EmbedBuilder()
-                    .setTitle(`📊 Portafolio de ${interaction.user.username}`)
-                    .setColor(0xFFD700)
-                    .setTimestamp();
-
-                let totalInvested = 0;
-                let totalCurrent = 0;
-
-                portfolio.forEach(p => {
-                    const stock = globalStocks.find(s => s.symbol === p.stock_symbol);
-                    if (!stock) return;
-
-                    const currentPrice = stock.current;
-                    const invested = p.avg_buy_price * p.shares;
-                    const currentValue = currentPrice * p.shares;
-                    const profitLoss = currentValue - invested;
-                    const profitEmoji = profitLoss >= 0 ? '📈' : '📉';
-
-                    totalInvested += invested;
-                    totalCurrent += currentValue;
-
-                    embed.addFields({
-                        name: `${profitEmoji} ${p.stock_symbol} (${p.shares} acciones)`,
-                        value: `Compra: $${p.avg_buy_price.toLocaleString()} | Actual: $${currentPrice.toLocaleString()}\nValor: $${currentValue.toLocaleString()} | ${profitLoss >= 0 ? '📈 Ganancia' : '📉 Pérdida'}: $${Math.abs(profitLoss).toLocaleString()}`,
-                        inline: false
-                    });
-                });
-
-                const totalProfit = totalCurrent - totalInvested;
-                const profitEmoji = totalProfit >= 0 ? '📈' : '📉';
-
-                const profitLabel = totalProfit >= 0 ? '📈 Ganancia Total' : '📉 Pérdida Total';
-                embed.setDescription(`**Total Invertido:** $${totalInvested.toLocaleString()}\n**Valor Actual:** $${totalCurrent.toLocaleString()}\n**${profitLabel}:** $${Math.abs(totalProfit).toLocaleString()}`);
-
-                await interaction.editReply({ embeds: [embed] });
-            } catch (error) {
-                console.error('Error mostrando portafolio:', error);
-                await interaction.editReply({ content: '❌ Error obteniendo tu portafolio.', ephemeral: false });
-            }
-        }
-
-        else if (subcommand === 'historial') {
-            try {
-                const { data: transactions } = await supabase
-                    .from('stock_transactions')
-                    .select('*')
-                    .eq('discord_user_id', interaction.user.id)
-                    .order('created_at', { ascending: false })
-                    .limit(10);
-
-                if (!transactions || transactions.length === 0) {
-                    return await interaction.editReply({ content: '📜 No tienes transacciones registradas.', ephemeral: false });
-                }
-
-                const embed = new EmbedBuilder()
-                    .setTitle(`📜 Historial de Transacciones`)
-                    .setColor(0x3498DB)
-                    .setDescription(`Últimas ${transactions.length} transacciones`)
-                    .setTimestamp();
-
-                transactions.forEach(t => {
-                    const typeEmoji = t.transaction_type === 'BUY' ? '🛒' : '💰';
-                    const date = new Date(t.created_at).toLocaleDateString();
-
-                    embed.addFields({
-                        name: `${typeEmoji} ${t.transaction_type} - ${t.stock_symbol}`,
-                        value: `${t.shares} acciones @ $${t.price_per_share.toLocaleString()} = $${t.total_amount.toLocaleString()}\n${date}`,
-                        inline: true
-                    });
-                });
-
-                await interaction.editReply({ embeds: [embed] });
-            } catch (error) {
-                console.error('Error mostrando historial:', error);
-                await interaction.editReply({ content: '❌ Error obteniendo tu historial.', ephemeral: false });
-            }
-        }
-    }
-
-    if (commandName === 'balanza') {
-        await interaction.deferReply();
-        // Defer with error handling to prevent "Unknown interaction"
-        try {
-        } catch (err) {
-            console.error('[ERROR] Failed to defer balanza:', err);
-            return; // Exit early if defer fails
-        }
-
-        try {
-            const cashBalance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
-            console.log(`[DEBUG] /balanza User: ${interaction.user.id} Balance Raw:`, cashBalance); // DEBUG LOG
-
-            // Resolve Citizen ID for robust lookup
-            const { data: citizen } = await supabase.from('citizens').select('id').eq('discord_id', interaction.user.id).maybeSingle();
-
-            const { data: debitCard } = await supabase.from('debit_cards').select('balance').eq('discord_user_id', interaction.user.id).eq('status', 'active').maybeSingle();
-
-            // Fetch Credit Cards via Citizen ID if available, else Discord ID
-            let creditQuery = supabase.from('credit_cards').select('*').eq('status', 'active');
-            if (citizen) {
-                creditQuery = creditQuery.eq('citizen_id', citizen.id);
-            } else {
-                creditQuery = creditQuery.eq('discord_user_id', interaction.user.id);
-            }
-            const { data: creditCards } = await creditQuery;
-
-            const cash = cashBalance.cash || 0;
-            const bank = cashBalance.bank || 0;
-            // Debit Card just checks if exists, balance comes from Bank
-            const hasDebit = debitCard ? true : false;
-
-            let creditAvailable = 0;
-            let creditDebt = 0;
-            if (creditCards) {
-                creditCards.forEach(c => {
-                    let limit = c.card_limit || c.credit_limit || 0;
-                    if (limit === 0 && c.card_type && CARD_TIERS && CARD_TIERS[c.card_type]) {
-                        limit = CARD_TIERS[c.card_type].limit || 0;
-                    }
-                    const debt = c.current_balance || 0;
-                    creditAvailable += (limit - debt);
-                    creditDebt += debt;
-                });
-            }
-
-            // Total Liquid is Cash + Bank (Debit is same as Bank) + Avail Credit
-            const totalLiquid = cash + bank + creditAvailable;
-
-            const embed = new EmbedBuilder()
-                .setTitle('💰 TU BALANZA FINANCIERA')
-                .setColor(0x00D26A)
-                .addFields(
-                    { name: '💵 EFECTIVO', value: `\`\`\`$${cash.toLocaleString()}\`\`\``, inline: true },
-                    { name: '🏦 BANCO / DÉBITO', value: `\`\`\`$${bank.toLocaleString()}\`\`\`\n${hasDebit ? '✅ Tarjeta Débito' : '📋 Cuenta Bancaria'}`, inline: true },
-                    { name: '💳 CRÉDITO', value: `\`\`\`Disponible: $${creditAvailable.toLocaleString()}\nDeuda: $${creditDebt.toLocaleString()}\`\`\``, inline: false },
-                    { name: '📊 PATRIMONIO TOTAL', value: `\`\`\`diff\n+ $${totalLiquid.toLocaleString()}\n\`\`\``, inline: false }
-                )
-                .setFooter({ text: 'Banco Nacional' })
-                .setTimestamp();
-
-            await interaction.editReply({ embeds: [embed] });
-        } catch (error) {
-            console.error(error);
-            await interaction.editReply('❌ Error obteniendo tu balanza.');
-        }
-    }
-
-    else if (commandName === 'debito') {
-        await interaction.deferReply();
-        const subcommand = interaction.options.getSubcommand();
-
-        if (subcommand === 'estado') {
-            try {
-                const card = await getDebitCard(interaction.user.id);
-                if (!card) return interaction.editReply('❌ No tienes una tarjeta de débito activa. Visita el Banco Nacional para abrir tu cuenta con `/registrar-tarjeta`.');
-
-                const balance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
-                const bankBalance = balance.bank || 0;
-
-                const embed = new EmbedBuilder()
-                    .setTitle('💳 Estado Tarjeta Débito')
-                    .setColor(0x00CED1)
-                    .addFields(
-                        { name: 'Número', value: `\`${card.card_number}\``, inline: false },
-                        { name: 'Saldo en Banco', value: `$${bankBalance.toLocaleString()}`, inline: true },
-                        { name: 'Estado', value: '✅ Activa', inline: true }
-                    )
-                    .setTimestamp();
-                await interaction.editReply({ embeds: [embed] });
-            } catch (error) {
-                console.error(error);
-                await interaction.editReply('❌ Error consultando débito.');
-            }
-        }
-        // Add this code between line 3561 (after estado closing }) and line 3563 (before depositar comment)
-
-        // === MEJORAR (Upgrade Debit Card) ===
-        // === MEJORAR (Upgrade Debit Card - STAFF ONLY) ===
-        else if (subcommand === 'mejorar') {
-            const BANK_EXEC_ROLE_ID = '1450688555503587459';
-            if (!interaction.member.roles.cache.has(BANK_EXEC_ROLE_ID) && !interaction.member.permissions.has('Administrator')) {
-                return interaction.editReply('⛔ Solo ejecutivos bancarios pueden ofrecer mejoras.');
-            }
-
-            const targetUser = interaction.options.getUser('usuario');
-
-            try {
-                // Get TARGET USER's active debit card (the one with MOST balance)
-                const { data: card, error: cardError } = await supabase
-                    .from('debit_cards')
-                    .select('*')
-                    .eq('discord_user_id', targetUser.id)
-                    .eq('status', 'active')
-                    .order('balance', { ascending: false })  // Highest balance first
-                    .limit(1)
-                    .maybeSingle();
-
-                if (cardError || !card) {
-                    console.error('[mejorar] Card lookup error:', cardError);
-                    return interaction.editReply(`❌ ${targetUser.username} no tiene una tarjeta de débito activa.`);
-                }
-
-                // Get REAL balance from UnbelievaBoat API (not Supabase cache)
-                const realBalance = await billingService.ubService.getUserBalance(interaction.guildId, targetUser.id, 'bank');
-
-                console.log('[DEBUG] /debito mejorar - Found card:', {
-                    id: card.id,
-                    tier: card.card_tier,
-                    supabaseBalance: card.balance,
-                    realBalance: realBalance,
-                    userId: targetUser.id
-                });
-
-                const currentTier = card.card_tier || 'NMX Débito';
-                let nextTier = null;
-
-                if (currentTier === 'NMX Débito') nextTier = 'NMX Débito Plus';
-                else if (currentTier === 'NMX Débito Plus') nextTier = 'NMX Débito Gold';
-
-                if (!nextTier) {
-                    return interaction.editReply(`✨ La tarjeta de ${targetUser.username} (**${currentTier}**) ya es el nivel máximo.`);
-                }
-
-                const nextStats = CARD_TIERS[nextTier];
-                const upgradeCost = nextStats.cost;
-
-                const embed = new EmbedBuilder()
-                    .setTitle('🚀 Oferta de Mejora de Débito')
-                    .setColor(0x00CED1)
-                    .setDescription(`Hola <@${targetUser.id}>, el banco te invita a mejorar tu tarjeta **${currentTier}** a **${nextTier}**.`)
-                    .addFields(
-                        { name: '🌟 Nuevo Nivel', value: nextTier, inline: true },
-                        { name: '💎 Beneficios', value: `Límite Máximo: $${nextStats.max_balance === Infinity ? 'Ilimitado' : nextStats.max_balance.toLocaleString()}`, inline: true },
-                        { name: '💰 Costo de Mejora', value: `$${upgradeCost.toLocaleString()}`, inline: false }
-                    )
-                    .setFooter({ text: 'Acepta la oferta para procesar el cobro inmediatamente.' });
-
-                const row = new ActionRowBuilder()
-                    .addComponents(
-                        new ButtonBuilder()
-                            .setCustomId(`btn_udp_upgrade_${card.id}_${nextTier.replace(/ /g, '_')}`)
-                            .setLabel(`Aceptar Mejora ($${upgradeCost})`)
-                            .setStyle(ButtonStyle.Success)
-                            .setEmoji('💳'),
-                        new ButtonBuilder()
-                            .setCustomId(`btn_cancel_upgrade_${targetUser.id}`)
-                            .setLabel('Rechazar')
-                            .setStyle(ButtonStyle.Danger)
-                    );
-
-
-                // Send to the channel, pinging the user
-                await interaction.editReply({ content: `<@${targetUser.id}>`, embeds: [embed], components: [row] });
-
-            } catch (error) {
-                console.error(error);
-                await interaction.editReply('❌ Error procesando la oferta de mejora.');
-            }
-        }
-
-        // === TRANSFERIR (Debit to Debit - 5 min delay) ===
-        else if (subcommand === 'transferir') {
-            try {
-                const destUser = interaction.options.getUser('destinatario');
-                const inputMonto = interaction.options.getString('monto');
-
-                if (destUser.id === interaction.user.id) {
-                    return interaction.editReply('❌ No puedes transferir a ti mismo.');
-                }
-
-                // Check sender has debit card
-                const senderCard = await getDebitCard(interaction.user.id);
-                if (!senderCard) {
-                    return interaction.editReply('❌ No tienes una tarjeta de débito activa para transferir.');
-                }
-
-                // Check receiver has debit card
-                const receiverCard = await getDebitCard(destUser.id);
-                if (!receiverCard) {
-                    return interaction.editReply(`❌ **${destUser.username}** no tiene una tarjeta de débito activa para recibir transferencias.`);
-                }
-
-                // Get sender balance
-                const balance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
-                const bankBalance = balance.bank || 0;
-
-                let monto = 0;
-                if (inputMonto.toLowerCase() === 'todo' || inputMonto.toLowerCase() === 'all') {
-                    monto = bankBalance;
-                } else {
-                    monto = parseFloat(inputMonto);
-                }
-
-                if (isNaN(monto) || monto <= 0) {
-                    return interaction.editReply('❌ El monto debe ser mayor a 0.');
-                }
-
-                if (bankBalance < monto) {
-                    return interaction.editReply(`❌ Fondos insuficientes.\\n\\nSaldo en Banco: $${bankBalance.toLocaleString()}\\nIntentas transferir: $${monto.toLocaleString()}`);
-                }
-
-                // Check receiver card limit
-                console.log('[DEBUG-TRANSFER] Receiver card object:', JSON.stringify(receiverCard, null, 2));
-                console.log('[DEBUG-TRANSFER] Receiver card_tier:', receiverCard.card_tier);
-                console.log('[DEBUG-TRANSFER] Available tiers:', Object.keys(CARD_TIERS));
-
-                const receiverTier = CARD_TIERS[receiverCard.card_tier || 'NMX Débito'];
-                console.log('[DEBUG-TRANSFER] Found tier:', receiverTier);
-
-                const receiverMax = receiverTier ? (receiverTier.max_balance || Infinity) : Infinity;
-                console.log('[DEBUG-TRANSFER] Max balance:', receiverMax);
-
-                if (receiverMax !== Infinity) {
-                    const receiverBal = await billingService.ubService.getUserBalance(interaction.guildId, destUser.id);
-                    const receiverBank = receiverBal.bank || 0;
-                    console.log('[DEBUG-TRANSFER] Receiver current bank:', receiverBank);
-                    console.log('[DEBUG-TRANSFER] Would be after transfer:', receiverBank + monto);
-
-                    if ((receiverBank + monto) > receiverMax) {
-                        const errorEmbed = new EmbedBuilder()
-                            .setTitle('⛔ Transferencia Rechazada')
-                            .setColor(0xFF0000)
-                            .setDescription(`El destinatario no puede recibir esta cantidad porque excedería el límite de su tarjeta.`)
-                            .addFields(
-                                { name: '💳 Tipo de Tarjeta', value: receiverCard.card_tier || 'NMX Débito', inline: true },
-                                { name: '📊 Límite Máximo', value: `$${receiverMax.toLocaleString()}`, inline: true },
-                                { name: '💰 Saldo Actual', value: `$${receiverBank.toLocaleString()}`, inline: true },
-                                { name: '🚫 Intentas Transferir', value: `$${monto.toLocaleString()}`, inline: true },
-                                { name: '📈 Saldo Final Sería', value: `$${(receiverBank + monto).toLocaleString()}`, inline: true }
-                            )
-                            .setFooter({ text: 'El destinatario debe actualizar su tarjeta para recibir más dinero' });
-                        return interaction.editReply({ embeds: [errorEmbed] });
-                    }
-                }
-
-                // Deduct from sender immediately
-                await billingService.ubService.removeMoney(
-                    interaction.guildId,
-                    interaction.user.id,
-                    monto,
-                    `Transferencia débito a ${destUser.tag}`,
-                    'bank'
-                );
-
-                // Schedule transfer for 5 minutes
-                const releaseDate = new Date();
-                releaseDate.setMinutes(releaseDate.getMinutes() + 5);
-
-                await supabase.from('pending_transfers').insert({
-                    sender_id: interaction.user.id,
-                    receiver_id: destUser.id,
-                    amount: monto,
-                    reason: 'Transferencia Interbancaria',
-                    release_date: releaseDate.toISOString(),
-                    status: 'PENDING'
-                });
-
-                // Log transaction
-                await supabase.from('debit_transactions').insert([{
-                    debit_card_id: senderCard.id,
-                    discord_user_id: interaction.user.id,
-                    transaction_type: 'transfer_out',
-                    amount: -monto,
-                    description: `Transferencia a ${destUser.tag}`
+                // Log
+                await supabase.from('banking_transactions').insert([{
+                    sender_discord_id: interaction.user.id,
+                    receiver_discord_id: null,
+                    amount: amount,
+                    type: 'investment',
+                    description: `Apertura Plazo Fijo (7 días al ${interestRate}%)`
                 }]);
 
                 const embed = new EmbedBuilder()
-                    .setTitle('⏳ Transferencia Programada')
-                    .setColor(0xFFA500)
-                    .setDescription('Tu transferencia se procesará en 5 minutos.')
-                    .addFields(
-                        { name: 'De', value: interaction.user.tag, inline: true },
-                        { name: 'Para', value: destUser.tag, inline: true },
-                        { name: 'Monto', value: `$${monto.toLocaleString()}`, inline: true },
-                        { name: 'Llegada Estimada', value: releaseDate.toLocaleTimeString('es-MX', { timeZone: 'America/Mexico_City' }), inline: false }
-                    )
-                    .setFooter({ text: 'Sistema Interbancario NMX' })
-                    .setTimestamp();
-
-                await interaction.editReply({ embeds: [embed] });
-
-                // EXECUTE TRANSFER AFTER 5 MINUTES
-                setTimeout(async () => {
-                    try {
-                        // Credit receiver
-                        await supabase
-                            .from('debit_cards')
-                            .update({ balance: receiverCard.balance + monto })
-                            .eq('id', receiverCard.id);
-
-                        // Log transaction for receiver
-                        await supabase.from('debit_transactions').insert([{
-                            debit_card_id: receiverCard.id,
-                            discord_user_id: destUser.id,
-                            transaction_type: 'transfer_in',
-                            amount: monto,
-                            description: `Giro de ${interaction.user.tag}`
-                        }]);
-
-                        // Notify receiver
-                        try {
-                            await destUser.send(`💰 **Transferencia Recibida**\n\nRecibiste **$${monto.toLocaleString()}** de ${interaction.user.username}\n🏦 Sistema Interbancario NMX`);
-                        } catch (err) {
-                            console.log('[TRANSFER] Could not DM recipient', err.message);
-                        }
-
-                        console.log(`[TRANSFER SUCCESS] $${monto} from ${interaction.user.id} to ${destUser.id}`);
-
-                    } catch (error) {
-                        console.error('[TRANSFER FAILED]', error);
-                        // ROLLBACK: Return money to sender
-                        try {
-                            await billingService.ubService.addMoney(
-                                interaction.guildId,
-                                interaction.user.id,
-                                monto,
-                                'Devolución por fallo en transferencia',
-                                'bank'
-                            );
-                            await interaction.user.send(`⚠️ **Error en Transferencia**\n\nTu transferencia de $${monto.toLocaleString()} a ${destUser.username} falló. El dinero ha sido devuelto.`);
-                        } catch (rollbackErr) {
-                            console.error('[ROLLBACK FAILED]', rollbackErr);
-                        }
-                    }
-                }, 5 * 60 * 1000); // 5 minutes
-            } catch (error) {
-                console.error(error);
-                await interaction.editReply('❌ Error procesando la transferencia.');
-            }
-        }
-
-
-        // === DEPOSITAR (Cash -> Bank) ===
-        // === DEPOSITAR (Cash -> Bank) ===
-        else if (subcommand === 'depositar') {
-
-            try {
-                const card = await getDebitCard(interaction.user.id);
-                if (!card) return interaction.editReply('❌ No tienes una tarjeta de débito activa para depositar.');
-
-                const balance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
-                const cashBalance = balance.cash || 0;
-                const bankBalance = balance.bank || 0;
-
-                const inputMonto = interaction.options.getString('monto');
-                let monto = 0;
-
-                if (inputMonto.toLowerCase() === 'todo' || inputMonto.toLowerCase() === 'all') {
-                    monto = cashBalance;
-                } else {
-                    monto = parseFloat(inputMonto);
-                }
-
-                if (isNaN(monto) || monto <= 0) return interaction.editReply('❌ El monto debe ser un número mayor a 0.');
-
-                if (cashBalance < monto) {
-                    return interaction.editReply(`❌ Fondos insuficientes en efectivo.\n\nTienes: $${cashBalance.toLocaleString()}\nIntentas depositar: $${monto.toLocaleString()}`);
-                }
-
-                // Check Max Balance Limit (Tier based)
-                const tier = CARD_TIERS[card.card_tier || 'NMX Débito'];
-                const maxBal = tier ? (tier.max_balance || Infinity) : Infinity;
-                if ((bankBalance + monto) > maxBal) {
-                    return interaction.editReply(`⛔ **Límite de Saldo Excedido**\nTu tarjeta **${card.card_tier || 'NMX Débito'}** tiene un límite de almacenamiento de **$${maxBal.toLocaleString()}**.\nActual: $${bankBalance.toLocaleString()} + Depósito: $${monto.toLocaleString()} > Límite.\n\n💡 **Mejora a NMX Débito Gold para almacenamiento ilimitado.**`);
-                }
-
-                // Transfer from cash to bank
-                await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, monto, 'Depósito bancario', 'cash');
-                await billingService.ubService.addMoney(interaction.guildId, interaction.user.id, monto, 'Depósito bancario', 'bank');
-
-                // Log transaction
-                await supabase.from('debit_transactions').insert({
-                    debit_card_id: card.id,
-                    discord_user_id: interaction.user.id,
-                    transaction_type: 'deposit',
-                    amount: monto,
-                    description: 'Depósito en sucursal/ATM'
-                });
-
-                const embed = new EmbedBuilder()
-                    .setTitle('🏧 Depósito Exitoso')
+                    .setTitle('📈 Inversión Exitosa')
                     .setColor(0x00FF00)
-                    .setDescription('Has depositado efectivo a tu cuenta bancaria.')
-                    .addFields(
-                        { name: 'Monto Depositado', value: `$${monto.toLocaleString()}`, inline: true },
-                        { name: 'Nuevo Saldo Banco', value: `$${(bankBalance + monto).toLocaleString()}`, inline: true }
-                    )
-                    .setTimestamp();
+                    .setDescription(`Has invertido **$${amount.toLocaleString()}**.\n\n📅 **Vencimiento:** <t:${Math.floor(endDate.getTime() / 1000)}:R>\n💰 **Retorno Esperado:** $${payout.toLocaleString()}\n\n*El dinero está bloqueado hasta la fecha de vencimiento.*`);
 
                 await interaction.editReply({ embeds: [embed] });
-
-            } catch (error) {
-                console.error(error);
-                await interaction.editReply('❌ Error realizando depósito.');
             }
-        }
-
-        else if (subcommand === 'retirar') {
-
-            try {
-                const card = await getDebitCard(interaction.user.id);
-                if (!card) return interaction.editReply('❌ No tienes una tarjeta de débito activa.');
-
-                const balance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
-                const bankBalance = balance.bank || 0;
-
-                const inputMonto = interaction.options.getString('monto');
-                let monto = 0;
-
-                if (inputMonto.toLowerCase() === 'todo' || inputMonto.toLowerCase() === 'all') {
-                    monto = bankBalance;
-                } else {
-                    monto = parseFloat(inputMonto);
-                }
-
-                if (isNaN(monto) || monto <= 0) return interaction.editReply('❌ El monto debe ser un número mayor a 0.');
-
-                if (bankBalance < monto) {
-                    return interaction.editReply(`❌ Fondos insuficientes en banco.\n\nDisponible: $${bankBalance.toLocaleString()}\nIntentando retirar: $${monto.toLocaleString()}`);
-                }
-
-                // Transfer from bank to cash
-                await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, monto, 'Retiro de cajero', 'bank');
-                await billingService.ubService.addMoney(interaction.guildId, interaction.user.id, monto, 'Retiro de cajero', 'cash');
-
-                // Log transaction
-                await supabase.from('debit_transactions').insert({
-                    debit_card_id: card.id,
-                    discord_user_id: interaction.user.id,
-                    transaction_type: 'withdrawal',
-                    amount: -monto,
-                    description: 'Retiro en cajero automático'
-                });
-
-                const embed = new EmbedBuilder()
-                    .setTitle('🏧 Retiro Exitoso')
-                    .setColor(0x00FF00)
-                    .setDescription('Has retirado efectivo de tu cuenta bancaria.')
-                    .addFields(
-                        { name: 'Monto Retirado', value: `$${monto.toLocaleString()}`, inline: true },
-                        { name: 'Nuevo Saldo Banco', value: `$${(bankBalance - monto).toLocaleString()}`, inline: true }
-                    )
-                    .setFooter({ text: 'El efectivo está ahora en tu billetera' })
-                    .setTimestamp();
-
-                await interaction.editReply({ embeds: [embed] });
-            } catch (error) {
-                console.error(error);
-                await interaction.editReply('❌ Error realizando retiro.');
-            }
-        }
-
-
-
-
-        else if (subcommand === 'historial') {
-            try {
-                const { data: transactions } = await supabase.from('debit_transactions').select('*').eq('discord_user_id', interaction.user.id).order('created_at', { ascending: false }).limit(10);
-                if (!transactions || transactions.length === 0) return interaction.editReply('📭 Sin transacciones.');
-                const embed = new EmbedBuilder().setTitle('📋 Historial Débito').setColor(0x00CED1);
-                let desc = '';
-                transactions.forEach(tx => {
-                    const emoji = tx.amount > 0 ? '➕' : '➖';
-                    const type = tx.transaction_type === 'deposit' ? 'Depósito' : tx.transaction_type === 'transfer_in' ? 'Recibido' : tx.transaction_type === 'transfer_out' ? 'Enviado' : tx.transaction_type;
-                    desc += `${emoji} **${type}**: $${Math.abs(tx.amount).toLocaleString()} | Saldo: $${tx.balance_after.toLocaleString()}\n`;
-                });
-                embed.setDescription(desc);
-                await interaction.editReply({ embeds: [embed] });
-            } catch (error) {
-                console.error(error);
-                await interaction.editReply('❌ Error consultando historial.');
-            }
-        }
-
-        // === INFO ===
-        else if (subcommand === 'info') {
-
-            try {
-                const card = await getDebitCard(interaction.user.id);
-                if (!card) return interaction.editReply('❌ No tienes una tarjeta de débito activa.');
-
-                const balance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
-                const bankBalance = balance.bank || 0;
-
-                // Get recent transactions
-                const { data: recentTxs } = await supabase
-                    .from('debit_transactions')
+            else if (subCmd === 'estado') {
+                await interaction.deferReply();
+                const { data: investments } = await supabase.from('investments')
                     .select('*')
-                    .eq('discord_user_id', interaction.user.id)
-                    .order('created_at', { ascending: false })
-                    .limit(5);
+                    .eq('discord_id', interaction.user.id)
+                    .eq('status', 'active');
 
-                let txHistory = '';
-                if (recentTxs && recentTxs.length > 0) {
-                    recentTxs.forEach(tx => {
-                        const emoji = tx.amount > 0 ? '➕' : '➖';
-                        const tipo = tx.transaction_type === 'withdrawal' ? 'Retiro' :
-                            tx.transaction_type === 'deposit' ? 'Depósito' :
-                                tx.transaction_type === 'transfer_in' ? 'Recibido' : 'Enviado';
-                        txHistory += `${emoji} ${tipo}: $${Math.abs(tx.amount).toLocaleString()}\n`;
-                    });
-                } else {
-                    txHistory = 'Sin transacciones recientes';
-                }
+                if (!investments || investments.length === 0) return interaction.editReply('📉 No tienes inversiones activas.');
 
                 const embed = new EmbedBuilder()
-                    .setTitle('💳 Información Completa - Tarjeta de Débito')
-                    .setColor(0x00CED1)
-                    .setDescription(`Detalles de tu cuenta bancaria NMX`)
-                    .addFields(
-                        { name: '💳 Tipo de Tarjeta', value: card.card_tier || 'NMX Débito', inline: true },
-                        { name: '🔢 Número de Tarjeta', value: `\`${card.card_number}\``, inline: false },
-                        { name: '💰 Saldo en Banco', value: `$${bankBalance.toLocaleString()}`, inline: true },
-                        { name: '📅 Fecha de Creación', value: `<t:${Math.floor(new Date(card.created_at).getTime() / 1000)}:D>`, inline: true },
-                        { name: '✅ Estado', value: 'Activa', inline: true },
-                        { name: '📊 Últimas Transacciones', value: txHistory, inline: false }
-                    )
-                    .setFooter({ text: 'Banco Nacional MX' })
-                    .setTimestamp();
+                    .setTitle('💼 Portafolio de Inversiones')
+                    .setColor(0xD4AF37);
 
-                await interaction.editReply({ embeds: [embed] });
+                const rows = []; // Component rows (buttons)
 
-            } catch (error) {
-                console.error(error);
-                await interaction.editReply('❌ Error consultando información.');
+                let desc = '';
+                for (const inv of investments) {
+                    const endDate = new Date(inv.end_date);
+                    const isReady = new Date() >= endDate;
+                    const statusIcon = isReady ? '🟢 **DISPONIBLE**' : '🔒 Bloqueado';
+
+                    desc += `**ID:** \`${inv.id.split('-')[0]}\` | Inversión: **$${inv.invested_amount.toLocaleString()}**\nRetorno: **$${inv.payout_amount.toLocaleString()}** | ${statusIcon}\nVence: <t:${Math.floor(endDate.getTime() / 1000)}:R>\n\n`;
+
+                    if (isReady) {
+                        rows.push(new ActionRowBuilder().addComponents(
+                            new ButtonBuilder()
+                                .setCustomId(`btn_collect_${inv.id}`)
+                                .setLabel(`Retirar $${inv.payout_amount.toLocaleString()} (ID: ${inv.id.split('-')[0]})`)
+                                .setStyle(ButtonStyle.Success)
+                        ));
+                    }
+                }
+
+                embed.setDescription(desc || 'Tus inversiones aparecerán aquí.');
+
+                // Limit buttons to 5 rows
+                await interaction.editReply({ embeds: [embed], components: rows.slice(0, 5) });
             }
         }
 
-        // === ADMIN COMMANDS ===
-        else if (subCommandGroup === 'admin') {
-            // Check if user is bank executive
-            const BANK_EXEC_ROLE_ID = '1450688555503587459'; // Same as company creator role
-            if (!interaction.member.roles.cache.has(BANK_EXEC_ROLE_ID) && !interaction.member.permissions.has('Administrator')) {
-                return interaction.reply({ content: '⛔ Solo ejecutivos bancarios pueden usar estos comandos.', ephemeral: true });
+
+        else if (commandName === 'licencia') {
+            await interaction.deferReply({ flags: 64 });
+            const subcommand = interaction.options.getSubcommand();
+
+            // Staff-only check
+            const STAFF_ROLE_ID = '1450688555503587459';
+            if (!interaction.member.roles.cache.has(STAFF_ROLE_ID) && !interaction.member.permissions.has('Administrator')) {
+                return interaction.reply({ content: '⛔ Solo el staff puede gestionar licencias.', flags: 64 });
             }
 
-            const adminSubCmd = interaction.options.getSubcommand();
             const targetUser = interaction.options.getUser('usuario');
+            const tipo = interaction.options.getString('tipo');
 
-            // === ADMIN INFO ===
-            if (adminSubCmd === 'info') {
-                await interaction.deferReply({ ephemeral: true });
+            const licenseData = {
+                'conducir': { name: 'Licencia de Conducir', cost: 1200, emoji: '🚗' },
+                'armas_largas': { name: 'Licencia de Armas Largas', cost: 1500, emoji: '🔫' },
+                'armas_cortas': { name: 'Licencia de Armas Cortas', cost: 1200, emoji: '🔫' }
+            };
+
+            if (subcommand === 'registrar') {
 
                 try {
-                    const card = await getDebitCard(targetUser.id);
-                    if (!card) return interaction.editReply(`❌ ${targetUser.username} no tiene tarjeta de débito.`);
+                    const license = licenseData[tipo];
 
-                    const balance = await billingService.ubService.getUserBalance(interaction.guildId, targetUser.id);
-                    const bankBalance = balance.bank || 0;
-                    const cashBalance = balance.cash || 0;
-
-                    // Get transaction count and totals
-                    const { data: txs } = await supabase
-                        .from('debit_transactions')
+                    // Check if already has this license FIRST
+                    const { data: existing } = await supabase
+                        .from('licenses')
                         .select('*')
-                        .eq('discord_user_id', targetUser.id);
+                        .eq('discord_user_id', targetUser.id)
+                        .eq('license_type', tipo)
+                        .eq('status', 'active');
 
-                    const totalTransactions = txs?.length || 0;
-                    const totalDeposits = txs?.filter(t => t.amount > 0).reduce((sum, t) => sum + t.amount, 0) || 0;
-                    const totalWithdrawals = txs?.filter(t => t.amount < 0).reduce((sum, t) => sum + Math.abs(t.amount), 0) || 0;
+                    if (existing && existing.length > 0) {
+                        return interaction.editReply(`⚠️ <@${targetUser.id}> ya tiene esta licencia activa.`);
+                    }
+
+                    // Use universal payment system
+                    const paymentResult = await requestPaymentMethod(
+                        interaction,
+                        targetUser.id,
+                        license.cost,
+                        `${license.emoji} ${license.name}`
+                    );
+
+                    if (!paymentResult.success) {
+                        return interaction.editReply(paymentResult.error);
+                    }
+
+                    // Register license
+                    const expiryDate = new Date();
+                    expiryDate.setDate(expiryDate.getDate() + 14); // 2 weeks validity
+
+                    await supabase
+                        .from('licenses')
+                        .insert({
+                            discord_user_id: targetUser.id,
+                            license_type: tipo,
+                            license_name: license.name,
+                            issued_by: interaction.user.id,
+                            issued_at: new Date().toISOString(),
+                            expires_at: expiryDate.toISOString(),
+                            status: 'active'
+                        });
+
+                    const paymentMethodLabel = paymentResult.method === 'cash' ? '💵 Efectivo' : paymentResult.method === 'bank' ? '🏦 Banco/Débito' : '💳 Crédito';
 
                     const embed = new EmbedBuilder()
-                        .setTitle(`👨‍💼 Análisis Bancario - ${targetUser.username}`)
-                        .setColor(0x5865F2)
-                        .setThumbnail(targetUser.displayAvatarURL())
+                        .setTitle(`${license.emoji} Licencia Registrada`)
+                        .setColor(0x00FF00)
+                        .setDescription(`**${license.name}** otorgada exitosamente`)
                         .addFields(
+                            { name: '👤 Ciudadano', value: `<@${targetUser.id}>`, inline: true },
+                            { name: '💵 Costo', value: `$${license.cost.toLocaleString()}`, inline: true },
+                            { name: '💳 Método de Pago', value: paymentMethodLabel, inline: true },
+                            { name: '📅 Válida hasta', value: `<t:${Math.floor(expiryDate.getTime() / 1000)}:D>`, inline: false },
+                            { name: '👮 Emitida por', value: interaction.user.tag, inline: true }
+                        )
+                        .setFooter({ text: 'Sistema de Licencias Nación MX' })
+                        .setTimestamp();
+
+                    await interaction.editReply({ embeds: [embed], components: [] });
+
+                    // Send receipt to citizen
+                    try {
+                        await targetUser.send({
+                            content: `📜 **Nueva licencia registrada**`,
+                            embeds: [embed]
+                        });
+                    } catch (dmError) {
+                        console.log('Could not DM citizen:', dmError.message);
+                    }
+
+                } catch (error) {
+                    console.error(error);
+                    await interaction.editReply('❌ Error registrando licencia.');
+                }
+            }
+
+            else if (subcommand === 'revocar') {
+                await interaction.deferReply({ flags: 64 });
+
+                const razon = interaction.options.getString('razon');
+
+                try {
+                    const { data: licenses } = await supabase
+                        .from('licenses')
+                        .select('*')
+                        .eq('discord_user_id', targetUser.id)
+                        .eq('license_type', tipo)
+                        .eq('status', 'active');
+
+                    if (!licenses || licenses.length === 0) {
+                        return interaction.editReply(`❌ <@${targetUser.id}> no tiene esta licencia activa.`);
+                    }
+
+                    // Revoke license
+                    await supabase
+                        .from('licenses')
+                        .update({
+                            status: 'revoked',
+                            revoked_by: interaction.user.id,
+                            revoked_at: new Date().toISOString(),
+                            revoke_reason: razon
+                        })
+                        .eq('id', licenses[0].id);
+
+                    const license = licenseData[tipo];
+
+                    const embed = new EmbedBuilder()
+                        .setTitle(`${license.emoji} Licencia Revocada`)
+                        .setColor(0xFF0000)
+                        .addFields(
+                            { name: '👤 Ciudadano', value: `<@${targetUser.id}>`, inline: true },
+                            { name: '📜 Licencia', value: license.name, inline: true },
+                            { name: '📝 Razón', value: razon, inline: false },
+                            { name: '👮 Revocada por', value: interaction.user.tag, inline: true }
+                        )
+                        .setTimestamp();
+
+                    await interaction.editReply({ embeds: [embed] });
+
+                    // Notify citizen
+                    try {
+                        await targetUser.send({
+                            content: `⚠️ **Licencia Revocada**`,
+                            embeds: [embed]
+                        });
+                    } catch (dmError) {
+                        console.log('Could not DM citizen:', dmError.message);
+                    }
+
+                } catch (error) {
+                    console.error(error);
+                    await interaction.editReply('❌ Error revocando licencia.');
+                }
+            }
+
+            else if (subcommand === 'ver') {
+                await interaction.deferReply({ flags: 64 });
+
+                try {
+                    const { data: licenses } = await supabase
+                        .from('licenses')
+                        .select('*')
+                        .eq('discord_user_id', targetUser.id)
+                        .order('issued_at', { ascending: false });
+
+                    if (!licenses || licenses.length === 0) {
+                        return interaction.editReply(`📋 <@${targetUser.id}> no tiene licencias registradas.`);
+                    }
+
+                    const embed = new EmbedBuilder()
+                        .setTitle(`📜 Licencias de ${targetUser.tag}`)
+                        .setColor(0x5865F2)
+                        .setThumbnail(targetUser.displayAvatarURL());
+
+                    const active = licenses.filter(l => l.status === 'active');
+                    const revoked = licenses.filter(l => l.status === 'revoked');
+                    const expired = licenses.filter(l => l.status === 'expired');
+
+                    if (active.length > 0) {
+                        let activeText = '';
+                        active.forEach(l => {
+                            const license = licenseData[l.license_type];
+                            const expiryTimestamp = Math.floor(new Date(l.expires_at).getTime() / 1000);
+                            activeText += `${license.emoji} **${l.license_name}**\n└ Expira: <t:${expiryTimestamp}:R>\n`;
+                        });
+                        embed.addFields({ name: '✅ Activas', value: activeText, inline: false });
+                    }
+
+                    if (revoked.length > 0) {
+                        let revokedText = '';
+                        revoked.forEach(l => {
+                            const license = licenseData[l.license_type];
+                            revokedText += `${license.emoji} **${l.license_name}**\n└ Razón: ${l.revoke_reason}\n`;
+                        });
+                        embed.addFields({ name: '❌ Revocadas', value: revokedText, inline: false });
+                    }
+
+                    await interaction.editReply({ embeds: [embed] });
+
+                } catch (error) {
+                    console.error(error);
+                    await interaction.editReply('❌ Error consultando licencias.');
+                }
+            }
+        }
+
+        else if (commandName === 'nomina') {
+            await interaction.deferReply(); // Global defer
+
+            const subCmd = interaction.options.getSubcommand();
+
+            if (subCmd === 'crear') {
+                const name = interaction.options.getString('nombre');
+                await supabase.from('payroll_groups').insert([{ owner_discord_id: interaction.user.id, name: name }]);
+                await interaction.editReply(`✅ Grupo de nómina **${name}** creado.`);
+            }
+            else if (subCmd === 'agregar') {
+                const groupName = interaction.options.getString('grupo');
+                const target = interaction.options.getUser('empleado');
+                const salary = interaction.options.getNumber('sueldo');
+
+                // Find group
+                const { data: group } = await supabase.from('payroll_groups').select('id').eq('name', groupName).eq('owner_discord_id', interaction.user.id).single();
+                if (!group) return interaction.editReply('❌ No encontré ese grupo o no eres el dueño.');
+
+                await supabase.from('payroll_members').upsert([{ group_id: group.id, member_discord_id: target.id, salary: salary }]);
+                await interaction.editReply(`✅ **${target.username}** agregado a **${groupName}** con sueldo $${salary}.`);
+            }
+            else if (subCmd === 'pagar') {
+                const groupName = interaction.options.getString('grupo');
+
+                const { data: group } = await supabase.from('payroll_groups').select('id').eq('name', groupName).eq('owner_discord_id', interaction.user.id).single();
+                if (!group) return interaction.editReply('❌ Grupo no encontrado.');
+
+                const { data: members } = await supabase.from('payroll_members').select('*').eq('group_id', group.id);
+                if (!members || members.length === 0) return interaction.editReply('❌ El grupo no tiene empleados.');
+
+                let total = 0;
+                members.forEach(m => total += m.salary);
+
+                // Check Balance
+                const balance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
+                const userMoney = balance.total || (balance.cash + balance.bank);
+                if (userMoney < total) return interaction.editReply(`❌ Fondos insuficientes. Necesitas **$${total.toLocaleString()}**.`);
+
+                // Process
+                let report = `💰 **Nómina Pagada: ${groupName}**\nTotal: $${total.toLocaleString()}\n\n`;
+
+                // Deduct from Owner
+                // Show payment selector
+                const pmNom = await getAvailablePaymentMethods(interaction.user.id, interaction.guildId);
+                const pbNom = createPaymentButtons(pmNom, 'nom_pay');
+                const paymentEmbed = createPaymentEmbed(`💼 Nómina${groupName ? ': ' + groupName : ''} (${members.length} empleados)`, total, pmNom);
+                await interaction.editReply({ embeds: [paymentEmbed], components: [pbNom] });
+                const fNom = i => i.user.id === interaction.user.id && i.customId.startsWith('nom_pay_');
+                const cNom = interaction.channel.createMessageComponentCollector({ filter: fNom, time: 60000, max: 1 });
+                cNom.on('collect', async (i) => {
+                    try { await i.deferUpdate(); } catch (err) { return; }
+                    const prNom = await processPayment(i.customId.replace('nom_pay_', ''), interaction.user.id, interaction.guildId, total, `Pago Nómina${groupName ? ': ' + groupName : ''}`, pmNom);
+                    if (!prNom.success) return i.editReply({ content: prNom.error, components: [] });
+
+                    let report = `💰 **Nómina Pagada** (${prNom.method})\nTotal: $${total.toLocaleString()}\n\n`;
+                    for (const m of members) {
+                        await billingService.ubService.addMoney(interaction.guildId, m.member_discord_id, m.salary, `Nómina${groupName ? ' de ' + groupName : ''}`);
+                        report += `✅ <@${m.member_discord_id}>: $${m.salary.toLocaleString()}\n`;
+                    }
+                    await i.editReply({ content: report, components: [] });
+                });
+                cNom.on('end', c => { if (c.size === 0) interaction.editReply({ content: '⏱️ Tiempo agotado.', components: [] }); });
+                return;
+            }
+        }
+
+        else if (commandName === 'jugar') {
+            await interaction.deferReply();
+            const game = interaction.options.getSubcommand();
+            const userId = interaction.user.id;
+
+            // Get user chips
+            const { data: userChips } = await supabase.from('casino_chips').select('*').eq('user_id', userId).maybeSingle();
+            if (!userChips || userChips.chips < 10) {
+                return interaction.editReply('❌ No tienes suficientes fichas. Compra con `/casino fichas comprar`');
+            }
+
+            if (game === 'slots') {
+                const bet = interaction.options.getInteger('apuesta');
+                if (userChips.chips < bet) return interaction.editReply(`❌ Fichas insuficientes. Tienes: ${userChips.chips}`);
+
+                await supabase.from('casino_chips').update({ chips: userChips.chips - bet }).eq('user_id', userId);
+
+                const symbols = ['🍒', '🍋', '🍊', '⭐', '💎'];
+                const r1 = symbols[Math.floor(Math.random() * symbols.length)];
+                const r2 = symbols[Math.floor(Math.random() * symbols.length)];
+                const r3 = symbols[Math.floor(Math.random() * symbols.length)];
+
+                // ANIMATE!
+                await animateSlots(interaction, [r1, r2, r3]);
+
+                let win = 0, mult = 0;
+                if (r1 === r2 && r2 === r3) {
+                    mult = r1 === '💎' ? 50 : r1 === '⭐' ? 25 : 10;
+                    win = bet * mult;
+                } else if (r1 === r2 || r2 === r3 || r1 === r3) {
+                    mult = 2;
+                    win = bet * 2;
+                }
+
+                if (win > 0) {
+                    await supabase.from('casino_chips').update({ chips: userChips.chips - bet + win, total_won: (userChips.total_won || 0) + win, games_played: (userChips.games_played || 0) + 1 }).eq('user_id', userId);
+                } else {
+                    await supabase.from('casino_chips').update({ total_lost: (userChips.total_lost || 0) + bet, games_played: (userChips.games_played || 0) + 1 }).eq('user_id', userId);
+                }
+
+                const resultEmoji = win > 0 ? (mult >= 25 ? '🎉🎉🎉' : '✅') : '❌';
+                const resultText = win > 0 ? `**¡GANAS!** 💰 +${win} fichas (${mult}x)` : '**Perdiste** 💸';
+
+                return interaction.editReply(`🎰 **SLOTS**\n${r1} ${r2} ${r3}\n\n${resultEmoji} ${resultText}\n💼 Balance: ${(userChips.chips - bet + win).toLocaleString()} fichas`);
+            }
+
+            else if (game === 'dice') {
+                const bet = interaction.options.getInteger('apuesta');
+                if (userChips.chips < bet) return interaction.editReply(`❌ Fichas insuficientes`);
+
+                await supabase.from('casino_chips').update({ chips: userChips.chips - bet }).eq('user_id', userId);
+
+                const roll = Math.floor(Math.random() * 6) + Math.floor(Math.random() * 6) + 2; // 2d6 = 2-12
+                const choice = interaction.options.getString('tipo') || 'alto';
+
+                // ANIMATE!
+                await animateDice(interaction);
+
+                let won = false;
+                if (choice === 'alto' && roll >= 8) won = true;
+                if (choice === 'bajo' && roll <= 6) won = true;
+                if (choice === 'par' && roll % 2 === 0) won = true;
+                if (choice === 'impar' && roll % 2 === 1) won = true;
+                if (choice === 'siete' && roll === 7) won = true;
+
+                const payout = choice === 'siete' ? (won ? bet * 4 : 0) : (won ? bet * 2 : 0);
+
+                if (payout > 0) {
+                    await supabase.from('casino_chips').update({ chips: userChips.chips - bet + payout, total_won: (userChips.total_won || 0) + payout, games_played: (userChips.games_played || 0) + 1 }).eq('user_id', userId);
+                } else {
+                    await supabase.from('casino_chips').update({ total_lost: (userChips.total_lost || 0) + bet, games_played: (userChips.games_played || 0) + 1 }).eq('user_id', userId);
+                }
+
+                const diceEmoji = ['⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
+                const d1 = Math.min(Math.floor(roll / 2) - 1, 5);
+                const d2 = Math.min((roll - 2) % 6, 5);
+                const resultText = won ? `✅ **¡GANAS!** +${payout}` : `❌ **Perdiste** -${bet}`;
+                return interaction.editReply(`🎲 **DADOS**\n\n${diceEmoji[d1]} + ${diceEmoji[d2]} = **${roll}**\n\nApuesta: **${choice.toUpperCase()}**\n${resultText}\n💼 ${(userChips.chips - bet + payout).toLocaleString()} fichas`);
+            }
+
+            else if (game === 'blackjack') {
+                const bet = interaction.options.getInteger('apuesta');
+                if (userChips.chips < bet) return interaction.editReply(`❌ Fichas insuficientes`);
+
+                await supabase.from('casino_chips').update({ chips: userChips.chips - bet }).eq('user_id', userId);
+
+                const card = () => Math.min(Math.floor(Math.random() * 13) + 1, 10);
+                let pTotal = card() + card();
+                let dTotal = card() + card();
+
+                // ANIMATE!
+                await interaction.editReply(`🃏 **BLACKJACK**\n\nRepartiendo cartas...`);
+                await sleep(800);
+                await interaction.editReply(`🃏 **BLACKJACK**\n\nTu mano: **${pTotal}**\nDealer: **?**`);
+                await sleep(800);
+
+                while (pTotal < 17) {
+                    pTotal += card();
+                    await interaction.editReply(`🃏 **BLACKJACK**\n\nTomas carta...\nTu mano: **${pTotal}**\nDealer: **?**`);
+                    await sleep(600);
+                }
+
+                await interaction.editReply(`🃏 **BLACKJACK**\n\nTu mano: **${pTotal}**\nDealer revela: **${dTotal}**`);
+                await sleep(800);
+
+                while (dTotal < 17) {
+                    dTotal += card();
+                    await interaction.editReply(`🃏 **BLACKJACK**\n\nTu mano: **${pTotal}**\nDealer toma: **${dTotal}**`);
+                    await sleep(600);
+                }
+
+                let result = '', payout = 0;
+                if (pTotal > 21) result = '❌ Te pasaste!';
+                else if (dTotal > 21) { result = '✅ Dealer se pasó - GANAS'; payout = bet * 2; }
+                else if (pTotal > dTotal) { result = '✅ GANAS'; payout = bet * 2; }
+                else if (pTotal === dTotal) { result = '🟡 EMPATE'; payout = bet; }
+                else result = '❌ Dealer gana';
+
+                if (payout > 0) {
+                    await supabase.from('casino_chips').update({ chips: userChips.chips - bet + payout, total_won: (userChips.total_won || 0) + (payout - bet), games_played: (userChips.games_played || 0) + 1 }).eq('user_id', userId);
+                } else {
+                    await supabase.from('casino_chips').update({ total_lost: (userChips.total_lost || 0) + bet, games_played: (userChips.games_played || 0) + 1 }).eq('user_id', userId);
+                }
+
+                return interaction.editReply(`🃏 **BLACKJACK**\n\nTu mano: **${pTotal}**\nDealer: **${dTotal}**\n\n${result}\n💼 ${(userChips.chips - bet + payout).toLocaleString()} fichas`);
+            }
+
+            else if (game === 'ruleta') {
+                const betType = interaction.options.getString('tipo');
+                const bet = interaction.options.getInteger('apuesta');
+                const numero = interaction.options.getInteger('numero');
+
+                if (userChips.chips < bet) return interaction.editReply(`❌ Insufficient chips`);
+
+                // Check if there's an active session
+                if (casinoSessions.roulette.active) {
+                    // Join existing session
+                    const timeLeft = Math.ceil((casinoSessions.roulette.closeTime - Date.now()) / 1000);
+                    if (timeLeft <= 0) return interaction.editReply('⏰ La sesión de ruleta se cerró. Espera el próximo spin.');
+
+                    await supabase.from('casino_chips').update({ chips: userChips.chips - bet }).eq('user_id', userId);
+
+                    casinoSessions.roulette.bets.push({
+                        userId,
+                        interaction,
+                        betType,
+                        numero,
+                        amount: bet,
+                        currentChips: userChips.chips,
+                        totalWon: userChips.total_won || 0,
+                        totalLost: userChips.total_lost || 0,
+                        gamesPlayed: userChips.games_played || 0
+                    });
+
+                    return interaction.editReply(`🎡 **RULETA MULTIJUGADOR**\n\n👥 Te uniste a la sesión (${casinoSessions.roulette.bets.length} jugadores)\n💰 Apuesta: ${betType.toUpperCase()} - ${bet} fichas\n⏰ Spin en **${timeLeft}s**\n\n¡Suerte! 🍀`);
+                } else {
+                    // Start new session
+                    const started = startRouletteSession(interaction);
+                    if (!started) return interaction.editReply('❌ Error iniciando sesión.');
+
+                    await supabase.from('casino_chips').update({ chips: userChips.chips - bet }).eq('user_id', userId);
+
+                    casinoSessions.roulette.bets.push({
+                        userId,
+                        interaction,
+                        betType,
+                        numero,
+                        amount: bet,
+                        currentChips: userChips.chips,
+                        totalWon: userChips.total_won || 0,
+                        totalLost: userChips.total_lost || 0,
+                        gamesPlayed: userChips.games_played || 0
+                    });
+
+                    return interaction.editReply(`🎡 **RULETA MULTIJUGADOR INICIADA**\n\n🎰 Sesión abierta\n👤 Tú: ${betType.toUpperCase()} - ${bet} fichas\n⏰ Otros jugadores tienen **30 segundos** para unirse\n\n¡Esperando más apuestas! 🎲`);
+                }
+            }
+
+            else if (game === 'crash') {
+                const bet = interaction.options.getInteger('apuesta');
+                if (userChips.chips < bet) return interaction.editReply(`❌ Fichas insuficientes`);
+
+                await supabase.from('casino_chips').update({ chips: userChips.chips - bet }).eq('user_id', userId);
+
+                const crashPoint = Math.random() < 0.03 ? 1.00 : (0.99 / (1 - Math.random()));
+                const capped = Math.min(crashPoint, 50);
+                const cashout = 1.5 + Math.random() * 2;
+
+                // ANIMATE!
+                await animateCrash(interaction, capped, cashout);
+
+                let payout = 0;
+                if (cashout < capped) {
+                    payout = Math.floor(bet * cashout);
+                    await supabase.from('casino_chips').update({ chips: userChips.chips - bet + payout, total_won: (userChips.total_won || 0) + (payout - bet), games_played: (userChips.games_played || 0) + 1 }).eq('user_id', userId);
+                } else {
+                    await supabase.from('casino_chips').update({ total_lost: (userChips.total_lost || 0) + bet, games_played: (userChips.games_played || 0) + 1 }).eq('user_id', userId);
+                }
+
+                const resultText = payout > 0 ? `✅ **¡GANAS!** +${payout} fichas` : `💥 **CRASH!** Perdiste -${bet}`;
+                return interaction.editReply(`🚀 **CRASH**\n\n💥 Crashed en: **${capped.toFixed(2)}x**\nTu cashout: **${cashout.toFixed(2)}x**\n\n${resultText}\n💼 ${(userChips.chips - bet + payout).toLocaleString()} fichas`);
+            }
+
+            else if (game === 'race') {
+                const bet = interaction.options.getInteger('apuesta');
+                const horse = interaction.options.getInteger('caballo');
+
+                if (userChips.chips < bet) return interaction.editReply(`❌ Insufficient chips`);
+
+                // Check if there's an active session
+                if (casinoSessions.race.active) {
+                    // Join existing session
+                    const timeLeft = Math.ceil((casinoSessions.race.closeTime - Date.now()) / 1000);
+                    if (timeLeft <= 0) return interaction.editReply('⏰ La carrera se cerró. Espera la próxima.');
+
+                    await supabase.from('casino_chips').update({ chips: userChips.chips - bet }).eq('user_id', userId);
+
+                    const selectedHorse = casinoSessions.race.horses.find(h => h.id === horse);
+
+                    casinoSessions.race.bets.push({
+                        userId,
+                        interaction,
+                        horseId: horse,
+                        amount: bet,
+                        currentChips: userChips.chips,
+                        totalWon: userChips.total_won || 0,
+                        totalLost: userChips.total_lost || 0,
+                        gamesPlayed: userChips.games_played || 0
+                    });
+
+                    return interaction.editReply(`🏇 **CARRERAS MULTIJUGADOR**\n\n👥 Te uniste a la carrera (${casinoSessions.race.bets.length} jugadores)\n${selectedHorse.emoji} **${selectedHorse.name}** - ${bet} fichas\n⏰ Carrera en **${timeLeft}s**\n\n¡Que corra tu caballo! 🐎`);
+                } else {
+                    // Start new session
+                    const started = startRaceSession(interaction);
+                    if (!started) return interaction.editReply('❌ Error iniciando sesión.');
+
+                    await supabase.from('casino_chips').update({ chips: userChips.chips - bet }).eq('user_id', userId);
+
+                    const selectedHorse = casinoSessions.race.horses.find(h => h.id === horse);
+
+                    casinoSessions.race.bets.push({
+                        userId,
+                        interaction,
+                        horseId: horse,
+                        amount: bet,
+                        currentChips: userChips.chips,
+                        totalWon: userChips.total_won || 0,
+                        totalLost: userChips.total_lost || 0,
+                        gamesPlayed: userChips.games_played || 0
+                    });
+
+                    return interaction.editReply(`🏇 **CARRERAS MULTIJUGADOR INICIADAS**\n\n🏁 Carrera abierta\n👤 Tú: ${selectedHorse.emoji} **${selectedHorse.name}** - ${bet} fichas\n⏰ Otros jugadores tienen **45 segundos** para unirse\n\n¡A las apuestas! 🎰`);
+                }
+            }
+
+            else if (game === 'rusa') {
+                const bet = interaction.options.getInteger('apuesta');
+                if (userChips.chips < bet) return interaction.editReply(`❌ Fichas insuficientes`);
+
+                await supabase.from('casino_chips').update({ chips: userChips.chips - bet }).eq('user_id', userId);
+
+                // MAXIMUM TENSION!
+                await interaction.editReply(`🔫 **RULETA RUSA**\n\nCargando revólver...\n⚫⚫⚫⚫⚫🔴`);
+                await sleep(1200);
+
+                await interaction.editReply(`🔫 **RULETA RUSA**\n\nGirando tambor...\n🔄🔄🔄`);
+                await sleep(1200);
+
+                await interaction.editReply(`🔫 **RULETA RUSA**\n\nApuntando...\n😰😰😰`);
+                await sleep(1500);
+
+                const chamber = Math.floor(Math.random() * 6) + 1;
+                const survived = chamber !== 1; // 1 bullet in chamber 1
+
+                if (survived) {
+                    await interaction.editReply(`🔫 **RULETA RUSA**\n\n***CLICK***\n💥 Cámara vacía!`);
+                    await sleep(800);
+                } else {
+                    await interaction.editReply(`🔫 **RULETA RUSA**\n\n***BANG!***\n💀💀💀`);
+                    await sleep(800);
+                }
+
+                const payout = survived ? bet * 5 : 0;
+
+                if (survived) {
+                    await supabase.from('casino_chips').update({ chips: userChips.chips - bet + payout, total_won: (userChips.total_won || 0) + payout, games_played: (userChips.games_played || 0) + 1 }).eq('user_id', userId);
+                } else {
+                    await supabase.from('casino_chips').update({ total_lost: (userChips.total_lost || 0) + bet, games_played: (userChips.games_played || 0) + 1 }).eq('user_id', userId);
+                }
+
+                const resultText = survived ? `✅ **¡SOBREVIVISTE!**\n💰 +${payout} fichas (5x)` : `☠️ **ELIMINADO**\n💸 Perdiste ${bet} fichas`;
+                return interaction.editReply(`🔫 **RULETA RUSA**\n\nCámara: **${chamber}/6**\n${survived ? '💥 *Click*' : '💀 **BANG!**'}\n\n${resultText}\n💼 ${(userChips.chips - bet + payout).toLocaleString()} fichas`);
+            }
+        }
+
+
+        else if (commandName === 'dar-robo') {
+            await interaction.deferReply();
+
+            // Role Check: Junta Directiva or Admin
+            const member = interaction.member;
+            const isJuntaDirectiva = member.roles.cache.some(role =>
+                role.name.toLowerCase().includes('junta') ||
+                role.name.toLowerCase().includes('directiva') ||
+                role.name.toLowerCase().includes('admin') ||
+                role.permissions.has('Administrator')
+            );
+
+            if (!isJuntaDirectiva) {
+                return interaction.editReply('⛔ Este comando es solo para Junta Directiva.');
+            }
+
+            const targetUser = interaction.options.getUser('usuario');
+            const montoTotal = interaction.options.getInteger('monto');
+            const montoCash = Math.floor(montoTotal * 0.25); // 25% of robbery amount
+
+            try {
+                // Add cash to target user
+                await billingService.ubService.addMoney(
+                    interaction.guildId,
+                    targetUser.id,
+                    montoCash,
+                    `💰 Robo distribuido por ${interaction.user.tag}`,
+                    'cash'
+                );
+
+                const embed = new EmbedBuilder()
+                    .setTitle('💰 Dinero de Robo Distribuido')
+                    .setColor(0x00FF00)
+                    .setDescription(`Se ha distribuido el 25% del robo en efectivo.`)
+                    .addFields(
+                        { name: '👤 Receptor', value: `<@${targetUser.id}>`, inline: true },
+                        { name: '💵 Monto Total del Robo', value: `$${montoTotal.toLocaleString()}`, inline: true },
+                        { name: '💰 Efectivo Entregado (25%)', value: `$${montoCash.toLocaleString()}`, inline: true },
+                        { name: '👮 Autorizado por', value: interaction.user.tag, inline: false }
+                    )
+                    .setTimestamp();
+
+                await interaction.editReply({ embeds: [embed] });
+
+                // Notify the recipient
+                try {
+                    await targetUser.send({
+                        content: `💰 **Has recibido dinero de un robo**`,
+                        embeds: [embed]
+                    });
+                } catch (dmError) {
+                    console.log('Could not DM user:', dmError.message);
+                }
+
+            } catch (error) {
+                console.error('Error distribuyendo robo:', error);
+                await interaction.editReply('❌ Error al distribuir el dinero. Verifica que el usuario exista.');
+            }
+        }
+
+
+        else if (commandName === 'business') {
+            await interaction.deferReply({ flags: 64 });
+            const subcommand = interaction.options.getSubcommand();
+
+            // Staff-only check
+            const STAFF_ROLE_ID = '1450688555503587459'; // Same as empresa crear
+            if (!interaction.member.roles.cache.has(STAFF_ROLE_ID) && !interaction.member.permissions.has('Administrator')) {
+                return interaction.reply({ content: '⛔ Solo el staff puede gestionar tarjetas business.', flags: 64 });
+            }
+
+            if (subcommand === 'vincular') {
+
+                const ownerUser = interaction.options.getUser('dueño');
+                const cardType = interaction.options.getString('tipo');
+
+                try {
+                    // 1. Check if owner has companies
+                    const { data: companies } = await supabase
+                        .from('companies')
+                        .select('*')
+                        .contains('owner_ids', [ownerUser.id])
+                        .eq('status', 'active');
+
+                    if (!companies || companies.length === 0) {
+                        return interaction.editReply(`❌ <@${ownerUser.id}> no tiene empresas registradas.`);
+                    }
+
+                    // 2. If has multiple companies, ask which one
+                    if (companies.length > 1) {
+                        const selectMenu = new StringSelectMenuBuilder()
+                            .setCustomId(`business_select_${ownerUser.id}_${cardType}`)
+                            .setPlaceholder('Selecciona la empresa')
+                            .addOptions(
+                                companies.map(c => ({
+                                    label: c.name,
+                                    description: `${c.industry_type} • ${c.is_private ? 'Privada' : 'Pública'}`,
+                                    value: c.id
+                                }))
+                            );
+
+                        const row = new ActionRowBuilder().addComponents(selectMenu);
+
+                        return interaction.editReply({
+                            content: `📋 <@${ownerUser.id}> tiene **${companies.length} empresas**. Selecciona a cuál vincular la tarjeta:`,
+                            components: [row]
+                        });
+                    }
+
+                    // 3. Only one company, proceed directly
+                    const company = companies[0];
+
+                    // Card data map
+                    const cardData = {
+                        'business_start': { name: 'Business Start', limit: 50000, interest: 0.02, cost: 8000 },
+                        'business_gold': { name: 'Business Gold', limit: 100000, interest: 0.015, cost: 15000 },
+                        'business_platinum': { name: 'Business Platinum', limit: 200000, interest: 0.012, cost: 20000 },
+                        'business_elite': { name: 'Business Elite', limit: 500000, interest: 0.01, cost: 35000 },
+                        'nmx_corporate': { name: 'NMX Corporate', limit: 1000000, interest: 0.007, cost: 50000 }
+                    };
+
+                    const card = cardData[cardType];
+
+                    // 4. Create business credit card
+                    const { error } = await supabase
+                        .from('credit_cards')
+                        .insert({
+                            discord_id: ownerUser.id,
+                            card_type: cardType,
+                            card_name: card.name,
+                            card_limit: card.limit,
+                            current_balance: 0,
+                            interest_rate: card.interest,
+                            card_cost: card.cost,
+                            status: 'active',
+                            company_id: company.id,
+                            approved_by: interaction.user.id
+                        });
+
+                    if (error) throw error;
+
+                    const embed = new EmbedBuilder()
+                        .setTitle('✅ Tarjeta Business Vinculada')
+                        .setColor(0x00FF00)
+                        .setDescription(`Tarjeta **${card.name}** vinculada exitosamente.`)
+                        .addFields(
+                            { name: '🏢 Empresa', value: company.name, inline: true },
+                            { name: '👤 Dueño', value: `<@${ownerUser.id}>`, inline: true },
+                            { name: '💳 Tarjeta', value: card.name, inline: true },
+                            { name: '💰 Límite', value: `$${card.limit.toLocaleString()}`, inline: true },
+                            { name: '📊 Interés', value: `${(card.interest * 100).toFixed(2)}%`, inline: true },
+                            { name: '💵 Costo', value: `$${card.cost.toLocaleString()}`, inline: true }
+                        )
+                        .setFooter({ text: `Aprobado por ${interaction.user.tag}` })
+                        .setTimestamp();
+
+                    await interaction.editReply({ embeds: [embed] });
+
+                    // Send DM to owner
+                    try {
+                        await ownerUser.send({
+                            embeds: [new EmbedBuilder()
+                                .setTitle('🎉 Tarjeta Business Aprobada')
+                                .setColor(0x5865F2)
+                                .setDescription(`Tu solicitud de **${card.name}** ha sido aprobada y vinculada a **${company.name}**.`)
+                                .addFields(
+                                    { name: '💰 Límite de Crédito', value: `$${card.limit.toLocaleString()}`, inline: true },
+                                    { name: '📊 Tasa de Interés', value: `${(card.interest * 100).toFixed(2)}%`, inline: true },
+                                    { name: '💼 Uso', value: 'Usa \`/empresa credito\` para solicitar fondos.', inline: false }
+                                )
+                                .setFooter({ text: 'Sistema Financiero Nación MX' })
+                            ]
+                        });
+                    } catch (dmError) {
+                        console.log('Could not DM owner:', dmError.message);
+                    }
+
+                } catch (error) {
+                    console.error(error);
+                    await interaction.editReply('❌ Error vinculando tarjeta business.');
+                }
+            }
+
+            else if (subcommand === 'listar') {
+                await interaction.deferReply({ flags: 64 });
+
+                const targetUser = interaction.options.getUser('usuario');
+
+                try {
+                    const { data: cards } = await supabase
+                        .from('credit_cards')
+                        .select('*, companies(name)')
+                        .eq('discord_id', targetUser.id)
+                        .in('card_type', ['business_start', 'business_gold', 'business_platinum', 'business_elite', 'nmx_corporate'])
+                        .eq('status', 'active');
+
+                    if (!cards || cards.length === 0) {
+                        return interaction.editReply(`📋 <@${targetUser.id}> no tiene tarjetas business activas.`);
+                    }
+
+                    const embed = new EmbedBuilder()
+                        .setTitle(`💼 Tarjetas Business de ${targetUser.tag}`)
+                        .setColor(0x5865F2)
+                        .setDescription(`Total: **${cards.length}** tarjeta(s) activa(s)`)
+                        .setThumbnail(targetUser.displayAvatarURL());
+
+                    cards.forEach(card => {
+                        const companyName = card.companies ? card.companies.name : 'Sin empresa';
+                        embed.addFields({
+                            name: `💳 ${card.card_name}`,
+                            value: `🏢 Empresa: ${companyName}\n💰 Límite: $${card.card_limit.toLocaleString()}\n📊 Deuda: $${(card.current_balance || 0).toLocaleString()}\n📈 Disponible: $${(card.card_limit - (card.current_balance || 0)).toLocaleString()}`,
+                            inline: false
+                        });
+                    });
+
+                    await interaction.editReply({ embeds: [embed] });
+
+                } catch (error) {
+                    console.error(error);
+                    await interaction.editReply('❌ Error consultando tarjetas.');
+                }
+            }
+
+            else if (subcommand === 'cancelar') {
+                await interaction.deferReply({ flags: 64 });
+
+                const targetUser = interaction.options.getUser('usuario');
+                const razon = interaction.options.getString('razon');
+
+                try {
+                    // Get all active business cards
+                    const { data: cards } = await supabase
+                        .from('credit_cards')
+                        .select('*')
+                        .eq('discord_id', targetUser.id)
+                        .in('card_type', ['business_start', 'business_gold', 'business_platinum', 'business_elite', 'nmx_corporate'])
+                        .eq('status', 'active');
+
+                    if (!cards || cards.length === 0) {
+                        return interaction.editReply(`❌ <@${targetUser.id}> no tiene tarjetas business activas.`);
+                    }
+
+                    // Cancel all
+                    await supabase
+                        .from('credit_cards')
+                        .update({ status: 'cancelled', cancelled_at: new Date().toISOString(), cancelled_by: interaction.user.id, cancel_reason: razon })
+                        .eq('discord_id', targetUser.id)
+                        .in('card_type', ['business_start', 'business_gold', 'business_platinum', 'business_elite', 'nmx_corporate'])
+                        .eq('status', 'active');
+
+                    await interaction.editReply(`✅ Se cancelaron **${cards.length}** tarjeta(s) business de <@${targetUser.id}>.\n**Razón:** ${razon}`);
+
+                } catch (error) {
+                    console.error(error);
+                    await interaction.editReply('❌ Error cancelando tarjetas.');
+                }
+            }
+        }
+
+        else if (commandName === 'bolsa') {
+            await interaction.deferReply(); // Global defer to prevent timeouts
+
+            const subcommand = interaction.options.getSubcommand();
+            const hour = new Date().getHours();
+
+            if (subcommand === 'precios') {
+                const embed = new EmbedBuilder()
+                    .setTitle('📈 Bolsa de Valores & Cripto')
+                    .setColor(0x0000FF)
+                    .setDescription(`Precios en tiempo real (MXN). Actualizados a las ${hour}:00 hrs.`)
+                    .setTimestamp();
+
+                globalStocks.forEach(s => {
+                    const trend = s.current > s.base ? '📈' : '📉'; // Simple trend logic vs base
+                    // For better trend, we'd compare vs prev, but base is fine for now
+                    embed.addFields({ name: `${trend} ${s.symbol} - ${s.name}`, value: `$${s.current.toLocaleString()} MXN`, inline: true });
+                });
+
+                await interaction.editReply({ embeds: [embed] });
+            }
+
+            else if (subcommand === 'comprar') {
+                const symbol = interaction.options.getString('symbol').toUpperCase();
+                const cantidad = interaction.options.getNumber('cantidad');
+
+                // Validate stock exists in Global
+                const stock = globalStocks.find(s => s.symbol === symbol);
+                if (!stock) {
+                    return await interaction.editReply({ content: `❌ Símbolo inválido. Usa: ${globalStocks.map(s => s.symbol).join(', ')}`, ephemeral: false });
+                }
+
+                if (cantidad <= 0) {
+                    return await interaction.editReply({ content: '❌ La cantidad debe ser mayor a 0.', ephemeral: false });
+                }
+
+                try {
+                    const currentPrice = stock.current;
+                    const totalCost = currentPrice * cantidad;
+
+                    // Show payment selector
+                    const pmBolsa = await getAvailablePaymentMethods(interaction.user.id, interaction.guildId);
+                    const pbBolsa = createPaymentButtons(pmBolsa, 'bolsa_pay');
+                    const paymentEmbed = createPaymentEmbed(`📈 Compra de ${symbol} (${cantidad} acciones)`, totalCost, pmBolsa);
+                    await interaction.editReply({ embeds: [paymentEmbed], components: [pbBolsa] });
+                    const fBolsa = i => i.user.id === interaction.user.id && i.customId.startsWith('bolsa_pay_');
+                    const cBolsa = interaction.channel.createMessageComponentCollector({ filter: fBolsa, time: 60000, max: 1 });
+                    cBolsa.on('collect', async (i) => {
+                        try { await i.deferUpdate(); } catch (err) { console.error('[bolsa] defer failed:', err.message); return; }
+                        const prBolsa = await processPayment(i.customId.replace('bolsa_pay_', ''), interaction.user.id, interaction.guildId, totalCost, `Compra ${cantidad} ${symbol}`, pmBolsa);
+                        if (!prBolsa.success) return i.editReply({ content: prBolsa.error, components: [] });
+
+                        // Update portfolio
+                        const { data: existing } = await supabase.from('stock_portfolios').select('*').eq('discord_user_id', interaction.user.id).eq('stock_symbol', symbol).single();
+                        if (existing) {
+                            const totalShares = existing.shares + cantidad;
+                            const newAvgPrice = ((existing.avg_buy_price * existing.shares) + (currentPrice * cantidad)) / totalShares;
+                            await supabase.from('stock_portfolios').update({ shares: totalShares, avg_buy_price: newAvgPrice }).eq('discord_user_id', interaction.user.id).eq('stock_symbol', symbol);
+                        } else {
+                            await supabase.from('stock_portfolios').insert({ discord_user_id: interaction.user.id, stock_symbol: symbol, shares: cantidad, avg_buy_price: currentPrice });
+                        }
+
+                        // Log transaction
+                        await supabase.from('stock_transactions').insert({ discord_user_id: interaction.user.id, stock_symbol: symbol, transaction_type: 'BUY', shares: cantidad, price_per_share: currentPrice, total_amount: totalCost });
+
+                        const embed = new EmbedBuilder().setTitle('✅ Compra Exitosa').setColor(0x00FF00).setDescription(`Has comprado **${cantidad} acciones de ${symbol}**`).addFields({ name: 'Precio', value: `$${currentPrice.toLocaleString()}`, inline: true }, { name: 'Total', value: `$${totalCost.toLocaleString()}`, inline: true }, { name: 'Método', value: prBolsa.method, inline: true }).setTimestamp();
+                        await i.editReply({ embeds: [embed], components: [] });
+                    });
+                    cBolsa.on('end', collected => { if (collected.size === 0) interaction.editReply({ content: '⏱️ Tiempo agotado.', components: [] }); });
+                } catch (error) {
+                    console.error('Error comprando acciones:', error);
+                    await interaction.editReply({ content: '❌ Error procesando la compra. Intenta de nuevo.', ephemeral: false });
+                }
+            }
+
+            else if (subcommand === 'vender') {
+                const symbol = interaction.options.getString('symbol').toUpperCase();
+                const cantidad = interaction.options.getNumber('cantidad');
+
+                // Validate stock exists in Global
+                const stock = globalStocks.find(s => s.symbol === symbol);
+                if (!stock) {
+                    return await interaction.editReply({ content: `❌ Símbolo inválido. Usa: ${globalStocks.map(s => s.symbol).join(', ')}`, ephemeral: false });
+                }
+
+                if (cantidad <= 0) {
+                    return await interaction.editReply({ content: '❌ La cantidad debe ser mayor a 0.', ephemeral: false });
+                }
+
+                try {
+                    // Check portfolio
+                    const { data: portfolio } = await supabase
+                        .from('stock_portfolios')
+                        .select('*')
+                        .eq('discord_user_id', interaction.user.id)
+                        .eq('stock_symbol', symbol)
+                        .single();
+
+                    if (!portfolio || portfolio.shares < cantidad) {
+                        return await interaction.editReply({
+                            content: `❌ No tienes suficientes acciones. Tienes ${portfolio?.shares || 0} de ${symbol}.`,
+                            ephemeral: false
+                        });
+                    }
+
+                    const currentPrice = stock.current;
+                    const totalRevenue = currentPrice * cantidad;
+                    const profit = (currentPrice - portfolio.avg_buy_price) * cantidad;
+                    const profitEmoji = profit >= 0 ? '📈' : '📉';
+
+                    // Add money (Use BillingService wrapper if possible, or direct UB service)
+                    await billingService.ubService.addMoney(interaction.guildId, interaction.user.id, totalRevenue, `Venta ${cantidad} ${symbol}`);
+
+                    // Update portfolio
+                    const newShares = portfolio.shares - cantidad;
+                    if (newShares <= 0) {
+                        await supabase
+                            .from('stock_portfolios')
+                            .delete()
+                            .eq('discord_user_id', interaction.user.id)
+                            .eq('stock_symbol', symbol);
+                    } else {
+                        await supabase
+                            .from('stock_portfolios')
+                            .update({ shares: newShares })
+                            .eq('discord_user_id', interaction.user.id)
+                            .eq('stock_symbol', symbol);
+                    }
+
+                    // Log transaction
+                    await supabase
+                        .from('stock_transactions')
+                        .insert({
+                            discord_user_id: interaction.user.id,
+                            stock_symbol: symbol,
+                            transaction_type: 'SELL',
+                            shares: cantidad,
+                            price_per_share: currentPrice,
+                            total_amount: totalRevenue
+                        });
+
+                    const embed = new EmbedBuilder()
+                        .setTitle('✅ Venta Exitosa')
+                        .setColor(profit >= 0 ? 0x00FF00 : 0xFF0000)
+                        .setDescription(`Has vendido **${cantidad} acciones de ${symbol}**`)
+                        .addFields(
+                            { name: 'Precio por Acción', value: `$${currentPrice.toLocaleString()} MXN`, inline: true },
+                            { name: 'Total Recibido', value: `$${totalRevenue.toLocaleString()} MXN`, inline: true },
+                            { name: profit >= 0 ? '📈 Ganancia' : '📉 Pérdida', value: `$${Math.abs(Math.floor(profit)).toLocaleString()} MXN`, inline: true }
+                        )
+                        .setTimestamp();
+
+                    await interaction.editReply({ embeds: [embed] });
+                } catch (error) {
+                    console.error('Error vendiendo acciones:', error);
+                    await interaction.editReply({ content: '❌ Error procesando la venta. Intenta de nuevo.', ephemeral: false });
+                }
+            }
+
+            else if (subcommand === 'portafolio') {
+                try {
+                    const { data: portfolio } = await supabase
+                        .from('stock_portfolios')
+                        .select('*')
+                        .eq('discord_user_id', interaction.user.id);
+
+                    if (!portfolio || portfolio.length === 0) {
+                        return await interaction.editReply({ content: '📊 Tu portafolio está vacío. Usa `/bolsa comprar` para invertir.', ephemeral: false });
+                    }
+
+                    const embed = new EmbedBuilder()
+                        .setTitle(`📊 Portafolio de ${interaction.user.username}`)
+                        .setColor(0xFFD700)
+                        .setTimestamp();
+
+                    let totalInvested = 0;
+                    let totalCurrent = 0;
+
+                    portfolio.forEach(p => {
+                        const stock = globalStocks.find(s => s.symbol === p.stock_symbol);
+                        if (!stock) return;
+
+                        const currentPrice = stock.current;
+                        const invested = p.avg_buy_price * p.shares;
+                        const currentValue = currentPrice * p.shares;
+                        const profitLoss = currentValue - invested;
+                        const profitEmoji = profitLoss >= 0 ? '📈' : '📉';
+
+                        totalInvested += invested;
+                        totalCurrent += currentValue;
+
+                        embed.addFields({
+                            name: `${profitEmoji} ${p.stock_symbol} (${p.shares} acciones)`,
+                            value: `Compra: $${p.avg_buy_price.toLocaleString()} | Actual: $${currentPrice.toLocaleString()}\nValor: $${currentValue.toLocaleString()} | ${profitLoss >= 0 ? '📈 Ganancia' : '📉 Pérdida'}: $${Math.abs(profitLoss).toLocaleString()}`,
+                            inline: false
+                        });
+                    });
+
+                    const totalProfit = totalCurrent - totalInvested;
+                    const profitEmoji = totalProfit >= 0 ? '📈' : '📉';
+
+                    const profitLabel = totalProfit >= 0 ? '📈 Ganancia Total' : '📉 Pérdida Total';
+                    embed.setDescription(`**Total Invertido:** $${totalInvested.toLocaleString()}\n**Valor Actual:** $${totalCurrent.toLocaleString()}\n**${profitLabel}:** $${Math.abs(totalProfit).toLocaleString()}`);
+
+                    await interaction.editReply({ embeds: [embed] });
+                } catch (error) {
+                    console.error('Error mostrando portafolio:', error);
+                    await interaction.editReply({ content: '❌ Error obteniendo tu portafolio.', ephemeral: false });
+                }
+            }
+
+            else if (subcommand === 'historial') {
+                try {
+                    const { data: transactions } = await supabase
+                        .from('stock_transactions')
+                        .select('*')
+                        .eq('discord_user_id', interaction.user.id)
+                        .order('created_at', { ascending: false })
+                        .limit(10);
+
+                    if (!transactions || transactions.length === 0) {
+                        return await interaction.editReply({ content: '📜 No tienes transacciones registradas.', ephemeral: false });
+                    }
+
+                    const embed = new EmbedBuilder()
+                        .setTitle(`📜 Historial de Transacciones`)
+                        .setColor(0x3498DB)
+                        .setDescription(`Últimas ${transactions.length} transacciones`)
+                        .setTimestamp();
+
+                    transactions.forEach(t => {
+                        const typeEmoji = t.transaction_type === 'BUY' ? '🛒' : '💰';
+                        const date = new Date(t.created_at).toLocaleDateString();
+
+                        embed.addFields({
+                            name: `${typeEmoji} ${t.transaction_type} - ${t.stock_symbol}`,
+                            value: `${t.shares} acciones @ $${t.price_per_share.toLocaleString()} = $${t.total_amount.toLocaleString()}\n${date}`,
+                            inline: true
+                        });
+                    });
+
+                    await interaction.editReply({ embeds: [embed] });
+                } catch (error) {
+                    console.error('Error mostrando historial:', error);
+                    await interaction.editReply({ content: '❌ Error obteniendo tu historial.', ephemeral: false });
+                }
+            }
+        }
+
+        if (commandName === 'balanza') {
+            await interaction.deferReply();
+            // Defer with error handling to prevent "Unknown interaction"
+            try {
+            } catch (err) {
+                console.error('[ERROR] Failed to defer balanza:', err);
+                return; // Exit early if defer fails
+            }
+
+            try {
+                const cashBalance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
+                console.log(`[DEBUG] /balanza User: ${interaction.user.id} Balance Raw:`, cashBalance); // DEBUG LOG
+
+                // Resolve Citizen ID for robust lookup
+                const { data: citizen } = await supabase.from('citizens').select('id').eq('discord_id', interaction.user.id).maybeSingle();
+
+                const { data: debitCard } = await supabase.from('debit_cards').select('balance').eq('discord_user_id', interaction.user.id).eq('status', 'active').maybeSingle();
+
+                // Fetch Credit Cards via Citizen ID if available, else Discord ID
+                let creditQuery = supabase.from('credit_cards').select('*').eq('status', 'active');
+                if (citizen) {
+                    creditQuery = creditQuery.eq('citizen_id', citizen.id);
+                } else {
+                    creditQuery = creditQuery.eq('discord_user_id', interaction.user.id);
+                }
+                const { data: creditCards } = await creditQuery;
+
+                const cash = cashBalance.cash || 0;
+                const bank = cashBalance.bank || 0;
+                // Debit Card just checks if exists, balance comes from Bank
+                const hasDebit = debitCard ? true : false;
+
+                let creditAvailable = 0;
+                let creditDebt = 0;
+                if (creditCards) {
+                    creditCards.forEach(c => {
+                        let limit = c.card_limit || c.credit_limit || 0;
+                        if (limit === 0 && c.card_type && CARD_TIERS && CARD_TIERS[c.card_type]) {
+                            limit = CARD_TIERS[c.card_type].limit || 0;
+                        }
+                        const debt = c.current_balance || 0;
+                        creditAvailable += (limit - debt);
+                        creditDebt += debt;
+                    });
+                }
+
+                // Total Liquid is Cash + Bank (Debit is same as Bank) + Avail Credit
+                const totalLiquid = cash + bank + creditAvailable;
+
+                const embed = new EmbedBuilder()
+                    .setTitle('💰 TU BALANZA FINANCIERA')
+                    .setColor(0x00D26A)
+                    .addFields(
+                        { name: '💵 EFECTIVO', value: `\`\`\`$${cash.toLocaleString()}\`\`\``, inline: true },
+                        { name: '🏦 BANCO / DÉBITO', value: `\`\`\`$${bank.toLocaleString()}\`\`\`\n${hasDebit ? '✅ Tarjeta Débito' : '📋 Cuenta Bancaria'}`, inline: true },
+                        { name: '💳 CRÉDITO', value: `\`\`\`Disponible: $${creditAvailable.toLocaleString()}\nDeuda: $${creditDebt.toLocaleString()}\`\`\``, inline: false },
+                        { name: '📊 PATRIMONIO TOTAL', value: `\`\`\`diff\n+ $${totalLiquid.toLocaleString()}\n\`\`\``, inline: false }
+                    )
+                    .setFooter({ text: 'Banco Nacional' })
+                    .setTimestamp();
+
+                await interaction.editReply({ embeds: [embed] });
+            } catch (error) {
+                console.error(error);
+                await interaction.editReply('❌ Error obteniendo tu balanza.');
+            }
+        }
+
+        else if (commandName === 'debito') {
+            await interaction.deferReply();
+            const subcommand = interaction.options.getSubcommand();
+
+            if (subcommand === 'estado') {
+                try {
+                    const card = await getDebitCard(interaction.user.id);
+                    if (!card) return interaction.editReply('❌ No tienes una tarjeta de débito activa. Visita el Banco Nacional para abrir tu cuenta con `/registrar-tarjeta`.');
+
+                    const balance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
+                    const bankBalance = balance.bank || 0;
+
+                    const embed = new EmbedBuilder()
+                        .setTitle('💳 Estado Tarjeta Débito')
+                        .setColor(0x00CED1)
+                        .addFields(
+                            { name: 'Número', value: `\`${card.card_number}\``, inline: false },
+                            { name: 'Saldo en Banco', value: `$${bankBalance.toLocaleString()}`, inline: true },
+                            { name: 'Estado', value: '✅ Activa', inline: true }
+                        )
+                        .setTimestamp();
+                    await interaction.editReply({ embeds: [embed] });
+                } catch (error) {
+                    console.error(error);
+                    await interaction.editReply('❌ Error consultando débito.');
+                }
+            }
+            // Add this code between line 3561 (after estado closing }) and line 3563 (before depositar comment)
+
+            // === MEJORAR (Upgrade Debit Card) ===
+            // === MEJORAR (Upgrade Debit Card - STAFF ONLY) ===
+            else if (subcommand === 'mejorar') {
+                const BANK_EXEC_ROLE_ID = '1450688555503587459';
+                if (!interaction.member.roles.cache.has(BANK_EXEC_ROLE_ID) && !interaction.member.permissions.has('Administrator')) {
+                    return interaction.editReply('⛔ Solo ejecutivos bancarios pueden ofrecer mejoras.');
+                }
+
+                const targetUser = interaction.options.getUser('usuario');
+
+                try {
+                    // Get TARGET USER's active debit card (the one with MOST balance)
+                    const { data: card, error: cardError } = await supabase
+                        .from('debit_cards')
+                        .select('*')
+                        .eq('discord_user_id', targetUser.id)
+                        .eq('status', 'active')
+                        .order('balance', { ascending: false })  // Highest balance first
+                        .limit(1)
+                        .maybeSingle();
+
+                    if (cardError || !card) {
+                        console.error('[mejorar] Card lookup error:', cardError);
+                        return interaction.editReply(`❌ ${targetUser.username} no tiene una tarjeta de débito activa.`);
+                    }
+
+                    // Get REAL balance from UnbelievaBoat API (not Supabase cache)
+                    const realBalance = await billingService.ubService.getUserBalance(interaction.guildId, targetUser.id, 'bank');
+
+                    console.log('[DEBUG] /debito mejorar - Found card:', {
+                        id: card.id,
+                        tier: card.card_tier,
+                        supabaseBalance: card.balance,
+                        realBalance: realBalance,
+                        userId: targetUser.id
+                    });
+
+                    const currentTier = card.card_tier || 'NMX Débito';
+                    let nextTier = null;
+
+                    if (currentTier === 'NMX Débito') nextTier = 'NMX Débito Plus';
+                    else if (currentTier === 'NMX Débito Plus') nextTier = 'NMX Débito Gold';
+
+                    if (!nextTier) {
+                        return interaction.editReply(`✨ La tarjeta de ${targetUser.username} (**${currentTier}**) ya es el nivel máximo.`);
+                    }
+
+                    const nextStats = CARD_TIERS[nextTier];
+                    const upgradeCost = nextStats.cost;
+
+                    const embed = new EmbedBuilder()
+                        .setTitle('🚀 Oferta de Mejora de Débito')
+                        .setColor(0x00CED1)
+                        .setDescription(`Hola <@${targetUser.id}>, el banco te invita a mejorar tu tarjeta **${currentTier}** a **${nextTier}**.`)
+                        .addFields(
+                            { name: '🌟 Nuevo Nivel', value: nextTier, inline: true },
+                            { name: '💎 Beneficios', value: `Límite Máximo: $${nextStats.max_balance === Infinity ? 'Ilimitado' : nextStats.max_balance.toLocaleString()}`, inline: true },
+                            { name: '💰 Costo de Mejora', value: `$${upgradeCost.toLocaleString()}`, inline: false }
+                        )
+                        .setFooter({ text: 'Acepta la oferta para procesar el cobro inmediatamente.' });
+
+                    const row = new ActionRowBuilder()
+                        .addComponents(
+                            new ButtonBuilder()
+                                .setCustomId(`btn_udp_upgrade_${card.id}_${nextTier.replace(/ /g, '_')}`)
+                                .setLabel(`Aceptar Mejora ($${upgradeCost})`)
+                                .setStyle(ButtonStyle.Success)
+                                .setEmoji('💳'),
+                            new ButtonBuilder()
+                                .setCustomId(`btn_cancel_upgrade_${targetUser.id}`)
+                                .setLabel('Rechazar')
+                                .setStyle(ButtonStyle.Danger)
+                        );
+
+
+                    // Send to the channel, pinging the user
+                    await interaction.editReply({ content: `<@${targetUser.id}>`, embeds: [embed], components: [row] });
+
+                } catch (error) {
+                    console.error(error);
+                    await interaction.editReply('❌ Error procesando la oferta de mejora.');
+                }
+            }
+
+            // === TRANSFERIR (Debit to Debit - 5 min delay) ===
+            else if (subcommand === 'transferir') {
+                try {
+                    const destUser = interaction.options.getUser('destinatario');
+                    const inputMonto = interaction.options.getString('monto');
+
+                    if (destUser.id === interaction.user.id) {
+                        return interaction.editReply('❌ No puedes transferir a ti mismo.');
+                    }
+
+                    // Check sender has debit card
+                    const senderCard = await getDebitCard(interaction.user.id);
+                    if (!senderCard) {
+                        return interaction.editReply('❌ No tienes una tarjeta de débito activa para transferir.');
+                    }
+
+                    // Check receiver has debit card
+                    const receiverCard = await getDebitCard(destUser.id);
+                    if (!receiverCard) {
+                        return interaction.editReply(`❌ **${destUser.username}** no tiene una tarjeta de débito activa para recibir transferencias.`);
+                    }
+
+                    // Get sender balance
+                    const balance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
+                    const bankBalance = balance.bank || 0;
+
+                    let monto = 0;
+                    if (inputMonto.toLowerCase() === 'todo' || inputMonto.toLowerCase() === 'all') {
+                        monto = bankBalance;
+                    } else {
+                        monto = parseFloat(inputMonto);
+                    }
+
+                    if (isNaN(monto) || monto <= 0) {
+                        return interaction.editReply('❌ El monto debe ser mayor a 0.');
+                    }
+
+                    if (bankBalance < monto) {
+                        return interaction.editReply(`❌ Fondos insuficientes.\\n\\nSaldo en Banco: $${bankBalance.toLocaleString()}\\nIntentas transferir: $${monto.toLocaleString()}`);
+                    }
+
+                    // Check receiver card limit
+                    console.log('[DEBUG-TRANSFER] Receiver card object:', JSON.stringify(receiverCard, null, 2));
+                    console.log('[DEBUG-TRANSFER] Receiver card_tier:', receiverCard.card_tier);
+                    console.log('[DEBUG-TRANSFER] Available tiers:', Object.keys(CARD_TIERS));
+
+                    const receiverTier = CARD_TIERS[receiverCard.card_tier || 'NMX Débito'];
+                    console.log('[DEBUG-TRANSFER] Found tier:', receiverTier);
+
+                    const receiverMax = receiverTier ? (receiverTier.max_balance || Infinity) : Infinity;
+                    console.log('[DEBUG-TRANSFER] Max balance:', receiverMax);
+
+                    if (receiverMax !== Infinity) {
+                        const receiverBal = await billingService.ubService.getUserBalance(interaction.guildId, destUser.id);
+                        const receiverBank = receiverBal.bank || 0;
+                        console.log('[DEBUG-TRANSFER] Receiver current bank:', receiverBank);
+                        console.log('[DEBUG-TRANSFER] Would be after transfer:', receiverBank + monto);
+
+                        if ((receiverBank + monto) > receiverMax) {
+                            const errorEmbed = new EmbedBuilder()
+                                .setTitle('⛔ Transferencia Rechazada')
+                                .setColor(0xFF0000)
+                                .setDescription(`El destinatario no puede recibir esta cantidad porque excedería el límite de su tarjeta.`)
+                                .addFields(
+                                    { name: '💳 Tipo de Tarjeta', value: receiverCard.card_tier || 'NMX Débito', inline: true },
+                                    { name: '📊 Límite Máximo', value: `$${receiverMax.toLocaleString()}`, inline: true },
+                                    { name: '💰 Saldo Actual', value: `$${receiverBank.toLocaleString()}`, inline: true },
+                                    { name: '🚫 Intentas Transferir', value: `$${monto.toLocaleString()}`, inline: true },
+                                    { name: '📈 Saldo Final Sería', value: `$${(receiverBank + monto).toLocaleString()}`, inline: true }
+                                )
+                                .setFooter({ text: 'El destinatario debe actualizar su tarjeta para recibir más dinero' });
+                            return interaction.editReply({ embeds: [errorEmbed] });
+                        }
+                    }
+
+                    // Deduct from sender immediately
+                    await billingService.ubService.removeMoney(
+                        interaction.guildId,
+                        interaction.user.id,
+                        monto,
+                        `Transferencia débito a ${destUser.tag}`,
+                        'bank'
+                    );
+
+                    // Schedule transfer for 5 minutes
+                    const releaseDate = new Date();
+                    releaseDate.setMinutes(releaseDate.getMinutes() + 5);
+
+                    await supabase.from('pending_transfers').insert({
+                        sender_id: interaction.user.id,
+                        receiver_id: destUser.id,
+                        amount: monto,
+                        reason: 'Transferencia Interbancaria',
+                        release_date: releaseDate.toISOString(),
+                        status: 'PENDING'
+                    });
+
+                    // Log transaction
+                    await supabase.from('debit_transactions').insert([{
+                        debit_card_id: senderCard.id,
+                        discord_user_id: interaction.user.id,
+                        transaction_type: 'transfer_out',
+                        amount: -monto,
+                        description: `Transferencia a ${destUser.tag}`
+                    }]);
+
+                    const embed = new EmbedBuilder()
+                        .setTitle('⏳ Transferencia Programada')
+                        .setColor(0xFFA500)
+                        .setDescription('Tu transferencia se procesará en 5 minutos.')
+                        .addFields(
+                            { name: 'De', value: interaction.user.tag, inline: true },
+                            { name: 'Para', value: destUser.tag, inline: true },
+                            { name: 'Monto', value: `$${monto.toLocaleString()}`, inline: true },
+                            { name: 'Llegada Estimada', value: releaseDate.toLocaleTimeString('es-MX', { timeZone: 'America/Mexico_City' }), inline: false }
+                        )
+                        .setFooter({ text: 'Sistema Interbancario NMX' })
+                        .setTimestamp();
+
+                    await interaction.editReply({ embeds: [embed] });
+
+                    // EXECUTE TRANSFER AFTER 5 MINUTES
+                    setTimeout(async () => {
+                        try {
+                            // Credit receiver
+                            await supabase
+                                .from('debit_cards')
+                                .update({ balance: receiverCard.balance + monto })
+                                .eq('id', receiverCard.id);
+
+                            // Log transaction for receiver
+                            await supabase.from('debit_transactions').insert([{
+                                debit_card_id: receiverCard.id,
+                                discord_user_id: destUser.id,
+                                transaction_type: 'transfer_in',
+                                amount: monto,
+                                description: `Giro de ${interaction.user.tag}`
+                            }]);
+
+                            // Notify receiver
+                            try {
+                                await destUser.send(`💰 **Transferencia Recibida**\n\nRecibiste **$${monto.toLocaleString()}** de ${interaction.user.username}\n🏦 Sistema Interbancario NMX`);
+                            } catch (err) {
+                                console.log('[TRANSFER] Could not DM recipient', err.message);
+                            }
+
+                            console.log(`[TRANSFER SUCCESS] $${monto} from ${interaction.user.id} to ${destUser.id}`);
+
+                        } catch (error) {
+                            console.error('[TRANSFER FAILED]', error);
+                            // ROLLBACK: Return money to sender
+                            try {
+                                await billingService.ubService.addMoney(
+                                    interaction.guildId,
+                                    interaction.user.id,
+                                    monto,
+                                    'Devolución por fallo en transferencia',
+                                    'bank'
+                                );
+                                await interaction.user.send(`⚠️ **Error en Transferencia**\n\nTu transferencia de $${monto.toLocaleString()} a ${destUser.username} falló. El dinero ha sido devuelto.`);
+                            } catch (rollbackErr) {
+                                console.error('[ROLLBACK FAILED]', rollbackErr);
+                            }
+                        }
+                    }, 5 * 60 * 1000); // 5 minutes
+                } catch (error) {
+                    console.error(error);
+                    await interaction.editReply('❌ Error procesando la transferencia.');
+                }
+            }
+
+
+            // === DEPOSITAR (Cash -> Bank) ===
+            // === DEPOSITAR (Cash -> Bank) ===
+            else if (subcommand === 'depositar') {
+
+                try {
+                    const card = await getDebitCard(interaction.user.id);
+                    if (!card) return interaction.editReply('❌ No tienes una tarjeta de débito activa para depositar.');
+
+                    const balance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
+                    const cashBalance = balance.cash || 0;
+                    const bankBalance = balance.bank || 0;
+
+                    const inputMonto = interaction.options.getString('monto');
+                    let monto = 0;
+
+                    if (inputMonto.toLowerCase() === 'todo' || inputMonto.toLowerCase() === 'all') {
+                        monto = cashBalance;
+                    } else {
+                        monto = parseFloat(inputMonto);
+                    }
+
+                    if (isNaN(monto) || monto <= 0) return interaction.editReply('❌ El monto debe ser un número mayor a 0.');
+
+                    if (cashBalance < monto) {
+                        return interaction.editReply(`❌ Fondos insuficientes en efectivo.\n\nTienes: $${cashBalance.toLocaleString()}\nIntentas depositar: $${monto.toLocaleString()}`);
+                    }
+
+                    // Check Max Balance Limit (Tier based)
+                    const tier = CARD_TIERS[card.card_tier || 'NMX Débito'];
+                    const maxBal = tier ? (tier.max_balance || Infinity) : Infinity;
+                    if ((bankBalance + monto) > maxBal) {
+                        return interaction.editReply(`⛔ **Límite de Saldo Excedido**\nTu tarjeta **${card.card_tier || 'NMX Débito'}** tiene un límite de almacenamiento de **$${maxBal.toLocaleString()}**.\nActual: $${bankBalance.toLocaleString()} + Depósito: $${monto.toLocaleString()} > Límite.\n\n💡 **Mejora a NMX Débito Gold para almacenamiento ilimitado.**`);
+                    }
+
+                    // Transfer from cash to bank
+                    await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, monto, 'Depósito bancario', 'cash');
+                    await billingService.ubService.addMoney(interaction.guildId, interaction.user.id, monto, 'Depósito bancario', 'bank');
+
+                    // Log transaction
+                    await supabase.from('debit_transactions').insert({
+                        debit_card_id: card.id,
+                        discord_user_id: interaction.user.id,
+                        transaction_type: 'deposit',
+                        amount: monto,
+                        description: 'Depósito en sucursal/ATM'
+                    });
+
+                    const embed = new EmbedBuilder()
+                        .setTitle('🏧 Depósito Exitoso')
+                        .setColor(0x00FF00)
+                        .setDescription('Has depositado efectivo a tu cuenta bancaria.')
+                        .addFields(
+                            { name: 'Monto Depositado', value: `$${monto.toLocaleString()}`, inline: true },
+                            { name: 'Nuevo Saldo Banco', value: `$${(bankBalance + monto).toLocaleString()}`, inline: true }
+                        )
+                        .setTimestamp();
+
+                    await interaction.editReply({ embeds: [embed] });
+
+                } catch (error) {
+                    console.error(error);
+                    await interaction.editReply('❌ Error realizando depósito.');
+                }
+            }
+
+            else if (subcommand === 'retirar') {
+
+                try {
+                    const card = await getDebitCard(interaction.user.id);
+                    if (!card) return interaction.editReply('❌ No tienes una tarjeta de débito activa.');
+
+                    const balance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
+                    const bankBalance = balance.bank || 0;
+
+                    const inputMonto = interaction.options.getString('monto');
+                    let monto = 0;
+
+                    if (inputMonto.toLowerCase() === 'todo' || inputMonto.toLowerCase() === 'all') {
+                        monto = bankBalance;
+                    } else {
+                        monto = parseFloat(inputMonto);
+                    }
+
+                    if (isNaN(monto) || monto <= 0) return interaction.editReply('❌ El monto debe ser un número mayor a 0.');
+
+                    if (bankBalance < monto) {
+                        return interaction.editReply(`❌ Fondos insuficientes en banco.\n\nDisponible: $${bankBalance.toLocaleString()}\nIntentando retirar: $${monto.toLocaleString()}`);
+                    }
+
+                    // Transfer from bank to cash
+                    await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, monto, 'Retiro de cajero', 'bank');
+                    await billingService.ubService.addMoney(interaction.guildId, interaction.user.id, monto, 'Retiro de cajero', 'cash');
+
+                    // Log transaction
+                    await supabase.from('debit_transactions').insert({
+                        debit_card_id: card.id,
+                        discord_user_id: interaction.user.id,
+                        transaction_type: 'withdrawal',
+                        amount: -monto,
+                        description: 'Retiro en cajero automático'
+                    });
+
+                    const embed = new EmbedBuilder()
+                        .setTitle('🏧 Retiro Exitoso')
+                        .setColor(0x00FF00)
+                        .setDescription('Has retirado efectivo de tu cuenta bancaria.')
+                        .addFields(
+                            { name: 'Monto Retirado', value: `$${monto.toLocaleString()}`, inline: true },
+                            { name: 'Nuevo Saldo Banco', value: `$${(bankBalance - monto).toLocaleString()}`, inline: true }
+                        )
+                        .setFooter({ text: 'El efectivo está ahora en tu billetera' })
+                        .setTimestamp();
+
+                    await interaction.editReply({ embeds: [embed] });
+                } catch (error) {
+                    console.error(error);
+                    await interaction.editReply('❌ Error realizando retiro.');
+                }
+            }
+
+
+
+
+            else if (subcommand === 'historial') {
+                try {
+                    const { data: transactions } = await supabase.from('debit_transactions').select('*').eq('discord_user_id', interaction.user.id).order('created_at', { ascending: false }).limit(10);
+                    if (!transactions || transactions.length === 0) return interaction.editReply('📭 Sin transacciones.');
+                    const embed = new EmbedBuilder().setTitle('📋 Historial Débito').setColor(0x00CED1);
+                    let desc = '';
+                    transactions.forEach(tx => {
+                        const emoji = tx.amount > 0 ? '➕' : '➖';
+                        const type = tx.transaction_type === 'deposit' ? 'Depósito' : tx.transaction_type === 'transfer_in' ? 'Recibido' : tx.transaction_type === 'transfer_out' ? 'Enviado' : tx.transaction_type;
+                        desc += `${emoji} **${type}**: $${Math.abs(tx.amount).toLocaleString()} | Saldo: $${tx.balance_after.toLocaleString()}\n`;
+                    });
+                    embed.setDescription(desc);
+                    await interaction.editReply({ embeds: [embed] });
+                } catch (error) {
+                    console.error(error);
+                    await interaction.editReply('❌ Error consultando historial.');
+                }
+            }
+
+            // === INFO ===
+            else if (subcommand === 'info') {
+
+                try {
+                    const card = await getDebitCard(interaction.user.id);
+                    if (!card) return interaction.editReply('❌ No tienes una tarjeta de débito activa.');
+
+                    const balance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
+                    const bankBalance = balance.bank || 0;
+
+                    // Get recent transactions
+                    const { data: recentTxs } = await supabase
+                        .from('debit_transactions')
+                        .select('*')
+                        .eq('discord_user_id', interaction.user.id)
+                        .order('created_at', { ascending: false })
+                        .limit(5);
+
+                    let txHistory = '';
+                    if (recentTxs && recentTxs.length > 0) {
+                        recentTxs.forEach(tx => {
+                            const emoji = tx.amount > 0 ? '➕' : '➖';
+                            const tipo = tx.transaction_type === 'withdrawal' ? 'Retiro' :
+                                tx.transaction_type === 'deposit' ? 'Depósito' :
+                                    tx.transaction_type === 'transfer_in' ? 'Recibido' : 'Enviado';
+                            txHistory += `${emoji} ${tipo}: $${Math.abs(tx.amount).toLocaleString()}\n`;
+                        });
+                    } else {
+                        txHistory = 'Sin transacciones recientes';
+                    }
+
+                    const embed = new EmbedBuilder()
+                        .setTitle('💳 Información Completa - Tarjeta de Débito')
+                        .setColor(0x00CED1)
+                        .setDescription(`Detalles de tu cuenta bancaria NMX`)
+                        .addFields(
+                            { name: '💳 Tipo de Tarjeta', value: card.card_tier || 'NMX Débito', inline: true },
                             { name: '🔢 Número de Tarjeta', value: `\`${card.card_number}\``, inline: false },
                             { name: '💰 Saldo en Banco', value: `$${bankBalance.toLocaleString()}`, inline: true },
-                            { name: '💵 Saldo en Efectivo', value: `$${cashBalance.toLocaleString()}`, inline: true },
-                            { name: '💼 Total Combinado', value: `$${(bankBalance + cashBalance).toLocaleString()}`, inline: true },
-                            { name: '📊 Total Transacciones', value: `${totalTransactions}`, inline: true },
-                            { name: '➕ Total Depósitos', value: `$${totalDeposits.toLocaleString()}`, inline: true },
-                            { name: '➖ Total Retiros', value: `$${totalWithdrawals.toLocaleString()}`, inline: true },
-                            { name: '📅 Cuenta Creada', value: `<t:${Math.floor(new Date(card.created_at).getTime() / 1000)}:R>`, inline: false }
+                            { name: '📅 Fecha de Creación', value: `<t:${Math.floor(new Date(card.created_at).getTime() / 1000)}:D>`, inline: true },
+                            { name: '✅ Estado', value: 'Activa', inline: true },
+                            { name: '📊 Últimas Transacciones', value: txHistory, inline: false }
                         )
-                        .setFooter({ text: 'Información Confidencial - Solo para Ejecutivos' })
+                        .setFooter({ text: 'Banco Nacional MX' })
                         .setTimestamp();
 
                     await interaction.editReply({ embeds: [embed] });
@@ -6780,1059 +6722,1117 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 }
             }
 
-            // === ADMIN HISTORIAL ===
-            else if (adminSubCmd === 'historial') {
-                await interaction.deferReply({ ephemeral: true });
-
-                try {
-                    const { data: transactions } = await supabase
-                        .from('debit_transactions')
-                        .select('*')
-                        .eq('discord_user_id', targetUser.id)
-                        .order('created_at', { ascending: false })
-                        .limit(20);
-
-                    if (!transactions || transactions.length === 0) {
-                        return interaction.editReply(`❌ ${targetUser.username} no tiene historial.`);
-                    }
-
-                    let description = '';
-                    transactions.forEach((tx, index) => {
-                        const emoji = tx.amount > 0 ? '➕' : '➖';
-                        let tipo = tx.transaction_type;
-                        if (tipo === 'withdrawal') tipo = 'Retiro';
-                        else if (tipo === 'deposit') tipo = 'Depósito';
-                        else if (tipo === 'transfer_in') tipo = 'Recibido';
-                        else if (tipo === 'transfer_out') tipo = 'Enviado';
-
-                        const fecha = new Date(tx.created_at);
-                        description += `${emoji} **${tipo}**: $${Math.abs(tx.amount).toLocaleString()} | <t:${Math.floor(fecha.getTime() / 1000)}:R>\n`;
-                    });
-
-                    const embed = new EmbedBuilder()
-                        .setTitle(`📋 Historial de Débito - ${targetUser.username}`)
-                        .setColor(0x00CED1)
-                        .setDescription(description)
-                        .setFooter({ text: `Mostrando últimas ${transactions.length} transacciones` })
-                        .setTimestamp();
-
-                    await interaction.editReply({ embeds: [embed] });
-
-                } catch (error) {
-                    console.error(error);
-                    await interaction.editReply('❌ Error cargando historial.');
-                }
-            }
-        }
-    }
-
-    else if (commandName === 'top-ricos') {
-        await interaction.deferReply();
-
-        try {
-            // Get all citizens with discord IDs
-            const { data: citizens } = await supabase
-                .from('citizens')
-                .select('full_name, discord_id')
-                .not('discord_id', 'is', null);
-
-            if (!citizens || citizens.length === 0) {
-                return interaction.editReply('❌ No hay datos disponibles.');
-            }
-
-            // Calculate total wealth for each citizen
-            const wealthData = [];
-
-            for (const citizen of citizens) {
-                try {
-                    // Get cash and bank balance from UnbelievaBoat
-                    const balance = await billingService.ubService.getUserBalance(interaction.guildId, citizen.discord_id);
-                    const cash = balance.cash || 0;
-                    const bank = balance.bank || 0;
-
-                    // Get debit card balance
-                    const { data: debitCard } = await supabase
-                        .from('debit_cards')
-                        .select('balance')
-                        .eq('discord_user_id', citizen.discord_id)
-                        .eq('status', 'active')
-                        .maybeSingle();
-                    const debitBalance = debitCard?.balance || 0;
-
-                    // Get investment portfolio value
-                    const { data: investments } = await supabase
-                        .from('investments')
-                        .select('quantity, ticker')
-                        .eq('discord_id', citizen.discord_id);
-
-                    let investmentsValue = 0;
-                    if (investments && investments.length > 0) {
-                        const { data: prices } = await supabase
-                            .from('market_prices')
-                            .select('ticker, current_price');
-
-                        const priceMap = {};
-                        prices?.forEach(p => priceMap[p.ticker] = p.current_price);
-
-                        investments.forEach(inv => {
-                            const price = priceMap[inv.ticker] || 0;
-                            investmentsValue += inv.quantity * price;
-                        });
-                    }
-
-                    const totalWealth = cash + bank + debitBalance + investmentsValue;
-
-                    wealthData.push({
-                        name: citizen.full_name,
-                        discord_id: citizen.discord_id,
-                        total: totalWealth,
-                        cash,
-                        bank,
-                        debit: debitBalance,
-                        investments: investmentsValue
-                    });
-                } catch (error) {
-                    console.error(`Error calculating wealth for ${citizen.full_name}:`, error);
-                }
-            }
-
-            // Sort by total wealth descending
-            wealthData.sort((a, b) => b.total - a.total);
-
-            // Take top 10
-            const top10 = wealthData.slice(0, 10);
-
-            if (top10.length === 0) {
-                return interaction.editReply('❌ No se pudieron calcular las fortunas.');
-            }
-
-            const embed = new EmbedBuilder()
-                .setTitle('💰 Top 10 - Ciudadanos Más Ricos')
-                .setColor(0xFFD700)
-                .setDescription('Ranking por patrimonio total (Efectivo + Banco + Débito + Inversiones)')
-                .setTimestamp();
-
-            let description = '';
-            top10.forEach((person, index) => {
-                const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}.`;
-
-                description += `${medal} **${person.name}** - $${person.total.toLocaleString()}\n`;
-                description += `   💵 Efectivo: $${person.cash.toLocaleString()} | 🏦 Banco: $${person.bank.toLocaleString()}\n`;
-                if (person.debit > 0 || person.investments > 0) {
-                    description += `   💳 Débito: $${person.debit.toLocaleString()} | 📈 Inversiones: $${person.investments.toLocaleString()}\n`;
-                }
-                description += '\n';
-            });
-
-            embed.setDescription(description);
-            await interaction.editReply({ embeds: [embed] });
-        } catch (error) {
-            console.error(error);
-            await interaction.editReply('❌ Error calculando el ranking de riqueza.');
-        }
-    }
-
-    // LICENCIA COMMAND
-    else if (commandName === 'licencia') {
-        const subcommand = interaction.options.getSubcommand();
-
-        if (subcommand === 'otorgar') {
-            const targetUser = interaction.options.getUser('ciudadano');
-            const tipo = interaction.options.getString('tipo');
-
-            // License configurations
-            const licenses = {
-                'conducir': {
-                    name: '🚗 Licencia de Conducir',
-                    price: 1200,
-                    roleId: '1413543909761614005',
-                    requiresPolice: false
-                },
-                'arma_corta': {
-                    name: '🔫 Licencia de Armas Cortas',
-                    price: 1200,
-                    roleId: '1413543907110682784',
-                    requiresPolice: false
-                },
-                'arma_larga': {
-                    name: '🎯 Licencia de Armas Largas',
-                    price: 1500,
-                    roleId: '1413541379803578431',
-                    requiresPolice: true,
-                    policeRoleId: '1450312637727375502'
-                }
-            };
-
-            const license = licenses[tipo];
-            if (!license) {
-                return interaction.editReply('❌ Tipo de licencia inválido.');
-            }
-
-            // Check if issuer has police role for arma_larga
-            if (license.requiresPolice) {
-                const issuerMember = await interaction.guild.members.fetch(interaction.user.id);
-                const hasPoliceRole = issuerMember.roles.cache.has(license.policeRoleId);
-                const isAdmin = issuerMember.permissions.has('Administrator');
-
-                if (!hasPoliceRole && !isAdmin) {
-                    return interaction.editReply('⛔ Solo la Policía puede otorgar Licencias de Armas Largas.');
-                }
-            }
-
-            try {
-                // Check if user already has the license (role)
-                const member = await interaction.guild.members.fetch(targetUser.id);
-                if (member.roles.cache.has(license.roleId)) {
-                    return interaction.editReply(`⚠️ ${targetUser.tag} ya tiene esta licencia.`);
+            // === ADMIN COMMANDS ===
+            else if (subCommandGroup === 'admin') {
+                // Check if user is bank executive
+                const BANK_EXEC_ROLE_ID = '1450688555503587459'; // Same as company creator role
+                if (!interaction.member.roles.cache.has(BANK_EXEC_ROLE_ID) && !interaction.member.permissions.has('Administrator')) {
+                    return interaction.reply({ content: '⛔ Solo ejecutivos bancarios pueden usar estos comandos.', ephemeral: true });
                 }
 
-                // Show payment selector
-                const pmLicense = await getAvailablePaymentMethods(targetUser.id, interaction.guildId);
-                const pbLicense = createPaymentButtons(pmLicense, 'license_pay');
-                const licenseEmbed = createPaymentEmbed(license.name, license.price, pmLicense);
+                const adminSubCmd = interaction.options.getSubcommand();
+                const targetUser = interaction.options.getUser('usuario');
 
-                await interaction.editReply({
-                    content: `📋 **Emitiendo licencia para** ${targetUser.tag}`,
-                    embeds: [licenseEmbed],
-                    components: [pbLicense]
-                });
+                // === ADMIN INFO ===
+                if (adminSubCmd === 'info') {
+                    await interaction.deferReply({ ephemeral: true });
 
-                // Wait for payment
-                const filter = i => i.user.id === targetUser.id && i.customId.startsWith('license_pay_');
-                const collector = interaction.channel.createMessageComponentCollector({ filter, time: 60000, max: 1 });
-
-                collector.on('collect', async i => {
                     try {
-                        await i.deferUpdate();
-                        const method = i.customId.replace('license_pay_', '');
+                        const card = await getDebitCard(targetUser.id);
+                        if (!card) return interaction.editReply(`❌ ${targetUser.username} no tiene tarjeta de débito.`);
 
-                        // Process payment
-                        const paymentResult = await processPayment(
-                            method,
-                            targetUser.id,
-                            interaction.guildId,
-                            license.price,
-                            `[Licencia] ${license.name}`,
-                            pmLicense
-                        );
+                        const balance = await billingService.ubService.getUserBalance(interaction.guildId, targetUser.id);
+                        const bankBalance = balance.bank || 0;
+                        const cashBalance = balance.cash || 0;
 
-                        if (!paymentResult.success) {
-                            return i.editReply({ content: paymentResult.error, embeds: [], components: [] });
-                        }
+                        // Get transaction count and totals
+                        const { data: txs } = await supabase
+                            .from('debit_transactions')
+                            .select('*')
+                            .eq('discord_user_id', targetUser.id);
 
-                        // Assign role
-                        await member.roles.add(license.roleId);
+                        const totalTransactions = txs?.length || 0;
+                        const totalDeposits = txs?.filter(t => t.amount > 0).reduce((sum, t) => sum + t.amount, 0) || 0;
+                        const totalWithdrawals = txs?.filter(t => t.amount < 0).reduce((sum, t) => sum + Math.abs(t.amount), 0) || 0;
 
-                        // Success message
-                        const successEmbed = new EmbedBuilder()
-                            .setColor('#00FF00')
-                            .setTitle('✅ Licencia Otorgada')
-                            .setDescription(`${license.name}`)
+                        const embed = new EmbedBuilder()
+                            .setTitle(`👨‍💼 Análisis Bancario - ${targetUser.username}`)
+                            .setColor(0x5865F2)
+                            .setThumbnail(targetUser.displayAvatarURL())
                             .addFields(
-                                { name: '👤 Ciudadano', value: `<@${targetUser.id}>`, inline: true },
-                                { name: '💰 Costo', value: `$${license.price.toLocaleString()}`, inline: true },
-                                { name: '💳 Método', value: paymentResult.method, inline: true },
-                                { name: '👮 Emitida por', value: interaction.user.tag, inline: true }
+                                { name: '🔢 Número de Tarjeta', value: `\`${card.card_number}\``, inline: false },
+                                { name: '💰 Saldo en Banco', value: `$${bankBalance.toLocaleString()}`, inline: true },
+                                { name: '💵 Saldo en Efectivo', value: `$${cashBalance.toLocaleString()}`, inline: true },
+                                { name: '💼 Total Combinado', value: `$${(bankBalance + cashBalance).toLocaleString()}`, inline: true },
+                                { name: '📊 Total Transacciones', value: `${totalTransactions}`, inline: true },
+                                { name: '➕ Total Depósitos', value: `$${totalDeposits.toLocaleString()}`, inline: true },
+                                { name: '➖ Total Retiros', value: `$${totalWithdrawals.toLocaleString()}`, inline: true },
+                                { name: '📅 Cuenta Creada', value: `<t:${Math.floor(new Date(card.created_at).getTime() / 1000)}:R>`, inline: false }
                             )
-                            .setFooter({ text: 'Licencia Oficial Nación MX' })
+                            .setFooter({ text: 'Información Confidencial - Solo para Ejecutivos' })
                             .setTimestamp();
 
-                        await i.editReply({ content: '', embeds: [successEmbed], components: [] });
-
-                        // Try to DM citizen
-                        try {
-                            await targetUser.send({
-                                content: `🪪 **Nueva Licencia Registrada**`,
-                                embeds: [successEmbed]
-                            });
-                        } catch (dmError) {
-                            console.log('Could not DM citizen:', dmError.message);
-                        }
+                        await interaction.editReply({ embeds: [embed] });
 
                     } catch (error) {
-                        console.error('[licencia otorgar] Error:', error);
-                        await i.editReply({ content: '❌ Error emitiendo licencia.', embeds: [], components: [] });
+                        console.error(error);
+                        await interaction.editReply('❌ Error consultando información.');
                     }
-                });
+                }
 
-                collector.on('end', collected => {
-                    if (collected.size === 0) {
-                        interaction.editReply({ content: '⏰ Tiempo agotado para el pago.', embeds: [], components: [] });
+                // === ADMIN HISTORIAL ===
+                else if (adminSubCmd === 'historial') {
+                    await interaction.deferReply({ ephemeral: true });
+
+                    try {
+                        const { data: transactions } = await supabase
+                            .from('debit_transactions')
+                            .select('*')
+                            .eq('discord_user_id', targetUser.id)
+                            .order('created_at', { ascending: false })
+                            .limit(20);
+
+                        if (!transactions || transactions.length === 0) {
+                            return interaction.editReply(`❌ ${targetUser.username} no tiene historial.`);
+                        }
+
+                        let description = '';
+                        transactions.forEach((tx, index) => {
+                            const emoji = tx.amount > 0 ? '➕' : '➖';
+                            let tipo = tx.transaction_type;
+                            if (tipo === 'withdrawal') tipo = 'Retiro';
+                            else if (tipo === 'deposit') tipo = 'Depósito';
+                            else if (tipo === 'transfer_in') tipo = 'Recibido';
+                            else if (tipo === 'transfer_out') tipo = 'Enviado';
+
+                            const fecha = new Date(tx.created_at);
+                            description += `${emoji} **${tipo}**: $${Math.abs(tx.amount).toLocaleString()} | <t:${Math.floor(fecha.getTime() / 1000)}:R>\n`;
+                        });
+
+                        const embed = new EmbedBuilder()
+                            .setTitle(`📋 Historial de Débito - ${targetUser.username}`)
+                            .setColor(0x00CED1)
+                            .setDescription(description)
+                            .setFooter({ text: `Mostrando últimas ${transactions.length} transacciones` })
+                            .setTimestamp();
+
+                        await interaction.editReply({ embeds: [embed] });
+
+                    } catch (error) {
+                        console.error(error);
+                        await interaction.editReply('❌ Error cargando historial.');
                     }
-                });
-
-            } catch (error) {
-                console.error('[licencia] Error:', error);
-                await interaction.editReply('❌ Error procesando licencia.');
+                }
             }
         }
-    }
 
-    // TIENDA COMMAND  
-    else if (commandName === 'tienda') {
-        const subcommand = interaction.options.getSubcommand();
-
-        if (subcommand === 'ver') {
+        else if (commandName === 'top-ricos') {
             await interaction.deferReply();
 
             try {
-                const { data: items, error } = await supabase
-                    .from('store_items')
-                    .select('*')
-                    .eq('active', true)
-                    .order('display_order', { ascending: true });
+                // Get all citizens with discord IDs
+                const { data: citizens } = await supabase
+                    .from('citizens')
+                    .select('full_name, discord_id')
+                    .not('discord_id', 'is', null);
 
-                if (error) throw error;
-
-                if (!items || items.length === 0) {
-                    return interaction.editReply('🛒 La tienda está vacía por el momento.');
+                if (!citizens || citizens.length === 0) {
+                    return interaction.editReply('❌ No hay datos disponibles.');
                 }
 
-                const itemsPerPage = 3;
-                const pages = [];
+                // Calculate total wealth for each citizen
+                const wealthData = [];
 
-                for (let i = 0; i < items.length; i += itemsPerPage) {
-                    const pageItems = items.slice(i, i + itemsPerPage);
+                for (const citizen of citizens) {
+                    try {
+                        // Get cash and bank balance from UnbelievaBoat
+                        const balance = await billingService.ubService.getUserBalance(interaction.guildId, citizen.discord_id);
+                        const cash = balance.cash || 0;
+                        const bank = balance.bank || 0;
+
+                        // Get debit card balance
+                        const { data: debitCard } = await supabase
+                            .from('debit_cards')
+                            .select('balance')
+                            .eq('discord_user_id', citizen.discord_id)
+                            .eq('status', 'active')
+                            .maybeSingle();
+                        const debitBalance = debitCard?.balance || 0;
+
+                        // Get investment portfolio value
+                        const { data: investments } = await supabase
+                            .from('investments')
+                            .select('quantity, ticker')
+                            .eq('discord_id', citizen.discord_id);
+
+                        let investmentsValue = 0;
+                        if (investments && investments.length > 0) {
+                            const { data: prices } = await supabase
+                                .from('market_prices')
+                                .select('ticker, current_price');
+
+                            const priceMap = {};
+                            prices?.forEach(p => priceMap[p.ticker] = p.current_price);
+
+                            investments.forEach(inv => {
+                                const price = priceMap[inv.ticker] || 0;
+                                investmentsValue += inv.quantity * price;
+                            });
+                        }
+
+                        const totalWealth = cash + bank + debitBalance + investmentsValue;
+
+                        wealthData.push({
+                            name: citizen.full_name,
+                            discord_id: citizen.discord_id,
+                            total: totalWealth,
+                            cash,
+                            bank,
+                            debit: debitBalance,
+                            investments: investmentsValue
+                        });
+                    } catch (error) {
+                        console.error(`Error calculating wealth for ${citizen.full_name}:`, error);
+                    }
+                }
+
+                // Sort by total wealth descending
+                wealthData.sort((a, b) => b.total - a.total);
+
+                // Take top 10
+                const top10 = wealthData.slice(0, 10);
+
+                if (top10.length === 0) {
+                    return interaction.editReply('❌ No se pudieron calcular las fortunas.');
+                }
+
+                const embed = new EmbedBuilder()
+                    .setTitle('💰 Top 10 - Ciudadanos Más Ricos')
+                    .setColor(0xFFD700)
+                    .setDescription('Ranking por patrimonio total (Efectivo + Banco + Débito + Inversiones)')
+                    .setTimestamp();
+
+                let description = '';
+                top10.forEach((person, index) => {
+                    const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}.`;
+
+                    description += `${medal} **${person.name}** - $${person.total.toLocaleString()}\n`;
+                    description += `   💵 Efectivo: $${person.cash.toLocaleString()} | 🏦 Banco: $${person.bank.toLocaleString()}\n`;
+                    if (person.debit > 0 || person.investments > 0) {
+                        description += `   💳 Débito: $${person.debit.toLocaleString()} | 📈 Inversiones: $${person.investments.toLocaleString()}\n`;
+                    }
+                    description += '\n';
+                });
+
+                embed.setDescription(description);
+                await interaction.editReply({ embeds: [embed] });
+            } catch (error) {
+                console.error(error);
+                await interaction.editReply('❌ Error calculando el ranking de riqueza.');
+            }
+        }
+
+        // LICENCIA COMMAND
+        else if (commandName === 'licencia') {
+            const subcommand = interaction.options.getSubcommand();
+
+            if (subcommand === 'otorgar') {
+                const targetUser = interaction.options.getUser('ciudadano');
+                const tipo = interaction.options.getString('tipo');
+
+                // License configurations
+                const licenses = {
+                    'conducir': {
+                        name: '🚗 Licencia de Conducir',
+                        price: 1200,
+                        roleId: '1413543909761614005',
+                        requiresPolice: false
+                    },
+                    'arma_corta': {
+                        name: '🔫 Licencia de Armas Cortas',
+                        price: 1200,
+                        roleId: '1413543907110682784',
+                        requiresPolice: false
+                    },
+                    'arma_larga': {
+                        name: '🎯 Licencia de Armas Largas',
+                        price: 1500,
+                        roleId: '1413541379803578431',
+                        requiresPolice: true,
+                        policeRoleId: '1450312637727375502'
+                    }
+                };
+
+                const license = licenses[tipo];
+                if (!license) {
+                    return interaction.editReply('❌ Tipo de licencia inválido.');
+                }
+
+                // Check if issuer has police role for arma_larga
+                if (license.requiresPolice) {
+                    const issuerMember = await interaction.guild.members.fetch(interaction.user.id);
+                    const hasPoliceRole = issuerMember.roles.cache.has(license.policeRoleId);
+                    const isAdmin = issuerMember.permissions.has('Administrator');
+
+                    if (!hasPoliceRole && !isAdmin) {
+                        return interaction.editReply('⛔ Solo la Policía puede otorgar Licencias de Armas Largas.');
+                    }
+                }
+
+                try {
+                    // Check if user already has the license (role)
+                    const member = await interaction.guild.members.fetch(targetUser.id);
+                    if (member.roles.cache.has(license.roleId)) {
+                        return interaction.editReply(`⚠️ ${targetUser.tag} ya tiene esta licencia.`);
+                    }
+
+                    // Show payment selector
+                    const pmLicense = await getAvailablePaymentMethods(targetUser.id, interaction.guildId);
+                    const pbLicense = createPaymentButtons(pmLicense, 'license_pay');
+                    const licenseEmbed = createPaymentEmbed(license.name, license.price, pmLicense);
+
+                    await interaction.editReply({
+                        content: `📋 **Emitiendo licencia para** ${targetUser.tag}`,
+                        embeds: [licenseEmbed],
+                        components: [pbLicense]
+                    });
+
+                    // Wait for payment
+                    const filter = i => i.user.id === targetUser.id && i.customId.startsWith('license_pay_');
+                    const collector = interaction.channel.createMessageComponentCollector({ filter, time: 60000, max: 1 });
+
+                    collector.on('collect', async i => {
+                        try {
+                            await i.deferUpdate();
+                            const method = i.customId.replace('license_pay_', '');
+
+                            // Process payment
+                            const paymentResult = await processPayment(
+                                method,
+                                targetUser.id,
+                                interaction.guildId,
+                                license.price,
+                                `[Licencia] ${license.name}`,
+                                pmLicense
+                            );
+
+                            if (!paymentResult.success) {
+                                return i.editReply({ content: paymentResult.error, embeds: [], components: [] });
+                            }
+
+                            // Assign role
+                            await member.roles.add(license.roleId);
+
+                            // Success message
+                            const successEmbed = new EmbedBuilder()
+                                .setColor('#00FF00')
+                                .setTitle('✅ Licencia Otorgada')
+                                .setDescription(`${license.name}`)
+                                .addFields(
+                                    { name: '👤 Ciudadano', value: `<@${targetUser.id}>`, inline: true },
+                                    { name: '💰 Costo', value: `$${license.price.toLocaleString()}`, inline: true },
+                                    { name: '💳 Método', value: paymentResult.method, inline: true },
+                                    { name: '👮 Emitida por', value: interaction.user.tag, inline: true }
+                                )
+                                .setFooter({ text: 'Licencia Oficial Nación MX' })
+                                .setTimestamp();
+
+                            await i.editReply({ content: '', embeds: [successEmbed], components: [] });
+
+                            // Try to DM citizen
+                            try {
+                                await targetUser.send({
+                                    content: `🪪 **Nueva Licencia Registrada**`,
+                                    embeds: [successEmbed]
+                                });
+                            } catch (dmError) {
+                                console.log('Could not DM citizen:', dmError.message);
+                            }
+
+                        } catch (error) {
+                            console.error('[licencia otorgar] Error:', error);
+                            await i.editReply({ content: '❌ Error emitiendo licencia.', embeds: [], components: [] });
+                        }
+                    });
+
+                    collector.on('end', collected => {
+                        if (collected.size === 0) {
+                            interaction.editReply({ content: '⏰ Tiempo agotado para el pago.', embeds: [], components: [] });
+                        }
+                    });
+
+                } catch (error) {
+                    console.error('[licencia] Error:', error);
+                    await interaction.editReply('❌ Error procesando licencia.');
+                }
+            }
+        }
+
+        // TIENDA COMMAND  
+        else if (commandName === 'tienda') {
+            const subcommand = interaction.options.getSubcommand();
+
+            if (subcommand === 'ver') {
+                await interaction.deferReply();
+
+                try {
+                    const { data: items, error } = await supabase
+                        .from('store_items')
+                        .select('*')
+                        .eq('active', true)
+                        .order('display_order', { ascending: true });
+
+                    if (error) throw error;
+
+                    if (!items || items.length === 0) {
+                        return interaction.editReply('🛒 La tienda está vacía por el momento.');
+                    }
+
+                    const itemsPerPage = 3;
+                    const pages = [];
+
+                    for (let i = 0; i < items.length; i += itemsPerPage) {
+                        const pageItems = items.slice(i, i + itemsPerPage);
+                        const embed = new EmbedBuilder()
+                            .setTitle('🛒 Tienda Premium Nación MX')
+                            .setColor('#FFD700')
+                            .setDescription('💰 **Beneficios exclusivos para mejorar tu experiencia**\n\nUsa `/tienda comprar` para adquirir un item.')
+                            .setFooter({ text: `Página ${Math.floor(i / itemsPerPage) + 1}/${Math.ceil(items.length / itemsPerPage)}` });
+
+                        for (const item of pageItems) {
+                            const benefits = item.benefits ? item.benefits.join('\n• ') : 'Sin descripción';
+                            const duration = item.duration_days
+                                ? `⏰ ${item.duration_days} días`
+                                : item.duration_hours
+                                    ? `⏰ ${item.duration_hours} hora(s)`
+                                    : '♾️ Permanente';
+
+                            const extraInfo = item.max_uses ? `\n🎫 Usos: ${item.max_uses}` : '';
+                            const ticket = item.requires_ticket ? '\n📩 Requiere ticket para activación' : '';
+
+                            embed.addFields({
+                                name: `${item.icon_emoji} ${item.name} - $${item.price.toLocaleString()}`,
+                                value: `${item.description}\n\n**Beneficios:**\n• ${benefits}\n${duration}${extraInfo}${ticket}`,
+                                inline: false
+                            });
+                        }
+
+                        pages.push(embed);
+                    }
+
+                    if (pages.length === 1) {
+                        return interaction.editReply({ embeds: [pages[0]] });
+                    }
+
+                    let currentPage = 0;
+                    const row = new ActionRowBuilder().addComponents(
+                        new ButtonBuilder().setCustomId('tienda_prev').setLabel('◀️ Anterior').setStyle(ButtonStyle.Secondary),
+                        new ButtonBuilder().setCustomId('tienda_next').setLabel('Siguiente ▶️').setStyle(ButtonStyle.Secondary)
+                    );
+
+                    await interaction.editReply({ embeds: [pages[0]], components: [row] });
+
+                    const filter = i => i.user.id === interaction.user.id && i.customId.startsWith('tienda_');
+                    const collector = interaction.channel.createMessageComponentCollector({ filter, time: 120000 });
+
+                    collector.on('collect', async i => {
+                        if (i.customId === 'tienda_next') {
+                            currentPage = (currentPage + 1) % pages.length;
+                        } else if (i.customId === 'tienda_prev') {
+                            currentPage = (currentPage - 1 + pages.length) % pages.length;
+                        }
+                        await i.update({ embeds: [pages[currentPage]] });
+                    });
+
+                    collector.on('end', () => {
+                        interaction.editReply({ components: [] }).catch(() => { });
+                    });
+
+                } catch (error) {
+                    console.error('[tienda ver] Error:', error);
+                    await interaction.editReply('❌ Error cargando la tienda.');
+                }
+            }
+
+            else if (subcommand === 'comprar') {
+                await interaction.deferReply();
+                const itemKey = interaction.options.getString('item');
+                const userId = interaction.user.id;
+
+                try {
+                    const { data: item, error: itemError } = await supabase
+                        .from('store_items')
+                        .select('*')
+                        .eq('item_key', itemKey)
+                        .eq('active', true)
+                        .single();
+
+                    if (itemError || !item) {
+                        return interaction.editReply('❌ Item no encontrado o no disponible.');
+                    }
+
+                    const { data: existing } = await supabase
+                        .from('user_purchases')
+                        .select('*')
+                        .eq('user_id', userId)
+                        .eq('item_key', itemKey)
+                        .eq('status', 'active')
+                        .maybeSingle();
+
+                    if (existing) {
+                        const expiryDate = existing.expiration_date ? `\nExpira: <t:${Math.floor(new Date(existing.expiration_date).getTime() / 1000)}:R>` : '';
+                        return interaction.editReply(`⚠️ Ya tienes este item activo.${expiryDate}`);
+                    }
+
+                    const pmStore = await getAvailablePaymentMethods(userId, interaction.guildId);
+                    const pbStore = createPaymentButtons(pmStore, 'store_pay');
+                    const storeEmbed = createPaymentEmbed(`${item.icon_emoji} ${item.name}`, item.price, pmStore);
+
+                    await interaction.editReply({ embeds: [storeEmbed], components: [pbStore] });
+
+                    const filter = i => i.user.id === userId && i.customId.startsWith('store_pay_');
+                    const collector = interaction.channel.createMessageComponentCollector({ filter, time: 60000, max: 1 });
+
+                    collector.on('collect', async i => {
+                        try {
+                            await i.deferUpdate();
+                            const method = i.customId.replace('store_pay_', '');
+
+                            const paymentResult = await processPayment(method, userId, interaction.guildId, item.price, `[Tienda] ${item.name}`, pmStore);
+
+                            if (!paymentResult.success) {
+                                return i.editReply({ content: paymentResult.error, embeds: [], components: [] });
+                            }
+
+                            let expirationDate = null;
+                            if (item.duration_days) {
+                                expirationDate = new Date();
+                                expirationDate.setDate(expirationDate.getDate() + item.duration_days);
+                            } else if (item.duration_hours) {
+                                expirationDate = new Date();
+                                expirationDate.setHours(expirationDate.getHours() + item.duration_hours);
+                            }
+
+                            const { data: purchase, error: purchaseError } = await supabase
+                                .from('user_purchases')
+                                .insert({
+                                    user_id: userId,
+                                    item_key: itemKey,
+                                    expiration_date: expirationDate ? expirationDate.toISOString() : null,
+                                    status: 'active',
+                                    uses_remaining: item.max_uses || null
+                                })
+                                .select()
+                                .single();
+
+                            if (purchaseError) throw purchaseError;
+
+                            await supabase.from('purchase_transactions').insert({
+                                user_id: userId,
+                                item_key: itemKey,
+                                amount_paid: item.price,
+                                payment_method: method,
+                                purchase_id: purchase.id,
+                                transaction_type: 'purchase'
+                            });
+
+                            if (item.role_id) {
+                                try {
+                                    const member = await interaction.guild.members.fetch(userId);
+                                    await member.roles.add(item.role_id);
+                                } catch (roleError) {
+                                    console.error('[tienda] Role assignment error:', roleError);
+                                }
+                            }
+
+                            const duration = item.duration_days
+                                ? `\n⏰ Válido por **${item.duration_days} días**`
+                                : item.duration_hours
+                                    ? `\n⏰ Válido por **${item.duration_hours} hora(s)**`
+                                    : '\n♾️ **Permanente**';
+
+                            const ticketMsg = item.requires_ticket ? `\n\n📩 **Abre un ticket** en <#${item.ticket_channel_id}> para activar tu beneficio.` : '';
+
+                            const successEmbed = new EmbedBuilder()
+                                .setColor('#00FF00')
+                                .setTitle('✅ Compra Exitosa')
+                                .setDescription(`${item.icon_emoji} **${item.name}**\n\n💰 Pagado: $${item.price.toLocaleString()}\n💳 Método: ${paymentResult.method}${duration}${ticketMsg}`)
+                                .setFooter({ text: 'Gracias por tu compra!' })
+                                .setTimestamp();
+
+                            await i.editReply({ embeds: [successEmbed], components: [] });
+
+                        } catch (error) {
+                            console.error('[tienda comprar] Error:', error);
+                            await i.editReply({ content: '❌ Error procesando la compra.', embeds: [], components: [] });
+                        }
+                    });
+
+                    collector.on('end', collected => {
+                        if (collected.size === 0) {
+                            interaction.editReply({ content: '⏰ Tiempo agotado.', embeds: [], components: [] });
+                        }
+                    });
+
+                } catch (error) {
+                    console.error('[tienda comprar] Error:', error);
+                    await interaction.editReply('❌ Error procesando la compra.');
+                }
+            }
+
+            else if (subcommand === 'mispases') {
+                await interaction.deferReply({ ephemeral: true });
+                const userId = interaction.user.id;
+
+                try {
+                    const { data: purchases, error } = await supabase
+                        .from('user_purchases')
+                        .select(`
+                        *,
+                        store_items (*)
+                    `)
+                        .eq('user_id', userId)
+                        .eq('status', 'active')
+                        .order('purchase_date', { ascending: false });
+
+                    if (error) throw error;
+
+                    if (!purchases || purchases.length === 0) {
+                        return interaction.editReply('📦 No tienes pases activos. Visita `/tienda ver` para comprar.');
+                    }
+
                     const embed = new EmbedBuilder()
-                        .setTitle('🛒 Tienda Premium Nación MX')
+                        .setTitle('📦 Mis Pases Activos')
                         .setColor('#FFD700')
-                        .setDescription('💰 **Beneficios exclusivos para mejorar tu experiencia**\n\nUsa `/tienda comprar` para adquirir un item.')
-                        .setFooter({ text: `Página ${Math.floor(i / itemsPerPage) + 1}/${Math.ceil(items.length / itemsPerPage)}` });
+                        .setDescription(`Tienes **${purchases.length}** pase(s) activo(s)`);
 
-                    for (const item of pageItems) {
-                        const benefits = item.benefits ? item.benefits.join('\n• ') : 'Sin descripción';
-                        const duration = item.duration_days
-                            ? `⏰ ${item.duration_days} días`
-                            : item.duration_hours
-                                ? `⏰ ${item.duration_hours} hora(s)`
-                                : '♾️ Permanente';
+                    for (const p of purchases) {
+                        const item = p.store_items;
+                        const expiry = p.expiration_date
+                            ? `Expira: <t:${Math.floor(new Date(p.expiration_date).getTime() / 1000)}:R>`
+                            : '♾️ Permanente';
 
-                        const extraInfo = item.max_uses ? `\n🎫 Usos: ${item.max_uses}` : '';
-                        const ticket = item.requires_ticket ? '\n📩 Requiere ticket para activación' : '';
+                        const uses = p.uses_remaining ? `\n🎫 Usos restantes: ${p.uses_remaining}` : '';
 
                         embed.addFields({
-                            name: `${item.icon_emoji} ${item.name} - $${item.price.toLocaleString()}`,
-                            value: `${item.description}\n\n**Beneficios:**\n• ${benefits}\n${duration}${extraInfo}${ticket}`,
+                            name: `${item.icon_emoji} ${item.name}`,
+                            value: `${expiry}${uses}`,
                             inline: false
                         });
                     }
 
-                    pages.push(embed);
+                    embed.setFooter({ text: 'Los pases expirarán automáticamente' });
+
+                    await interaction.editReply({ embeds: [embed] });
+
+                } catch (error) {
+                    console.error('[tienda mispases] Error:', error);
+                    await interaction.editReply('❌ Error cargando tus pases.');
                 }
-
-                if (pages.length === 1) {
-                    return interaction.editReply({ embeds: [pages[0]] });
-                }
-
-                let currentPage = 0;
-                const row = new ActionRowBuilder().addComponents(
-                    new ButtonBuilder().setCustomId('tienda_prev').setLabel('◀️ Anterior').setStyle(ButtonStyle.Secondary),
-                    new ButtonBuilder().setCustomId('tienda_next').setLabel('Siguiente ▶️').setStyle(ButtonStyle.Secondary)
-                );
-
-                await interaction.editReply({ embeds: [pages[0]], components: [row] });
-
-                const filter = i => i.user.id === interaction.user.id && i.customId.startsWith('tienda_');
-                const collector = interaction.channel.createMessageComponentCollector({ filter, time: 120000 });
-
-                collector.on('collect', async i => {
-                    if (i.customId === 'tienda_next') {
-                        currentPage = (currentPage + 1) % pages.length;
-                    } else if (i.customId === 'tienda_prev') {
-                        currentPage = (currentPage - 1 + pages.length) % pages.length;
-                    }
-                    await i.update({ embeds: [pages[currentPage]] });
-                });
-
-                collector.on('end', () => {
-                    interaction.editReply({ components: [] }).catch(() => { });
-                });
-
-            } catch (error) {
-                console.error('[tienda ver] Error:', error);
-                await interaction.editReply('❌ Error cargando la tienda.');
             }
         }
 
-        else if (subcommand === 'comprar') {
+        else if (commandName === 'top-morosos') {
             await interaction.deferReply();
-            const itemKey = interaction.options.getString('item');
-            const userId = interaction.user.id;
 
             try {
-                const { data: item, error: itemError } = await supabase
-                    .from('store_items')
-                    .select('*')
-                    .eq('item_key', itemKey)
-                    .eq('active', true)
-                    .single();
+                const { data: debtors } = await supabase
+                    .from('credit_cards')
+                    .select('current_balance, card_type, citizen_id, citizens!inner(full_name, discord_id)')
+                    .gt('current_balance', 0)
+                    .order('current_balance', { ascending: false })
+                    .limit(10);
 
-                if (itemError || !item) {
-                    return interaction.editReply('❌ Item no encontrado o no disponible.');
-                }
-
-                const { data: existing } = await supabase
-                    .from('user_purchases')
-                    .select('*')
-                    .eq('user_id', userId)
-                    .eq('item_key', itemKey)
-                    .eq('status', 'active')
-                    .maybeSingle();
-
-                if (existing) {
-                    const expiryDate = existing.expiration_date ? `\nExpira: <t:${Math.floor(new Date(existing.expiration_date).getTime() / 1000)}:R>` : '';
-                    return interaction.editReply(`⚠️ Ya tienes este item activo.${expiryDate}`);
-                }
-
-                const pmStore = await getAvailablePaymentMethods(userId, interaction.guildId);
-                const pbStore = createPaymentButtons(pmStore, 'store_pay');
-                const storeEmbed = createPaymentEmbed(`${item.icon_emoji} ${item.name}`, item.price, pmStore);
-
-                await interaction.editReply({ embeds: [storeEmbed], components: [pbStore] });
-
-                const filter = i => i.user.id === userId && i.customId.startsWith('store_pay_');
-                const collector = interaction.channel.createMessageComponentCollector({ filter, time: 60000, max: 1 });
-
-                collector.on('collect', async i => {
-                    try {
-                        await i.deferUpdate();
-                        const method = i.customId.replace('store_pay_', '');
-
-                        const paymentResult = await processPayment(method, userId, interaction.guildId, item.price, `[Tienda] ${item.name}`, pmStore);
-
-                        if (!paymentResult.success) {
-                            return i.editReply({ content: paymentResult.error, embeds: [], components: [] });
-                        }
-
-                        let expirationDate = null;
-                        if (item.duration_days) {
-                            expirationDate = new Date();
-                            expirationDate.setDate(expirationDate.getDate() + item.duration_days);
-                        } else if (item.duration_hours) {
-                            expirationDate = new Date();
-                            expirationDate.setHours(expirationDate.getHours() + item.duration_hours);
-                        }
-
-                        const { data: purchase, error: purchaseError } = await supabase
-                            .from('user_purchases')
-                            .insert({
-                                user_id: userId,
-                                item_key: itemKey,
-                                expiration_date: expirationDate ? expirationDate.toISOString() : null,
-                                status: 'active',
-                                uses_remaining: item.max_uses || null
-                            })
-                            .select()
-                            .single();
-
-                        if (purchaseError) throw purchaseError;
-
-                        await supabase.from('purchase_transactions').insert({
-                            user_id: userId,
-                            item_key: itemKey,
-                            amount_paid: item.price,
-                            payment_method: method,
-                            purchase_id: purchase.id,
-                            transaction_type: 'purchase'
-                        });
-
-                        if (item.role_id) {
-                            try {
-                                const member = await interaction.guild.members.fetch(userId);
-                                await member.roles.add(item.role_id);
-                            } catch (roleError) {
-                                console.error('[tienda] Role assignment error:', roleError);
-                            }
-                        }
-
-                        const duration = item.duration_days
-                            ? `\n⏰ Válido por **${item.duration_days} días**`
-                            : item.duration_hours
-                                ? `\n⏰ Válido por **${item.duration_hours} hora(s)**`
-                                : '\n♾️ **Permanente**';
-
-                        const ticketMsg = item.requires_ticket ? `\n\n📩 **Abre un ticket** en <#${item.ticket_channel_id}> para activar tu beneficio.` : '';
-
-                        const successEmbed = new EmbedBuilder()
-                            .setColor('#00FF00')
-                            .setTitle('✅ Compra Exitosa')
-                            .setDescription(`${item.icon_emoji} **${item.name}**\n\n💰 Pagado: $${item.price.toLocaleString()}\n💳 Método: ${paymentResult.method}${duration}${ticketMsg}`)
-                            .setFooter({ text: 'Gracias por tu compra!' })
-                            .setTimestamp();
-
-                        await i.editReply({ embeds: [successEmbed], components: [] });
-
-                    } catch (error) {
-                        console.error('[tienda comprar] Error:', error);
-                        await i.editReply({ content: '❌ Error procesando la compra.', embeds: [], components: [] });
-                    }
-                });
-
-                collector.on('end', collected => {
-                    if (collected.size === 0) {
-                        interaction.editReply({ content: '⏰ Tiempo agotado.', embeds: [], components: [] });
-                    }
-                });
-
-            } catch (error) {
-                console.error('[tienda comprar] Error:', error);
-                await interaction.editReply('❌ Error procesando la compra.');
-            }
-        }
-
-        else if (subcommand === 'mispases') {
-            await interaction.deferReply({ ephemeral: true });
-            const userId = interaction.user.id;
-
-            try {
-                const { data: purchases, error } = await supabase
-                    .from('user_purchases')
-                    .select(`
-                        *,
-                        store_items (*)
-                    `)
-                    .eq('user_id', userId)
-                    .eq('status', 'active')
-                    .order('purchase_date', { ascending: false });
-
-                if (error) throw error;
-
-                if (!purchases || purchases.length === 0) {
-                    return interaction.editReply('📦 No tienes pases activos. Visita `/tienda ver` para comprar.');
+                if (!debtors || debtors.length === 0) {
+                    return interaction.editReply('✅ ¡No hay deudores! Todos están al corriente.');
                 }
 
                 const embed = new EmbedBuilder()
-                    .setTitle('📦 Mis Pases Activos')
-                    .setColor('#FFD700')
-                    .setDescription(`Tienes **${purchases.length}** pase(s) activo(s)`);
+                    .setTitle('📉 Top 10 - Mayores Deudas')
+                    .setColor(0xFF0000)
+                    .setTimestamp();
 
-                for (const p of purchases) {
-                    const item = p.store_items;
-                    const expiry = p.expiration_date
-                        ? `Expira: <t:${Math.floor(new Date(p.expiration_date).getTime() / 1000)}:R>`
-                        : '♾️ Permanente';
+                let description = '';
+                debtors.forEach((d, index) => {
+                    description += `${index + 1}. **${d.citizens.full_name}** - $${d.current_balance.toLocaleString()} (${d.card_type})\n`;
+                });
 
-                    const uses = p.uses_remaining ? `\n🎫 Usos restantes: ${p.uses_remaining}` : '';
+                embed.setDescription(description);
+                embed.setFooter({ text: 'Recuerda pagar tus tarjetas a tiempo' });
+                await interaction.editReply({ embeds: [embed] });
+            } catch (error) {
+                console.error(error);
+                await interaction.editReply('❌ Error obteniendo el ranking.');
+            }
+        }
 
-                    embed.addFields({
-                        name: `${item.icon_emoji} ${item.name}`,
-                        value: `${expiry}${uses}`,
-                        inline: false
-                    });
+        else if (commandName === 'depositar') {
+            await interaction.deferReply();
+            const destUser = interaction.options.getUser('destinatario');
+            const inputMonto = interaction.options.getString('monto');
+            const razon = interaction.options.getString('razon') || 'Depósito en Efectivo';
+
+            // Parse Amount
+            let monto = 0;
+            // Fetch balance early to handle 'todo'
+            const balance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
+            const cash = balance.cash || 0;
+
+            if (inputMonto.toLowerCase() === 'todo' || inputMonto.toLowerCase() === 'all') {
+                monto = cash;
+            } else {
+                monto = parseFloat(inputMonto);
+            }
+
+            if (isNaN(monto) || monto <= 0) {
+                return interaction.reply({ content: '❌ El monto debe ser mayor a 0.', ephemeral: true });
+            }
+
+
+            try {
+                // 1. Check Sender CASH (OXXO Logic: You pay with cash)
+                const balance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
+                const cash = balance.cash || 0;
+
+                if (cash < monto) {
+                    return interaction.editReply(`❌ No tienes suficiente **efectivo** en mano. Tienes: $${cash.toLocaleString()}`);
                 }
 
-                embed.setFooter({ text: 'Los pases expirarán automáticamente' });
+                // 2. Check Recipient Debit Card
+                const { data: destCard } = await supabase
+                    .from('debit_cards')
+                    .select('*')
+                    .eq('discord_user_id', destUser.id)
+                    .eq('status', 'active')
+                    .maybeSingle();
+
+                if (!destCard) {
+                    return interaction.editReply(`❌ El destinatario ${destUser.tag} no tiene una Tarjeta de Débito NMX activa para recibir depósitos.`);
+                }
+
+                // 3. Process Logic
+                // Remove Cash from Sender instantly
+                await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, monto, `Depósito a ${destUser.tag}`, 'cash');
+
+                // Schedule Pending Transfer (4 Hours Delay)
+                const completionTime = new Date(Date.now() + (4 * 60 * 60 * 1000)); // 4 Hours
+
+                await supabase.from('pending_transfers').insert({
+                    sender_id: interaction.user.id,
+                    receiver_id: destUser.id,
+                    amount: monto,
+                    reason: razon,
+                    release_date: completionTime.toISOString(),
+                    status: 'PENDING'
+                });
+
+                // 4. Response
+                const embed = new EmbedBuilder()
+                    .setTitle('🏪 Depósito Realizado')
+                    .setColor(0xFFA500)
+                    .setDescription(`Has depositado efectivo a la cuenta de **${destUser.tag}**.`)
+                    .addFields(
+                        { name: '💸 Monto', value: `$${monto.toLocaleString()}`, inline: true },
+                        { name: '💳 Destino', value: `Tarjeta NMX *${destCard.card_number.slice(-4)}`, inline: true },
+                        { name: '⏳ Tiempo estimado', value: '4 Horas', inline: false },
+                        { name: '📝 Concepto', value: razon, inline: false }
+                    )
+                    .setFooter({ text: 'El dinero llegará automáticamente cuando se procese.' })
+                    .setTimestamp();
 
                 await interaction.editReply({ embeds: [embed] });
 
             } catch (error) {
-                console.error('[tienda mispases] Error:', error);
-                await interaction.editReply('❌ Error cargando tus pases.');
+                console.error(error);
+                await interaction.editReply('❌ Error procesando el depósito.');
             }
         }
-    }
 
-    else if (commandName === 'top-morosos') {
-        await interaction.deferReply();
 
-        try {
-            const { data: debtors } = await supabase
-                .from('credit_cards')
-                .select('current_balance, card_type, citizen_id, citizens!inner(full_name, discord_id)')
-                .gt('current_balance', 0)
-                .order('current_balance', { ascending: false })
-                .limit(10);
+        else if (commandName === 'giro') {
+            await interaction.deferReply(); // Defer immediately
 
-            if (!debtors || debtors.length === 0) {
-                return interaction.editReply('✅ ¡No hay deudores! Todos están al corriente.');
+            const destUser = interaction.options.getUser('destinatario');
+            const inputMonto = interaction.options.getString('monto');
+            const razon = interaction.options.getString('razon') || 'Giro Postal';
+
+            // Fetch balance early
+            const senderBalance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
+
+            let monto = 0;
+            if (inputMonto.toLowerCase() === 'todo' || inputMonto.toLowerCase() === 'all') {
+                monto = senderBalance.cash || 0;
+            } else {
+                monto = parseFloat(inputMonto);
             }
 
-            const embed = new EmbedBuilder()
-                .setTitle('📉 Top 10 - Mayores Deudas')
-                .setColor(0xFF0000)
-                .setTimestamp();
-
-            let description = '';
-            debtors.forEach((d, index) => {
-                description += `${index + 1}. **${d.citizens.full_name}** - $${d.current_balance.toLocaleString()} (${d.card_type})\n`;
-            });
-
-            embed.setDescription(description);
-            embed.setFooter({ text: 'Recuerda pagar tus tarjetas a tiempo' });
-            await interaction.editReply({ embeds: [embed] });
-        } catch (error) {
-            console.error(error);
-            await interaction.editReply('❌ Error obteniendo el ranking.');
-        }
-    }
-
-    else if (commandName === 'depositar') {
-        await interaction.deferReply();
-        const destUser = interaction.options.getUser('destinatario');
-        const inputMonto = interaction.options.getString('monto');
-        const razon = interaction.options.getString('razon') || 'Depósito en Efectivo';
-
-        // Parse Amount
-        let monto = 0;
-        // Fetch balance early to handle 'todo'
-        const balance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
-        const cash = balance.cash || 0;
-
-        if (inputMonto.toLowerCase() === 'todo' || inputMonto.toLowerCase() === 'all') {
-            monto = cash;
-        } else {
-            monto = parseFloat(inputMonto);
-        }
-
-        if (isNaN(monto) || monto <= 0) {
-            return interaction.reply({ content: '❌ El monto debe ser mayor a 0.', ephemeral: true });
-        }
-
-
-        try {
-            // 1. Check Sender CASH (OXXO Logic: You pay with cash)
-            const balance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
-            const cash = balance.cash || 0;
-
-            if (cash < monto) {
-                return interaction.editReply(`❌ No tienes suficiente **efectivo** en mano. Tienes: $${cash.toLocaleString()}`);
-            }
-
-            // 2. Check Recipient Debit Card
-            const { data: destCard } = await supabase
-                .from('debit_cards')
-                .select('*')
-                .eq('discord_user_id', destUser.id)
-                .eq('status', 'active')
-                .maybeSingle();
-
-            if (!destCard) {
-                return interaction.editReply(`❌ El destinatario ${destUser.tag} no tiene una Tarjeta de Débito NMX activa para recibir depósitos.`);
-            }
-
-            // 3. Process Logic
-            // Remove Cash from Sender instantly
-            await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, monto, `Depósito a ${destUser.tag}`, 'cash');
-
-            // Schedule Pending Transfer (4 Hours Delay)
-            const completionTime = new Date(Date.now() + (4 * 60 * 60 * 1000)); // 4 Hours
-
-            await supabase.from('pending_transfers').insert({
-                sender_id: interaction.user.id,
-                receiver_id: destUser.id,
-                amount: monto,
-                reason: razon,
-                release_date: completionTime.toISOString(),
-                status: 'PENDING'
-            });
-
-            // 4. Response
-            const embed = new EmbedBuilder()
-                .setTitle('🏪 Depósito Realizado')
-                .setColor(0xFFA500)
-                .setDescription(`Has depositado efectivo a la cuenta de **${destUser.tag}**.`)
-                .addFields(
-                    { name: '💸 Monto', value: `$${monto.toLocaleString()}`, inline: true },
-                    { name: '💳 Destino', value: `Tarjeta NMX *${destCard.card_number.slice(-4)}`, inline: true },
-                    { name: '⏳ Tiempo estimado', value: '4 Horas', inline: false },
-                    { name: '📝 Concepto', value: razon, inline: false }
-                )
-                .setFooter({ text: 'El dinero llegará automáticamente cuando se procese.' })
-                .setTimestamp();
-
-            await interaction.editReply({ embeds: [embed] });
-
-        } catch (error) {
-            console.error(error);
-            await interaction.editReply('❌ Error procesando el depósito.');
-        }
-    }
-
-
-    else if (commandName === 'giro') {
-        await interaction.deferReply(); // Defer immediately
-
-        const destUser = interaction.options.getUser('destinatario');
-        const inputMonto = interaction.options.getString('monto');
-        const razon = interaction.options.getString('razon') || 'Giro Postal';
-
-        // Fetch balance early
-        const senderBalance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
-
-        let monto = 0;
-        if (inputMonto.toLowerCase() === 'todo' || inputMonto.toLowerCase() === 'all') {
-            monto = senderBalance.cash || 0;
-        } else {
-            monto = parseFloat(inputMonto);
-        }
-
-        if (isNaN(monto) || monto <= 0) return interaction.editReply({ content: '❌ El monto debe ser mayor a 0.' });
-        if (destUser.id === interaction.user.id) return interaction.editReply({ content: '❌ No puedes enviarte un giro a ti mismo.' });
-
-        try {
-            // Already fetched balance above.
-            if ((senderBalance.cash || 0) < monto) {
-                return interaction.editReply(`❌ Fondos insuficientes en Efectivo. Tienes $${(senderBalance.cash || 0).toLocaleString()}.`);
-            }
-
-            // 2. Create Pending Transfer FIRST (24h Delay)
-            const releaseDate = new Date();
-            releaseDate.setHours(releaseDate.getHours() + 24);
-
-            const { error: insertError } = await supabase.from('giro_transfers').insert({
-                sender_id: interaction.user.id,
-                receiver_id: destUser.id,
-                amount: monto,
-                reason: razon,
-                release_date: releaseDate.toISOString(),
-                status: 'pending'
-            });
-
-            if (insertError) {
-                console.error('[giro] Error:', insertError);
-                return interaction.editReply(`❌ Error creando giro.\nDetalles: ${insertError.message}`);
-            }
-
-            // 3. Show payment selector
-            const pmGiro = await getAvailablePaymentMethods(interaction.user.id, interaction.guildId);
-            const pbGiro = createPaymentButtons(pmGiro, 'giro_pay');
-            const paymentEmbed = createPaymentEmbed(`📮 Giro a ${destUser.tag} (Entrega 24h)`, monto, pmGiro);
-            await interaction.editReply({ embeds: [paymentEmbed], components: [pbGiro] });
-            const fGiro = i => i.user.id === interaction.user.id && i.customId.startsWith('giro_pay_');
-            const cGiro = interaction.channel.createMessageComponentCollector({ filter: fGiro, time: 60000, max: 1 });
-            cGiro.on('collect', async (i) => {
-                await i.deferUpdate();
-                const prGiro = await processPayment(i.customId.replace('giro_pay_', ''), interaction.user.id, interaction.guildId, monto, `[Giro] ${destUser.tag}`, pmGiro);
-                if (!prGiro.success) return i.editReply({ content: prGiro.error, components: [] });
-                await i.editReply({ content: `✅ **Giro Enviado** (${prGiro.method})\n\nDestinatario: **${destUser.tag}**\nMonto: **$${monto.toLocaleString()}**\nEntrega: 24 horas`, components: [] });
-            });
-            cGiro.on('end', collected => { if (collected.size === 0) interaction.editReply({ content: '⏱️ Tiempo agotado.', components: [] }); });
-
-        } catch (error) {
-            console.error(error);
-            await interaction.editReply('❌ Error procesando el giro postal.');
-        }
-    }
-
-    else if (commandName === 'impuestos') {
-        await interaction.deferReply();
-
-        // Simple tax system: 5% tax on cash holdings over $1M
-        const targetUser = interaction.options.getUser('usuario') || interaction.user;
-
-        try {
-            const balance = await billingService.ubService.getUserBalance(interaction.guildId, targetUser.id);
-            const cash = balance.cash || 0;
-
-            const TAX_THRESHOLD = 1000000;
-            const TAX_RATE = 0.05;
-
-            let taxAmount = 0;
-            if (cash > TAX_THRESHOLD) {
-                taxAmount = Math.floor((cash - TAX_THRESHOLD) * TAX_RATE);
-            }
-
-            const embed = new EmbedBuilder()
-                .setColor(taxAmount > 0 ? '#FF0000' : '#00FF00')
-                .setTitle(`💼 Estado Fiscal de ${targetUser.username}`)
-                .addFields(
-                    { name: '💵 Efectivo Actual', value: `$${cash.toLocaleString()}`, inline: true },
-                    { name: '📊 Umbral Exento', value: `$${TAX_THRESHOLD.toLocaleString()}`, inline: true },
-                    { name: '📈 Tasa de Impuesto', value: `${(TAX_RATE * 100)}%`, inline: true },
-                    { name: '💸 Impuesto Estimado', value: taxAmount > 0 ? `$${taxAmount.toLocaleString()}` : 'Exento', inline: false }
-                )
-                .setFooter({ text: 'Sistema de impuestos sobre efectivo excedente' })
-                .setTimestamp();
-
-            await interaction.editReply({ embeds: [embed] });
-        } catch (error) {
-            console.error('[impuestos] Error:', error);
-            await interaction.editReply('❌ Error al calcular impuestos.');
-        }
-    }
-
-    // ===================================================================
-    // ECONOMY COMMANDS: Stake, Slots, Fondos
-    // ===================================================================
-
-    else if (commandName === 'stake') {
-        await interaction.deferReply();
-        try {
-        } catch (err) {
-            console.error('[ERROR] Failed to defer stake:', err);
-            return;
-        }
-
-        const subcommand = interaction.options.getSubcommand();
-
-        if (subcommand === 'depositar') {
-            const crypto = interaction.options.getString('crypto').toUpperCase();
-            const cantidad = interaction.options.getNumber('cantidad');
-            const dias = interaction.options.getInteger('dias');
-
-            if (!['BTC', 'ETH', 'SOL'].includes(crypto)) {
-                return interaction.editReply('❌ Crypto inválida. Usa: BTC, ETH, SOL');
-            }
-
-            if (![7, 30, 90].includes(dias)) {
-                return interaction.editReply('❌ Períodos válidos: 7, 30, o 90 días');
-            }
+            if (isNaN(monto) || monto <= 0) return interaction.editReply({ content: '❌ El monto debe ser mayor a 0.' });
+            if (destUser.id === interaction.user.id) return interaction.editReply({ content: '❌ No puedes enviarte un giro a ti mismo.' });
 
             try {
-                const { data: portfolio } = await supabase
-                    .from('stock_portfolios')
-                    .select('*')
-                    .eq('discord_user_id', interaction.user.id)
-                    .eq('stock_symbol', crypto)
-                    .single();
-
-                if (!portfolio || portfolio.shares < cantidad) {
-                    return interaction.editReply('❌ No tienes suficiente crypto. Compra primero con `/bolsa comprar`');
+                // Already fetched balance above.
+                if ((senderBalance.cash || 0) < monto) {
+                    return interaction.editReply(`❌ Fondos insuficientes en Efectivo. Tienes $${(senderBalance.cash || 0).toLocaleString()}.`);
                 }
 
-                await supabase
-                    .from('stock_portfolios')
-                    .update({ shares: portfolio.shares - cantidad })
-                    .eq('id', portfolio.id);
+                // 2. Create Pending Transfer FIRST (24h Delay)
+                const releaseDate = new Date();
+                releaseDate.setHours(releaseDate.getHours() + 24);
 
-                const stake = await stakingService.createStake(
-                    interaction.user.id,
-                    crypto,
-                    cantidad,
-                    dias
-                );
-
-                const rates = stakingService.rates[crypto];
-                const apy = rates[dias] * 100;
-                const estimatedEarnings = (cantidad * rates[dias] * dias / 365).toFixed(4);
-
-                await interaction.editReply({
-                    content: `✅ **Staking Exitoso!**\n\n🔒 **${cantidad}** ${crypto} bloqueado por **${dias} días**\n📊 APY: **${apy.toFixed(1)}%**\n💰 Earnings estimados: **${estimatedEarnings}** ${crypto}\n\n_Usa \`/stake mis-stakes\` para ver todos tus stakes._`
+                const { error: insertError } = await supabase.from('giro_transfers').insert({
+                    sender_id: interaction.user.id,
+                    receiver_id: destUser.id,
+                    amount: monto,
+                    reason: razon,
+                    release_date: releaseDate.toISOString(),
+                    status: 'pending'
                 });
+
+                if (insertError) {
+                    console.error('[giro] Error:', insertError);
+                    return interaction.editReply(`❌ Error creando giro.\nDetalles: ${insertError.message}`);
+                }
+
+                // 3. Show payment selector
+                const pmGiro = await getAvailablePaymentMethods(interaction.user.id, interaction.guildId);
+                const pbGiro = createPaymentButtons(pmGiro, 'giro_pay');
+                const paymentEmbed = createPaymentEmbed(`📮 Giro a ${destUser.tag} (Entrega 24h)`, monto, pmGiro);
+                await interaction.editReply({ embeds: [paymentEmbed], components: [pbGiro] });
+                const fGiro = i => i.user.id === interaction.user.id && i.customId.startsWith('giro_pay_');
+                const cGiro = interaction.channel.createMessageComponentCollector({ filter: fGiro, time: 60000, max: 1 });
+                cGiro.on('collect', async (i) => {
+                    await i.deferUpdate();
+                    const prGiro = await processPayment(i.customId.replace('giro_pay_', ''), interaction.user.id, interaction.guildId, monto, `[Giro] ${destUser.tag}`, pmGiro);
+                    if (!prGiro.success) return i.editReply({ content: prGiro.error, components: [] });
+                    await i.editReply({ content: `✅ **Giro Enviado** (${prGiro.method})\n\nDestinatario: **${destUser.tag}**\nMonto: **$${monto.toLocaleString()}**\nEntrega: 24 horas`, components: [] });
+                });
+                cGiro.on('end', collected => { if (collected.size === 0) interaction.editReply({ content: '⏱️ Tiempo agotado.', components: [] }); });
 
             } catch (error) {
                 console.error(error);
-                await interaction.editReply('❌ Error creando stake.');
+                await interaction.editReply('❌ Error procesando el giro postal.');
             }
         }
 
-        else if (subcommand === 'mis-stakes') {
-            const stakes = await stakingService.getUserStakes(interaction.user.id);
+        else if (commandName === 'impuestos') {
+            await interaction.deferReply();
 
-            if (stakes.length === 0) {
-                return interaction.editReply('📊 No tienes stakes activos. Usa `/stake depositar` para empezar.');
-            }
-
-            const embed = new EmbedBuilder()
-                .setTitle('🔒 Tus Stakes Activos')
-                .setColor(0x00FF00)
-                .setFooter({ text: 'Usa /stake retirar [id] para retirar stakes desbloqueados' });
-
-            stakes.forEach(s => {
-                const endDate = new Date(s.end_date);
-                const isUnlocked = Date.now() > endDate.getTime();
-                const status = isUnlocked ? '🔓 DESBLOQUEADO' : `🔒 Bloqueado hasta ${endDate.toLocaleDateString()}`;
-
-                embed.addFields({
-                    name: `${s.crypto_symbol} - ${s.amount} unidades`,
-                    value: `APY: ${s.apy}%\n${status}\nID: \`${s.id.substring(0, 8)}\``
-                });
-            });
-
-            await interaction.editReply({ embeds: [embed] });
-        }
-
-        else if (subcommand === 'retirar') {
-            const stakeId = interaction.options.getString('id');
+            // Simple tax system: 5% tax on cash holdings over $1M
+            const targetUser = interaction.options.getUser('usuario') || interaction.user;
 
             try {
-                const { amount, earnings } = await stakingService.withdrawStake(stakeId, interaction.user.id);
+                const balance = await billingService.ubService.getUserBalance(interaction.guildId, targetUser.id);
+                const cash = balance.cash || 0;
 
-                await interaction.editReply({
-                    content: `✅ **Stake Retirado!**\n\n💰 Principal: **${amount}**\n📈 Ganancias: **${earnings.toFixed(4)}**\n🎉 Total: **${(amount + earnings).toFixed(4)}**`
+                const TAX_THRESHOLD = 1000000;
+                const TAX_RATE = 0.05;
+
+                let taxAmount = 0;
+                if (cash > TAX_THRESHOLD) {
+                    taxAmount = Math.floor((cash - TAX_THRESHOLD) * TAX_RATE);
+                }
+
+                const embed = new EmbedBuilder()
+                    .setColor(taxAmount > 0 ? '#FF0000' : '#00FF00')
+                    .setTitle(`💼 Estado Fiscal de ${targetUser.username}`)
+                    .addFields(
+                        { name: '💵 Efectivo Actual', value: `$${cash.toLocaleString()}`, inline: true },
+                        { name: '📊 Umbral Exento', value: `$${TAX_THRESHOLD.toLocaleString()}`, inline: true },
+                        { name: '📈 Tasa de Impuesto', value: `${(TAX_RATE * 100)}%`, inline: true },
+                        { name: '💸 Impuesto Estimado', value: taxAmount > 0 ? `$${taxAmount.toLocaleString()}` : 'Exento', inline: false }
+                    )
+                    .setFooter({ text: 'Sistema de impuestos sobre efectivo excedente' })
+                    .setTimestamp();
+
+                await interaction.editReply({ embeds: [embed] });
+            } catch (error) {
+                console.error('[impuestos] Error:', error);
+                await interaction.editReply('❌ Error al calcular impuestos.');
+            }
+        }
+
+        // ===================================================================
+        // ECONOMY COMMANDS: Stake, Slots, Fondos
+        // ===================================================================
+
+        else if (commandName === 'stake') {
+            await interaction.deferReply();
+            try {
+            } catch (err) {
+                console.error('[ERROR] Failed to defer stake:', err);
+                return;
+            }
+
+            const subcommand = interaction.options.getSubcommand();
+
+            if (subcommand === 'depositar') {
+                const crypto = interaction.options.getString('crypto').toUpperCase();
+                const cantidad = interaction.options.getNumber('cantidad');
+                const dias = interaction.options.getInteger('dias');
+
+                if (!['BTC', 'ETH', 'SOL'].includes(crypto)) {
+                    return interaction.editReply('❌ Crypto inválida. Usa: BTC, ETH, SOL');
+                }
+
+                if (![7, 30, 90].includes(dias)) {
+                    return interaction.editReply('❌ Períodos válidos: 7, 30, o 90 días');
+                }
+
+                try {
+                    const { data: portfolio } = await supabase
+                        .from('stock_portfolios')
+                        .select('*')
+                        .eq('discord_user_id', interaction.user.id)
+                        .eq('stock_symbol', crypto)
+                        .single();
+
+                    if (!portfolio || portfolio.shares < cantidad) {
+                        return interaction.editReply('❌ No tienes suficiente crypto. Compra primero con `/bolsa comprar`');
+                    }
+
+                    await supabase
+                        .from('stock_portfolios')
+                        .update({ shares: portfolio.shares - cantidad })
+                        .eq('id', portfolio.id);
+
+                    const stake = await stakingService.createStake(
+                        interaction.user.id,
+                        crypto,
+                        cantidad,
+                        dias
+                    );
+
+                    const rates = stakingService.rates[crypto];
+                    const apy = rates[dias] * 100;
+                    const estimatedEarnings = (cantidad * rates[dias] * dias / 365).toFixed(4);
+
+                    await interaction.editReply({
+                        content: `✅ **Staking Exitoso!**\n\n🔒 **${cantidad}** ${crypto} bloqueado por **${dias} días**\n📊 APY: **${apy.toFixed(1)}%**\n💰 Earnings estimados: **${estimatedEarnings}** ${crypto}\n\n_Usa \`/stake mis-stakes\` para ver todos tus stakes._`
+                    });
+
+                } catch (error) {
+                    console.error(error);
+                    await interaction.editReply('❌ Error creando stake.');
+                }
+            }
+
+            else if (subcommand === 'mis-stakes') {
+                const stakes = await stakingService.getUserStakes(interaction.user.id);
+
+                if (stakes.length === 0) {
+                    return interaction.editReply('📊 No tienes stakes activos. Usa `/stake depositar` para empezar.');
+                }
+
+                const embed = new EmbedBuilder()
+                    .setTitle('🔒 Tus Stakes Activos')
+                    .setColor(0x00FF00)
+                    .setFooter({ text: 'Usa /stake retirar [id] para retirar stakes desbloqueados' });
+
+                stakes.forEach(s => {
+                    const endDate = new Date(s.end_date);
+                    const isUnlocked = Date.now() > endDate.getTime();
+                    const status = isUnlocked ? '🔓 DESBLOQUEADO' : `🔒 Bloqueado hasta ${endDate.toLocaleDateString()}`;
+
+                    embed.addFields({
+                        name: `${s.crypto_symbol} - ${s.amount} unidades`,
+                        value: `APY: ${s.apy}%\n${status}\nID: \`${s.id.substring(0, 8)}\``
+                    });
                 });
 
-            } catch (error) {
-                await interaction.editReply(`❌ ${error.message}`);
-            }
-        }
-    }
-
-    else if (commandName === 'slots') {
-        await interaction.deferReply();
-        try {
-        } catch (err) {
-            console.error('[ERROR] Failed to defer slots:', err);
-            return;
-        }
-
-        const apuesta = interaction.options.getInteger('apuesta');
-
-        if (apuesta < 100) {
-            return interaction.editReply('❌ Apuesta mínima: $100');
-        }
-
-        try {
-            const card = await getDebitCard(interaction.user.id);
-            if (!card || card.balance < apuesta) {
-                return interaction.editReply('❌ Saldo insuficiente en tarjeta de débito');
+                await interaction.editReply({ embeds: [embed] });
             }
 
-            await supabase
-                .from('debit_cards')
-                .update({ balance: card.balance - apuesta })
-                .eq('id', card.id);
+            else if (subcommand === 'retirar') {
+                const stakeId = interaction.options.getString('id');
 
-            const { result, payout, win, jackpot, jackpotAmount } = await slotsService.spin(
-                interaction.user.id,
-                apuesta
-            );
+                try {
+                    const { amount, earnings } = await stakingService.withdrawStake(stakeId, interaction.user.id);
 
-            if (payout > 0) {
+                    await interaction.editReply({
+                        content: `✅ **Stake Retirado!**\n\n💰 Principal: **${amount}**\n📈 Ganancias: **${earnings.toFixed(4)}**\n🎉 Total: **${(amount + earnings).toFixed(4)}**`
+                    });
+
+                } catch (error) {
+                    await interaction.editReply(`❌ ${error.message}`);
+                }
+            }
+        }
+
+        else if (commandName === 'slots') {
+            await interaction.deferReply();
+            try {
+            } catch (err) {
+                console.error('[ERROR] Failed to defer slots:', err);
+                return;
+            }
+
+            const apuesta = interaction.options.getInteger('apuesta');
+
+            if (apuesta < 100) {
+                return interaction.editReply('❌ Apuesta mínima: $100');
+            }
+
+            try {
+                const card = await getDebitCard(interaction.user.id);
+                if (!card || card.balance < apuesta) {
+                    return interaction.editReply('❌ Saldo insuficiente en tarjeta de débito');
+                }
+
                 await supabase
                     .from('debit_cards')
-                    .update({ balance: card.balance - apuesta + payout })
+                    .update({ balance: card.balance - apuesta })
                     .eq('id', card.id);
+
+                const { result, payout, win, jackpot, jackpotAmount } = await slotsService.spin(
+                    interaction.user.id,
+                    apuesta
+                );
+
+                if (payout > 0) {
+                    await supabase
+                        .from('debit_cards')
+                        .update({ balance: card.balance - apuesta + payout })
+                        .eq('id', card.id);
+                }
+
+                const spinning = '🎰 | 🎰 | 🎰';
+                const final = `${result.reel1} | ${result.reel2} | ${result.reel3}`;
+
+                let message = `**SLOT MACHINE** 🎰\n\n${spinning}\n⬇️\n${final}\n\n`;
+
+                if (jackpot) {
+                    message += `🎉🎉🎉 **JACKPOT!!!** 🎉🎉🎉\n💰 ¡Ganaste $${jackpotAmount.toLocaleString()} del jackpot!\n`;
+                } else if (win) {
+                    const profit = payout - apuesta;
+                    message += `✅ **¡GANASTE!** 💰\nPago: $${payout.toLocaleString()} (+$${profit.toLocaleString()})\n`;
+                } else {
+                    message += `❌ **Perdiste** $${apuesta.toLocaleString()}\n`;
+                }
+
+                const currentJackpot = await slotsService.getJackpot();
+                message += `\n🏆 Jackpot actual: $${currentJackpot.toLocaleString()}`;
+
+                await interaction.editReply(message);
+
+            } catch (error) {
+                console.error(error);
+                await interaction.editReply('❌ Error en slots');
             }
-
-            const spinning = '🎰 | 🎰 | 🎰';
-            const final = `${result.reel1} | ${result.reel2} | ${result.reel3}`;
-
-            let message = `**SLOT MACHINE** 🎰\n\n${spinning}\n⬇️\n${final}\n\n`;
-
-            if (jackpot) {
-                message += `🎉🎉🎉 **JACKPOT!!!** 🎉🎉🎉\n💰 ¡Ganaste $${jackpotAmount.toLocaleString()} del jackpot!\n`;
-            } else if (win) {
-                const profit = payout - apuesta;
-                message += `✅ **¡GANASTE!** 💰\nPago: $${payout.toLocaleString()} (+$${profit.toLocaleString()})\n`;
-            } else {
-                message += `❌ **Perdiste** $${apuesta.toLocaleString()}\n`;
-            }
-
-            const currentJackpot = await slotsService.getJackpot();
-            message += `\n🏆 Jackpot actual: $${currentJackpot.toLocaleString()}`;
-
-            await interaction.editReply(message);
-
-        } catch (error) {
-            console.error(error);
-            await interaction.editReply('❌ Error en slots');
-        }
-    }
-
-    else if (commandName === 'fondos') {
-        await interaction.deferReply();
-        try {
-        } catch (err) {
-            console.error('[ERROR] Failed to defer fondos:', err);
-            return;
-        }
-
-        const subcommand = interaction.options.getSubcommand();
-
-        if (subcommand === 'ver') {
-            const { data: funds } = await supabase
-                .from('investment_funds')
-                .select('*')
-                .eq('active', true)
-                .order('apy');
-
-            const embed = new EmbedBuilder()
-                .setTitle('💼 Fondos de Inversión Disponibles')
-                .setColor(0x00BFFF)
-                .setFooter({ text: 'Usa /fondos invertir [fondo] [monto]' });
-
-            funds.forEach(f => {
-                embed.addFields({
-                    name: `${f.name} (${f.risk_level.toUpperCase()})`,
-                    value: `📊 APY: ${f.apy}%\n💰 Mín: $${f.min_investment.toLocaleString()}\n📝 ${f.description}`
-                });
-            });
-
-            await interaction.editReply({ embeds: [embed] });
         }
 
-        else if (subcommand === 'invertir') {
-            const fondoNombre = interaction.options.getString('fondo');
-            const monto = interaction.options.getInteger('monto');
-
-            const { data: fund } = await supabase
-                .from('investment_funds')
-                .select('*')
-                .ilike('name', `%${fondoNombre}%`)
-                .single();
-
-            if (!fund) {
-                return interaction.editReply('❌ Fondo no encontrado. Usa `/fondos ver` para ver opciones.');
+        else if (commandName === 'fondos') {
+            await interaction.deferReply();
+            try {
+            } catch (err) {
+                console.error('[ERROR] Failed to defer fondos:', err);
+                return;
             }
 
-            if (monto < fund.min_investment) {
-                return interaction.editReply(`❌ Inversión mínima: $${fund.min_investment.toLocaleString()}`);
-            }
+            const subcommand = interaction.options.getSubcommand();
 
-            const card = await getDebitCard(interaction.user.id);
-            if (!card || card.balance < monto) {
-                return interaction.editReply('❌ Saldo insuficiente');
-            }
+            if (subcommand === 'ver') {
+                const { data: funds } = await supabase
+                    .from('investment_funds')
+                    .select('*')
+                    .eq('active', true)
+                    .order('apy');
 
-            await supabase
-                .from('debit_cards')
-                .update({ balance: card.balance - monto })
-                .eq('id', card.id);
+                const embed = new EmbedBuilder()
+                    .setTitle('💼 Fondos de Inversión Disponibles')
+                    .setColor(0x00BFFF)
+                    .setFooter({ text: 'Usa /fondos invertir [fondo] [monto]' });
 
-            await supabase
-                .from('fund_investments')
-                .insert({
-                    user_id: interaction.user.id,
-                    fund_id: fund.id,
-                    amount: monto,
-                    current_value: monto
+                funds.forEach(f => {
+                    embed.addFields({
+                        name: `${f.name} (${f.risk_level.toUpperCase()})`,
+                        value: `📊 APY: ${f.apy}%\n💰 Mín: $${f.min_investment.toLocaleString()}\n📝 ${f.description}`
+                    });
                 });
 
-            await interaction.editReply({
-                content: `✅ **Inversión Exitosa!**\n\n💼 Fondo: **${fund.name}**\n💰 Monto: **$${monto.toLocaleString()}**\n📊 APY: **${fund.apy}%**\n⏰ Tus ganancias se calculan diariamente.\n\n_Usa \`/fondos mis-fondos\` para ver tu portafolio._`
-            });
-        }
+                await interaction.editReply({ embeds: [embed] });
+            }
 
-        else if (subcommand === 'mis-fondos') {
-            const { data: investments } = await supabase
-                .from('fund_investments')
-                .select(`
+            else if (subcommand === 'invertir') {
+                const fondoNombre = interaction.options.getString('fondo');
+                const monto = interaction.options.getInteger('monto');
+
+                const { data: fund } = await supabase
+                    .from('investment_funds')
+                    .select('*')
+                    .ilike('name', `%${fondoNombre}%`)
+                    .single();
+
+                if (!fund) {
+                    return interaction.editReply('❌ Fondo no encontrado. Usa `/fondos ver` para ver opciones.');
+                }
+
+                if (monto < fund.min_investment) {
+                    return interaction.editReply(`❌ Inversión mínima: $${fund.min_investment.toLocaleString()}`);
+                }
+
+                const card = await getDebitCard(interaction.user.id);
+                if (!card || card.balance < monto) {
+                    return interaction.editReply('❌ Saldo insuficiente');
+                }
+
+                await supabase
+                    .from('debit_cards')
+                    .update({ balance: card.balance - monto })
+                    .eq('id', card.id);
+
+                await supabase
+                    .from('fund_investments')
+                    .insert({
+                        user_id: interaction.user.id,
+                        fund_id: fund.id,
+                        amount: monto,
+                        current_value: monto
+                    });
+
+                await interaction.editReply({
+                    content: `✅ **Inversión Exitosa!**\n\n💼 Fondo: **${fund.name}**\n💰 Monto: **$${monto.toLocaleString()}**\n📊 APY: **${fund.apy}%**\n⏰ Tus ganancias se calculan diariamente.\n\n_Usa \`/fondos mis-fondos\` para ver tu portafolio._`
+                });
+            }
+
+            else if (subcommand === 'mis-fondos') {
+                const { data: investments } = await supabase
+                    .from('fund_investments')
+                    .select(`
                     *,
                     investment_funds (name, apy, risk_level)
                 `)
-                .eq('user_id', interaction.user.id)
-                .eq('status', 'active');
+                    .eq('user_id', interaction.user.id)
+                    .eq('status', 'active');
 
-            if (!investments || investments.length === 0) {
-                return interaction.editReply('📊 No tienes inversiones activas. Usa `/fondos invertir`');
-            }
+                if (!investments || investments.length === 0) {
+                    return interaction.editReply('📊 No tienes inversiones activas. Usa `/fondos invertir`');
+                }
 
-            const embed = new EmbedBuilder()
-                .setTitle('💼 Tus Inversiones')
-                .setColor(0x00BFFF);
+                const embed = new EmbedBuilder()
+                    .setTitle('💼 Tus Inversiones')
+                    .setColor(0x00BFFF);
 
-            investments.forEach(inv => {
-                const fund = inv.investment_funds;
-                embed.addFields({
-                    name: fund.name,
-                    value: `💰 Invertido: $${inv.amount.toLocaleString()}\n📊 APY: ${fund.apy}%\n📈 Nivel: ${fund.risk_level}`
+                investments.forEach(inv => {
+                    const fund = inv.investment_funds;
+                    embed.addFields({
+                        name: fund.name,
+                        value: `💰 Invertido: $${inv.amount.toLocaleString()}\n📊 APY: ${fund.apy}%\n📈 Nivel: ${fund.risk_level}`
+                    });
                 });
-            });
 
-            await interaction.editReply({ embeds: [embed] });
+                await interaction.editReply({ embeds: [embed] });
+            }
         }
-    }
 
 
-    // IMPORTANT: Only delegate if interaction was NOT handled above
-    // This prevents duplicate processing causing "Unknown interaction" errors
-    //     if (!interaction.replied && !interaction.deferred) {
-    //         console.log(`[DEBUG] Delegating interaction ${interaction.customId || interaction.commandName} to handleExtraCommands`);
-    // 
-    //         await handleExtraCommands(interaction);
-    //     }
-});
+        // IMPORTANT: Only delegate if interaction was NOT handled above
+        // This prevents duplicate processing causing "Unknown interaction" errors
+        //     if (!interaction.replied && !interaction.deferred) {
+        //         console.log(`[DEBUG] Delegating interaction ${interaction.customId || interaction.commandName} to handleExtraCommands`);
+        // 
+        //         await handleExtraCommands(interaction);
+        //     }
+    });
 
 // Global Error Handlers to prevent crash
 process.on('unhandledRejection', error => {
