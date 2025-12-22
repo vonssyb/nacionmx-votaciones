@@ -4900,6 +4900,14 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                     return interaction.editReply('❌ Error al contratar empleado.');
                 }
 
+                // LOGGING: Hire
+                const logEmbed = new EmbedBuilder()
+                    .setTitle('🤝 Nuevo Empleado Contratado')
+                    .setColor('#00AAFF')
+                    .setDescription(`🏢 **Empresa:** ${company.name}\n👤 **Empleado:** <@${targetUser.id}>\n💰 **Sueldo:** $${sueldo.toLocaleString()}\n👔 **Puesto:** ${puesto}`)
+                    .setTimestamp();
+                logToChannel(interaction.guild, LOG_EMPRESAS, logEmbed);
+
                 return interaction.editReply(`✅ **Contratado:** <@${targetUser.id}> ha sido añadido a la nómina de **${company.name}** con sueldo de $${sueldo.toLocaleString()}.`);
             }
 
@@ -4936,6 +4944,14 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                     console.error('[empresa despedir]', error);
                     return interaction.editReply('❌ Error al despedir empleado.');
                 }
+
+                // LOGGING: Fire
+                const logEmbed = new EmbedBuilder()
+                    .setTitle('🚪 Empleado Despedido')
+                    .setColor('#FF0000')
+                    .setDescription(`🏢 **Empresa:** ${company.name}\n👤 **Empleado:** <@${targetUser.id}>`)
+                    .setTimestamp();
+                logToChannel(interaction.guild, LOG_EMPRESAS, logEmbed);
 
                 return interaction.editReply(`🚫 **Despedido:** <@${targetUser.id}> ha sido removido de la nómina de **${company.name}**.`);
             }
