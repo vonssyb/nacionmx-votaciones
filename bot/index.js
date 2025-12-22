@@ -71,6 +71,7 @@ const LOG_CREACION_TARJETA = '1450343644652507136';
 const LOG_EMPRESAS = '1452346918620500041';
 const LOG_LICENCIAS = '1450262813548482665';
 const LOG_TIENDA = '1452499876737978438';
+const LOG_POLICIA = '000000000000000000'; // TODO: Replace with real ID
 
 // CASINO SESSION MANAGERS (Multiplayer)
 const casinoSessions = {
@@ -1429,6 +1430,85 @@ client.once('ready', async () => {
                         { name: 'empresa_usuario', description: 'Dueño de la empresa', type: 6, required: true },
                         { name: 'modelo', description: 'Modelo del vehículo (ej. Tsuru)', type: 3, required: true },
                         { name: 'placa', description: 'Placa del vehículo', type: 3, required: true }
+                    ]
+                }
+            ]
+        },
+        {
+            name: 'robar',
+            description: '🔫 Intentar robar a un ciudadano (Riesgo de multa/cárcel)',
+            options: [
+                { name: 'usuario', description: 'Víctima del robo', type: 6, required: true }
+            ]
+        },
+        {
+            name: 'trabajar',
+            description: '👷 Realizar un trabajo rápido para ganar dinero legal',
+            type: 1
+        },
+        {
+            name: 'bolsa',
+            description: '📈 Mercado de Valores (Acciones dinámicas)',
+            options: [
+                {
+                    name: 'ver',
+                    description: 'Ver precios actuales de acciones',
+                    type: 1
+                },
+                {
+                    name: 'comprar',
+                    description: 'Comprar acciones',
+                    type: 1,
+                    options: [
+                        { name: 'empresa', description: 'Ticker (ej. NMX)', type: 3, required: true },
+                        { name: 'cantidad', description: 'Número de acciones', type: 10, required: true }
+                    ]
+                },
+                {
+                    name: 'vender',
+                    description: 'Vender acciones',
+                    type: 1,
+                    options: [
+                        { name: 'empresa', description: 'Ticker (ej. NMX)', type: 3, required: true },
+                        { name: 'cantidad', description: 'Número de acciones', type: 10, required: true }
+                    ]
+                },
+                {
+                    name: 'portafolio',
+                    description: 'Ver mis inversiones en bolsa',
+                    type: 1
+                }
+            ]
+        },
+        {
+            name: 'casino',
+            description: '🎰 Juegos de Azar (Blackjack, Ruleta)',
+            options: [
+                {
+                    name: 'blackjack',
+                    description: 'Jugar 21 contra la casa',
+                    type: 1,
+                    options: [{ name: 'apuesta', description: 'Monto a apostar', type: 10, required: true }]
+                },
+                {
+                    name: 'ruleta',
+                    description: 'Apostar a la ruleta',
+                    type: 1,
+                    options: [
+                        { name: 'apuesta', description: 'Monto', type: 10, required: true },
+                        {
+                            name: 'opcion',
+                            description: 'A qué apostar',
+                            type: 3,
+                            required: true,
+                            choices: [
+                                { name: '🔴 Rojo (x2)', value: 'red' },
+                                { name: '⚫ Negro (x2)', value: 'black' },
+                                { name: '🟢 Verde (x14)', value: 'green' }, // 0
+                                { name: '1-18 (x2)', value: 'low' },
+                                { name: '19-36 (x2)', value: 'high' }
+                            ]
+                        }
                     ]
                 }
             ]
