@@ -4622,16 +4622,18 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 let paymentProcessed = false; // Prevent duplicate payments
 
                 collector.on('collect', async (i) => {
-                    if (paymentProcessed) {
-                        return i.deferUpdate().catch(() => { });
-                    }
-
-                    paymentProcessed = true;
-                    await i.deferUpdate();
-                    const method = i.customId.replace('emp_pay_', '').replace('emp_', '');
-                    console.log(`[empresa] Payment attempt: Method=${method}, Owner=${dueño.id}, Executor=${i.user.id}`);
-
                     try {
+                        if (paymentProcessed) {
+                            return i.deferUpdate().catch(() => { });
+                        }
+
+                        paymentProcessed = true;
+                        // Important: deferUpdate must happen immediately
+                        await i.deferUpdate();
+
+                        const method = i.customId.replace('emp_pay_', '').replace('emp_', '');
+                        console.log(`[empresa] Payment attempt: Method=${method}, Owner=${dueño.id}, Executor=${i.user.id}`);
+
                         // Process payment based on method - DUEÑO PAYS
                         if (method === 'cash' || method === 'bank') {
                             const balance = await billingService.ubService.getUserBalance(interaction.guildId, dueño.id);
@@ -4682,9 +4684,14 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
 
                         const { data: newCompany, error } = await supabase.from('companies').insert({
                             name: nombre,
+                            owner_id: dueño.id,
+                            balance: 0,
+                            created_at: new Date().toISOString(),
                             logo_url: logo?.url,
-                            banner_url: fotoLocal?.url,
+                            local_type: tipoLocal || 'pequeño',
+                            local_photo_url: fotoLocal ? fotoLocal.url : null,
                             location: ubicacion,
+                            co_owner_id: coDueño ? coDueño.id : null,
                             is_private: esPrivada,
                             owner_ids: ownerIds,
                             vehicle_count: 0,
@@ -4693,10 +4700,21 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                         }).select().single();
 
                         if (error) {
-                            console.error('[empresa] Error:', error);
-                            return i.editReply({ content: '❌ Error creando empresa.', components: [] });
+                            console.error('[empresa] DB Error:', error);
+                            paymentProcessed = false;
+                            return i.editReply({ content: '❌ Error creando empresa en BD.', components: [] });
                         }
 
+                        // Add role to owner
+                        try {
+                            const member = await interaction.guild.members.fetch(dueño.id);
+                            const role = interaction.guild.roles.cache.find(r => r.name === 'Empresario'); // Adjust role name
+                            if (role) await member.roles.add(role);
+                        } catch (e) {
+                            console.error('Error adding role:', e);
+                        }
+
+                        console.log(`[empresa] Company created: ${newCompany.name} (${newCompany.id})`);
 
                         const embed = new EmbedBuilder()
                             .setColor('#00FF00')
@@ -4733,8 +4751,11 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                             components: [vehicleRow]
                         });
                     } catch (err) {
-                        console.error('[empresa crear payment]', err);
-                        return i.editReply({ content: '❌ Error procesando pago.', components: [] });
+                        console.error('[empresa crear payment ERROR]', err);
+                        paymentProcessed = false;
+                        if (i.replied || i.deferred) {
+                            return i.editReply({ content: `❌ Error inesperado: ${err.message}`, components: [] }).catch(() => { });
+                        }
                     }
                 });
 
