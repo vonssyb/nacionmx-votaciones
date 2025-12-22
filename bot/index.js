@@ -8074,507 +8074,507 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             }, 4000);
         }
     }
-}
+
 
     else if (commandName === 'top-morosos') {
-    await interaction.deferReply();
+        await interaction.deferReply();
 
-    try {
-        const { data: debtors } = await supabase
-            .from('credit_cards')
-            .select('current_balance, card_type, citizen_id, citizens!inner(full_name, discord_id)')
-            .gt('current_balance', 0)
-            .order('current_balance', { ascending: false })
-            .limit(10);
+        try {
+            const { data: debtors } = await supabase
+                .from('credit_cards')
+                .select('current_balance, card_type, citizen_id, citizens!inner(full_name, discord_id)')
+                .gt('current_balance', 0)
+                .order('current_balance', { ascending: false })
+                .limit(10);
 
-        if (!debtors || debtors.length === 0) {
-            return interaction.editReply('✅ ¡No hay deudores! Todos están al corriente.');
+            if (!debtors || debtors.length === 0) {
+                return interaction.editReply('✅ ¡No hay deudores! Todos están al corriente.');
+            }
+
+            const embed = new EmbedBuilder()
+                .setTitle('📉 Top 10 - Mayores Deudas')
+                .setColor(0xFF0000)
+                .setTimestamp();
+
+            let description = '';
+            debtors.forEach((d, index) => {
+                description += `${index + 1}. **${d.citizens.full_name}** - $${d.current_balance.toLocaleString()} (${d.card_type})\n`;
+            });
+
+            embed.setDescription(description);
+            embed.setFooter({ text: 'Recuerda pagar tus tarjetas a tiempo' });
+            await interaction.editReply({ embeds: [embed] });
+        } catch (error) {
+            console.error(error);
+            await interaction.editReply('❌ Error obteniendo el ranking.');
         }
-
-        const embed = new EmbedBuilder()
-            .setTitle('📉 Top 10 - Mayores Deudas')
-            .setColor(0xFF0000)
-            .setTimestamp();
-
-        let description = '';
-        debtors.forEach((d, index) => {
-            description += `${index + 1}. **${d.citizens.full_name}** - $${d.current_balance.toLocaleString()} (${d.card_type})\n`;
-        });
-
-        embed.setDescription(description);
-        embed.setFooter({ text: 'Recuerda pagar tus tarjetas a tiempo' });
-        await interaction.editReply({ embeds: [embed] });
-    } catch (error) {
-        console.error(error);
-        await interaction.editReply('❌ Error obteniendo el ranking.');
-    }
-}
-
-else if (commandName === 'depositar') {
-    await interaction.deferReply();
-    const destUser = interaction.options.getUser('destinatario');
-    const inputMonto = interaction.options.getString('monto');
-    const razon = interaction.options.getString('razon') || 'Depósito en Efectivo';
-
-    // Parse Amount
-    let monto = 0;
-    // Fetch balance early to handle 'todo'
-    const balance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
-    const cash = balance.cash || 0;
-
-    if (inputMonto.toLowerCase() === 'todo' || inputMonto.toLowerCase() === 'all') {
-        monto = cash;
-    } else {
-        // Remove any non-numeric chars (e.g. $, commas) to be safe
-        const cleanMonto = inputMonto.replace(/[^0-9.]/g, '');
-        monto = parseFloat(cleanMonto);
     }
 
-    // Security: Check for NaN, Finite, and positive amount
-    if (isNaN(monto) || !isFinite(monto) || monto <= 0) {
-        return interaction.editReply('❌ Monto inválido. Debes ingresar un número positivo mayor a 0.');
-    }
+    else if (commandName === 'depositar') {
+        await interaction.deferReply();
+        const destUser = interaction.options.getUser('destinatario');
+        const inputMonto = interaction.options.getString('monto');
+        const razon = interaction.options.getString('razon') || 'Depósito en Efectivo';
 
-
-    try {
-        // 1. Check Sender CASH (OXXO Logic: You pay with cash)
+        // Parse Amount
+        let monto = 0;
+        // Fetch balance early to handle 'todo'
         const balance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
         const cash = balance.cash || 0;
 
-        if (cash < monto) {
-            return interaction.editReply(`❌ No tienes suficiente **efectivo** en mano. Tienes: $${cash.toLocaleString()}`);
+        if (inputMonto.toLowerCase() === 'todo' || inputMonto.toLowerCase() === 'all') {
+            monto = cash;
+        } else {
+            // Remove any non-numeric chars (e.g. $, commas) to be safe
+            const cleanMonto = inputMonto.replace(/[^0-9.]/g, '');
+            monto = parseFloat(cleanMonto);
         }
 
-        // 2. Check Recipient Debit Card
-        const { data: destCard } = await supabase
-            .from('debit_cards')
-            .select('*')
-            .eq('discord_user_id', destUser.id)
-            .eq('status', 'active')
-            .maybeSingle();
-
-        if (!destCard) {
-            return interaction.editReply(`❌ El destinatario ${destUser.tag} no tiene una Tarjeta de Débito NMX activa para recibir depósitos.`);
+        // Security: Check for NaN, Finite, and positive amount
+        if (isNaN(monto) || !isFinite(monto) || monto <= 0) {
+            return interaction.editReply('❌ Monto inválido. Debes ingresar un número positivo mayor a 0.');
         }
 
-        // 3. Process Logic
-        // Remove Cash from Sender instantly
-        await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, monto, `Depósito a ${destUser.tag}`, 'cash');
-
-        // Schedule Pending Transfer (4 Hours Delay)
-        const completionTime = new Date(Date.now() + (4 * 60 * 60 * 1000)); // 4 Hours
-
-        await supabase.from('pending_transfers').insert({
-            sender_id: interaction.user.id,
-            receiver_id: destUser.id,
-            amount: monto,
-            reason: razon,
-            release_date: completionTime.toISOString(),
-            status: 'PENDING'
-        });
-
-        // 4. Response
-        const embed = new EmbedBuilder()
-            .setTitle('🏪 Depósito Realizado')
-            .setColor(0xFFA500)
-            .setDescription(`Has depositado efectivo a la cuenta de **${destUser.tag}**.`)
-            .addFields(
-                { name: '💸 Monto', value: `$${monto.toLocaleString()}`, inline: true },
-                { name: '💳 Destino', value: `Tarjeta NMX *${destCard.card_number.slice(-4)}`, inline: true },
-                { name: '⏳ Tiempo estimado', value: '4 Horas', inline: false },
-                { name: '📝 Concepto', value: razon, inline: false }
-            )
-            .setFooter({ text: 'El dinero llegará automáticamente cuando se procese.' })
-            .setTimestamp();
-
-        await interaction.editReply({ embeds: [embed] });
-
-    } catch (error) {
-        console.error(error);
-        await interaction.editReply('❌ Error procesando el depósito.');
-    }
-}
-
-
-else if (commandName === 'giro') {
-    await interaction.deferReply(); // Defer immediately
-
-    const destUser = interaction.options.getUser('destinatario');
-    const inputMonto = interaction.options.getString('monto');
-    const razon = interaction.options.getString('razon') || 'Giro Postal';
-
-    // Fetch balance early
-    const senderBalance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
-
-    let monto = 0;
-    if (inputMonto.toLowerCase() === 'todo' || inputMonto.toLowerCase() === 'all') {
-        monto = senderBalance.cash || 0;
-    } else {
-        // Remove any non-numeric chars
-        const cleanMonto = inputMonto.replace(/[^0-9.]/g, '');
-        monto = parseFloat(cleanMonto);
-    }
-
-    // Security: Check for NaN, Finite, and positive amount
-    if (isNaN(monto) || !isFinite(monto) || monto <= 0) {
-        return interaction.editReply({ content: '❌ Monto inválido. Debes ingresar un número positivo mayor a 0.' });
-    }
-    if (destUser.id === interaction.user.id) return interaction.editReply({ content: '❌ No puedes enviarte un giro a ti mismo.' });
-
-    try {
-        // Already fetched balance above.
-        if ((senderBalance.cash || 0) < monto) {
-            return interaction.editReply(`❌ Fondos insuficientes en Efectivo. Tienes $${(senderBalance.cash || 0).toLocaleString()}.`);
-        }
-
-        // 2. Create Pending Transfer FIRST (24h Delay)
-        const releaseDate = new Date();
-        releaseDate.setHours(releaseDate.getHours() + 24);
-
-        const { error: insertError } = await supabase.from('giro_transfers').insert({
-            sender_id: interaction.user.id,
-            receiver_id: destUser.id,
-            amount: monto,
-            reason: razon,
-            release_date: releaseDate.toISOString(),
-            status: 'pending'
-        });
-
-        if (insertError) {
-            console.error('[giro] Error:', insertError);
-            return interaction.editReply(`❌ Error creando giro.\nDetalles: ${insertError.message}`);
-        }
-
-        // 3. Show payment selector
-        const pmGiro = await getAvailablePaymentMethods(interaction.user.id, interaction.guildId);
-        const pbGiro = createPaymentButtons(pmGiro, 'giro_pay');
-        const paymentEmbed = createPaymentEmbed(`📮 Giro a ${destUser.tag} (Entrega 24h)`, monto, pmGiro);
-        await interaction.editReply({ embeds: [paymentEmbed], components: [pbGiro] });
-        const fGiro = i => i.user.id === interaction.user.id && i.customId.startsWith('giro_pay_');
-        const cGiro = interaction.channel.createMessageComponentCollector({ filter: fGiro, time: 60000, max: 1 });
-        cGiro.on('collect', async (i) => {
-            await i.deferUpdate();
-            const prGiro = await processPayment(i.customId.replace('giro_pay_', ''), interaction.user.id, interaction.guildId, monto, `[Giro] ${destUser.tag}`, pmGiro);
-            if (!prGiro.success) return i.editReply({ content: prGiro.error, components: [] });
-            await i.editReply({ content: `✅ **Giro Enviado** (${prGiro.method})\n\nDestinatario: **${destUser.tag}**\nMonto: **$${monto.toLocaleString()}**\nEntrega: 24 horas`, components: [] });
-        });
-        cGiro.on('end', collected => { if (collected.size === 0) interaction.editReply({ content: '⏱️ Tiempo agotado.', components: [] }); });
-
-    } catch (error) {
-        console.error(error);
-        await interaction.editReply('❌ Error procesando el giro postal.');
-    }
-}
-
-else if (commandName === 'impuestos') {
-    await interaction.deferReply();
-
-    // Simple tax system: 5% tax on cash holdings over $1M
-    const targetUser = interaction.options.getUser('usuario') || interaction.user;
-
-    try {
-        const balance = await billingService.ubService.getUserBalance(interaction.guildId, targetUser.id);
-        const cash = balance.cash || 0;
-
-        const TAX_THRESHOLD = 1000000;
-        const TAX_RATE = 0.05;
-
-        let taxAmount = 0;
-        if (cash > TAX_THRESHOLD) {
-            taxAmount = Math.floor((cash - TAX_THRESHOLD) * TAX_RATE);
-        }
-
-        const embed = new EmbedBuilder()
-            .setColor(taxAmount > 0 ? '#FF0000' : '#00FF00')
-            .setTitle(`💼 Estado Fiscal de ${targetUser.username}`)
-            .addFields(
-                { name: '💵 Efectivo Actual', value: `$${cash.toLocaleString()}`, inline: true },
-                { name: '📊 Umbral Exento', value: `$${TAX_THRESHOLD.toLocaleString()}`, inline: true },
-                { name: '📈 Tasa de Impuesto', value: `${(TAX_RATE * 100)}%`, inline: true },
-                { name: '💸 Impuesto Estimado', value: taxAmount > 0 ? `$${taxAmount.toLocaleString()}` : 'Exento', inline: false }
-            )
-            .setFooter({ text: 'Sistema de impuestos sobre efectivo excedente' })
-            .setTimestamp();
-
-        await interaction.editReply({ embeds: [embed] });
-    } catch (error) {
-        console.error('[impuestos] Error:', error);
-        await interaction.editReply('❌ Error al calcular impuestos.');
-    }
-}
-
-// ===================================================================
-// ECONOMY COMMANDS: Stake, Slots, Fondos
-// ===================================================================
-
-else if (commandName === 'stake') {
-    await interaction.deferReply();
-    try {
-    } catch (err) {
-        console.error('[ERROR] Failed to defer stake:', err);
-        return;
-    }
-
-    const subcommand = interaction.options.getSubcommand();
-
-    if (subcommand === 'depositar') {
-        const crypto = interaction.options.getString('crypto').toUpperCase();
-        const cantidad = interaction.options.getNumber('cantidad');
-        const dias = interaction.options.getInteger('dias');
-
-        if (!['BTC', 'ETH', 'SOL'].includes(crypto)) {
-            return interaction.editReply('❌ Crypto inválida. Usa: BTC, ETH, SOL');
-        }
-
-        if (![7, 30, 90].includes(dias)) {
-            return interaction.editReply('❌ Períodos válidos: 7, 30, o 90 días');
-        }
 
         try {
-            const { data: portfolio } = await supabase
-                .from('stock_portfolios')
-                .select('*')
-                .eq('discord_user_id', interaction.user.id)
-                .eq('stock_symbol', crypto)
-                .single();
+            // 1. Check Sender CASH (OXXO Logic: You pay with cash)
+            const balance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
+            const cash = balance.cash || 0;
 
-            if (!portfolio || portfolio.shares < cantidad) {
-                return interaction.editReply('❌ No tienes suficiente crypto. Compra primero con `/bolsa comprar`');
+            if (cash < monto) {
+                return interaction.editReply(`❌ No tienes suficiente **efectivo** en mano. Tienes: $${cash.toLocaleString()}`);
             }
 
-            await supabase
-                .from('stock_portfolios')
-                .update({ shares: portfolio.shares - cantidad })
-                .eq('id', portfolio.id);
+            // 2. Check Recipient Debit Card
+            const { data: destCard } = await supabase
+                .from('debit_cards')
+                .select('*')
+                .eq('discord_user_id', destUser.id)
+                .eq('status', 'active')
+                .maybeSingle();
 
-            const stake = await stakingService.createStake(
-                interaction.user.id,
-                crypto,
-                cantidad,
-                dias
-            );
+            if (!destCard) {
+                return interaction.editReply(`❌ El destinatario ${destUser.tag} no tiene una Tarjeta de Débito NMX activa para recibir depósitos.`);
+            }
 
-            const rates = stakingService.rates[crypto];
-            const apy = rates[dias] * 100;
-            const estimatedEarnings = (cantidad * rates[dias] * dias / 365).toFixed(4);
+            // 3. Process Logic
+            // Remove Cash from Sender instantly
+            await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, monto, `Depósito a ${destUser.tag}`, 'cash');
 
-            await interaction.editReply({
-                content: `✅ **Staking Exitoso!**\n\n🔒 **${cantidad}** ${crypto} bloqueado por **${dias} días**\n📊 APY: **${apy.toFixed(1)}%**\n💰 Earnings estimados: **${estimatedEarnings}** ${crypto}\n\n_Usa \`/stake mis-stakes\` para ver todos tus stakes._`
+            // Schedule Pending Transfer (4 Hours Delay)
+            const completionTime = new Date(Date.now() + (4 * 60 * 60 * 1000)); // 4 Hours
+
+            await supabase.from('pending_transfers').insert({
+                sender_id: interaction.user.id,
+                receiver_id: destUser.id,
+                amount: monto,
+                reason: razon,
+                release_date: completionTime.toISOString(),
+                status: 'PENDING'
             });
+
+            // 4. Response
+            const embed = new EmbedBuilder()
+                .setTitle('🏪 Depósito Realizado')
+                .setColor(0xFFA500)
+                .setDescription(`Has depositado efectivo a la cuenta de **${destUser.tag}**.`)
+                .addFields(
+                    { name: '💸 Monto', value: `$${monto.toLocaleString()}`, inline: true },
+                    { name: '💳 Destino', value: `Tarjeta NMX *${destCard.card_number.slice(-4)}`, inline: true },
+                    { name: '⏳ Tiempo estimado', value: '4 Horas', inline: false },
+                    { name: '📝 Concepto', value: razon, inline: false }
+                )
+                .setFooter({ text: 'El dinero llegará automáticamente cuando se procese.' })
+                .setTimestamp();
+
+            await interaction.editReply({ embeds: [embed] });
 
         } catch (error) {
             console.error(error);
-            await interaction.editReply('❌ Error creando stake.');
+            await interaction.editReply('❌ Error procesando el depósito.');
         }
     }
 
-    else if (subcommand === 'mis-stakes') {
-        const stakes = await stakingService.getUserStakes(interaction.user.id);
 
-        if (stakes.length === 0) {
-            return interaction.editReply('📊 No tienes stakes activos. Usa `/stake depositar` para empezar.');
+    else if (commandName === 'giro') {
+        await interaction.deferReply(); // Defer immediately
+
+        const destUser = interaction.options.getUser('destinatario');
+        const inputMonto = interaction.options.getString('monto');
+        const razon = interaction.options.getString('razon') || 'Giro Postal';
+
+        // Fetch balance early
+        const senderBalance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
+
+        let monto = 0;
+        if (inputMonto.toLowerCase() === 'todo' || inputMonto.toLowerCase() === 'all') {
+            monto = senderBalance.cash || 0;
+        } else {
+            // Remove any non-numeric chars
+            const cleanMonto = inputMonto.replace(/[^0-9.]/g, '');
+            monto = parseFloat(cleanMonto);
         }
 
-        const embed = new EmbedBuilder()
-            .setTitle('🔒 Tus Stakes Activos')
-            .setColor(0x00FF00)
-            .setFooter({ text: 'Usa /stake retirar [id] para retirar stakes desbloqueados' });
-
-        stakes.forEach(s => {
-            const endDate = new Date(s.end_date);
-            const isUnlocked = Date.now() > endDate.getTime();
-            const status = isUnlocked ? '🔓 DESBLOQUEADO' : `🔒 Bloqueado hasta ${endDate.toLocaleDateString()}`;
-
-            embed.addFields({
-                name: `${s.crypto_symbol} - ${s.amount} unidades`,
-                value: `APY: ${s.apy}%\n${status}\nID: \`${s.id.substring(0, 8)}\``
-            });
-        });
-
-        await interaction.editReply({ embeds: [embed] });
-    }
-
-    else if (subcommand === 'retirar') {
-        const stakeId = interaction.options.getString('id');
+        // Security: Check for NaN, Finite, and positive amount
+        if (isNaN(monto) || !isFinite(monto) || monto <= 0) {
+            return interaction.editReply({ content: '❌ Monto inválido. Debes ingresar un número positivo mayor a 0.' });
+        }
+        if (destUser.id === interaction.user.id) return interaction.editReply({ content: '❌ No puedes enviarte un giro a ti mismo.' });
 
         try {
-            const { amount, earnings } = await stakingService.withdrawStake(stakeId, interaction.user.id);
+            // Already fetched balance above.
+            if ((senderBalance.cash || 0) < monto) {
+                return interaction.editReply(`❌ Fondos insuficientes en Efectivo. Tienes $${(senderBalance.cash || 0).toLocaleString()}.`);
+            }
 
-            await interaction.editReply({
-                content: `✅ **Stake Retirado!**\n\n💰 Principal: **${amount}**\n📈 Ganancias: **${earnings.toFixed(4)}**\n🎉 Total: **${(amount + earnings).toFixed(4)}**`
+            // 2. Create Pending Transfer FIRST (24h Delay)
+            const releaseDate = new Date();
+            releaseDate.setHours(releaseDate.getHours() + 24);
+
+            const { error: insertError } = await supabase.from('giro_transfers').insert({
+                sender_id: interaction.user.id,
+                receiver_id: destUser.id,
+                amount: monto,
+                reason: razon,
+                release_date: releaseDate.toISOString(),
+                status: 'pending'
             });
+
+            if (insertError) {
+                console.error('[giro] Error:', insertError);
+                return interaction.editReply(`❌ Error creando giro.\nDetalles: ${insertError.message}`);
+            }
+
+            // 3. Show payment selector
+            const pmGiro = await getAvailablePaymentMethods(interaction.user.id, interaction.guildId);
+            const pbGiro = createPaymentButtons(pmGiro, 'giro_pay');
+            const paymentEmbed = createPaymentEmbed(`📮 Giro a ${destUser.tag} (Entrega 24h)`, monto, pmGiro);
+            await interaction.editReply({ embeds: [paymentEmbed], components: [pbGiro] });
+            const fGiro = i => i.user.id === interaction.user.id && i.customId.startsWith('giro_pay_');
+            const cGiro = interaction.channel.createMessageComponentCollector({ filter: fGiro, time: 60000, max: 1 });
+            cGiro.on('collect', async (i) => {
+                await i.deferUpdate();
+                const prGiro = await processPayment(i.customId.replace('giro_pay_', ''), interaction.user.id, interaction.guildId, monto, `[Giro] ${destUser.tag}`, pmGiro);
+                if (!prGiro.success) return i.editReply({ content: prGiro.error, components: [] });
+                await i.editReply({ content: `✅ **Giro Enviado** (${prGiro.method})\n\nDestinatario: **${destUser.tag}**\nMonto: **$${monto.toLocaleString()}**\nEntrega: 24 horas`, components: [] });
+            });
+            cGiro.on('end', collected => { if (collected.size === 0) interaction.editReply({ content: '⏱️ Tiempo agotado.', components: [] }); });
 
         } catch (error) {
-            await interaction.editReply(`❌ ${error.message}`);
+            console.error(error);
+            await interaction.editReply('❌ Error procesando el giro postal.');
         }
     }
-}
 
-else if (commandName === 'slots') {
-    await interaction.deferReply();
-    try {
-    } catch (err) {
-        console.error('[ERROR] Failed to defer slots:', err);
-        return;
+    else if (commandName === 'impuestos') {
+        await interaction.deferReply();
+
+        // Simple tax system: 5% tax on cash holdings over $1M
+        const targetUser = interaction.options.getUser('usuario') || interaction.user;
+
+        try {
+            const balance = await billingService.ubService.getUserBalance(interaction.guildId, targetUser.id);
+            const cash = balance.cash || 0;
+
+            const TAX_THRESHOLD = 1000000;
+            const TAX_RATE = 0.05;
+
+            let taxAmount = 0;
+            if (cash > TAX_THRESHOLD) {
+                taxAmount = Math.floor((cash - TAX_THRESHOLD) * TAX_RATE);
+            }
+
+            const embed = new EmbedBuilder()
+                .setColor(taxAmount > 0 ? '#FF0000' : '#00FF00')
+                .setTitle(`💼 Estado Fiscal de ${targetUser.username}`)
+                .addFields(
+                    { name: '💵 Efectivo Actual', value: `$${cash.toLocaleString()}`, inline: true },
+                    { name: '📊 Umbral Exento', value: `$${TAX_THRESHOLD.toLocaleString()}`, inline: true },
+                    { name: '📈 Tasa de Impuesto', value: `${(TAX_RATE * 100)}%`, inline: true },
+                    { name: '💸 Impuesto Estimado', value: taxAmount > 0 ? `$${taxAmount.toLocaleString()}` : 'Exento', inline: false }
+                )
+                .setFooter({ text: 'Sistema de impuestos sobre efectivo excedente' })
+                .setTimestamp();
+
+            await interaction.editReply({ embeds: [embed] });
+        } catch (error) {
+            console.error('[impuestos] Error:', error);
+            await interaction.editReply('❌ Error al calcular impuestos.');
+        }
     }
 
-    const apuesta = interaction.options.getInteger('apuesta');
+    // ===================================================================
+    // ECONOMY COMMANDS: Stake, Slots, Fondos
+    // ===================================================================
 
-    if (apuesta < 100) {
-        return interaction.editReply('❌ Apuesta mínima: $100');
-    }
-
-    try {
-        const card = await getDebitCard(interaction.user.id);
-        if (!card || card.balance < apuesta) {
-            return interaction.editReply('❌ Saldo insuficiente en tarjeta de débito');
+    else if (commandName === 'stake') {
+        await interaction.deferReply();
+        try {
+        } catch (err) {
+            console.error('[ERROR] Failed to defer stake:', err);
+            return;
         }
 
-        await supabase
-            .from('debit_cards')
-            .update({ balance: card.balance - apuesta })
-            .eq('id', card.id);
+        const subcommand = interaction.options.getSubcommand();
 
-        const { result, payout, win, jackpot, jackpotAmount } = await slotsService.spin(
-            interaction.user.id,
-            apuesta
-        );
+        if (subcommand === 'depositar') {
+            const crypto = interaction.options.getString('crypto').toUpperCase();
+            const cantidad = interaction.options.getNumber('cantidad');
+            const dias = interaction.options.getInteger('dias');
 
-        if (payout > 0) {
+            if (!['BTC', 'ETH', 'SOL'].includes(crypto)) {
+                return interaction.editReply('❌ Crypto inválida. Usa: BTC, ETH, SOL');
+            }
+
+            if (![7, 30, 90].includes(dias)) {
+                return interaction.editReply('❌ Períodos válidos: 7, 30, o 90 días');
+            }
+
+            try {
+                const { data: portfolio } = await supabase
+                    .from('stock_portfolios')
+                    .select('*')
+                    .eq('discord_user_id', interaction.user.id)
+                    .eq('stock_symbol', crypto)
+                    .single();
+
+                if (!portfolio || portfolio.shares < cantidad) {
+                    return interaction.editReply('❌ No tienes suficiente crypto. Compra primero con `/bolsa comprar`');
+                }
+
+                await supabase
+                    .from('stock_portfolios')
+                    .update({ shares: portfolio.shares - cantidad })
+                    .eq('id', portfolio.id);
+
+                const stake = await stakingService.createStake(
+                    interaction.user.id,
+                    crypto,
+                    cantidad,
+                    dias
+                );
+
+                const rates = stakingService.rates[crypto];
+                const apy = rates[dias] * 100;
+                const estimatedEarnings = (cantidad * rates[dias] * dias / 365).toFixed(4);
+
+                await interaction.editReply({
+                    content: `✅ **Staking Exitoso!**\n\n🔒 **${cantidad}** ${crypto} bloqueado por **${dias} días**\n📊 APY: **${apy.toFixed(1)}%**\n💰 Earnings estimados: **${estimatedEarnings}** ${crypto}\n\n_Usa \`/stake mis-stakes\` para ver todos tus stakes._`
+                });
+
+            } catch (error) {
+                console.error(error);
+                await interaction.editReply('❌ Error creando stake.');
+            }
+        }
+
+        else if (subcommand === 'mis-stakes') {
+            const stakes = await stakingService.getUserStakes(interaction.user.id);
+
+            if (stakes.length === 0) {
+                return interaction.editReply('📊 No tienes stakes activos. Usa `/stake depositar` para empezar.');
+            }
+
+            const embed = new EmbedBuilder()
+                .setTitle('🔒 Tus Stakes Activos')
+                .setColor(0x00FF00)
+                .setFooter({ text: 'Usa /stake retirar [id] para retirar stakes desbloqueados' });
+
+            stakes.forEach(s => {
+                const endDate = new Date(s.end_date);
+                const isUnlocked = Date.now() > endDate.getTime();
+                const status = isUnlocked ? '🔓 DESBLOQUEADO' : `🔒 Bloqueado hasta ${endDate.toLocaleDateString()}`;
+
+                embed.addFields({
+                    name: `${s.crypto_symbol} - ${s.amount} unidades`,
+                    value: `APY: ${s.apy}%\n${status}\nID: \`${s.id.substring(0, 8)}\``
+                });
+            });
+
+            await interaction.editReply({ embeds: [embed] });
+        }
+
+        else if (subcommand === 'retirar') {
+            const stakeId = interaction.options.getString('id');
+
+            try {
+                const { amount, earnings } = await stakingService.withdrawStake(stakeId, interaction.user.id);
+
+                await interaction.editReply({
+                    content: `✅ **Stake Retirado!**\n\n💰 Principal: **${amount}**\n📈 Ganancias: **${earnings.toFixed(4)}**\n🎉 Total: **${(amount + earnings).toFixed(4)}**`
+                });
+
+            } catch (error) {
+                await interaction.editReply(`❌ ${error.message}`);
+            }
+        }
+    }
+
+    else if (commandName === 'slots') {
+        await interaction.deferReply();
+        try {
+        } catch (err) {
+            console.error('[ERROR] Failed to defer slots:', err);
+            return;
+        }
+
+        const apuesta = interaction.options.getInteger('apuesta');
+
+        if (apuesta < 100) {
+            return interaction.editReply('❌ Apuesta mínima: $100');
+        }
+
+        try {
+            const card = await getDebitCard(interaction.user.id);
+            if (!card || card.balance < apuesta) {
+                return interaction.editReply('❌ Saldo insuficiente en tarjeta de débito');
+            }
+
             await supabase
                 .from('debit_cards')
-                .update({ balance: card.balance - apuesta + payout })
+                .update({ balance: card.balance - apuesta })
                 .eq('id', card.id);
+
+            const { result, payout, win, jackpot, jackpotAmount } = await slotsService.spin(
+                interaction.user.id,
+                apuesta
+            );
+
+            if (payout > 0) {
+                await supabase
+                    .from('debit_cards')
+                    .update({ balance: card.balance - apuesta + payout })
+                    .eq('id', card.id);
+            }
+
+            const spinning = '🎰 | 🎰 | 🎰';
+            const final = `${result.reel1} | ${result.reel2} | ${result.reel3}`;
+
+            let message = `**SLOT MACHINE** 🎰\n\n${spinning}\n⬇️\n${final}\n\n`;
+
+            if (jackpot) {
+                message += `🎉🎉🎉 **JACKPOT!!!** 🎉🎉🎉\n💰 ¡Ganaste $${jackpotAmount.toLocaleString()} del jackpot!\n`;
+            } else if (win) {
+                const profit = payout - apuesta;
+                message += `✅ **¡GANASTE!** 💰\nPago: $${payout.toLocaleString()} (+$${profit.toLocaleString()})\n`;
+            } else {
+                message += `❌ **Perdiste** $${apuesta.toLocaleString()}\n`;
+            }
+
+            const currentJackpot = await slotsService.getJackpot();
+            message += `\n🏆 Jackpot actual: $${currentJackpot.toLocaleString()}`;
+
+            await interaction.editReply(message);
+
+        } catch (error) {
+            console.error(error);
+            await interaction.editReply('❌ Error en slots');
         }
-
-        const spinning = '🎰 | 🎰 | 🎰';
-        const final = `${result.reel1} | ${result.reel2} | ${result.reel3}`;
-
-        let message = `**SLOT MACHINE** 🎰\n\n${spinning}\n⬇️\n${final}\n\n`;
-
-        if (jackpot) {
-            message += `🎉🎉🎉 **JACKPOT!!!** 🎉🎉🎉\n💰 ¡Ganaste $${jackpotAmount.toLocaleString()} del jackpot!\n`;
-        } else if (win) {
-            const profit = payout - apuesta;
-            message += `✅ **¡GANASTE!** 💰\nPago: $${payout.toLocaleString()} (+$${profit.toLocaleString()})\n`;
-        } else {
-            message += `❌ **Perdiste** $${apuesta.toLocaleString()}\n`;
-        }
-
-        const currentJackpot = await slotsService.getJackpot();
-        message += `\n🏆 Jackpot actual: $${currentJackpot.toLocaleString()}`;
-
-        await interaction.editReply(message);
-
-    } catch (error) {
-        console.error(error);
-        await interaction.editReply('❌ Error en slots');
-    }
-}
-
-else if (commandName === 'fondos') {
-    await interaction.deferReply();
-    try {
-    } catch (err) {
-        console.error('[ERROR] Failed to defer fondos:', err);
-        return;
-    }
-
-    const subcommand = interaction.options.getSubcommand();
-
-    if (subcommand === 'ver') {
-        const { data: funds } = await supabase
-            .from('investment_funds')
-            .select('*')
-            .eq('active', true)
-            .order('apy');
-
-        const embed = new EmbedBuilder()
-            .setTitle('💼 Fondos de Inversión Disponibles')
-            .setColor(0x00BFFF)
-            .setFooter({ text: 'Usa /fondos invertir [fondo] [monto]' });
-
-        funds.forEach(f => {
-            embed.addFields({
-                name: `${f.name} (${f.risk_level.toUpperCase()})`,
-                value: `📊 APY: ${f.apy}%\n💰 Mín: $${f.min_investment.toLocaleString()}\n📝 ${f.description}`
-            });
-        });
-
-        await interaction.editReply({ embeds: [embed] });
     }
 
-    else if (subcommand === 'invertir') {
-        const fondoNombre = interaction.options.getString('fondo');
-        const monto = interaction.options.getInteger('monto');
-
-        const { data: fund } = await supabase
-            .from('investment_funds')
-            .select('*')
-            .ilike('name', `%${fondoNombre}%`)
-            .single();
-
-        if (!fund) {
-            return interaction.editReply('❌ Fondo no encontrado. Usa `/fondos ver` para ver opciones.');
+    else if (commandName === 'fondos') {
+        await interaction.deferReply();
+        try {
+        } catch (err) {
+            console.error('[ERROR] Failed to defer fondos:', err);
+            return;
         }
 
-        if (monto < fund.min_investment) {
-            return interaction.editReply(`❌ Inversión mínima: $${fund.min_investment.toLocaleString()}`);
-        }
+        const subcommand = interaction.options.getSubcommand();
 
-        const card = await getDebitCard(interaction.user.id);
-        if (!card || card.balance < monto) {
-            return interaction.editReply('❌ Saldo insuficiente');
-        }
+        if (subcommand === 'ver') {
+            const { data: funds } = await supabase
+                .from('investment_funds')
+                .select('*')
+                .eq('active', true)
+                .order('apy');
 
-        await supabase
-            .from('debit_cards')
-            .update({ balance: card.balance - monto })
-            .eq('id', card.id);
+            const embed = new EmbedBuilder()
+                .setTitle('💼 Fondos de Inversión Disponibles')
+                .setColor(0x00BFFF)
+                .setFooter({ text: 'Usa /fondos invertir [fondo] [monto]' });
 
-        await supabase
-            .from('fund_investments')
-            .insert({
-                user_id: interaction.user.id,
-                fund_id: fund.id,
-                amount: monto,
-                current_value: monto
+            funds.forEach(f => {
+                embed.addFields({
+                    name: `${f.name} (${f.risk_level.toUpperCase()})`,
+                    value: `📊 APY: ${f.apy}%\n💰 Mín: $${f.min_investment.toLocaleString()}\n📝 ${f.description}`
+                });
             });
 
-        await interaction.editReply({
-            content: `✅ **Inversión Exitosa!**\n\n💼 Fondo: **${fund.name}**\n💰 Monto: **$${monto.toLocaleString()}**\n📊 APY: **${fund.apy}%**\n⏰ Tus ganancias se calculan diariamente.\n\n_Usa \`/fondos mis-fondos\` para ver tu portafolio._`
-        });
-    }
+            await interaction.editReply({ embeds: [embed] });
+        }
 
-    else if (subcommand === 'mis-fondos') {
-        const { data: investments } = await supabase
-            .from('fund_investments')
-            .select(`
+        else if (subcommand === 'invertir') {
+            const fondoNombre = interaction.options.getString('fondo');
+            const monto = interaction.options.getInteger('monto');
+
+            const { data: fund } = await supabase
+                .from('investment_funds')
+                .select('*')
+                .ilike('name', `%${fondoNombre}%`)
+                .single();
+
+            if (!fund) {
+                return interaction.editReply('❌ Fondo no encontrado. Usa `/fondos ver` para ver opciones.');
+            }
+
+            if (monto < fund.min_investment) {
+                return interaction.editReply(`❌ Inversión mínima: $${fund.min_investment.toLocaleString()}`);
+            }
+
+            const card = await getDebitCard(interaction.user.id);
+            if (!card || card.balance < monto) {
+                return interaction.editReply('❌ Saldo insuficiente');
+            }
+
+            await supabase
+                .from('debit_cards')
+                .update({ balance: card.balance - monto })
+                .eq('id', card.id);
+
+            await supabase
+                .from('fund_investments')
+                .insert({
+                    user_id: interaction.user.id,
+                    fund_id: fund.id,
+                    amount: monto,
+                    current_value: monto
+                });
+
+            await interaction.editReply({
+                content: `✅ **Inversión Exitosa!**\n\n💼 Fondo: **${fund.name}**\n💰 Monto: **$${monto.toLocaleString()}**\n📊 APY: **${fund.apy}%**\n⏰ Tus ganancias se calculan diariamente.\n\n_Usa \`/fondos mis-fondos\` para ver tu portafolio._`
+            });
+        }
+
+        else if (subcommand === 'mis-fondos') {
+            const { data: investments } = await supabase
+                .from('fund_investments')
+                .select(`
                     *,
                     investment_funds (name, apy, risk_level)
                 `)
-            .eq('user_id', interaction.user.id)
-            .eq('status', 'active');
+                .eq('user_id', interaction.user.id)
+                .eq('status', 'active');
 
-        if (!investments || investments.length === 0) {
-            return interaction.editReply('📊 No tienes inversiones activas. Usa `/fondos invertir`');
-        }
+            if (!investments || investments.length === 0) {
+                return interaction.editReply('📊 No tienes inversiones activas. Usa `/fondos invertir`');
+            }
 
-        const embed = new EmbedBuilder()
-            .setTitle('💼 Tus Inversiones')
-            .setColor(0x00BFFF);
+            const embed = new EmbedBuilder()
+                .setTitle('💼 Tus Inversiones')
+                .setColor(0x00BFFF);
 
-        investments.forEach(inv => {
-            const fund = inv.investment_funds;
-            embed.addFields({
-                name: fund.name,
-                value: `💰 Invertido: $${inv.amount.toLocaleString()}\n📊 APY: ${fund.apy}%\n📈 Nivel: ${fund.risk_level}`
+            investments.forEach(inv => {
+                const fund = inv.investment_funds;
+                embed.addFields({
+                    name: fund.name,
+                    value: `💰 Invertido: $${inv.amount.toLocaleString()}\n📊 APY: ${fund.apy}%\n📈 Nivel: ${fund.risk_level}`
+                });
             });
-        });
 
-        await interaction.editReply({ embeds: [embed] });
+            await interaction.editReply({ embeds: [embed] });
+        }
     }
-}
 
 
     // IMPORTANT: Only delegate if interaction was NOT handled above
