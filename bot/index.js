@@ -4684,6 +4684,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                             .setTimestamp();
 
                         if (coDueño) embed.addFields({ name: '👥 Co-Dueño', value: `<@${coDueño.id}>`, inline: true });
+                        if (fotoLocal) embed.setImage(fotoLocal.url);
 
                         // Add vehicle addition buttons
                         const vehicleRow = new ActionRowBuilder().addComponents(
