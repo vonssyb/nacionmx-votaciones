@@ -6079,26 +6079,56 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             await interaction.editReply('❌ Error procesando el robo.');
         }
     }
-
-}
     else if (commandName === 'trabajar') {
     await interaction.deferReply();
     const JOB_COOLDOWN = 60 * 60 * 1000;
     const jobKey = `job_${interaction.user.id}`;
     const lastJob = casinoSessions[jobKey] || 0;
+
     if (Date.now() - lastJob < JOB_COOLDOWN) {
         const remaining = Math.ceil((JOB_COOLDOWN - (Date.now() - lastJob)) / 60000);
         return interaction.editReply(`⏳ **Estás cansado**\nDebes descansar **${remaining} minutos**.`);
     }
 
     const JOBS = [
-        { title: '🥖 Panadero', desc: '5 bolillos ($3) + 2 conchas ($8). ¿Total?', type: 'math', a: (5 * 3 + 2 * 8).toString(), pay: [1000, 1500] },
-        { title: '🚕 Taxista', desc: 'Base $20 + 12km ($5/km). ¿Total?', type: 'math', a: (20 + 5 * 12).toString(), pay: [1200, 1800] },
+        // --- MATH ---
+        { title: '🥖 Panadero', desc: '5 bolillos ($3) + 2 conchas ($8). ¿Total?', type: 'math', a: '31', pay: [1000, 1500] },
+        { title: '🚕 Taxista', desc: 'Base $20 + 12km ($5/km). ¿Total?', type: 'math', a: '80', pay: [1200, 1800] },
+        { title: '🏗️ Arquitecto', desc: 'Área 8m x 6m. ¿m²?', type: 'math', a: '48', pay: [2500, 4000] },
+        { title: '🏫 Profesor', desc: '15 niños x 4 lápices. ¿Total?', type: 'math', a: '60', pay: [1800, 2400] },
+        { title: '📈 Contador', desc: 'Ganancia: 5000 - 3500. ¿Neto?', type: 'math', a: '1500', pay: [2200, 3000] },
+
+        // --- MEMORY (Visual Embeds) ---
         { title: '🧠 Bibliotecario', desc: 'Memoriza el código:', type: 'memory', text: 'XJ-9', opts: ['XJ-9', 'XK-8', 'XJ-6'], correct: 'XJ-9', pay: [1500, 2000] },
+        { title: '🍸 Bartender', desc: 'Orden: "Martini Seco, Aceituna"', type: 'memory', text: 'Martini Seco', opts: ['Martini Dulce', 'Martini Seco', 'Vodka'], correct: 'Martini Seco', pay: [1200, 1800] },
+        { title: '🏨 Recepcionista', desc: 'Huésped Habitación 101: "Sr. Smith"', type: 'memory', text: 'Sr. Smith', opts: ['Sr. White', 'Sr. Smith', 'Sr. Black'], correct: 'Sr. Smith', pay: [1300, 1900] },
+        { title: '👨‍✈️ Piloto', desc: 'Torre de control: "Pista 4-Bravo"', type: 'memory', text: '4-Bravo', opts: ['4-Alpha', '4-Bravo', '3-Bravo'], correct: '4-Bravo', pay: [4000, 6000] },
+        { title: '👨‍🍳 Chef', desc: 'El cliente es alérgico a: "Nueces"', type: 'memory', text: 'Nueces', opts: ['Lácteos', 'Nueces', 'Gluten'], correct: 'Nueces', pay: [1600, 2200] },
+
+        // --- WIRES (Visual Interaction) ---
         { title: '⚡ Electricista', desc: 'Corta el cable AZUL.', type: 'wires', order: 'Azul', opts: ['Rojo', 'Azul', 'Verde'], correct: 'Azul', pay: [2000, 3000] },
-        { title: '🚚 Repartidor', desc: 'La casa está al NORTE.', type: 'snake', dest: 'Norte', opts: ['⬆️', '⬇️', '⬅️'], correct: '⬆️', pay: [1000, 1500] },
-        { title: '⛏️ Minero', desc: 'Excava donde haya oro (Suerte 1/3).', type: 'mines', opts: ['1', '2', '3'], correct: 'random', pay: [3000, 5000] },
+        { title: '🛠️ Mecánico', desc: 'Conecta el borne ROJO.', type: 'wires', order: 'Rojo', opts: ['Negro', 'Rojo', 'Amarillo'], correct: 'Rojo', pay: [1500, 2500] },
+        { title: '📡 Técnico Redes', desc: 'Reinicia el servidor VERDE.', type: 'wires', order: 'Verde', opts: ['Rojo', 'Verde', 'Amarillo'], correct: 'Verde', pay: [2200, 3500] },
+        { title: '🎬 Ing. Sonido', desc: 'Sube el fader NEGRO (Micrófono).', type: 'wires', order: 'Negro', opts: ['Negro', 'Blanco', 'Gris'], correct: 'Negro', pay: [1800, 2800] },
+        { title: '🚒 Bombero', desc: 'Abre la válvula ROJA de presión.', type: 'wires', order: 'Rojo', opts: ['Rojo', 'Azul', 'Verde'], correct: 'Rojo', pay: [2500, 3800] },
+
+        // --- SNAKE/NAV (Directional) ---
+        { title: '🚚 Repartidor', desc: 'Destino al NORTE.', type: 'snake', dest: 'Norte', opts: ['⬆️', '⬇️', '⬅️'], correct: '⬆️', pay: [1000, 1500] },
+        { title: '🚜 Agricultor', desc: 'Surco al ESTE.', type: 'snake', dest: 'Este', opts: ['⬅️', '➡️', '⬆️'], correct: '➡️', pay: [1200, 1600] },
+        { title: '🚂 Maquinista', desc: 'Vía libre al SUR.', type: 'snake', dest: 'Sur', opts: ['⬆️', '⬇️', '⬅️'], correct: '⬇️', pay: [2000, 3000] },
+        { title: '🚁 Rescatista', desc: 'Viento fuerte del OESTE. Vuela contra él.', type: 'snake', dest: 'Oeste', opts: ['⬅️', '➡️', '⬆️'], correct: '⬅️', pay: [3000, 5000] },
+        { title: '🚌 Chofer', desc: 'Parada a la DERECHA.', type: 'snake', dest: 'Derecha', opts: ['⬅️', '➡️', '⬆️'], correct: '➡️', pay: [1100, 1500] },
+
+        // --- MINES (Luck/Logic) ---
+        { title: '⛏️ Minero', desc: 'Excava donde haya oro (Suerte).', type: 'mines', opts: ['1', '2', '3'], correct: 'random', pay: [3000, 5000] },
+        { title: '🏺 Arqueólogo', desc: 'Desentierra la reliquia sin romperla.', type: 'mines', opts: ['A', 'B', 'C'], correct: 'random', pay: [4000, 7000] },
+        { title: '🎣 Pescador', desc: 'Lanza la red en la zona con peces.', type: 'mines', opts: ['Zona 1', 'Zona 2', 'Zona 3'], correct: 'random', pay: [1500, 2500] },
+
+        // --- TYPING ---
         { title: '💻 Programador', desc: 'Arregla: sudo rm -rf /virus', type: 'typing', text: 'sudo rm -rf /virus', pay: [5000, 8000] },
+        { title: '📝 Secretario', desc: 'Escribe: NMX-8821-XP', type: 'typing', text: 'NMX-8821-XP', pay: [1500, 2200] },
+
+        // --- CHOICE ---
         { title: '🔧 Mecánico', desc: 'Auto calienta. ¿Revisar?', type: 'choice', opts: ['Llantas', 'Radiador', 'Frenos'], correct: 'Radiador', pay: [1500, 2500] }
     ];
 
@@ -6113,7 +6143,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             job.opts.forEach(o => row.addComponents(new ButtonBuilder().setCustomId(`job_${o}`).setLabel(o).setStyle(ButtonStyle.Primary)));
             const hiddenEmbed = new EmbedBuilder().setTitle(job.title).setDescription('¿Cuál era el código?').setColor(0xFFA500);
             await interaction.editReply({ embeds: [hiddenEmbed], components: [row] });
-        }, 3000); // 3s delay
+        }, 3500);
     }
     else if (job.type === 'math' || job.type === 'typing') {
         if (job.type === 'typing') embed.addFields({ name: 'Escribe:', value: `\`${job.text}\`` });
@@ -6126,7 +6156,6 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
         await interaction.editReply({ embeds: [embed], components: [row] });
     }
 
-    // Collector Logic
     if (job.type === 'math' || job.type === 'typing') {
         const filter = m => m.author.id === interaction.user.id;
         const collector = interaction.channel.createMessageCollector({ filter, time: 25000, max: 1 });
@@ -6148,7 +6177,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
         collector.on('collect', async i => {
             const sel = i.customId.replace('job_', '');
             let win = false;
-            if (job.type === 'mines') { win = Math.random() > 0.33; } // 66% chance win
+            if (job.type === 'mines') { win = Math.random() > 0.33; }
             else { win = sel === job.correct; }
 
             if (win) {
@@ -6174,12 +6203,35 @@ else if (commandName === 'crimen') {
     }
 
     const CRIMES = [
+        // --- WIRES (High Stakes) ---
         { title: '💣 Desactivar Bomba', desc: 'Corta el cable VERDE.', type: 'wires', order: 'Verde', opts: ['Rojo', 'Verde', 'Azul'], correct: 'Verde', pay: [80000, 100000] },
+        { title: '🚗 Robo Auto', desc: 'Puentea el ROJO.', type: 'wires', order: 'Rojo', opts: ['Rojo', 'Negro', 'Blanco'], correct: 'Rojo', pay: [20000, 40000] },
+        { title: '🏢 Sabotaje Corporativo', desc: 'Corta la fibra AMARILLA.', type: 'wires', order: 'Amarillo', opts: ['Amarillo', 'Azul', 'Gris'], correct: 'Amarillo', pay: [45000, 70000] },
+        { title: '🚪 Hackeo Puerta', desc: 'Cruza los cables AZULES.', type: 'wires', order: 'Azul', opts: ['Rojo', 'Azul', 'Negro'], correct: 'Azul', pay: [25000, 50000] },
+        { title: '🔋 Robo Generador', desc: 'Desconecta la fase NEGRA.', type: 'wires', order: 'Negro', opts: ['Verde', 'Blanco', 'Negro'], correct: 'Negro', pay: [30000, 55000] },
+
+        // --- MEMORY (Heist Codes) ---
         { title: '🔐 Caja Fuerte', desc: 'Memoriza: 99-11-22', type: 'memory', text: '99-11-22', opts: ['99-11-22', '11-99-22', '22-11-99'], correct: '99-11-22', pay: [50000, 90000] },
-        { title: '🏰 Asalto Mansión', desc: 'Cruza el jardín (Suerte).', type: 'mines', opts: ['A', 'B', 'C'], correct: 'random', pay: [60000, 120000] },
-        { title: '💻 Hacking', desc: 'Inyecta: inject_sql_root', type: 'typing', text: 'inject_sql_root', pay: [30000, 80000] },
+        { title: '🖼️ Robo de Arte', desc: 'El objetivo es el cuadro "Sol Naciente"', type: 'memory', text: 'Sol Naciente', opts: ['Luna Llena', 'Sol Naciente', 'Estrella'], correct: 'Sol Naciente', pay: [60000, 110000] },
+        { title: '🗝️ Copia Llave', desc: 'La llave maestra es la "Plateada con Muesca"', type: 'memory', text: 'Plateada', opts: ['Dorada', 'Negra', 'Plateada'], correct: 'Plateada', pay: [20000, 35000] },
+        { title: '📛 Falsificación ID', desc: 'El nombre falso es "Carlos Vega"', type: 'memory', text: 'Carlos Vega', opts: ['Juan Perez', 'Carlos Vega', 'Luis Diaz'], correct: 'Carlos Vega', pay: [15000, 25000] },
+        { title: '📱 PIN Celular', desc: 'PIN desbloqueo: 1234', type: 'memory', text: '1234', opts: ['1234', '4321', '1111'], correct: '1234', pay: [10000, 20000] },
+
+        // --- SNAKE (Escape/Chase) ---
+        { title: '🚓 Persecución Policial', desc: 'Bloqueo al frente. ¡Gira IZQUIERDA!', type: 'snake', dest: 'Izquierda', opts: ['⬅️', '➡️', '⬆️'], correct: '⬅️', pay: [30000, 60000] },
+        { title: '🏍️ Escape en Moto', desc: 'Callejón sin salida. ¡Sube por la RAMPA!', type: 'snake', dest: 'Rampa', opts: ['⬆️', '⬇️', '⬅️'], correct: '⬆️', pay: [25000, 50000] },
+        { title: '🏃 Fuga a Pie', desc: 'Perros policía. ¡Salta la valla (ARRIBA)!', type: 'snake', dest: 'Arriba', opts: ['⬇️', '⬆️', '➡️'], correct: '⬆️', pay: [15000, 25000] },
+        { title: '🚤 Huida en Lancha', desc: 'Rocas al frente. Esquiva a DERECHA.', type: 'snake', dest: 'Derecha', opts: ['⬅️', '➡️', '⬆️'], correct: '➡️', pay: [40000, 75000] },
+        { title: '🚁 Evasión Aérea', desc: 'Misil detectado. ¡Baja ALTITUD!', type: 'snake', dest: 'Abajo', opts: ['⬆️', '⬇️', '⬅️'], correct: '⬇️', pay: [80000, 150000] },
+
+        // --- MINES (High Risk) ---
+        { title: '🏰 Asalto Mansión', desc: 'Cruza el jardín (Suerte 50%).', type: 'mines', opts: ['A', 'B', 'C'], correct: 'random', pay: [60000, 120000] },
+        { title: '🧨 Campo Minado', desc: 'Cruza la frontera (Suerte).', type: 'mines', opts: ['Camino 1', 'Camino 2', 'Camino 3'], correct: 'random', pay: [40000, 80000] },
+        { title: '🔫 Ruleta Rusa', desc: '¿Jalas el gatillo? (Muy arriesgado).', type: 'mines', opts: ['1', '2', '3'], correct: 'random', pay: [50000, 100000] },
+
+        // --- TYPING/MATH ---
+        { title: '💻 Hacking FBI', desc: 'Inyecta: override_security_protocol', type: 'typing', text: 'override_security_protocol', pay: [40000, 90000] },
         { title: '🏦 Robo Banco', desc: 'Clave: 125 x 8.', type: 'math', a: '1000', pay: [80000, 100000] },
-        { title: '💊 Tráfico', desc: 'Policía. ¿Esconder?', type: 'choice', opts: ['Llanta', 'Asiento', 'Bolsa'], correct: 'Llanta', pay: [35000, 60000] }
     ];
 
     const job = CRIMES[Math.floor(Math.random() * CRIMES.length)];
@@ -6193,7 +6245,7 @@ else if (commandName === 'crimen') {
             job.opts.forEach(o => row.addComponents(new ButtonBuilder().setCustomId(`crime_${o}`).setLabel(o).setStyle(ButtonStyle.Danger)));
             const hiddenEmbed = new EmbedBuilder().setTitle(job.title).setDescription('¿Cuál era el código?').setColor(0x880000);
             await interaction.editReply({ embeds: [hiddenEmbed], components: [row] });
-        }, 3000);
+        }, 3500);
     }
     else if (job.type === 'math' || job.type === 'typing') {
         if (job.type === 'typing') embed.addFields({ name: 'Escribe:', value: `\`${job.text}\`` });
@@ -6230,7 +6282,7 @@ else if (commandName === 'crimen') {
         collector.on('collect', async i => {
             const sel = i.customId.replace('crime_', '');
             let win = false;
-            if (job.type === 'mines') { win = Math.random() > 0.5; } // 50% chance for crime
+            if (job.type === 'mines') { win = Math.random() > 0.5; }
             else { win = sel === job.correct; }
 
             if (win) {
@@ -6247,6 +6299,7 @@ else if (commandName === 'crimen') {
         });
     }
 }
+
 else if (commandName === 'bolsa') {
     await interaction.deferReply();
     const subCmd = interaction.options.getSubcommand();
