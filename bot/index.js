@@ -4806,10 +4806,119 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 return interaction.editReply({ embeds: [embed] });
             }
 
-            // ===== COBRAR (POS Terminal) =====
-            if (subCmd === 'cobrar') {
-                return interaction.editReply('💳 Sistema POS disponible pronto.');
+        }
+
+            // ===== CONTRATAR =====
+            if (subCmd === 'contratar') {
+            const targetUser = interaction.options.getUser('usuario');
+            const sueldo = interaction.options.getNumber('sueldo');
+            const puesto = interaction.options.getString('puesto') || 'Empleado';
+
+            // Get owner's company
+            const { data: companies } = await supabase.from('companies').select('*').contains('owner_ids', [userId]);
+
+            if (!companies || companies.length === 0) {
+                return interaction.editReply('❌ No tienes ninguna empresa registrada.');
             }
+            const company = companies[0]; // First company
+
+            // Check if already hired
+            const { data: existing } = await supabase.from('company_employees')
+                .select('*')
+                .eq('company_id', company.id)
+                .eq('discord_user_id', targetUser.id)
+                .eq('status', 'active')
+                .maybeSingle();
+
+            if (existing) {
+                return interaction.editReply(`❌ <@${targetUser.id}> ya es empleado de **${company.name}**.`);
+            }
+
+            // Add to employees
+            const { error } = await supabase.from('company_employees').insert({
+                company_id: company.id,
+                discord_user_id: targetUser.id,
+                salary: sueldo,
+                role: puesto,
+                status: 'active',
+                hired_at: new Date().toISOString()
+            });
+
+            if (error) {
+                console.error('[empresa contratar]', error);
+                return interaction.editReply('❌ Error al contratar empleado.');
+            }
+
+            return interaction.editReply(`✅ **Contratado:** <@${targetUser.id}> ha sido añadido a la nómina de **${company.name}** con sueldo de $${sueldo.toLocaleString()}.`);
+        }
+
+        // ===== DESPEDIR =====
+        if (subCmd === 'despedir') {
+            const targetUser = interaction.options.getUser('usuario');
+
+            // Get owner's company
+            const { data: companies } = await supabase.from('companies').select('*').contains('owner_ids', [userId]);
+
+            if (!companies || companies.length === 0) {
+                return interaction.editReply('❌ No tienes ninguna empresa registrada.');
+            }
+            const company = companies[0];
+
+            // Check if employee exists
+            const { data: employee } = await supabase.from('company_employees')
+                .select('*')
+                .eq('company_id', company.id)
+                .eq('discord_user_id', targetUser.id)
+                .eq('status', 'active')
+                .maybeSingle();
+
+            if (!employee) {
+                return interaction.editReply(`❌ <@${targetUser.id}> no es un empleado activo de **${company.name}**.`);
+            }
+
+            // Fire (update status)
+            const { error } = await supabase.from('company_employees')
+                .update({ status: 'fired', updated_at: new Date().toISOString() })
+                .eq('id', employee.id);
+
+            if (error) {
+                console.error('[empresa despedir]', error);
+                return interaction.editReply('❌ Error al despedir empleado.');
+            }
+
+            return interaction.editReply(`🚫 **Despedido:** <@${targetUser.id}> ha sido removido de la nómina de **${company.name}**.`);
+        }
+
+        // ===== EMPLEADOS =====
+        if (subCmd === 'empleados') {
+            // Get owner's company
+            const { data: companies } = await supabase.from('companies').select('*').contains('owner_ids', [userId]);
+
+            if (!companies || companies.length === 0) {
+                return interaction.editReply('❌ No tienes ninguna empresa registrada.');
+            }
+            const company = companies[0];
+
+            const { data: employees } = await supabase.from('company_employees')
+                .select('*')
+                .eq('company_id', company.id)
+                .eq('status', 'active');
+
+            if (!employees || employees.length === 0) {
+                return interaction.editReply(`🏢 **${company.name}** no tiene empleados activos.`);
+            }
+
+            const list = employees.map((e, i) =>
+                `${i + 1}. <@${e.discord_user_id}> - **${e.role}** - $${(e.salary || 0).toLocaleString()}`
+            ).join('\n');
+
+            const embed = new EmbedBuilder()
+                .setColor('#0099FF')
+                .setTitle(`👥 Empleados de ${company.name}`)
+                .setDescription(list)
+                .setFooter({ text: `Total: ${employees.length} empleados` });
+
+            return interaction.editReply({ embeds: [embed] });
 
             // ===== CREDITO =====
             if (subCmd === 'credito') {
