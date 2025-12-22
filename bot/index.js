@@ -1307,7 +1307,7 @@ client.once('ready', async () => {
                             name: 'tipo_local',
                             description: 'Tamaño del local/propiedad',
                             type: 3,
-                            required: true,
+                            required: false,
                             choices: [
                                 { name: 'Pequeño ($850k)', value: 'pequeño' },
                                 { name: 'Mediano ($1.75M)', value: 'mediano' },
@@ -4576,7 +4576,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             if (subCmd === 'crear') {
                 const nombre = interaction.options.getString('nombre');
                 const dueño = interaction.options.getUser('dueño');
-                const tipoLocal = interaction.options.getString('tipo_local');
+                const tipoLocal = interaction.options.getString('tipo_local') || 'pequeño'; // Default to pequeño
                 const logo = interaction.options.getAttachment('logo');
                 const fotoLocal = interaction.options.getAttachment('foto_local');
                 const ubicacion = interaction.options.getString('ubicacion');
@@ -4593,7 +4593,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                     'gigante': 5000000
                 };
 
-                let totalCost = TRAMITE_FEE + LOCAL_COSTS[tipoLocal];
+                let totalCost = TRAMITE_FEE + (LOCAL_COSTS[tipoLocal] || LOCAL_COSTS['pequeño']);
 
                 // Check if name is unique
                 const { data: existing } = await supabase.from('companies').select('id').eq('name', nombre).maybeSingle();
