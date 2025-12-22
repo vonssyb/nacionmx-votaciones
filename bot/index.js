@@ -1372,6 +1372,39 @@ client.once('ready', async () => {
                     options: [
                         { name: 'usuario', description: 'Usuario a investigar', type: 6, required: true }
                     ]
+                },
+                {
+                    name: 'contratar',
+                    description: 'Contratar a un empleado para tu empresa',
+                    type: 1,
+                    options: [
+                        { name: 'usuario', description: 'Usuario a contratar', type: 6, required: true },
+                        { name: 'sueldo', description: 'Sueldo semanal', type: 10, required: true },
+                        { name: 'puesto', description: 'Puesto/Cargo', type: 3, required: false }
+                    ]
+                },
+                {
+                    name: 'despedir',
+                    description: 'Despedir a un empleado de tu empresa',
+                    type: 1,
+                    options: [
+                        { name: 'usuario', description: 'Usuario a despedir', type: 6, required: true }
+                    ]
+                },
+                {
+                    name: 'empleados',
+                    description: 'Ver lista de empleados de tu empresa',
+                    type: 1
+                },
+                {
+                    name: 'agregar-vehiculo',
+                    description: 'STAFF: Agregar vehículo a una empresa',
+                    type: 1,
+                    options: [
+                        { name: 'empresa_usuario', description: 'Dueño de la empresa', type: 6, required: true },
+                        { name: 'modelo', description: 'Modelo del vehículo (ej. Tsuru)', type: 3, required: true },
+                        { name: 'placa', description: 'Placa del vehículo', type: 3, required: true }
+                    ]
                 }
             ]
         },
