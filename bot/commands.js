@@ -582,7 +582,17 @@ const commands = [
                 type: 1,
                 options: [
                     { name: 'empresa', description: 'Ticker (ej. NMX)', type: 3, required: true },
-                    { name: 'cantidad', description: 'Número de acciones', type: 10, required: true }
+                    { name: 'cantidad', description: 'Número de acciones', type: 10, required: true },
+                    {
+                        name: 'metodo',
+                        description: 'Método de pago',
+                        type: 3,
+                        required: false,
+                        choices: [
+                            { name: '💵 Efectivo', value: 'cash' },
+                            { name: '💳 Débito/Banco', value: 'bank' }
+                        ]
+                    }
                 ]
             },
             {
@@ -837,6 +847,29 @@ const commands = [
                         ]
                     }
                 ]
+            }
+        ]
+    },
+    {
+        name: 'debito',
+        description: '🏦 Banco: Retirar y Depositar dinero',
+        options: [
+            {
+                name: 'retirar',
+                description: 'Sacar dinero del cajero (Banco -> Efectivo)',
+                type: 1,
+                options: [{ name: 'monto', description: 'Cantidad a retirar', type: 10, required: true }]
+            },
+            {
+                name: 'depositar',
+                description: 'Guardar dinero en el banco (Efectivo -> Banco)',
+                type: 1,
+                options: [{ name: 'monto', description: 'Cantidad a depositar', type: 10, required: true }]
+            },
+            {
+                name: 'saldo',
+                description: 'Ver tus saldos actuales',
+                type: 1
             }
         ]
     }
