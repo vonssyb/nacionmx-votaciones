@@ -4691,7 +4691,8 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                             local_type: tipoLocal || 'pequeño',
                             local_photo_url: fotoLocal ? fotoLocal.url : null,
                             location: ubicacion,
-                            co_owner_id: coDueño ? coDueño.id : null,
+                            // ERROR FIX: co_owner_id column does not exist, using owner_ids array instead
+                            // co_owner_id: coDueño ? coDueño.id : null, 
                             is_private: esPrivada,
                             owner_ids: ownerIds,
                             vehicle_count: 0,
