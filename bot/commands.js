@@ -602,6 +602,11 @@ const commands = [
         ]
     },
     {
+        name: 'crimen',
+        description: '🔫 Cometer crímenes de alto riesgo (Ganancias $10k - $100k)',
+        type: 1
+    },
+    {
         name: 'casino',
         description: '🎰 Juegos de Azar (Blackjack, Ruleta)',
         options: [
