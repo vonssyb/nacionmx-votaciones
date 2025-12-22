@@ -4799,7 +4799,9 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                     );
 
                 if (company.location) embed.addFields({ name: '📍 Ubicación', value: company.location });
-                if (company.banner_url) embed.setImage(company.banner_url);
+                // Check both local_photo_url (new) and banner_url (old/legacy)
+                const imageUrl = company.local_photo_url || company.banner_url;
+                if (imageUrl) embed.setImage(imageUrl);
 
                 return interaction.editReply({ embeds: [embed] });
             }
