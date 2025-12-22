@@ -4955,6 +4955,46 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 return interaction.editReply({ embeds: [embed] });
             }
 
+            // ===== AGREGAR VEHICULO (STAFF ONLY) =====
+            if (subCmd === 'agregar-vehiculo') {
+                if (!interaction.member.permissions.has('Administrator')) {
+                    return interaction.editReply('⛔ **Permiso Denegado**\nSolo el Staff puede agregar vehículos a las empresas.');
+                }
+
+                const targetOwner = interaction.options.getUser('empresa_usuario');
+                const modelo = interaction.options.getString('modelo');
+                const placa = interaction.options.getString('placa');
+
+                const { data: companies } = await supabase.from('companies')
+                    .select('*')
+                    .contains('owner_ids', [targetOwner.id]);
+
+                if (!companies || companies.length === 0) {
+                    return interaction.editReply(`❌ El usuario <@${targetOwner.id}> no tiene empresas registradas.`);
+                }
+
+                const company = companies[0];
+
+                // Update vehicle count
+                const newCount = (company.vehicle_count || 0) + 1;
+
+                const { error } = await supabase.from('companies')
+                    .update({ vehicle_count: newCount })
+                    .eq('id', company.id);
+
+                if (error) {
+                    console.error('[empresa agregar-vehiculo]', error);
+                    return interaction.editReply('❌ Error actualizando empresa.');
+                }
+
+                const embed = new EmbedBuilder()
+                    .setColor('#00FF00')
+                    .setTitle('🚗 Vehículo Agregado')
+                    .setDescription(`Se ha agregado un vehículo a la flotilla de **${company.name}**.\n\n👤 **Dueño:** <@${targetOwner.id}>\n🚙 **Modelo:** ${modelo}\n🔢 **Placa:** ${placa}\n\n📊 **Total Vehículos:** ${newCount}`);
+
+                return interaction.editReply({ embeds: [embed] });
+            }
+
             // ===== CREDITO =====
             if (subCmd === 'credito') {
                 return interaction.editReply('💳 Crédito empresarial disponible pronto.');
