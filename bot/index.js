@@ -4649,7 +4649,8 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                             }
 
                             if (method === 'debit') {
-                                const { data: card } = await supabase.from('debit_cards').select('*').eq('user_id', dueño.id).eq('is_active', true).maybeSingle();
+                                // Correct column names: discord_user_id and status
+                                const { data: card } = await supabase.from('debit_cards').select('*').eq('discord_user_id', dueño.id).eq('status', 'active').maybeSingle();
                                 if (!card) {
                                     paymentProcessed = false; // Allow retry
                                     return i.editReply({ content: '❌ El dueño no tiene tarjeta de débito activa.', components: [] });
