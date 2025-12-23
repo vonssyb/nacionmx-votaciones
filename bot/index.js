@@ -7317,34 +7317,37 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 return interaction.editReply('❌ El PIN debe ser de 6 dígitos numéricos');
             }
 
-            // Transfer all money to vault
+            // Get current balance
             const balance = await billingService.ubService.getUserBalance(interaction.guildId, userId);
             const totalCash = balance.cash || 0;
             const totalBank = balance.bank || 0;
             const total = totalCash + totalBank;
 
             if (total > 0) {
+                // REMOVE money from user accounts
                 if (totalCash > 0) await billingService.ubService.removeMoney(interaction.guildId, userId, totalCash, 'Modo Pánico', 'cash');
                 if (totalBank > 0) await billingService.ubService.removeMoney(interaction.guildId, userId, totalBank, 'Modo Pánico', 'bank');
 
+                // SAVE to vault with breakdown
                 const { data: vault } = await supabase.from('privacy_vault').select('*').eq('user_id', userId).maybeSingle();
 
+                const vaultData = {
+                    user_id: userId,
+                    amount: total,
+                    cash_saved: totalCash,
+                    bank_saved: totalBank,
+                    locked_until: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+                };
+
                 if (vault) {
-                    await supabase.from('privacy_vault').update({
-                        amount: vault.amount + total,
-                        locked_until: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
-                    }).eq('user_id', userId);
+                    await supabase.from('privacy_vault').update(vaultData).eq('user_id', userId);
                 } else {
-                    await supabase.from('privacy_vault').insert({
-                        user_id: userId,
-                        amount: total,
-                        locked_until: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
-                    });
+                    await supabase.from('privacy_vault').insert(vaultData);
                 }
 
                 await supabase.from('privacy_accounts').update({ panic_pin: pin }).eq('user_id', userId);
 
-                return interaction.editReply(`🚨 **MODO PÁNICO ACTIVADO**\n$${total.toLocaleString()} transferidos a Bóveda\nTus cuentas muestran $0\nPIN guardado: usa el mismo PIN para recuperar`);
+                return interaction.editReply(`🚨 **MODO PÁNICO ACTIVADO**\n\n💵 Efectivo guardado: $${totalCash.toLocaleString()}\n🏦 Banco guardado: $${totalBank.toLocaleString()}\n✅ Total en bóveda: $${total.toLocaleString()}\n\n**Tus cuentas ahora muestran $0**\nPIN guardado: usa el mismo PIN para recuperar`);
             } else {
                 return interaction.editReply('❌ No tienes fondos para transferir');
             }
@@ -7422,170 +7425,181 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 return interaction.editReply('❌ No hay fondos en bóveda');
             }
 
-            const halfCash = Math.floor(vault.amount / 2);
-            const halfBank = vault.amount - halfCash;
+            // RESTORE exactly what was saved
+            const cashToRestore = vault.cash_saved || 0;
+            const bankToRestore = vault.bank_saved || 0;
 
-            await billingService.ubService.addMoney(interaction.guildId, userId, halfCash, 'Recuperación Pánico', 'cash');
-            await billingService.ubService.addMoney(interaction.guildId, userId, halfBank, 'Recuperación Pánico', 'bank');
+            // Add back the exact amounts
+            if (cashToRestore > 0) {
+                await billingService.ubService.addMoney(interaction.guildId, userId, cashToRestore, 'Recuperación Pánico', 'cash');
+            }
+            if (bankToRestore > 0) {
+                await billingService.ubService.addMoney(interaction.guildId, userId, bankToRestore, 'Recuperación Pánico', 'bank');
+            }
 
-            await supabase.from('privacy_vault').update({ amount: 0 }).eq('user_id', userId);
+            // Clear vault and PIN
+            await supabase.from('privacy_vault').update({
+                amount: 0,
+                cash_saved: 0,
+                bank_saved: 0
+            }).eq('user_id', userId);
             await supabase.from('privacy_accounts').update({ panic_pin: null }).eq('user_id', userId);
 
-            return interaction.editReply(`🔓 **Modo Pánico Desactivado**\n\n💵 Efectivo: $${halfCash.toLocaleString()}\n🏦 Banco: $${halfBank.toLocaleString()}\n✅ Total recuperado: $${vault.amount.toLocaleString()}`);
+            return interaction.editReply(`🔓 **Modo Pánico Desactivado**\n\n💵 Efectivo restaurado: $${cashToRestore.toLocaleString()}\n🏦 Banco restaurado: $${bankToRestore.toLocaleString()}\n✅ Total recuperado: $${vault.amount.toLocaleString()}\n\n**Tus cuentas han sido restauradas exactamente como estaban**`);
+    }
+
+    else if (subCmd === 'alertas') {
+        const estado = interaction.options.getString('estado');
+        const enabled = estado === 'on';
+
+        await supabase.from('privacy_accounts').upsert({ user_id: userId, alerts_enabled: enabled }, { onConflict: 'user_id' });
+
+        return interaction.editReply(`🔔 Alertas ${enabled ? '✅ activadas' : '❌ desactivadas'}`);
+    }
+
+    else if (subCmd === 'autorenovar') {
+        if (!privacyData) {
+            return interaction.editReply('❌ Primero activa privacidad');
         }
 
-        else if (subCmd === 'alertas') {
-            const estado = interaction.options.getString('estado');
-            const enabled = estado === 'on';
+        const estado = interaction.options.getString('estado');
+        const enabled = estado === 'on';
 
-            await supabase.from('privacy_accounts').upsert({ user_id: userId, alerts_enabled: enabled }, { onConflict: 'user_id' });
+        await supabase.from('privacy_accounts').update({ auto_renew: enabled }).eq('user_id', userId);
 
-            return interaction.editReply(`🔔 Alertas ${enabled ? '✅ activadas' : '❌ desactivadas'}`);
+        return interaction.editReply(`♻️ Auto-renovación ${enabled ? '✅ activada' : '❌ desactivada'}\n${enabled ? 'Se renovará automáticamente cada mes' : 'Deberás renovar manualmente'}`);
+    }
+
+    else if (subCmd === 'viaje') {
+        const horas = interaction.options.getInteger('horas');
+        const costo = 5000 * (horas / 24);
+
+        const balance = await billingService.ubService.getUserBalance(interaction.guildId, userId);
+        if ((balance.cash || 0) < costo) {
+            return interaction.editReply(`❌ Fondos insuficientes\nCosto: $${costo.toLocaleString()}`);
         }
 
-        else if (subCmd === 'autorenovar') {
-            if (!privacyData) {
-                return interaction.editReply('❌ Primero activa privacidad');
+        await billingService.ubService.removeMoney(interaction.guildId, userId, costo, 'Modo Viaje', 'cash');
+
+        const expiresAt = new Date(Date.now() + horas * 60 * 60 * 1000);
+
+        await supabase.from('privacy_accounts').upsert({
+            user_id: userId,
+            level: 'basico',
+            expires_at: expiresAt.toISOString(),
+            activated_at: new Date().toISOString()
+        });
+
+        return interaction.editReply(`✈️ **Modo Viaje Activado**\n🥉 Privacidad Básica por ${horas}h\nCosto: $${costo.toLocaleString()}\nExpira: <t:${Math.floor(expiresAt.getTime() / 1000)}:R>`);
+    }
+
+    else if (subCmd === 'referir') {
+        const targetUser = interaction.options.getUser('usuario');
+
+        if (targetUser.id === userId) {
+            return interaction.editReply('❌ No puedes referirte a ti mismo');
+        }
+
+        let referralCode = privacyData?.referral_code;
+        if (!referralCode) {
+            referralCode = `PRIV${userId.slice(-6)}`;
+            await supabase.from('privacy_accounts').update({ referral_code: referralCode }).eq('user_id', userId);
+        }
+
+        const { data: existingRef } = await supabase.from('privacy_referrals').select('*').eq('referee_id', targetUser.id).maybeSingle();
+
+        if (existingRef) {
+            return interaction.editReply('❌ Este usuario ya fue referido');
+        }
+
+        await supabase.from('privacy_referrals').insert({ referrer_id: userId, referee_id: targetUser.id });
+
+        try {
+            await targetUser.send(`🎁 **¡${interaction.user.tag} te refirió al Sistema de Privacidad!**\n\nActiva privacidad con código: \`${referralCode}\`\n✅ Ambos recibirán 10% descuento`);
+        } catch (e) { }
+
+        return interaction.editReply(`✅ Referencia enviada a ${targetUser.tag}\nCódigo: \`${referralCode}\`\nAmbos recibirán 10% descuento al suscribirse`);
+    }
+
+    else if (subCmd === 'familia') {
+        if (!privacyData || privacyData.level === 'basico') {
+            return interaction.editReply('❌ Requiere nivel VIP o Elite');
+        }
+
+        const accion = interaction.options.getString('accion');
+
+        if (accion === 'add') {
+            const miembro = interaction.options.getUser('miembro');
+
+            if (!miembro) {
+                return interaction.editReply('❌ Especifica un miembro');
             }
 
-            const estado = interaction.options.getString('estado');
-            const enabled = estado === 'on';
-
-            await supabase.from('privacy_accounts').update({ auto_renew: enabled }).eq('user_id', userId);
-
-            return interaction.editReply(`♻️ Auto-renovación ${enabled ? '✅ activada' : '❌ desactivada'}\n${enabled ? 'Se renovará automáticamente cada mes' : 'Deberás renovar manualmente'}`);
-        }
-
-        else if (subCmd === 'viaje') {
-            const horas = interaction.options.getInteger('horas');
-            const costo = 5000 * (horas / 24);
+            const extraCost = privacyData.level === 'vip' ? 75000 : 250000;
 
             const balance = await billingService.ubService.getUserBalance(interaction.guildId, userId);
-            if ((balance.cash || 0) < costo) {
-                return interaction.editReply(`❌ Fondos insuficientes\nCosto: $${costo.toLocaleString()}`);
+            if ((balance.cash || 0) < extraCost) {
+                return interaction.editReply(`❌ Costo adicional: $${extraCost.toLocaleString()}`);
             }
 
-            await billingService.ubService.removeMoney(interaction.guildId, userId, costo, 'Modo Viaje', 'cash');
+            await billingService.ubService.removeMoney(interaction.guildId, userId, extraCost, 'Plan Familiar', 'cash');
 
-            const expiresAt = new Date(Date.now() + horas * 60 * 60 * 1000);
+            await supabase.from('privacy_family').insert({ owner_id: userId, member_id: miembro.id, status: 'active' });
 
             await supabase.from('privacy_accounts').upsert({
-                user_id: userId,
-                level: 'basico',
-                expires_at: expiresAt.toISOString(),
+                user_id: miembro.id,
+                level: privacyData.level,
+                expires_at: privacyData.expires_at,
                 activated_at: new Date().toISOString()
             });
 
-            return interaction.editReply(`✈️ **Modo Viaje Activado**\n🥉 Privacidad Básica por ${horas}h\nCosto: $${costo.toLocaleString()}\nExpira: <t:${Math.floor(expiresAt.getTime() / 1000)}:R>`);
+            return interaction.editReply(`👨‍👩‍👧 **Familia Actualizada**\n✅ ${miembro.tag} agregado\nCosto: $${extraCost.toLocaleString()}\nNivel compartido: ${privacyData.level.toUpperCase()}`);
         }
 
-        else if (subCmd === 'referir') {
-            const targetUser = interaction.options.getUser('usuario');
+        else if (accion === 'list') {
+            const { data: family } = await supabase.from('privacy_family').select('member_id').eq('owner_id', userId).eq('status', 'active');
 
-            if (targetUser.id === userId) {
-                return interaction.editReply('❌ No puedes referirte a ti mismo');
+            if (!family || family.length === 0) {
+                return interaction.editReply('👨‍👩‍👧 No tienes miembros familiares');
             }
 
-            let referralCode = privacyData?.referral_code;
-            if (!referralCode) {
-                referralCode = `PRIV${userId.slice(-6)}`;
-                await supabase.from('privacy_accounts').update({ referral_code: referralCode }).eq('user_id', userId);
-            }
-
-            const { data: existingRef } = await supabase.from('privacy_referrals').select('*').eq('referee_id', targetUser.id).maybeSingle();
-
-            if (existingRef) {
-                return interaction.editReply('❌ Este usuario ya fue referido');
-            }
-
-            await supabase.from('privacy_referrals').insert({ referrer_id: userId, referee_id: targetUser.id });
-
-            try {
-                await targetUser.send(`🎁 **¡${interaction.user.tag} te refirió al Sistema de Privacidad!**\n\nActiva privacidad con código: \`${referralCode}\`\n✅ Ambos recibirán 10% descuento`);
-            } catch (e) { }
-
-            return interaction.editReply(`✅ Referencia enviada a ${targetUser.tag}\nCódigo: \`${referralCode}\`\nAmbos recibirán 10% descuento al suscribirse`);
-        }
-
-        else if (subCmd === 'familia') {
-            if (!privacyData || privacyData.level === 'basico') {
-                return interaction.editReply('❌ Requiere nivel VIP o Elite');
-            }
-
-            const accion = interaction.options.getString('accion');
-
-            if (accion === 'add') {
-                const miembro = interaction.options.getUser('miembro');
-
-                if (!miembro) {
-                    return interaction.editReply('❌ Especifica un miembro');
-                }
-
-                const extraCost = privacyData.level === 'vip' ? 75000 : 250000;
-
-                const balance = await billingService.ubService.getUserBalance(interaction.guildId, userId);
-                if ((balance.cash || 0) < extraCost) {
-                    return interaction.editReply(`❌ Costo adicional: $${extraCost.toLocaleString()}`);
-                }
-
-                await billingService.ubService.removeMoney(interaction.guildId, userId, extraCost, 'Plan Familiar', 'cash');
-
-                await supabase.from('privacy_family').insert({ owner_id: userId, member_id: miembro.id, status: 'active' });
-
-                await supabase.from('privacy_accounts').upsert({
-                    user_id: miembro.id,
-                    level: privacyData.level,
-                    expires_at: privacyData.expires_at,
-                    activated_at: new Date().toISOString()
-                });
-
-                return interaction.editReply(`👨‍👩‍👧 **Familia Actualizada**\n✅ ${miembro.tag} agregado\nCosto: $${extraCost.toLocaleString()}\nNivel compartido: ${privacyData.level.toUpperCase()}`);
-            }
-
-            else if (accion === 'list') {
-                const { data: family } = await supabase.from('privacy_family').select('member_id').eq('owner_id', userId).eq('status', 'active');
-
-                if (!family || family.length === 0) {
-                    return interaction.editReply('👨‍👩‍👧 No tienes miembros familiares');
-                }
-
-                const members = family.map(f => `<@${f.member_id}>`).join(', ');
-                return interaction.editReply(`👨‍👩‍👧 **Tu Familia:**\n${members}\n\nTodos comparten tu nivel: ${privacyData.level.toUpperCase()}`);
-            }
-        }
-
-        else if (subCmd === 'score') {
-            let score = 0;
-
-            if (privacyData) {
-                if (privacyData.level === 'basico') score += 20;
-                else if (privacyData.level === 'vip') score += 50;
-                else if (privacyData.level === 'elite') score += 80;
-
-                const daysActive = Math.floor((new Date() - new Date(privacyData.activated_at)) / (1000 * 60 * 60 * 24));
-                score += Math.min(daysActive, 15);
-
-                const { data: vault } = await supabase.from('privacy_vault').select('amount').eq('user_id', userId).maybeSingle();
-                if (vault && vault.amount > 0) score += 5;
-
-                if (privacyData.verified) score += 10;
-                if (privacyData.auto_renew) score += 5;
-            }
-
-            let rank = '📈 Principiante';
-            if (score >= 80) rank = '🏆 Elite Master';
-            else if (score >= 60) rank = '⭐ Experto';
-            else if (score >= 40) rank = '🎯 Intermedio';
-
-            const embed = new EmbedBuilder()
-                .setTitle('📊 Privacy Score')
-                .setColor('#2F3136')
-                .setDescription(`Tu puntuación: **${score}/100**\nRango: ${rank}`)
-                .addFields({ name: '💡 Cómo Mejorar', value: '• Mantén privacidad activa\n• Usa la bóveda\n• Activa auto-renovación\n• Completa verificación' });
-
-            return interaction.editReply({ embeds: [embed] });
+            const members = family.map(f => `<@${f.member_id}>`).join(', ');
+            return interaction.editReply(`👨‍👩‍👧 **Tu Familia:**\n${members}\n\nTodos comparten tu nivel: ${privacyData.level.toUpperCase()}`);
         }
     }
+
+    else if (subCmd === 'score') {
+        let score = 0;
+
+        if (privacyData) {
+            if (privacyData.level === 'basico') score += 20;
+            else if (privacyData.level === 'vip') score += 50;
+            else if (privacyData.level === 'elite') score += 80;
+
+            const daysActive = Math.floor((new Date() - new Date(privacyData.activated_at)) / (1000 * 60 * 60 * 24));
+            score += Math.min(daysActive, 15);
+
+            const { data: vault } = await supabase.from('privacy_vault').select('amount').eq('user_id', userId).maybeSingle();
+            if (vault && vault.amount > 0) score += 5;
+
+            if (privacyData.verified) score += 10;
+            if (privacyData.auto_renew) score += 5;
+        }
+
+        let rank = '📈 Principiante';
+        if (score >= 80) rank = '🏆 Elite Master';
+        else if (score >= 60) rank = '⭐ Experto';
+        else if (score >= 40) rank = '🎯 Intermedio';
+
+        const embed = new EmbedBuilder()
+            .setTitle('📊 Privacy Score')
+            .setColor('#2F3136')
+            .setDescription(`Tu puntuación: **${score}/100**\nRango: ${rank}`)
+            .addFields({ name: '💡 Cómo Mejorar', value: '• Mantén privacidad activa\n• Usa la bóveda\n• Activa auto-renovación\n• Completa verificación' });
+
+        return interaction.editReply({ embeds: [embed] });
+    }
+}
 
 
 
