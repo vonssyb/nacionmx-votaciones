@@ -1,15 +1,14 @@
 -- Privacy System Enhancements
 -- Add these columns to privacy_accounts table
 
-ALTER TABLE privacy_accounts ADD COLUMN IF NOT EXISTS 
-    cashback_earned NUMERIC DEFAULT 0,
-    auto_renew BOOLEAN DEFAULT false,
-    trial_used BOOLEAN DEFAULT false,
-    referral_code TEXT UNIQUE,
-    referred_by TEXT,
-    privacy_score INTEGER DEFAULT 0,
-    alerts_enabled BOOLEAN DEFAULT true,
-    created_at TIMESTAMPTZ DEFAULT NOW();
+ALTER TABLE privacy_accounts ADD COLUMN IF NOT EXISTS cashback_earned NUMERIC DEFAULT 0;
+ALTER TABLE privacy_accounts ADD COLUMN IF NOT EXISTS auto_renew BOOLEAN DEFAULT false;
+ALTER TABLE privacy_accounts ADD COLUMN IF NOT EXISTS trial_used BOOLEAN DEFAULT false;
+ALTER TABLE privacy_accounts ADD COLUMN IF NOT EXISTS referral_code TEXT UNIQUE;
+ALTER TABLE privacy_accounts ADD COLUMN IF NOT EXISTS referred_by TEXT;
+ALTER TABLE privacy_accounts ADD COLUMN IF NOT EXISTS privacy_score INTEGER DEFAULT 0;
+ALTER TABLE privacy_accounts ADD COLUMN IF NOT EXISTS alerts_enabled BOOLEAN DEFAULT true;
+ALTER TABLE privacy_accounts ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();
 
 -- Alerts table
 CREATE TABLE IF NOT EXISTS privacy_alerts (
