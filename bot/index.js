@@ -4102,12 +4102,13 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 const monto = interaction.options.getNumber('monto');
                 const razon = interaction.options.getString('razon');
 
-                // Check if user owns a company
-                const { data: company } = await supabase
+                // Check if user owns or co-owns a company
+                const { data: companies } = await supabase
                     .from('companies')
                     .select('*')
-                    .eq('owner_id', userId)
-                    .maybeSingle();
+                    .or(`owner_id.eq.${userId},co_owner_ids.cs.{${userId}}`);
+
+                const company = companies && companies.length > 0 ? companies[0] : null;
 
                 if (!company) {
                     return interaction.editReply('❌ No tienes una empresa registrada. Usa `/empresa crear`');
