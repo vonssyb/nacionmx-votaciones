@@ -31,7 +31,7 @@ class UnbelievableBoatService {
      * @param {Function} fn - Function to retry
      * @param {number} maxRetries - Maximum number of retries
      */
-    async retryWithBackoff(fn, maxRetries = 3) {
+    async retryWithBackoff(fn, maxRetries = 5) {
         let lastError;
         for (let attempt = 0; attempt <= maxRetries; attempt++) {
             try {
@@ -40,11 +40,13 @@ class UnbelievableBoatService {
                 lastError = error;
 
                 // Check if it's a rate limit error
-                if (error.response?.status === 429) {
-                    const retryAfter = error.response.headers['retry-after'] || error.response.data?.retry_after || 60;
-                    const waitTime = Math.min(retryAfter * 1000, 60000); // Max 60 seconds
+                if (error.response?.status === 429 || error.message?.includes('rate limit')) {
+                    const retryAfter = error.response?.headers['retry-after'] || error.response?.data?.retry_after || 5;
+                    // Exponential backoff: 5s, 10s, 20s, 40s, 60s, 60s
+                    const backoffTime = Math.min(retryAfter * Math.pow(2, attempt), 60);
+                    const waitTime = backoffTime * 1000;
 
-                    logger.warn(`Rate limited by UnbelievaBoat API. Waiting ${retryAfter}s before retry (${attempt + 1}/${maxRetries + 1})`);
+                    logger.warn(`Rate limited by UnbelievaBoat API. Waiting ${backoffTime}s before retry (${attempt + 1}/${maxRetries + 1})`);
 
                     if (attempt < maxRetries) {
                         await new Promise(resolve => setTimeout(resolve, waitTime));
