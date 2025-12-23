@@ -5176,8 +5176,18 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             // Sort by total wealth descending
             wealthData.sort((a, b) => b.total - a.total);
 
-            // Take top 10
-            const top10 = wealthData.slice(0, 10);
+            // GHOST MODE: Filter out Elite users with active privacy
+            const { data: eliteUsers } = await supabase
+                .from('privacy_accounts')
+                .select('user_id')
+                .eq('level', 'elite')
+                .gt('expires_at', new Date().toISOString());
+
+            const ghostIds = new Set(eliteUsers?.map(u => u.user_id) || []);
+            const visibleWealth = wealthData.filter(w => !ghostIds.has(w.discord_id));
+
+            // Take top 10 (excluding ghosts)
+            const top10 = visibleWealth.slice(0, 10);
 
             if (top10.length === 0) {
                 return interaction.editReply('❌ No se pudieron calcular las fortunas.');
@@ -5890,15 +5900,15 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             return interaction.editReply(`🚓 **Buscado por la policía**\nEscóndete **${min} minutos**.`);
         }
 
-        // Enhanced crimes with higher risks/rewards
+        // Enhanced crimes with BALANCED risks/rewards (reduced 50-60%)
         const crimes = [
-            { title: '💣 Bomba Nuclear', desc: 'Cable correcto: VERDE', type: 'wires', wire: 'VERDE', opts: ['🔴 ROJO', '🟢 VERDE', '🔵 AZUL', '🟡 AMARILLO', '⚫ NEGRO'], pay: [100000, 150000], fine: [20000, 35000] },
-            { title: '🏛️ Museo Nacional', desc: 'Sala 3 - Código 842', type: 'memory', code: 'Sala 3 - 842', opts: ['Sala 3 - 842', 'Sala 2 - 842', 'Sala 3 - 824', 'Sala 4 - 842', 'Sala 3 - 248'], pay: [80000, 130000], fine: [15000, 25000] },
-            { title: '🚓 Persecución', desc: 'Escapar a la IZQUIERDA', type: 'nav', dir: 'IZQUIERDA', opts: ['⬅️ IZQUIERDA', '➡️ DERECHA', '⬆️ ACELERAR', '⬇️ FRENAR'], pay: [50000, 90000], fine: [10000, 18000] },
-            { title: '💎 Mansión', desc: 'Cruzar jardín minado', type: 'luck', opts: ['🚶 RUTA A', '🚶 RUTA B', '🚶 RUTA C', '🚶 RUTA D', '🚶 RUTA E'], luck: 0.25, pay: [90000, 160000], fine: [25000, 40000] },
-            { title: '💻 Hackeo Banco', desc: 'inject_root_sql_bypass_admin', type: 'typing', cmd: 'inject_root_sql_bypass_admin', pay: [60000, 110000], fine: [12000, 22000] },
-            { title: '🔐 Caja Fuerte Federal', desc: 'Código: 9-1-8-3-7', type: 'memory', code: '9-1-8-3-7', opts: ['9-1-8-3-7', '9-1-7-3-8', '1-9-8-3-7', '9-8-1-3-7', '9-1-3-8-7'], pay: [120000, 180000], fine: [30000, 45000] },
-            { title: '🚁 Escape Aéreo', desc: 'Huir al NORTE entre edificios', type: 'nav', dir: 'NORTE', opts: ['⬆️ NORTE', '⬇️ SUR', '⬅️ OESTE', '➡️ ESTE', '💨 VERTICAL'], pay: [95000, 145000], fine: [22000, 38000] }
+            { title: '💣 Bomba Nuclear', desc: 'Cable correcto: VERDE', type: 'wires', wire: 'VERDE', opts: ['🔴 ROJO', '🟢 VERDE', '🔵 AZUL', '🟡 AMARILLO', '⚫ NEGRO'], pay: [40000, 65000], fine: [15000, 25000] },
+            { title: '🏛️ Museo Nacional', desc: 'Sala 3 - Código 842', type: 'memory', code: 'Sala 3 - 842', opts: ['Sala 3 - 842', 'Sala 2 - 842', 'Sala 3 - 824', 'Sala 4 - 842', 'Sala 3 - 248'], pay: [35000, 55000], fine: [12000, 20000] },
+            { title: '🚓 Persecución', desc: 'Escapar a la IZQUIERDA', type: 'nav', dir: 'IZQUIERDA', opts: ['⬅️ IZQUIERDA', '➡️ DERECHA', '⬆️ ACELERAR', '⬇️ FRENAR'], pay: [25000, 40000], fine: [8000, 15000] },
+            { title: '💎 Mansión', desc: 'Cruzar jardín minado', type: 'luck', opts: ['🚶 RUTA A', '🚶 RUTA B', '🚶 RUTA C', '🚶 RUTA D', '🚶 RUTA E'], luck: 0.20, pay: [45000, 70000], fine: [18000, 30000] },
+            { title: '💻 Hackeo Banco', desc: 'inject_root_sql_bypass_admin', type: 'typing', cmd: 'inject_root_sql_bypass_admin', pay: [30000, 50000], fine: [10000, 18000] },
+            { title: '🔐 Caja Fuerte Federal', desc: 'Código: 9-1-8-3-7', type: 'memory', code: '9-1-8-3-7', opts: ['9-1-8-3-7', '9-1-7-3-8', '1-9-8-3-7', '9-8-1-3-7', '9-1-3-8-7'], pay: [50000, 80000], fine: [20000, 35000] },
+            { title: '🚁 Escape Aéreo', desc: 'Huir al NORTE entre edificios', type: 'nav', dir: 'NORTE', opts: ['⬆️ NORTE', '⬇️ SUR', '⬅️ OESTE', '➡️ ESTE', '💨 VERTICAL'], pay: [42000, 62000], fine: [16000, 28000] }
         ];
 
         const crime = crimes[Math.floor(Math.random() * crimes.length)];
@@ -7446,160 +7456,160 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             await supabase.from('privacy_accounts').update({ panic_pin: null }).eq('user_id', userId);
 
             return interaction.editReply(`🔓 **Modo Pánico Desactivado**\n\n💵 Efectivo restaurado: $${cashToRestore.toLocaleString()}\n🏦 Banco restaurado: $${bankToRestore.toLocaleString()}\n✅ Total recuperado: $${vault.amount.toLocaleString()}\n\n**Tus cuentas han sido restauradas exactamente como estaban**`);
-    }
-
-    else if (subCmd === 'alertas') {
-        const estado = interaction.options.getString('estado');
-        const enabled = estado === 'on';
-
-        await supabase.from('privacy_accounts').upsert({ user_id: userId, alerts_enabled: enabled }, { onConflict: 'user_id' });
-
-        return interaction.editReply(`🔔 Alertas ${enabled ? '✅ activadas' : '❌ desactivadas'}`);
-    }
-
-    else if (subCmd === 'autorenovar') {
-        if (!privacyData) {
-            return interaction.editReply('❌ Primero activa privacidad');
         }
 
-        const estado = interaction.options.getString('estado');
-        const enabled = estado === 'on';
+        else if (subCmd === 'alertas') {
+            const estado = interaction.options.getString('estado');
+            const enabled = estado === 'on';
 
-        await supabase.from('privacy_accounts').update({ auto_renew: enabled }).eq('user_id', userId);
+            await supabase.from('privacy_accounts').upsert({ user_id: userId, alerts_enabled: enabled }, { onConflict: 'user_id' });
 
-        return interaction.editReply(`♻️ Auto-renovación ${enabled ? '✅ activada' : '❌ desactivada'}\n${enabled ? 'Se renovará automáticamente cada mes' : 'Deberás renovar manualmente'}`);
-    }
-
-    else if (subCmd === 'viaje') {
-        const horas = interaction.options.getInteger('horas');
-        const costo = 5000 * (horas / 24);
-
-        const balance = await billingService.ubService.getUserBalance(interaction.guildId, userId);
-        if ((balance.cash || 0) < costo) {
-            return interaction.editReply(`❌ Fondos insuficientes\nCosto: $${costo.toLocaleString()}`);
+            return interaction.editReply(`🔔 Alertas ${enabled ? '✅ activadas' : '❌ desactivadas'}`);
         }
 
-        await billingService.ubService.removeMoney(interaction.guildId, userId, costo, 'Modo Viaje', 'cash');
-
-        const expiresAt = new Date(Date.now() + horas * 60 * 60 * 1000);
-
-        await supabase.from('privacy_accounts').upsert({
-            user_id: userId,
-            level: 'basico',
-            expires_at: expiresAt.toISOString(),
-            activated_at: new Date().toISOString()
-        });
-
-        return interaction.editReply(`✈️ **Modo Viaje Activado**\n🥉 Privacidad Básica por ${horas}h\nCosto: $${costo.toLocaleString()}\nExpira: <t:${Math.floor(expiresAt.getTime() / 1000)}:R>`);
-    }
-
-    else if (subCmd === 'referir') {
-        const targetUser = interaction.options.getUser('usuario');
-
-        if (targetUser.id === userId) {
-            return interaction.editReply('❌ No puedes referirte a ti mismo');
-        }
-
-        let referralCode = privacyData?.referral_code;
-        if (!referralCode) {
-            referralCode = `PRIV${userId.slice(-6)}`;
-            await supabase.from('privacy_accounts').update({ referral_code: referralCode }).eq('user_id', userId);
-        }
-
-        const { data: existingRef } = await supabase.from('privacy_referrals').select('*').eq('referee_id', targetUser.id).maybeSingle();
-
-        if (existingRef) {
-            return interaction.editReply('❌ Este usuario ya fue referido');
-        }
-
-        await supabase.from('privacy_referrals').insert({ referrer_id: userId, referee_id: targetUser.id });
-
-        try {
-            await targetUser.send(`🎁 **¡${interaction.user.tag} te refirió al Sistema de Privacidad!**\n\nActiva privacidad con código: \`${referralCode}\`\n✅ Ambos recibirán 10% descuento`);
-        } catch (e) { }
-
-        return interaction.editReply(`✅ Referencia enviada a ${targetUser.tag}\nCódigo: \`${referralCode}\`\nAmbos recibirán 10% descuento al suscribirse`);
-    }
-
-    else if (subCmd === 'familia') {
-        if (!privacyData || privacyData.level === 'basico') {
-            return interaction.editReply('❌ Requiere nivel VIP o Elite');
-        }
-
-        const accion = interaction.options.getString('accion');
-
-        if (accion === 'add') {
-            const miembro = interaction.options.getUser('miembro');
-
-            if (!miembro) {
-                return interaction.editReply('❌ Especifica un miembro');
+        else if (subCmd === 'autorenovar') {
+            if (!privacyData) {
+                return interaction.editReply('❌ Primero activa privacidad');
             }
 
-            const extraCost = privacyData.level === 'vip' ? 75000 : 250000;
+            const estado = interaction.options.getString('estado');
+            const enabled = estado === 'on';
+
+            await supabase.from('privacy_accounts').update({ auto_renew: enabled }).eq('user_id', userId);
+
+            return interaction.editReply(`♻️ Auto-renovación ${enabled ? '✅ activada' : '❌ desactivada'}\n${enabled ? 'Se renovará automáticamente cada mes' : 'Deberás renovar manualmente'}`);
+        }
+
+        else if (subCmd === 'viaje') {
+            const horas = interaction.options.getInteger('horas');
+            const costo = 5000 * (horas / 24);
 
             const balance = await billingService.ubService.getUserBalance(interaction.guildId, userId);
-            if ((balance.cash || 0) < extraCost) {
-                return interaction.editReply(`❌ Costo adicional: $${extraCost.toLocaleString()}`);
+            if ((balance.cash || 0) < costo) {
+                return interaction.editReply(`❌ Fondos insuficientes\nCosto: $${costo.toLocaleString()}`);
             }
 
-            await billingService.ubService.removeMoney(interaction.guildId, userId, extraCost, 'Plan Familiar', 'cash');
+            await billingService.ubService.removeMoney(interaction.guildId, userId, costo, 'Modo Viaje', 'cash');
 
-            await supabase.from('privacy_family').insert({ owner_id: userId, member_id: miembro.id, status: 'active' });
+            const expiresAt = new Date(Date.now() + horas * 60 * 60 * 1000);
 
             await supabase.from('privacy_accounts').upsert({
-                user_id: miembro.id,
-                level: privacyData.level,
-                expires_at: privacyData.expires_at,
+                user_id: userId,
+                level: 'basico',
+                expires_at: expiresAt.toISOString(),
                 activated_at: new Date().toISOString()
             });
 
-            return interaction.editReply(`👨‍👩‍👧 **Familia Actualizada**\n✅ ${miembro.tag} agregado\nCosto: $${extraCost.toLocaleString()}\nNivel compartido: ${privacyData.level.toUpperCase()}`);
+            return interaction.editReply(`✈️ **Modo Viaje Activado**\n🥉 Privacidad Básica por ${horas}h\nCosto: $${costo.toLocaleString()}\nExpira: <t:${Math.floor(expiresAt.getTime() / 1000)}:R>`);
         }
 
-        else if (accion === 'list') {
-            const { data: family } = await supabase.from('privacy_family').select('member_id').eq('owner_id', userId).eq('status', 'active');
+        else if (subCmd === 'referir') {
+            const targetUser = interaction.options.getUser('usuario');
 
-            if (!family || family.length === 0) {
-                return interaction.editReply('👨‍👩‍👧 No tienes miembros familiares');
+            if (targetUser.id === userId) {
+                return interaction.editReply('❌ No puedes referirte a ti mismo');
             }
 
-            const members = family.map(f => `<@${f.member_id}>`).join(', ');
-            return interaction.editReply(`👨‍👩‍👧 **Tu Familia:**\n${members}\n\nTodos comparten tu nivel: ${privacyData.level.toUpperCase()}`);
-        }
-    }
+            let referralCode = privacyData?.referral_code;
+            if (!referralCode) {
+                referralCode = `PRIV${userId.slice(-6)}`;
+                await supabase.from('privacy_accounts').update({ referral_code: referralCode }).eq('user_id', userId);
+            }
 
-    else if (subCmd === 'score') {
-        let score = 0;
+            const { data: existingRef } = await supabase.from('privacy_referrals').select('*').eq('referee_id', targetUser.id).maybeSingle();
 
-        if (privacyData) {
-            if (privacyData.level === 'basico') score += 20;
-            else if (privacyData.level === 'vip') score += 50;
-            else if (privacyData.level === 'elite') score += 80;
+            if (existingRef) {
+                return interaction.editReply('❌ Este usuario ya fue referido');
+            }
 
-            const daysActive = Math.floor((new Date() - new Date(privacyData.activated_at)) / (1000 * 60 * 60 * 24));
-            score += Math.min(daysActive, 15);
+            await supabase.from('privacy_referrals').insert({ referrer_id: userId, referee_id: targetUser.id });
 
-            const { data: vault } = await supabase.from('privacy_vault').select('amount').eq('user_id', userId).maybeSingle();
-            if (vault && vault.amount > 0) score += 5;
+            try {
+                await targetUser.send(`🎁 **¡${interaction.user.tag} te refirió al Sistema de Privacidad!**\n\nActiva privacidad con código: \`${referralCode}\`\n✅ Ambos recibirán 10% descuento`);
+            } catch (e) { }
 
-            if (privacyData.verified) score += 10;
-            if (privacyData.auto_renew) score += 5;
+            return interaction.editReply(`✅ Referencia enviada a ${targetUser.tag}\nCódigo: \`${referralCode}\`\nAmbos recibirán 10% descuento al suscribirse`);
         }
 
-        let rank = '📈 Principiante';
-        if (score >= 80) rank = '🏆 Elite Master';
-        else if (score >= 60) rank = '⭐ Experto';
-        else if (score >= 40) rank = '🎯 Intermedio';
+        else if (subCmd === 'familia') {
+            if (!privacyData || privacyData.level === 'basico') {
+                return interaction.editReply('❌ Requiere nivel VIP o Elite');
+            }
 
-        const embed = new EmbedBuilder()
-            .setTitle('📊 Privacy Score')
-            .setColor('#2F3136')
-            .setDescription(`Tu puntuación: **${score}/100**\nRango: ${rank}`)
-            .addFields({ name: '💡 Cómo Mejorar', value: '• Mantén privacidad activa\n• Usa la bóveda\n• Activa auto-renovación\n• Completa verificación' });
+            const accion = interaction.options.getString('accion');
 
-        return interaction.editReply({ embeds: [embed] });
+            if (accion === 'add') {
+                const miembro = interaction.options.getUser('miembro');
+
+                if (!miembro) {
+                    return interaction.editReply('❌ Especifica un miembro');
+                }
+
+                const extraCost = privacyData.level === 'vip' ? 75000 : 250000;
+
+                const balance = await billingService.ubService.getUserBalance(interaction.guildId, userId);
+                if ((balance.cash || 0) < extraCost) {
+                    return interaction.editReply(`❌ Costo adicional: $${extraCost.toLocaleString()}`);
+                }
+
+                await billingService.ubService.removeMoney(interaction.guildId, userId, extraCost, 'Plan Familiar', 'cash');
+
+                await supabase.from('privacy_family').insert({ owner_id: userId, member_id: miembro.id, status: 'active' });
+
+                await supabase.from('privacy_accounts').upsert({
+                    user_id: miembro.id,
+                    level: privacyData.level,
+                    expires_at: privacyData.expires_at,
+                    activated_at: new Date().toISOString()
+                });
+
+                return interaction.editReply(`👨‍👩‍👧 **Familia Actualizada**\n✅ ${miembro.tag} agregado\nCosto: $${extraCost.toLocaleString()}\nNivel compartido: ${privacyData.level.toUpperCase()}`);
+            }
+
+            else if (accion === 'list') {
+                const { data: family } = await supabase.from('privacy_family').select('member_id').eq('owner_id', userId).eq('status', 'active');
+
+                if (!family || family.length === 0) {
+                    return interaction.editReply('👨‍👩‍👧 No tienes miembros familiares');
+                }
+
+                const members = family.map(f => `<@${f.member_id}>`).join(', ');
+                return interaction.editReply(`👨‍👩‍👧 **Tu Familia:**\n${members}\n\nTodos comparten tu nivel: ${privacyData.level.toUpperCase()}`);
+            }
+        }
+
+        else if (subCmd === 'score') {
+            let score = 0;
+
+            if (privacyData) {
+                if (privacyData.level === 'basico') score += 20;
+                else if (privacyData.level === 'vip') score += 50;
+                else if (privacyData.level === 'elite') score += 80;
+
+                const daysActive = Math.floor((new Date() - new Date(privacyData.activated_at)) / (1000 * 60 * 60 * 24));
+                score += Math.min(daysActive, 15);
+
+                const { data: vault } = await supabase.from('privacy_vault').select('amount').eq('user_id', userId).maybeSingle();
+                if (vault && vault.amount > 0) score += 5;
+
+                if (privacyData.verified) score += 10;
+                if (privacyData.auto_renew) score += 5;
+            }
+
+            let rank = '📈 Principiante';
+            if (score >= 80) rank = '🏆 Elite Master';
+            else if (score >= 60) rank = '⭐ Experto';
+            else if (score >= 40) rank = '🎯 Intermedio';
+
+            const embed = new EmbedBuilder()
+                .setTitle('📊 Privacy Score')
+                .setColor('#2F3136')
+                .setDescription(`Tu puntuación: **${score}/100**\nRango: ${rank}`)
+                .addFields({ name: '💡 Cómo Mejorar', value: '• Mantén privacidad activa\n• Usa la bóveda\n• Activa auto-renovación\n• Completa verificación' });
+
+            return interaction.editReply({ embeds: [embed] });
+        }
     }
-}
 
 
 
