@@ -820,6 +820,52 @@ const commands = [
                         ]
                     }
                 ]
+            },
+            {
+                name: 'ruleta',
+                description: '🎯 Ruleta (Rojo/Negro/Verde)',
+                type: 1,
+                options: [
+                    { name: 'apuesta', description: 'Cantidad', type: 4, required: true },
+                    { name: 'color', description: 'Color', type: 3, required: true, choices: [
+                        { name: 'Rojo (x2)', value: 'rojo' },
+                        { name: 'Negro (x2)', value: 'negro' },
+                        { name: 'Verde (x14)', value: 'verde' }
+                    ]}
+                ]
+            },
+            {
+                name: 'crash',
+                description: '🚀 Crash Game',
+                type: 1,
+                options: [{ name: 'apuesta', description: 'Cantidad', type: 4, required: true }]
+            },
+            {
+                name: 'caballos',
+                description: '🏇 Carreras',
+                type: 1,
+                options: [
+                    { name: 'apuesta', description: 'Cantidad', type: 4, required: true },
+                    { name: 'caballo', description: 'Caballo (1-4)', type: 4, required: true, min_value: 1, max_value: 4 }
+                ]
+            },
+            {
+                name: 'gallos',
+                description: '🐓 Pelea de Gallos',
+                type: 1,
+                options: [
+                    { name: 'apuesta', description: 'Cantidad', type: 4, required: true },
+                    { name: 'gallo', description: 'Gallo', type: 3, required: true, choices: [
+                        { name: 'Rojo', value: 'rojo' },
+                        { name: 'Azul', value: 'azul' }
+                    ]}
+                ]
+            },
+            {
+                name: 'rusa',
+                description: '🔫 Ruleta Rusa',
+                type: 1,
+                options: [{ name: 'apuesta', description: 'Cantidad', type: 4, required: true }]
             }
         ]
     },
@@ -890,6 +936,84 @@ const commands = [
             { name: 'destinatario', description: 'Usuario a transferir', type: 6, required: true },
             { name: 'monto', description: 'Cantidad a transferir', type: 10, required: true },
             { name: 'concepto', description: 'Concepto de la transferencia', type: 3, required: false }
+        ]
+    },
+    {
+        name: 'privacidad',
+        description: '🕶️ Sistema de Privacidad Bancaria',
+        options: [
+            {
+                name: 'activar',
+                description: 'Activar protección de privacidad',
+                type: 1,
+                options: [{
+                    name: 'nivel',
+                    description: 'Nivel de protección',
+                    type: 3,
+                    required: true,
+                    choices: [
+                        { name: '🥉 Básico ($50k/mes)', value: 'basico' },
+                        { name: '🥈 VIP ($150k/mes)', value: 'vip' },
+                        { name: '🥇 Elite ($500k/mes)', value: 'elite' }
+                    ]
+                }]
+            },
+            {
+                name: 'desactivar',
+                description: 'Desactivar privacidad',
+                type: 1
+            },
+            {
+                name: 'estado',
+                description: 'Ver tu nivel de privacidad actual',
+                type: 1
+            },
+            {
+                name: 'upgrade',
+                description: 'Mejorar tu nivel de privacidad',
+                type: 1,
+                options: [{
+                    name: 'nuevo_nivel',
+                    description: 'Nuevo nivel',
+                    type: 3,
+                    required: true,
+                    choices: [
+                        { name: 'VIP', value: 'vip' },
+                        { name: 'Elite', value: 'elite' }
+                    ]
+                }]
+            },
+            {
+                name: 'boveda',
+                description: 'Gestionar bóveda de emergencia (Elite)',
+                type: 1,
+                options: [
+                    {
+                        name: 'accion',
+                        description: 'Acción',
+                        type: 3,
+                        required: true,
+                        choices: [
+                            { name: 'Depositar', value: 'depositar' },
+                            { name: 'Retirar', value: 'retirar' },
+                            { name: 'Ver', value: 'ver' }
+                        ]
+                    },
+                    { name: 'monto', description: 'Cantidad', type: 10, required: false }
+                ]
+            },
+            {
+                name: 'offshore',
+                description: 'Configurar nombre offshore (Elite)',
+                type: 1,
+                options: [{ name: 'nombre', description: 'Nombre falso para transacciones', type: 3, required: true }]
+            },
+            {
+                name: 'panico',
+                description: 'Activar modo pánico (Elite)',
+                type: 1,
+                options: [{ name: 'pin', description: 'PIN de 6 dígitos', type: 3, required: true }]
+            }
         ]
     }
 ];
