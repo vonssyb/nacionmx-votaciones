@@ -6342,9 +6342,33 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             return interaction.editReply(`❌ ${targetUser.tag} no tiene una tarjeta de débito activa para recibir transferencias.`);
         }
 
+        // GHOST MODE: Check if sender has Elite privacy
+        const { data: senderPrivacy } = await supabase
+            .from('privacy_accounts')
+            .select('*')
+            .eq('user_id', interaction.user.id)
+            .eq('level', 'elite')
+            .gt('expires_at', new Date().toISOString())
+            .maybeSingle();
+
+        const senderName = senderPrivacy?.offshore_name || (senderPrivacy ? '🕶️ Usuario Anónimo' : interaction.user.tag);
+
         // Immediate transfer
         await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, amount, `SPEI a ${targetUser.tag}`, 'bank');
-        await billingService.ubService.addMoney(interaction.guildId, targetUser.id, amount, `SPEI de ${interaction.user.tag}`, 'bank');
+        await billingService.ubService.addMoney(interaction.guildId, targetUser.id, amount, `SPEI de ${senderName}`, 'bank');
+
+        // Notify recipient if they have alerts
+        const { data: recipientPrivacy } = await supabase
+            .from('privacy_accounts')
+            .select('alerts_enabled')
+            .eq('user_id', targetUser.id)
+            .maybeSingle();
+
+        if (recipientPrivacy?.alerts_enabled) {
+            try {
+                await targetUser.send(`💰 **Transferencia Recibida**\n$${amount.toLocaleString()} de ${senderName}\nConcepto: ${concepto}`);
+            } catch (e) { }
+        }
 
         const embed = new EmbedBuilder()
             .setTitle('⚡ Transferencia SPEI Exitosa')
@@ -6353,7 +6377,8 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             .addFields(
                 { name: '💰 Monto', value: `$${amount.toLocaleString()}`, inline: true },
                 { name: '💳 Destino', value: `*${recipientCard.card_number.slice(-4)}`, inline: true },
-                { name: '📝 Concepto', value: concepto, inline: false }
+                { name: '📝 Concepto', value: concepto, inline: false },
+                { name: '👤 Remitente', value: senderName, inline: true }
             )
             .setTimestamp();
 
@@ -6706,6 +6731,17 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 status: 'PENDING'
             });
 
+            // GHOST MODE: Check sender privacy
+            const { data: senderDepositPrivacy } = await supabase
+                .from('privacy_accounts')
+                .select('*')
+                .eq('user_id', interaction.user.id)
+                .eq('level', 'elite')
+                .gt('expires_at', new Date().toISOString())
+                .maybeSingle();
+
+            const depositSenderName = senderDepositPrivacy?.offshore_name || (senderDepositPrivacy ? '🕶️ Anónimo' : interaction.user.tag);
+
             // 4. Response
             const embed = new EmbedBuilder()
                 .setTitle('🏪 Depósito Realizado')
@@ -6715,7 +6751,8 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                     { name: '💸 Monto', value: `$${monto.toLocaleString()}`, inline: true },
                     { name: '💳 Destino', value: `Tarjeta NMX *${destCard.card_number.slice(-4)}`, inline: true },
                     { name: '⏳ Tiempo estimado', value: '4 Horas', inline: false },
-                    { name: '📝 Concepto', value: razon, inline: false }
+                    { name: '📝 Concepto', value: razon, inline: false },
+                    { name: '👤 Remitente', value: depositSenderName, inline: true }
                 )
                 .setFooter({ text: 'El dinero llegará automáticamente cuando se procese.' })
                 .setTimestamp();
@@ -6779,9 +6816,21 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             }
 
             // 3. Show payment selector
+            // GHOST MODE: Check sender privacy
+            const { data: senderGiroPrivacy } = await supabase
+                .from('privacy_accounts')
+                .select('*')
+                .eq('user_id', interaction.user.id)
+                .eq('level', 'elite')
+                .gt('expires_at', new Date().toISOString())
+                .maybeSingle();
+
+            const giroSenderName = senderGiroPrivacy?.offshore_name || (senderGiroPrivacy ? '🕶️ Anónimo' : interaction.user.tag);
+
             const pmGiro = await getAvailablePaymentMethods(interaction.user.id, interaction.guildId);
             const pbGiro = createPaymentButtons(pmGiro, 'giro_pay');
             const paymentEmbed = createPaymentEmbed(`📮 Giro a ${destUser.tag} (Entrega 24h)`, monto, pmGiro);
+            paymentEmbed.addFields({ name: '👤 Remitente', value: giroSenderName, inline: true });
             await interaction.editReply({ embeds: [paymentEmbed], components: [pbGiro] });
             const fGiro = i => i.user.id === interaction.user.id && i.customId.startsWith('giro_pay_');
             const cGiro = interaction.channel.createMessageComponentCollector({ filter: fGiro, time: 60000, max: 1 });
