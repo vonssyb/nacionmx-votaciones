@@ -4096,6 +4096,132 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 return interaction.editReply({ embeds: [embed] });
             }
 
+            // ===== COBRAR (Terminal POS) =====
+            else if (subCmd === 'cobrar') {
+                const cliente = interaction.options.getUser('cliente');
+                const monto = interaction.options.getNumber('monto');
+                const razon = interaction.options.getString('razon');
+
+                // Check if user owns a company
+                const { data: company } = await supabase
+                    .from('companies')
+                    .select('*')
+                    .eq('owner_id', userId)
+                    .maybeSingle();
+
+                if (!company) {
+                    return interaction.editReply('❌ No tienes una empresa registrada. Usa `/empresa crear`');
+                }
+
+                if (monto <= 0) {
+                    return interaction.editReply('❌ El monto debe ser mayor a 0');
+                }
+
+                // Create payment request
+                const embed = new EmbedBuilder()
+                    .setTitle('🏪 Terminal POS - Cobro Pendiente')
+                    .setColor('#FFD700')
+                    .setDescription(`**${company.name}** te está cobrando`)
+                    .addFields(
+                        { name: '💵 Monto', value: `$${monto.toLocaleString()}`, inline: true },
+                        { name: '📝 Concepto', value: razon, inline: true },
+                        { name: '🏢 Empresa', value: company.name, inline: false }
+                    )
+                    .setFooter({ text: 'Tienes 60 segundos para aceptar o rechazar' })
+                    .setTimestamp();
+
+                const row = new ActionRowBuilder()
+                    .addComponents(
+                        new ButtonBuilder()
+                            .setCustomId('pos_accept')
+                            .setLabel('✅ Pagar')
+                            .setStyle(ButtonStyle.Success),
+                        new ButtonBuilder()
+                            .setCustomId('pos_reject')
+                            .setLabel('❌ Rechazar')
+                            .setStyle(ButtonStyle.Danger)
+                    );
+
+                await interaction.editReply({
+                    content: `<@${cliente.id}> - Tienes un cobro pendiente`,
+                    embeds: [embed],
+                    components: [row]
+                });
+
+                // Wait for customer response
+                const filter = i => i.user.id === cliente.id && (i.customId === 'pos_accept' || i.customId === 'pos_reject');
+                const collector = interaction.channel.createMessageComponentCollector({ filter, time: 60000, max: 1 });
+
+                collector.on('collect', async (i) => {
+                    await i.deferUpdate();
+
+                    if (i.customId === 'pos_accept') {
+                        // Check customer balance
+                        const balance = await billingService.ubService.getUserBalance(interaction.guildId, cliente.id);
+
+                        if ((balance.cash || 0) < monto) {
+                            return i.editReply({
+                                content: `❌ <@${cliente.id}> no tiene suficiente efectivo`,
+                                components: []
+                            });
+                        }
+
+                        // Process payment
+                        await billingService.ubService.removeMoney(interaction.guildId, cliente.id, monto, `Pago a ${company.name}: ${razon}`, 'cash');
+
+                        // Add to company balance
+                        await supabase
+                            .from('companies')
+                            .update({ balance: company.balance + monto })
+                            .eq('id', company.id);
+
+                        const successEmbed = new EmbedBuilder()
+                            .setTitle('✅ Pago Exitoso')
+                            .setColor('#00FF00')
+                            .setDescription(`**${cliente.tag}** pagó a **${company.name}**`)
+                            .addFields(
+                                { name: '💵 Monto', value: `$${monto.toLocaleString()}`, inline: true },
+                                { name: '📝 Concepto', value: razon, inline: true }
+                            )
+                            .setTimestamp();
+
+                        return i.editReply({
+                            content: '',
+                            embeds: [successEmbed],
+                            components: []
+                        });
+                    } else {
+                        const rejectEmbed = new EmbedBuilder()
+                            .setTitle('❌ Pago Rechazado')
+                            .setColor('#FF0000')
+                            .setDescription(`**${cliente.tag}** rechazó el pago`)
+                            .setTimestamp();
+
+                        return i.editReply({
+                            content: '',
+                            embeds: [rejectEmbed],
+                            components: []
+                        });
+                    }
+                });
+
+                collector.on('end', (collected) => {
+                    if (collected.size === 0) {
+                        const timeoutEmbed = new EmbedBuilder()
+                            .setTitle('⏱️ Tiempo Agotado')
+                            .setColor('#FFA500')
+                            .setDescription('El cobro expiró sin respuesta')
+                            .setTimestamp();
+
+                        interaction.editReply({
+                            content: '',
+                            embeds: [timeoutEmbed],
+                            components: []
+                        }).catch(() => { });
+                    }
+                });
+            }
+
         } catch (error) {
             console.error('[empresa] Error:', error);
             return interaction.editReply('❌ Error procesando el comando de empresa.');
