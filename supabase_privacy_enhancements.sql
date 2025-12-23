@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS privacy_alerts (
     alert_type TEXT NOT NULL, -- 'robbery_attempt', 'balance_viewed', 'transfer_received', 'renewal_reminder'
     message TEXT,
     metadata JSONB,
-    read BOOLEAN DEFAULT false,
+    is_read BOOLEAN DEFAULT false,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -63,7 +63,7 @@ CREATE TABLE IF NOT EXISTS privacy_referrals (
 );
 
 -- Indexes for performance
-CREATE INDEX IF NOT EXISTS idx_alerts_user_read ON privacy_alerts(user_id, read);
+CREATE INDEX IF NOT EXISTS idx_alerts_user_read ON privacy_alerts(user_id, is_read);
 CREATE INDEX IF NOT EXISTS idx_burner_expires ON burner_wallets(expires_at);
 CREATE INDEX IF NOT EXISTS idx_scheduled_next ON scheduled_transfers(next_execution) WHERE active = true;
 CREATE INDEX IF NOT EXISTS idx_family_owner ON privacy_family(owner_id);

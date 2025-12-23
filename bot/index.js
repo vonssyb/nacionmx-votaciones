@@ -7379,7 +7379,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             }
 
             const { data: vault } = await supabase.from('privacy_vault').select('amount').eq('user_id', userId).maybeSingle();
-            const { data: alertsData } = await supabase.from('privacy_alerts').select('id', { count: 'exact', head: true }).eq('user_id', userId).eq('read', false);
+            const { data: alertsData } = await supabase.from('privacy_alerts').select('id', { count: 'exact', head: true }).eq('user_id', userId).eq('is_read', false);
 
             const icons = { basico: '🥉', vip: '🥈', elite: '🥇' };
             const daysLeft = Math.ceil((new Date(privacyData.expires_at) - new Date()) / (1000 * 60 * 60 * 24));
