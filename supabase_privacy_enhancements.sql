@@ -10,8 +10,15 @@ ALTER TABLE privacy_accounts ADD COLUMN IF NOT EXISTS privacy_score INTEGER DEFA
 ALTER TABLE privacy_accounts ADD COLUMN IF NOT EXISTS alerts_enabled BOOLEAN DEFAULT true;
 ALTER TABLE privacy_accounts ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();
 
+-- Drop tables if they exist (to avoid column conflicts)
+DROP TABLE IF EXISTS privacy_alerts CASCADE;
+DROP TABLE IF EXISTS burner_wallets CASCADE;
+DROP TABLE IF EXISTS scheduled_transfers CASCADE;
+DROP TABLE IF EXISTS privacy_family CASCADE;
+DROP TABLE IF EXISTS privacy_referrals CASCADE;
+
 -- Alerts table
-CREATE TABLE IF NOT EXISTS privacy_alerts (
+CREATE TABLE privacy_alerts (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id TEXT NOT NULL,
     alert_type TEXT NOT NULL, -- 'robbery_attempt', 'balance_viewed', 'transfer_received', 'renewal_reminder'
@@ -22,7 +29,7 @@ CREATE TABLE IF NOT EXISTS privacy_alerts (
 );
 
 -- Burner wallets
-CREATE TABLE IF NOT EXISTS burner_wallets (
+CREATE TABLE burner_wallets (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id TEXT NOT NULL,
     wallet_id TEXT UNIQUE NOT NULL,
@@ -32,19 +39,19 @@ CREATE TABLE IF NOT EXISTS burner_wallets (
 );
 
 -- Programmed transfers
-CREATE TABLE IF NOT EXISTS scheduled_transfers (
+CREATE TABLE scheduled_transfers (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     sender_id TEXT NOT NULL,
     receiver_id TEXT NOT NULL,
     amount NUMERIC NOT NULL,
-    frequency TEXT NOT NULL, -- 'daily', 'weekly', 'monthly'
+    frequency TEXT NOT NULL, -- 'daily', 'weekly', 'monthly'a
     next_execution TIMESTAMPTZ NOT NULL,
     active BOOLEAN DEFAULT true,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- Family sharing
-CREATE TABLE IF NOT EXISTS privacy_family (
+CREATE TABLE privacy_family (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     owner_id TEXT NOT NULL,
     member_id TEXT NOT NULL,
@@ -54,7 +61,7 @@ CREATE TABLE IF NOT EXISTS privacy_family (
 );
 
 -- Referrals
-CREATE TABLE IF NOT EXISTS privacy_referrals (
+CREATE TABLE privacy_referrals (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     referrer_id TEXT NOT NULL,
     referee_id TEXT NOT NULL,
