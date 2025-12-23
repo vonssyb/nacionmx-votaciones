@@ -4106,7 +4106,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 const { data: companies } = await supabase
                     .from('companies')
                     .select('*')
-                    .or(`owner_id.eq.${userId},co_owner_ids.cs.{${userId}}`);
+                    .contains('owner_ids', [userId]);
 
                 const company = companies && companies.length > 0 ? companies[0] : null;
 
