@@ -7587,6 +7587,41 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 const members = family.map(f => `<@${f.member_id}>`).join(', ');
                 return interaction.editReply(`👨‍👩‍👧 **Tu Familia:**\n${members}\n\nTodos comparten tu nivel: ${privacyData.level.toUpperCase()}`);
             }
+
+            else if (accion === 'remove') {
+                const miembro = interaction.options.getUser('miembro');
+
+                if (!miembro) {
+                    return interaction.editReply('❌ Especifica un miembro a remover');
+                }
+
+                const { data: familyMember } = await supabase
+                    .from('privacy_family')
+                    .select('*')
+                    .eq('owner_id', userId)
+                    .eq('member_id', miembro.id)
+                    .eq('status', 'active')
+                    .maybeSingle();
+
+                if (!familyMember) {
+                    return interaction.editReply('❌ Este usuario no está en tu familia');
+                }
+
+                // Remove member from family
+                await supabase
+                    .from('privacy_family')
+                    .update({ status: 'inactive' })
+                    .eq('owner_id', userId)
+                    .eq('member_id', miembro.id);
+
+                // Remove their privacy access
+                await supabase
+                    .from('privacy_accounts')
+                    .delete()
+                    .eq('user_id', miembro.id);
+
+                return interaction.editReply(`👨‍👩‍👧 **Familia Actualizada**\n❌ ${miembro.tag} removido\nSu acceso a privacidad ha sido desactivado.`);
+            }
         }
 
         else if (subCmd === 'score') {

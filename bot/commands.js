@@ -917,15 +917,7 @@ const commands = [
             }
         ]
     },
-    {
-        name: 'transferir',
-        description: '💸 Transferencia SPEI inmediata (Solo Banco)',
-        options: [
-            { name: 'destinatario', description: 'Usuario a transferir', type: 6, required: true },
-            { name: 'monto', description: 'Cantidad a transferir', type: 10, required: true },
-            { name: 'concepto', description: 'Concepto de la transferencia', type: 3, required: false }
-        ]
-    },
+
     // PRIVACY ENHANCEMENTS - Add to commands.js
     // Add these new subcommands to /privacidad command
 
