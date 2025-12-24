@@ -1176,8 +1176,19 @@ async function processPayment(method, userId, guildId, amount, description, avai
 }
 
 
+// Interaction deduplication cache
+const processedInteractions = new Set();
+setInterval(() => processedInteractions.clear(), 60000); // Clear every minute
+
 client.on('interactionCreate', async interaction => {
     console.log(`[DEBUG] RAW INTERACTION: ${interaction.isCommand() ? 'CMD' : 'BTN/OTHER'} ${interaction.commandName || interaction.customId}`);
+    // Deduplicate interactions
+    if (processedInteractions.has(interaction.id)) {
+        console.log(`[DEBUG] Skipping duplicate interaction: ${interaction.id}`);
+        return;
+    }
+    processedInteractions.add(interaction.id);
+
     // BUTTON: Investment Collection
     if (interaction.isButton() && interaction.customId.startsWith('btn_collect_')) {
         await interaction.deferReply({ ephemeral: true });
