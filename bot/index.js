@@ -7647,7 +7647,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
 
             const horario = interaction.options.getString('horario');
             const minimo = interaction.options.getInteger('minimo') || 4;
-            const imagenUrl = interaction.options.getString('imagen') || 'https://i.imgur.com/YourDefaultImage.png';
+            const imagenUrl = interaction.options.getString('imagen') || 'https://cdn.discordapp.com/attachments/885232074083143741/1453225155634663575/standard1.gif';
 
             // Check if there's already an active session
             const { data: existingSession } = await supabase
@@ -7717,91 +7717,114 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                         .setStyle(ButtonStyle.Danger)
                 );
 
-            const msg = await interaction.editReply({ embeds: [embed], components: [row] });
+            // Post to designated channel with ping
+            const targetChannelId = '1412963363545284680';
+            const pingRoleId = '1412899401000685588';
 
-            // Update session with message ID
-            await supabase
-                .from('session_votes')
-                .update({
-                    message_id: msg.id,
-                    channel_id: interaction.channelId
-                })
-                .eq('id', newSession.id);
+            try {
+                const targetChannel = await client.channels.fetch(targetChannelId);
+                if (targetChannel) {
+                    const msg = await targetChannel.send({
+                        content: `<@&${pingRoleId}>`,
+                        embeds: [embed],
+                        components: [row]
+                    });
 
-            // Set up button collector
-            const collector = msg.createMessageComponentCollector({ time: 24 * 60 * 60 * 1000 }); // 24 hours
-
-            collector.on('collect', async i => {
-                if (!i.customId.startsWith('vote_')) return;
-
-                const sessionId = i.customId.split('_')[2];
-                const voteType = i.customId.split('_')[1]; // yes, late, no
-
-                // Update or insert vote
-                await supabase.from('vote_responses').upsert({
-                    session_id: sessionId,
-                    user_id: i.user.id,
-                    vote_type: voteType
-                }, { onConflict: 'session_id,user_id' });
-
-                // Get updated vote counts
-                const { data: votes } = await supabase
-                    .from('vote_responses')
-                    .select('vote_type')
-                    .eq('session_id', sessionId);
-
-                const yesCount = votes?.filter(v => v.vote_type === 'yes').length || 0;
-                const lateCount = votes?.filter(v => v.vote_type === 'late').length || 0;
-                const noCount = votes?.filter(v => v.vote_type === 'no').length || 0;
-
-                // Update embed
-                const updatedEmbed = EmbedBuilder.from(embed)
-                    .setFields(
-                        { name: '⏰ Horario de Rol', value: horario, inline: true },
-                        { name: '🎯 Votos Necesarios', value: `${minimo}`, inline: true },
-                        { name: '\u200B', value: '\u200B' },
-                        { name: '✅ Participar en la sesion', value: `${yesCount} votos`, inline: false },
-                        { name: '📋 asistire, pero con retraso', value: `${lateCount} votos`, inline: false },
-                        { name: '❌ No podre asistir', value: `${noCount} votos`, inline: false }
-                    );
-
-                // Check if minimum reached
-                if (yesCount >= minimo) {
-                    const { data: session } = await supabase
+                    // Update session with message ID
+                    await supabase
                         .from('session_votes')
-                        .select('status')
-                        .eq('id', sessionId)
-                        .single();
+                        .update({
+                            message_id: msg.id,
+                            channel_id: targetChannelId
+                        })
+                        .eq('id', newSession.id);
 
-                    if (session && session.status === 'active') {
-                        // Mark as opened
-                        await supabase
-                            .from('session_votes')
-                            .update({ status: 'opened' })
-                            .eq('id', sessionId);
+                    await interaction.editReply(`✅ Votación creada en <#${targetChannelId}>`);
 
-                        updatedEmbed
-                            .setColor(0x00FF00)
-                            .setTitle('✅ SESIÓN CONFIRMADA - SERVIDOR ABIERTO');
+                    // Set up button collector on the channel message
+                    const collector = msg.createMessageComponentCollector({ time: 24 * 60 * 60 * 1000 });
 
-                        // Notify voters
-                        const { data: allVoters } = await supabase
+
+
+                    collector.on('collect', async i => {
+                        if (!i.customId.startsWith('vote_')) return;
+
+                        const sessionId = i.customId.split('_')[2];
+                        const voteType = i.customId.split('_')[1]; // yes, late, no
+
+                        // Update or insert vote
+                        await supabase.from('vote_responses').upsert({
+                            session_id: sessionId,
+                            user_id: i.user.id,
+                            vote_type: voteType
+                        }, { onConflict: 'session_id,user_id' });
+
+                        // Get updated vote counts
+                        const { data: votes } = await supabase
                             .from('vote_responses')
-                            .select('user_id')
-                            .eq('session_id', sessionId)
-                            .in('vote_type', ['yes', 'late']);
+                            .select('vote_type')
+                            .eq('session_id', sessionId);
 
-                        for (const voter of (allVoters || [])) {
-                            try {
-                                const user = await client.users.fetch(voter.user_id);
-                                await user.send(`🎮 **¡SERVIDOR ABIERTO!**\nSe alcanzó el mínimo de ${minimo} votos. ¡Hora de rolear!`);
-                            } catch (e) { }
+                        const yesCount = votes?.filter(v => v.vote_type === 'yes').length || 0;
+                        const lateCount = votes?.filter(v => v.vote_type === 'late').length || 0;
+                        const noCount = votes?.filter(v => v.vote_type === 'no').length || 0;
+
+                        // Update embed
+                        const updatedEmbed = EmbedBuilder.from(embed)
+                            .setFields(
+                                { name: '⏰ Horario de Rol', value: horario, inline: true },
+                                { name: '🎯 Votos Necesarios', value: `${minimo}`, inline: true },
+                                { name: '\u200B', value: '\u200B' },
+                                { name: '✅ Participar en la sesion', value: `${yesCount} votos`, inline: false },
+                                { name: '📋 asistire, pero con retraso', value: `${lateCount} votos`, inline: false },
+                                { name: '❌ No podre asistir', value: `${noCount} votos`, inline: false }
+                            );
+
+                        // Check if minimum reached
+                        if (yesCount >= minimo) {
+                            const { data: session } = await supabase
+                                .from('session_votes')
+                                .select('status')
+                                .eq('id', sessionId)
+                                .single();
+
+                            if (session && session.status === 'active') {
+                                // Mark as opened
+                                await supabase
+                                    .from('session_votes')
+                                    .update({ status: 'opened' })
+                                    .eq('id', sessionId);
+
+                                updatedEmbed
+                                    .setColor(0x00FF00)
+                                    .setTitle('✅ SESIÓN CONFIRMADA - SERVIDOR ABIERTO')
+                                    .setImage('https://cdn.discordapp.com/attachments/885232074083143741/1453225155185737749/standard.gif');
+
+                                // Notify voters
+                                const { data: allVoters } = await supabase
+                                    .from('vote_responses')
+                                    .select('user_id')
+                                    .eq('session_id', sessionId)
+                                    .in('vote_type', ['yes', 'late']);
+
+                                for (const voter of (allVoters || [])) {
+                                    try {
+                                        const user = await client.users.fetch(voter.user_id);
+                                        await user.send(`🎮 **¡SERVIDOR ABIERTO!**\nSe alcanzó el mínimo de ${minimo} votos. ¡Hora de rolear!`);
+                                    } catch (e) { }
+                                }
+                            }
                         }
-                    }
-                }
 
-                await i.update({ embeds: [updatedEmbed], components: [row] });
-            });
+                        await i.update({ embeds: [updatedEmbed], components: [row] });
+                    });
+                } else {
+                    return interaction.editReply('❌ No se encontró el canal de votaciones.');
+                }
+            } catch (channelError) {
+                console.error('Channel error:', channelError);
+                return interaction.editReply('❌ Error al acceder al canal de votaciones.');
+            }
         }
 
         else if (subCmd === 'cancelar') {
@@ -7815,14 +7838,10 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 return interaction.editReply('❌ No hay votación activa.');
             }
 
-            // Check if user created it or is staff
+            // Check if user is JD
             const member = await interaction.guild.members.fetch(userId);
-            const isStaff = member.roles.cache.some(role =>
-                ['STAFF', 'Admin', 'Moderador'].includes(role.name)
-            );
-
-            if (session.created_by !== userId && !isStaff) {
-                return interaction.editReply('❌ Solo el creador o staff puede cancelar la votación.');
+            if (!member.roles.cache.has(juntaDirectivaRoleId) && session.created_by !== userId) {
+                return interaction.editReply('❌ Solo la Junta Directiva o el creador pueden cancelar la votación.');
             }
 
             await supabase
@@ -7834,14 +7853,10 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
         }
 
         else if (subCmd === 'forzar') {
-            // Staff only
+            // Junta Directiva only
             const member = await interaction.guild.members.fetch(userId);
-            const isStaff = member.roles.cache.some(role =>
-                ['STAFF', 'Admin', 'Moderador'].includes(role.name)
-            );
-
-            if (!isStaff) {
-                return interaction.editReply('❌ Solo el staff puede forzar la apertura.');
+            if (!member.roles.cache.has(juntaDirectivaRoleId)) {
+                return interaction.editReply('❌ Solo la Junta Directiva puede forzar la apertura.');
             }
 
             const { data: session } = await supabase
@@ -7894,7 +7909,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             const embed = new EmbedBuilder()
                 .setTitle('🔴 SERVIDOR CERRADO')
                 .setColor(0xFF0000)
-                .setImage('https://media.discordapp.net/attachments/1183926673528221766/1321262961800548393/closed.png?ex=676a084c&is=6768b6cc&hm=9c64a50424578160868735293297316790586940026857905898808885876363&')
+                .setImage('https://cdn.discordapp.com/attachments/885232074083143741/1453225156188049458/standard2.gif')
                 .setDescription(`⚠️ **La sesión de rol ha finalizado.**\n\n📝 **Razón:** ${razon}\n\nGracias por participar en **Nación MX**. \n¡Esperamos verlos en la próxima sesión!`)
                 .setFooter({ text: `Cerrado por ${interaction.user.tag}` })
                 .setTimestamp();
