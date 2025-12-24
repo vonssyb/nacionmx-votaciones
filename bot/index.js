@@ -7909,6 +7909,26 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 .update({ status: 'opened' })
                 .eq('id', session.id);
 
+            // Update the original voting message with OPEN embed
+            try {
+                const channel = await client.channels.fetch(session.channel_id);
+                if (channel && session.message_id) {
+                    const message = await channel.messages.fetch(session.message_id);
+
+                    const openEmbed = new EmbedBuilder()
+                        .setTitle('✅ SESIÓN CONFIRMADA - SERVIDOR ABIERTO')
+                        .setColor(0x00FF00)
+                        .setDescription('🎮 **¡El servidor ha sido ABIERTO por la Junta Directiva!**\n\n¡Hora de rolear!')
+                        .setImage('https://cdn.discordapp.com/attachments/885232074083143741/1453225155185737749/standard.gif')
+                        .setFooter({ text: `Apertura forzada por ${interaction.user.tag}` })
+                        .setTimestamp();
+
+                    await message.edit({ embeds: [openEmbed], components: [] });
+                }
+            } catch (updateError) {
+                console.error('Error updating voting message:', updateError);
+            }
+
             // Notify all voters
             const { data: allVoters } = await supabase
                 .from('vote_responses')
@@ -7919,11 +7939,11 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             for (const voter of (allVoters || [])) {
                 try {
                     const user = await client.users.fetch(voter.user_id);
-                    await user.send(`🎮 **¡SERVIDOR ABIERTO (Forzado por staff)!**\n¡Hora de rolear!`);
+                    await user.send(`🎮 **¡SERVIDOR ABIERTO (Forzado por Junta Directiva)!**\n¡Hora de rolear!`);
                 } catch (e) { }
             }
 
-            return interaction.editReply('✅ Servidor abierto forzadamente. Todos los participantes han sido notificados.');
+            return interaction.editReply('✅ Servidor abierto forzadamente. Embed actualizado y participantes notificados.');
         }
 
         if (subCmd === 'cerrar') {
