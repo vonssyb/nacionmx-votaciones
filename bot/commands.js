@@ -1136,6 +1136,23 @@ const commands = [
                 name: 'forzar',
                 description: '🔒 Abrir servidor sin mínimo de votos (Staff)',
                 type: 1
+            },
+            {
+                name: 'cerrar',
+                description: '🔒 Cerrar servidor (Staff)',
+                type: 1,
+                options: [
+                    { name: 'razon', description: 'Razón del cierre', type: 3, required: false }
+                ]
+            },
+            {
+                name: 'mantenimiento',
+                description: '🛠️ Activar modo mantenimiento (Staff)',
+                type: 1,
+                options: [
+                    { name: 'duracion', description: 'Tiempo estimado (ej: 1 hora)', type: 3, required: false },
+                    { name: 'razon', description: 'Motivo del mantenimiento', type: 3, required: false }
+                ]
             }
         ]
     }
