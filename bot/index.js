@@ -7988,6 +7988,20 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 .update({ status: 'cancelled' })
                 .in('status', ['active', 'opened']);
 
+            // Clean up channel messages
+            const targetChannelId = '1412963363545284680';
+            try {
+                const channel = await client.channels.fetch(targetChannelId);
+                if (channel) {
+                    const messages = await channel.messages.fetch({ limit: 100 });
+                    if (messages.size > 0) {
+                        await channel.bulkDelete(messages, true).catch(err => console.log("Error deleting messages:", err.message));
+                    }
+                }
+            } catch (cleanupError) {
+                console.log("Channel cleanup warning:", cleanupError.message);
+            }
+
             const embed = new EmbedBuilder()
                 .setTitle('🔴 SERVIDOR CERRADO')
                 .setColor(0xFF0000)
@@ -7996,8 +8010,17 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 .setFooter({ text: `Cerrado por ${interaction.user.tag}` })
                 .setTimestamp();
 
-            await interaction.channel.send({ embeds: [embed] });
-            return interaction.editReply({ content: '✅ Anuncio de cierre enviado.', ephemeral: true });
+            // Send to the designated channel
+            try {
+                const channel = await client.channels.fetch(targetChannelId);
+                if (channel) {
+                    await channel.send({ embeds: [embed] });
+                }
+            } catch (sendError) {
+                console.error('Error sending close embed:', sendError);
+            }
+
+            return interaction.editReply({ content: '✅ Servidor cerrado. Canal limpiado y anuncio enviado.', ephemeral: true });
         }
 
         if (subCmd === 'mantenimiento') {
