@@ -7669,6 +7669,244 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
     // 
     //         await handleExtraCommands(interaction);
     //     }
+    // ===== SESION VOTING SYSTEM =====
+    else if (commandName === 'sesion') {
+    await interaction.deferReply();
+    const subCmd = interaction.options.getSubcommand();
+    const userId = interaction.user.id;
+
+    if (subCmd === 'crear') {
+        const horario = interaction.options.getString('horario');
+        const minimo = interaction.options.getInteger('minimo') || 4;
+        const imagenUrl = interaction.options.getString('imagen') || 'https://i.imgur.com/YourDefaultImage.png';
+
+        // Check if there's already an active session
+        const { data: existingSession } = await supabase
+            .from('session_votes')
+            .select('*')
+            .eq('status', 'active')
+            .maybeSingle();
+
+        if (existingSession) {
+            return interaction.editReply('❌ Ya hay una votación activa. Usa `/sesion cancelar` primero.');
+        }
+
+        // Create session
+        const scheduledTime = new Date();
+        scheduledTime.setHours(scheduledTime.getHours() + 2); // Default 2 hours from now
+
+        const { data: newSession, error } = await supabase
+            .from('session_votes')
+            .insert({
+                created_by: userId,
+                scheduled_time: scheduledTime.toISOString(),
+                minimum_votes: minimo,
+                image_url: imagenUrl
+            })
+            .select()
+            .single();
+
+        if (error || !newSession) {
+            console.error('Error creating session:', error);
+            return interaction.editReply('❌ Error creando la votación.');
+        }
+
+        // Create embed
+        const embed = new EmbedBuilder()
+            .setTitle('🗳️ Votacion De Rol')
+            .setColor(0xFFD700)
+            .setDescription('Vota si podrás participar en la sesión de hoy')
+            .addFields(
+                { name: '⏰ Horario de Rol', value: horario, inline: true },
+                { name: '🎯 Votos Necesarios', value: `${minimo}`, inline: true },
+                { name: '\u200B', value: '\u200B' }, // Spacer
+                { name: '✅ Participar en la sesion', value: '0 votos', inline: false },
+                { name: '📋 asistire, pero con retraso', value: '0 votos', inline: false },
+                { name: '❌ No podre asistir', value: '0 votos', inline: false }
+            )
+            .setImage(imagenUrl)
+            .setFooter({ text: `hoy a las ${new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}` })
+            .setTimestamp();
+
+        // Create buttons
+        const row = new ActionRowBuilder()
+            .addComponents(
+                new ButtonBuilder()
+                    .setCustomId(`vote_yes_${newSession.id}`)
+                    .setEmoji('✅')
+                    .setLabel('Participar')
+                    .setStyle(ButtonStyle.Success),
+                new ButtonBuilder()
+                    .setCustomId(`vote_late_${newSession.id}`)
+                    .setEmoji('📋')
+                    .setLabel('Con retraso')
+                    .setStyle(ButtonStyle.Secondary),
+                new ButtonBuilder()
+                    .setCustomId(`vote_no_${newSession.id}`)
+                    .setEmoji('❌')
+                    .setLabel('No podré')
+                    .setStyle(ButtonStyle.Danger)
+            );
+
+        const msg = await interaction.editReply({ embeds: [embed], components: [row] });
+
+        // Update session with message ID
+        await supabase
+            .from('session_votes')
+            .update({
+                message_id: msg.id,
+                channel_id: interaction.channelId
+            })
+            .eq('id', newSession.id);
+
+        // Set up button collector
+        const collector = msg.createMessageComponentCollector({ time: 24 * 60 * 60 * 1000 }); // 24 hours
+
+        collector.on('collect', async i => {
+            if (!i.customId.startsWith('vote_')) return;
+
+            const sessionId = i.customId.split('_')[2];
+            const voteType = i.customId.split('_')[1]; // yes, late, no
+
+            // Update or insert vote
+            await supabase.from('vote_responses').upsert({
+                session_id: sessionId,
+                user_id: i.user.id,
+                vote_type: voteType
+            }, { onConflict: 'session_id,user_id' });
+
+            // Get updated vote counts
+            const { data: votes } = await supabase
+                .from('vote_responses')
+                .select('vote_type')
+                .eq('session_id', sessionId);
+
+            const yesCount = votes?.filter(v => v.vote_type === 'yes').length || 0;
+            const lateCount = votes?.filter(v => v.vote_type === 'late').length || 0;
+            const noCount = votes?.filter(v => v.vote_type === 'no').length || 0;
+
+            // Update embed
+            const updatedEmbed = EmbedBuilder.from(embed)
+                .setFields(
+                    { name: '⏰ Horario de Rol', value: horario, inline: true },
+                    { name: '🎯 Votos Necesarios', value: `${minimo}`, inline: true },
+                    { name: '\u200B', value: '\u200B' },
+                    { name: '✅ Participar en la sesion', value: `${yesCount} votos`, inline: false },
+                    { name: '📋 asistire, pero con retraso', value: `${lateCount} votos`, inline: false },
+                    { name: '❌ No podre asistir', value: `${noCount} votos`, inline: false }
+                );
+
+            // Check if minimum reached
+            if (yesCount >= minimo) {
+                const { data: session } = await supabase
+                    .from('session_votes')
+                    .select('status')
+                    .eq('id', sessionId)
+                    .single();
+
+                if (session && session.status === 'active') {
+                    // Mark as opened
+                    await supabase
+                        .from('session_votes')
+                        .update({ status: 'opened' })
+                        .eq('id', sessionId);
+
+                    updatedEmbed
+                        .setColor(0x00FF00)
+                        .setTitle('✅ SESIÓN CONFIRMADA - SERVIDOR ABIERTO');
+
+                    // Notify voters
+                    const { data: allVoters } = await supabase
+                        .from('vote_responses')
+                        .select('user_id')
+                        .eq('session_id', sessionId)
+                        .in('vote_type', ['yes', 'late']);
+
+                    for (const voter of (allVoters || [])) {
+                        try {
+                            const user = await client.users.fetch(voter.user_id);
+                            await user.send(`🎮 **¡SERVIDOR ABIERTO!**\nSe alcanzó el mínimo de ${minimo} votos. ¡Hora de rolear!`);
+                        } catch (e) { }
+                    }
+                }
+            }
+
+            await i.update({ embeds: [updatedEmbed], components: [row] });
+        });
+    }
+
+    else if (subCmd === 'cancelar') {
+        const { data: session } = await supabase
+            .from('session_votes')
+            .select('*')
+            .eq('status', 'active')
+            .maybeSingle();
+
+        if (!session) {
+            return interaction.editReply('❌ No hay votación activa.');
+        }
+
+        // Check if user created it or is staff
+        const member = await interaction.guild.members.fetch(userId);
+        const isStaff = member.roles.cache.some(role =>
+            ['STAFF', 'Admin', 'Moderador'].includes(role.name)
+        );
+
+        if (session.created_by !== userId && !isStaff) {
+            return interaction.editReply('❌ Solo el creador o staff puede cancelar la votación.');
+        }
+
+        await supabase
+            .from('session_votes')
+            .update({ status: 'cancelled' })
+            .eq('id', session.id);
+
+        return interaction.editReply('✅ Votación cancelada.');
+    }
+
+    else if (subCmd === 'forzar') {
+        // Staff only
+        const member = await interaction.guild.members.fetch(userId);
+        const isStaff = member.roles.cache.some(role =>
+            ['STAFF', 'Admin', 'Moderador'].includes(role.name)
+        );
+
+        if (!isStaff) {
+            return interaction.editReply('❌ Solo el staff puede forzar la apertura.');
+        }
+
+        const { data: session } = await supabase
+            .from('session_votes')
+            .select('*')
+            .eq('status', 'active')
+            .maybeSingle();
+
+        if (!session) {
+            return interaction.editReply('❌ No hay votación activa.');
+        }
+
+        await supabase
+            .from('session_votes')
+            .update({ status: 'opened' })
+            .eq('id', session.id);
+
+        // Notify all voters
+        const { data: allVoters } = await supabase
+            .from('vote_responses')
+            .select('user_id')
+            .eq('session_id', session.id)
+            .in('vote_type', ['yes', 'late']);
+
+        for (const voter of (allVoters || [])) {
+            try {
+                const user = await client.users.fetch(voter.user_id);
+                await user.send(`🎮 **¡SERVIDOR ABIERTO (Forzado por staff)!**\n¡Hora de rolear!`);
+            } catch (e) { }
+        }
+
+        return interaction.editReply('✅ Servidor abierto forzadamente. Todos los participantes han sido notificados.');
+    }
+}
 });
 
 // Global Error Handlers to prevent crash
