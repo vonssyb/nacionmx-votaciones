@@ -7714,7 +7714,14 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
         const subCmd = interaction.options.getSubcommand();
         const userId = interaction.user.id;
 
+        const juntaDirectivaRoleId = '1412882245735420006';
+
         if (subCmd === 'crear') {
+            const member = await interaction.guild.members.fetch(userId);
+            if (!member.roles.cache.has(juntaDirectivaRoleId)) {
+                return interaction.editReply('❌ Solo la Junta Directiva puede crear votaciones.');
+            }
+
             const horario = interaction.options.getString('horario');
             const minimo = interaction.options.getInteger('minimo') || 4;
             const imagenUrl = interaction.options.getString('imagen') || 'https://i.imgur.com/YourDefaultImage.png';
@@ -7946,14 +7953,12 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             return interaction.editReply('✅ Servidor abierto forzadamente. Todos los participantes han sido notificados.');
         }
 
-        else if (subCmd === 'cerrar') {
-            // Staff only
+        if (subCmd === 'cerrar') {
+            // Junta Directiva only
             const member = await interaction.guild.members.fetch(userId);
-            const isStaff = member.roles.cache.some(role =>
-                ['STAFF', 'Admin', 'Moderador'].includes(role.name)
-            );
-
-            if (!isStaff) return interaction.editReply('❌ Solo el staff puede cerrar el servidor.');
+            if (!member.roles.cache.has(juntaDirectivaRoleId)) {
+                return interaction.editReply('❌ Solo la Junta Directiva puede cerrar el servidor.');
+            }
 
             const razon = interaction.options.getString('razon') || 'Sesión finalizada';
 
@@ -7975,14 +7980,12 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             return interaction.editReply({ content: '✅ Anuncio de cierre enviado.', ephemeral: true });
         }
 
-        else if (subCmd === 'mantenimiento') {
-            // Staff only
+        if (subCmd === 'mantenimiento') {
+            // Junta Directiva only
             const member = await interaction.guild.members.fetch(userId);
-            const isStaff = member.roles.cache.some(role =>
-                ['STAFF', 'Admin', 'Moderador'].includes(role.name)
-            );
-
-            if (!isStaff) return interaction.editReply('❌ Solo el staff puede activar mantenimiento.');
+            if (!member.roles.cache.has(juntaDirectivaRoleId)) {
+                return interaction.editReply('❌ Solo la Junta Directiva puede activar mantenimiento.');
+            }
 
             const duracion = interaction.options.getString('duracion') || 'Indefinido';
             const razon = interaction.options.getString('razon') || 'Mejoras y optimización';
