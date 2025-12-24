@@ -7275,22 +7275,33 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                     return interaction.editReply(`❌ Fondos insuficientes`);
                 }
 
+                // Remove money first
                 await billingService.ubService.removeMoney(interaction.guildId, userId, monto, 'Depósito Bóveda', 'cash');
 
+                // Now update vault
+                let vaultResult;
                 if (vault) {
-                    await supabase.from('privacy_vault').update({
+                    vaultResult = await supabase.from('privacy_vault').update({
                         amount: vault.amount + monto,
                         locked_until: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
                     }).eq('user_id', userId);
                 } else {
-                    await supabase.from('privacy_vault').insert({
+                    vaultResult = await supabase.from('privacy_vault').insert({
                         user_id: userId,
                         amount: monto,
                         locked_until: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
                     });
                 }
 
-                return interaction.editReply(`🔒 **Depositado en Bóveda**\n$${monto.toLocaleString()}\nBLoqueado por 7 días`);
+                // Check if vault operation failed
+                if (vaultResult.error) {
+                    console.error('[boveda depositar] Vault error:', vaultResult.error);
+                    // ROLLBACK: Return money to user
+                    await billingService.ubService.addMoney(interaction.guildId, userId, monto, 'Reembolso - Error depósito bóveda', 'cash');
+                    return interaction.editReply(`❌ Error al guardar en bóveda. Tu dinero ha sido devuelto.\nContacta a un administrador.`);
+                }
+
+                return interaction.editReply(`🔒 **Depositado en Bóveda**\n$${monto.toLocaleString()}\nBloqueado por 7 días`);
             }
 
             else if (accion === 'retirar') {
@@ -7308,8 +7319,19 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                     return interaction.editReply(`❌ No tienes suficiente en bóveda\nDisponible: $${vault.amount.toLocaleString()}`);
                 }
 
+                // Update vault FIRST to prevent race conditions
+                const vaultResult = await supabase.from('privacy_vault').update({
+                    amount: vault.amount - amount
+                }).eq('user_id', userId);
+
+                // Check if vault operation failed
+                if (vaultResult.error) {
+                    console.error('[boveda retirar] Vault error:', vaultResult.error);
+                    return interaction.editReply(`❌ Error al retirar de bóveda.\nIntenta de nuevo o contacta a un administrador.`);
+                }
+
+                // Now add money safely
                 await billingService.ubService.addMoney(interaction.guildId, userId, amount, 'Retiro Bóveda', 'cash');
-                await supabase.from('privacy_vault').update({ amount: vault.amount - amount }).eq('user_id', userId);
 
                 return interaction.editReply(`✅ Retirado de Bóveda: $${amount.toLocaleString()}`);
             }
@@ -7679,7 +7701,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
     //     }
     // ===== SESION VOTING SYSTEM =====
     else if (commandName === 'sesion') {
-        if (!interaction.deferred && !interaction.replied) await interaction.deferReply();
+        await interaction.deferReply();
         const subCmd = interaction.options.getSubcommand();
         const userId = interaction.user.id;
 

@@ -106,7 +106,7 @@ INSERT INTO store_items (item_key, name, description, price, duration_days, cate
     120000,
     3,
     'vehicle',
-    '144994972205069113 2',
+    '1449949722050691132',
     '🚓',
     '["Vehículo SWAT blindado", "Armamento táctico incluido", "Resistencia a daños", "Ideal para operativos PVP"]'::jsonb,
     4
