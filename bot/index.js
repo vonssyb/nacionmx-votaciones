@@ -3345,7 +3345,46 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 return interaction.editReply('❌ Error guardando el reporte en la base de datos.');
             }
 
-            await interaction.editReply('✅ Reporte de cancelación enviado exitosamente. Se publicará en breve.');
+            // Create Embed
+            const embed = new EmbedBuilder()
+                .setTitle('🚨 CANCELACIÓN DE ROL')
+                .setColor(0xFF0000)
+                .addFields(
+                    { name: '👤 Usuario Sancionado', value: targetUser, inline: true },
+                    { name: '👮 Moderador', value: interaction.user.tag, inline: true },
+                    { name: '📍 Ubicación', value: location, inline: false },
+                    { name: '📝 Razón', value: reason, inline: false }
+                )
+                .setTimestamp();
+
+            if (proof1) embed.setImage(proof1.url);
+            if (proof2) embed.setThumbnail(proof2.url);
+
+            // Try to send to configured channel
+            const logChannelId = process.env.RP_LOGS_CHANNEL_ID || process.env.NOTIFICATION_CHANNEL_ID;
+            let published = false;
+
+            if (logChannelId) {
+                try {
+                    const channel = await client.channels.fetch(logChannelId);
+                    if (channel) {
+                        await channel.send({ embeds: [embed] });
+                        published = true;
+                    }
+                } catch (e) {
+                    console.error('Error publishing report:', e);
+                }
+            }
+
+            if (published) {
+                await interaction.editReply('✅ Reporte de cancelación enviado y publicado exitosamente.');
+            } else {
+                // Return embed to user if channel not found
+                await interaction.editReply({
+                    content: '✅ Reporte guardado en base de datos. (No se encontró canal de logs público)',
+                    embeds: [embed]
+                });
+            }
         }
     }
 
