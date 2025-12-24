@@ -7910,23 +7910,39 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 .eq('id', session.id);
 
             // Update the original voting message with OPEN embed
+            let embedUpdated = false;
             try {
-                const channel = await client.channels.fetch(session.channel_id);
-                if (channel && session.message_id) {
-                    const message = await channel.messages.fetch(session.message_id);
-
-                    const openEmbed = new EmbedBuilder()
-                        .setTitle('✅ SESIÓN CONFIRMADA - SERVIDOR ABIERTO')
-                        .setColor(0x00FF00)
-                        .setDescription('🎮 **¡El servidor ha sido ABIERTO por la Junta Directiva!**\n\n¡Hora de rolear!')
-                        .setImage('https://cdn.discordapp.com/attachments/885232074083143741/1453225155185737749/standard.gif')
-                        .setFooter({ text: `Apertura forzada por ${interaction.user.tag}` })
-                        .setTimestamp();
-
-                    await message.edit({ embeds: [openEmbed], components: [] });
+                if (!session.channel_id || !session.message_id) {
+                    console.error('Missing channel_id or message_id:', session);
+                    return interaction.editReply('❌ No se pudo encontrar el mensaje de votación original.');
                 }
+
+                const channel = await client.channels.fetch(session.channel_id);
+                if (!channel) {
+                    console.error('Channel not found:', session.channel_id);
+                    return interaction.editReply('❌ No se encontró el canal de votaciones.');
+                }
+
+                const message = await channel.messages.fetch(session.message_id);
+                if (!message) {
+                    console.error('Message not found:', session.message_id);
+                    return interaction.editReply('❌ No se encontró el mensaje de votación.');
+                }
+
+                const openEmbed = new EmbedBuilder()
+                    .setTitle('✅ SESIÓN CONFIRMADA - SERVIDOR ABIERTO')
+                    .setColor(0x00FF00)
+                    .setDescription('🎮 **¡El servidor ha sido ABIERTO por la Junta Directiva!**\n\n¡Hora de rolear!')
+                    .setImage('https://cdn.discordapp.com/attachments/885232074083143741/1453225155185737749/standard.gif')
+                    .setFooter({ text: `Apertura forzada por ${interaction.user.tag}` })
+                    .setTimestamp();
+
+                await message.edit({ embeds: [openEmbed], components: [] });
+                embedUpdated = true;
+                console.log('Successfully updated voting embed for session:', session.id);
             } catch (updateError) {
                 console.error('Error updating voting message:', updateError);
+                return interaction.editReply(`❌ Error actualizando el embed: ${updateError.message}`);
             }
 
             // Notify all voters
