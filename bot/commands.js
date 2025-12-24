@@ -23,23 +23,7 @@ const commands = [
         name: 'ayuda',
         description: 'Muestra los comandos bancarios disponibles - Cheat Sheet'
     },
-    {
-        name: 'estado',
-        description: 'Cambia el estado del servidor - CMD Staff',
-        options: [
-            {
-                name: 'seleccion',
-                description: 'Nuevo estado del servidor',
-                type: 3,
-                required: true,
-                choices: [
-                    { name: '🟢 Abierto', value: 'open' },
-                    { name: '🟠 Mantenimiento', value: 'maintenance' },
-                    { name: '🔴 Cerrado', value: 'closed' }
-                ]
-            }
-        ]
-    },
+
     {
         name: 'registrar-tarjeta',
         description: 'Registrar nueva tarjeta - Staff Banco',
