@@ -7710,7 +7710,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
     //     }
     // ===== SESION VOTING SYSTEM =====
     else if (commandName === 'sesion') {
-        await interaction.deferReply();
+        if (!interaction.deferred && !interaction.replied) await interaction.deferReply();
         const subCmd = interaction.options.getSubcommand();
         const userId = interaction.user.id;
 
