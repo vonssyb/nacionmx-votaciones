@@ -2098,6 +2098,9 @@ client.on('interactionCreate', async interaction => {
 
     if (interaction.isButton()) { return; }
 
+    // Only process slash commands
+    if (!interaction.isChatInputCommand()) return;
+
     const { commandName } = interaction;
 
     if (commandName === 'ping') {
