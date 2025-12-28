@@ -7710,6 +7710,39 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
 
         const juntaDirectivaRoleId = '1412882245735420006';
 
+        // Helper function to clear channel messages
+        async function clearChannelMessages(channelId, keepMessageId = null) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(`Channel ${channelId} not found`);
+                    return false;
+                }
+
+                const messages = await channel.messages.fetch({ limit: 100 });
+
+                if (keepMessageId) {
+                    // Delete all except specific message
+                    const messagesToDelete = messages.filter(msg => msg.id !== keepMessageId);
+                    if (messagesToDelete.size > 0) {
+                        await channel.bulkDelete(messagesToDelete, true)
+                            .catch(err => console.log("Bulk delete error:", err.message));
+                    }
+                } else {
+                    // Delete ALL messages
+                    if (messages.size > 0) {
+                        await channel.bulkDelete(messages, true)
+                            .catch(err => console.log("Bulk delete error:", err.message));
+                    }
+                }
+
+                return true;
+            } catch (error) {
+                console.error('Channel cleanup error:', error);
+                return false;
+            }
+        }
+
         if (subCmd === 'crear') {
             const member = await interaction.guild.members.fetch(userId);
             if (!member.roles.cache.has(juntaDirectivaRoleId)) {
@@ -7920,7 +7953,22 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 .update({ status: 'cancelled' })
                 .eq('id', session.id);
 
-            return interaction.editReply('✅ Votación cancelada.');
+            // Delete ONLY the voting message
+            if (session.message_id && session.channel_id) {
+                try {
+                    const channel = await client.channels.fetch(session.channel_id);
+                    if (channel) {
+                        const message = await channel.messages.fetch(session.message_id);
+                        if (message) {
+                            await message.delete();
+                        }
+                    }
+                } catch (err) {
+                    console.log('Error deleting voting message:', err.message);
+                }
+            }
+
+            return interaction.editReply('✅ Votación cancelada y mensaje eliminado.');
         }
 
         else if (subCmd === 'forzar') {
@@ -7979,6 +8027,28 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             } catch (updateError) {
                 console.error('Error updating voting message:', updateError);
                 return interaction.editReply(`❌ Error actualizando el embed: ${updateError.message}`);
+            }
+
+            // Clear ALL messages in the channel
+            const targetChannelId = '1412963363545284680';
+            await clearChannelMessages(targetChannelId);
+
+            // Send the OPEN embed to the clean channel
+            try {
+                const channel = await client.channels.fetch(targetChannelId);
+                if (channel) {
+                    const finalOpenEmbed = new EmbedBuilder()
+                        .setTitle('✅ SESIÓN CONFIRMADA - SERVIDOR ABIERTO')
+                        .setColor(0x00FF00)
+                        .setDescription('🎮 **¡El servidor ha sido ABIERTO por la Junta Directiva!**\n\n¡Hora de rolear!')
+                        .setImage('https://cdn.discordapp.com/attachments/885232074083143741/1453225155185737749/standard.gif')
+                        .setFooter({ text: `Apertura forzada por ${interaction.user.tag}` })
+                        .setTimestamp();
+
+                    await channel.send({ embeds: [finalOpenEmbed] });
+                }
+            } catch (sendError) {
+                console.error('Error sending open embed to clean channel:', sendError);
             }
 
             // Notify all voters
