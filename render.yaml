@@ -3,8 +3,8 @@ services:
     name: nacionmx-bot
     runtime: node
     plan: free
-    buildCommand: cd bot && npm install
-    startCommand: cd bot && node index.js
+    buildCommand: npm install --prefix bot
+    startCommand: node bot/index.js
     envVars:
       - key: NODE_ENV
         value: production
