@@ -8084,10 +8084,15 @@ process.on('uncaughtException', error => {
 console.log('🔐 Attempting Discord login...');
 console.log('Token present:', !!process.env.DISCORD_TOKEN);
 console.log('Token length:', process.env.DISCORD_TOKEN?.length || 0);
+console.log('Token starts with:', process.env.DISCORD_TOKEN?.substring(0, 20) || 'MISSING');
+console.log('Token ends with:', process.env.DISCORD_TOKEN?.substring(process.env.DISCORD_TOKEN.length - 10) || 'MISSING');
+console.log('Expected start: MTQ1MDcwMTYxNzY4NTk5');
+console.log('Expected end: f0W9A');
 
 client.login(process.env.DISCORD_TOKEN).catch(error => {
     console.error('❌ CRITICAL: Discord login failed!');
     console.error('Error:', error);
+    console.error('Error code:', error.code);
     console.error('Token:', process.env.DISCORD_TOKEN ? 'Present but invalid' : 'MISSING');
     process.exit(1);
 });
