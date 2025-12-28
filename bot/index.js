@@ -10235,6 +10235,15 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                                     .setTitle('✅ SESIÓN CONFIRMADA - SERVIDOR ABIERTO')
                                     .setImage('https://cdn.discordapp.com/attachments/885232074083143741/1453225155185737749/standard.gif');
 
+                                // Create join button
+                                const joinButton = new ActionRowBuilder()
+                                    .addComponents(
+                                        new ButtonBuilder()
+                                            .setLabel('🎮 Unirse al Servidor')
+                                            .setStyle(ButtonStyle.Link)
+                                            .setURL('https://www.roblox.com/games/start?launchData=%7B%22psCode%22%3A%22NACIONMX%22%7D&placeId=2534724415')
+                                    );
+
                                 // Notify voters
                                 const { data: allVoters } = await supabase
                                     .from('vote_responses')
@@ -10251,7 +10260,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                             }
                         }
 
-                        await i.update({ embeds: [updatedEmbed], components: [row] });
+                        await i.update({ embeds: [updatedEmbed], components: [joinButton || row] });
                     });
                 } else {
                     return interaction.editReply('❌ No se encontró el canal de votaciones.');
@@ -10416,7 +10425,16 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                         .setFooter({ text: `Apertura forzada por ${interaction.user.tag}` })
                         .setTimestamp();
 
-                    await channel.send({ embeds: [finalOpenEmbed] });
+                    // Create join button
+                    const joinButton = new ActionRowBuilder()
+                        .addComponents(
+                            new ButtonBuilder()
+                                .setLabel('🎮 Unirse al Servidor')
+                                .setStyle(ButtonStyle.Link)
+                                .setURL('https://www.roblox.com/games/start?launchData=%7B%22psCode%22%3A%22NACIONMX%22%7D&placeId=2534724415')
+                        );
+
+                    await channel.send({ embeds: [finalOpenEmbed], components: [joinButton] });
                 }
             } catch (sendError) {
                 console.error('Error sending open embed to clean channel:', sendError);
