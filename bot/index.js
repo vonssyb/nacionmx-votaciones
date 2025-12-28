@@ -5854,23 +5854,6 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             return interaction.editReply('⛔ Este comando es solo para Junta Directiva.');
         }
 
-        // Helper function to rename channel based on state
-        async function renameChannel(channelId, newName) {
-            try {
-                const channel = await client.channels.fetch(channelId);
-                if (!channel) {
-                    console.log(\`Channel \${channelId} not found\`);
-                    return false;
-                }
-                await channel.setName(newName);
-                console.log(\`Channel renamed to: \${newName}\`);
-                return true;
-            } catch (error) {
-                console.error('Channel rename error:', error);
-                return false;
-            }
-        }
-
         const targetUser = interaction.options.getUser('usuario');
         const montoTotal = interaction.options.getInteger('monto');
         const montoCash = Math.floor(montoTotal * 0.25); // 25% of robbery amount
