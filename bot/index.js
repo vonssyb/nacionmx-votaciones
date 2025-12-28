@@ -8080,4 +8080,14 @@ process.on('uncaughtException', error => {
     console.error('Uncaught exception:', error);
 });
 
-client.login(process.env.DISCORD_TOKEN);
+// Login to Discord with error handling
+console.log('🔐 Attempting Discord login...');
+console.log('Token present:', !!process.env.DISCORD_TOKEN);
+console.log('Token length:', process.env.DISCORD_TOKEN?.length || 0);
+
+client.login(process.env.DISCORD_TOKEN).catch(error => {
+    console.error('❌ CRITICAL: Discord login failed!');
+    console.error('Error:', error);
+    console.error('Token:', process.env.DISCORD_TOKEN ? 'Present but invalid' : 'MISSING');
+    process.exit(1);
+});
