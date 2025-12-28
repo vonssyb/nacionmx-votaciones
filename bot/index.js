@@ -220,6 +220,23 @@ async function executeRouletteSession(firstInteraction) {
             }).eq('user_id', bet.userId);
         }
 
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
+        }
+
         const resultText = won ? `✅ **¡GANAS!** +${payout} (${mult + 1}x)` : `❌ **Perdiste** -${bet.amount}`;
         await bet.interaction.editReply(`🎡 **RULETA MULTIJUGADOR**\n\n${color} **${spin}**\n\n👥 ${session.bets.length} jugadores\nTu apuesta: **${betType.toUpperCase()}**\n${resultText}\n💼 ${(bet.currentChips - bet.amount + payout).toLocaleString()} fichas`);
     }
@@ -283,6 +300,23 @@ async function executeRaceSession(firstInteraction) {
                 total_lost: (bet.totalLost || 0) + bet.amount,
                 games_played: (bet.gamesPlayed || 0) + 1
             }).eq('user_id', bet.userId);
+        }
+
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
         }
 
         const resultText = won ? `✅ **¡GANAS!** +${payout} (3x)` : `❌ **Perdiste** -${bet.amount}`;
@@ -471,6 +505,23 @@ async function logToChannel(guild, channelId, embed) {
         if (channel && channel.isTextBased()) {
             await channel.send({ embeds: [embed] });
         }
+
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
+        }
     } catch (err) {
         console.error(`[LOGGING] Failed to log to ${channelId}:`, err);
     }
@@ -633,6 +684,23 @@ const startCrashGame = async (channel) => {
             // Update Message
             await msg.edit(`🚀 **${multiplier.toFixed(2)}x** ... subiendo`);
         }
+
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
+        }
     }, 2000); // 2 seconds per tick
 };
 
@@ -689,11 +757,45 @@ async function dealerPlay(channel) {
             multiplier = 0; reason = 'Lower Hand';
         }
 
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
+        }
+
         // Blackjack specific payout (3:2) if player has 21 with 2 cards? 
         // Logic simplified to 2x (1:1) for simplicity or standard rules. 
         // Let's check Implementation Plan. "Victoria: 2x | Blackjack: 2.5x | Empate: 1x"
         if (playerVal === 21 && player.hand.length === 2 && (dealerVal !== 21 || blackjackSession.dealerHand.length !== 2)) {
             multiplier = 2.5; reason = 'Blackjack!';
+        }
+
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
         }
 
         if (multiplier > 0) {
@@ -734,6 +836,23 @@ async function dealerPlay(channel) {
             });
             const { data: acc } = await supabase.from('casino_chips').select('total_lost').eq('discord_user_id', userId).single();
             if (acc) await supabase.from('casino_chips').update({ total_lost: acc.total_lost + player.bet }).eq('discord_user_id', userId);
+        }
+
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
         }
     }
 
@@ -937,6 +1056,23 @@ client.once('ready', async () => {
                 { body: commands }
             );
         }
+
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
+        }
     } catch (error) {
         console.error('❌ Error gestionando comandos (General Catch):', error);
     }
@@ -974,6 +1110,23 @@ async function getAvailablePaymentMethods(userId, guildId) {
             methods.debit.card = debitCard;
         }
 
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
+        }
+
         // Check personal credit card
         const { data: citizen, error: citError } = await supabase
             .from('citizens')
@@ -998,6 +1151,23 @@ async function getAvailablePaymentMethods(userId, guildId) {
             }
         }
 
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
+        }
+
         // Check business credit (company + business credit card)
         const { data: companies, error: compError } = await supabase
             .from('companies')
@@ -1016,6 +1186,23 @@ async function getAvailablePaymentMethods(userId, guildId) {
                 methods.businessCredit.available = true;
                 methods.businessCredit.card = businessCard;
                 methods.businessCredit.company = companies[0];
+            }
+        }
+
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
             }
         }
     } catch (error) {
@@ -1126,6 +1313,23 @@ async function processPayment(method, userId, guildId, amount, description, avai
             return { success: true, method: '💵 Efectivo', source: 'cash' };
         }
 
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
+        }
+
         if (method === 'debit') {
             if (!availableMethods.debit.available) {
                 return { success: false, error: '❌ No tienes tarjeta de débito activa.' };
@@ -1136,6 +1340,23 @@ async function processPayment(method, userId, guildId, amount, description, avai
             }
             await billingService.ubService.removeMoney(guildId, userId, amount, description, 'bank');
             return { success: true, method: '💳 Débito', source: 'bank' };
+        }
+
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
         }
 
         if (method === 'credit') {
@@ -1153,6 +1374,23 @@ async function processPayment(method, userId, guildId, amount, description, avai
             return { success: true, method: '🔖 Crédito', source: 'credit' };
         }
 
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
+        }
+
         if (method === 'business') {
             if (!availableMethods.businessCredit.available || !availableMethods.businessCredit.card) {
                 return { success: false, error: '❌ No tienes crédito empresarial disponible.' };
@@ -1166,6 +1404,23 @@ async function processPayment(method, userId, guildId, amount, description, avai
                 current_balance: businessCard.current_balance + amount
             }).eq('id', businessCard.id);
             return { success: true, method: '🏢 Crédito Empresa', source: 'business_credit' };
+        }
+
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
         }
 
         return { success: false, error: '❌ Método de pago no válido.' };
@@ -1226,6 +1481,23 @@ client.on('interactionCreate', async interaction => {
             });
         }
 
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
+        }
+
 
         // Fetch current card
         const { data: card, error: cardError } = await supabase
@@ -1239,6 +1511,23 @@ client.on('interactionCreate', async interaction => {
                 content: `❌ Tarjeta no encontrada.\nID buscado: ${cardId}\nError: ${cardError?.message || 'Unknown'}`,
                 ephemeral: true
             });
+        }
+
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
         }
 
         // Get REAL balance from UnbelievaBoat (not Supabase cache)
@@ -1265,6 +1554,23 @@ client.on('interactionCreate', async interaction => {
                 content: `❌ **Fondos insuficientes**\n\nCosto: **$${tierInfo.cost.toLocaleString()}**\nTu saldo: **$${bankBalance.toLocaleString()}**\nTarjeta: ${card.card_tier}\nID: ${cardId.slice(0, 8)}...`,
                 ephemeral: true
             });
+        }
+
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
         }
 
         // Deduct money from UnbelievaBoat (source of truth)
@@ -1295,6 +1601,23 @@ client.on('interactionCreate', async interaction => {
                 'bank'
             );
             return interaction.followUp({ content: '❌ Error al procesar la mejora.', ephemeral: true });
+        }
+
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
         }
 
         // Success - update original message to remove buttons
@@ -1334,6 +1657,23 @@ client.on('interactionCreate', async interaction => {
             return interaction.followUp({ content: result.error, ephemeral: true });
         }
 
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
+        }
+
         // Credit the chips
         await supabase.from('casino_chips').update({ chips: (userChips.chips || 0) + amount }).eq('user_id', userId);
 
@@ -1351,6 +1691,23 @@ client.on('interactionCreate', async interaction => {
                 components: []
             });
             return;
+        }
+
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
         }
 
         const amount = parseFloat(parts[2]);
@@ -1550,6 +1907,23 @@ client.on('interactionCreate', async interaction => {
             });
         }
 
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
+        }
+
         return;
     }
 
@@ -1566,6 +1940,23 @@ client.on('interactionCreate', async interaction => {
 
         if (!company) {
             return interaction.editReply({ content: '❌ Empresa no encontrada.', components: [] });
+        }
+
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
         }
 
         const embed = new EmbedBuilder()
@@ -1666,6 +2057,23 @@ client.on('interactionCreate', async interaction => {
                 components: []
             });
         }
+
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
+        }
         return;
     }
 
@@ -1734,6 +2142,23 @@ client.on('interactionCreate', async interaction => {
                 ephemeral: true
             });
         }
+
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
+        }
         return;
     }
 
@@ -1779,6 +2204,23 @@ client.on('interactionCreate', async interaction => {
         } catch (error) {
             console.error('[company_payroll] Error:', error);
             await interaction.editReply({ content: '❌ Error obteniendo grupos de nómina.' });
+        }
+
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
         }
         return;
     }
@@ -1870,6 +2312,23 @@ client.on('interactionCreate', async interaction => {
             console.error('[company_withdraw] Error:', error);
             await interaction.editReply({ content: `❌ Error: ${error.message}` });
         }
+
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
+        }
         return;
     }
 
@@ -1918,6 +2377,23 @@ client.on('interactionCreate', async interaction => {
         } catch (error) {
             console.error('[company_addvehicle]', error);
             await interaction.reply({ content: '❌ Error cargando opciones.', ephemeral: true });
+        }
+
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
         }
         return;
     }
@@ -2006,6 +2482,23 @@ client.on('interactionCreate', async interaction => {
             console.error('[vehicle_select]', error);
             await interaction.editReply({ content: '❌ Error procesando vehículo.', components: [] });
         }
+
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
+        }
         return;
     }
 
@@ -2028,6 +2521,23 @@ client.on('interactionCreate', async interaction => {
         } catch (error) {
             console.error('[company_finish]', error);
             await interaction.update({ content: '✅ Empresa finalizada.', components: [] });
+        }
+
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
         }
         return;
     }
@@ -2092,6 +2602,23 @@ client.on('interactionCreate', async interaction => {
         } catch (error) {
             console.error('[company_stats] Error:', error);
             await interaction.editReply({ content: '❌ Error obteniendo estadísticas.' });
+        }
+
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
         }
         return;
     }
@@ -2328,6 +2855,23 @@ client.on('interactionCreate', async interaction => {
             await interaction.reply({ embeds: [embed], files: [file] });
         }
 
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
+        }
+
         else if (subcommand === 'ver') {
             const cardName = interaction.options.getString('nombre');
 
@@ -2370,6 +2914,23 @@ client.on('interactionCreate', async interaction => {
                 .setTimestamp();
 
             await interaction.reply({ embeds: [embed] });
+        }
+
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
         }
     }
 
@@ -2659,6 +3220,23 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
         } catch (error) {
             console.error('[registrar-tarjeta] Critical Error:', error);
         }
+
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
+        }
     }
 
     else if (commandName === 'credito') {
@@ -2689,6 +3267,23 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
 
             await interaction.editReply({ embeds: [embed] });
         }
+
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
+        }
         else if (subCmd === 'info' && interaction.options.getSubcommandGroup() !== 'admin') {
 
             const { data: citizen } = await supabase.from('citizens').select('id, full_name, dni').eq('discord_id', interaction.user.id).limit(1).maybeSingle();
@@ -2710,6 +3305,23 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 .setFooter({ text: `ID: ${userCard.id.split('-')[0]}...` }); // Short ID like a card number snippet
 
             await interaction.editReply({ embeds: [embed] });
+        }
+
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
         }
         else if (subCmd === 'estado') {
 
@@ -2739,6 +3351,23 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             await interaction.editReply({ embeds: [embed] });
         }
 
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
+        }
+
         else if (subCmd === 'pedir-prestamo') {
 
             return interaction.editReply({
@@ -2749,6 +3378,23 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                     .setFooter({ text: 'Banco Nacional - Nuevas Políticas de Crédito' })
                 ]
             });
+        }
+
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
         }
 
         else if (subCmd === 'pagar') {
@@ -2809,6 +3455,23 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             } catch (err) {
                 console.error('[credito-pagar] Error:', err);
                 return interaction.editReply({ content: '❌ Error procesando solicitud.', ephemeral: isPrivate });
+            }
+        }
+
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
             }
         }
 
@@ -3107,6 +3770,23 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 });
             }
         }
+
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
+        }
         else if (subCmd === 'debug') {
             await interaction.deferReply({ ephemeral: false });
 
@@ -3154,6 +3834,23 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             }
 
             await interaction.editReply(output.substring(0, 1999));
+        }
+
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
         }
     }
 
@@ -3253,6 +3950,23 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             console.error('[/info] Error:', err);
             return interaction.editReply('❌ Error inesperado.');
         }
+
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
+        }
     }
 
     else if (commandName === 'rol') {
@@ -3323,6 +4037,23 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 });
             }
         }
+
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
+        }
     }
 
 
@@ -3333,6 +4064,23 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
         // 1. Role Check (Policia: 1416867605976715363)
         if (!interaction.member.roles.cache.has('1416867605976715363') && !interaction.member.permissions.has('Administrator')) {
             return interaction.editReply({ content: '⛔ No tienes placa de policía (Rol Requerido).', ephemeral: false });
+        }
+
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
         }
 
         const targetUser = interaction.options.getUser('usuario');
@@ -3360,6 +4108,23 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             citizen = newCit; // Assign to continue logic
         }
 
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
+        }
+
         // 3. Request Payment Method
         const paymentResult = await requestPaymentMethod(
             interaction,
@@ -3374,6 +4139,23 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
         if (paymentResult.success) {
             status = 'PAID';
             paymentMethod = paymentResult.method;
+        }
+
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
         }
 
         // 4. Record Fine
@@ -3461,6 +4243,23 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 return interaction.editReply({ embeds: [embed] });
             }
         }
+
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
+        }
     }
 
 
@@ -3500,6 +4299,23 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
         } catch (error) {
             console.error('[saldo] Error:', error);
             await interaction.editReply('❌ Error al obtener el saldo.');
+        }
+
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
         }
     }
     else if (commandName === 'empresa') {
@@ -4203,6 +5019,23 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             console.error('[empresa] Error:', error);
             return interaction.editReply('❌ Error procesando el comando de empresa.');
         }
+
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
+        }
     }
     else if (commandName === 'inversion') {
         await interaction.deferReply(); // Global defer
@@ -4290,6 +5123,23 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
 
             await interaction.editReply({ embeds: [embed] });
         }
+
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
+        }
         else if (subCmd === 'estado') {
             await interaction.deferReply();
             const { data: investments } = await supabase.from('investments')
@@ -4328,6 +5178,23 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             // Limit buttons to 5 rows
             await interaction.editReply({ embeds: [embed], components: rows.slice(0, 5) });
         }
+
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
+        }
     }
 
 
@@ -4342,6 +5209,23 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             await supabase.from('payroll_groups').insert([{ owner_discord_id: interaction.user.id, name: name }]);
             await interaction.editReply(`✅ Grupo de nómina **${name}** creado.`);
         }
+
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
+        }
         else if (subCmd === 'agregar') {
             const groupName = interaction.options.getString('grupo');
             const target = interaction.options.getUser('empleado');
@@ -4353,6 +5237,23 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
 
             await supabase.from('payroll_members').upsert([{ group_id: group.id, member_discord_id: target.id, salary: salary }]);
             await interaction.editReply(`✅ **${target.username}** agregado a **${groupName}** con sueldo $${salary}.`);
+        }
+
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
         }
         else if (subCmd === 'pagar') {
             const groupName = interaction.options.getString('grupo');
@@ -4397,6 +5298,23 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             cNom.on('end', c => { if (c.size === 0) interaction.editReply({ content: '⏱️ Tiempo agotado.', components: [] }); });
             return;
         }
+
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
+        }
     }
 
     else if (commandName === 'jugar') {
@@ -4408,6 +5326,23 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
         const { data: userChips } = await supabase.from('casino_chips').select('*').eq('user_id', userId).maybeSingle();
         if (!userChips || userChips.chips < 10) {
             return interaction.editReply('❌ No tienes suficientes fichas. Compra con `/casino fichas comprar`');
+        }
+
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
         }
 
         if (game === 'slots') {
@@ -4445,6 +5380,23 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             return interaction.editReply(`🎰 **SLOTS**\n${r1} ${r2} ${r3}\n\n${resultEmoji} ${resultText}\n💼 Balance: ${(userChips.chips - bet + win).toLocaleString()} fichas`);
         }
 
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
+        }
+
         else if (game === 'dice') {
             const bet = interaction.options.getInteger('apuesta');
             if (userChips.chips < bet) return interaction.editReply(`❌ Fichas insuficientes`);
@@ -4477,6 +5429,23 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             const d2 = Math.min((roll - 2) % 6, 5);
             const resultText = won ? `✅ **¡GANAS!** +${payout}` : `❌ **Perdiste** -${bet}`;
             return interaction.editReply(`🎲 **DADOS**\n\n${diceEmoji[d1]} + ${diceEmoji[d2]} = **${roll}**\n\nApuesta: **${choice.toUpperCase()}**\n${resultText}\n💼 ${(userChips.chips - bet + payout).toLocaleString()} fichas`);
+        }
+
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
         }
 
         else if (game === 'blackjack') {
@@ -4524,6 +5493,23 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             }
 
             return interaction.editReply(`🃏 **BLACKJACK**\n\nTu mano: **${pTotal}**\nDealer: **${dTotal}**\n\n${result}\n💼 ${(userChips.chips - bet + payout).toLocaleString()} fichas`);
+        }
+
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
         }
 
         else if (game === 'ruleta') {
@@ -4577,6 +5563,23 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             }
         }
 
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
+        }
+
         else if (game === 'crash') {
             const bet = interaction.options.getInteger('apuesta');
             if (userChips.chips < bet) return interaction.editReply(`❌ Fichas insuficientes`);
@@ -4600,6 +5603,23 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
 
             const resultText = payout > 0 ? `✅ **¡GANAS!** +${payout} fichas` : `💥 **CRASH!** Perdiste -${bet}`;
             return interaction.editReply(`🚀 **CRASH**\n\n💥 Crashed en: **${capped.toFixed(2)}x**\nTu cashout: **${cashout.toFixed(2)}x**\n\n${resultText}\n💼 ${(userChips.chips - bet + payout).toLocaleString()} fichas`);
+        }
+
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
         }
 
         else if (game === 'race') {
@@ -4654,6 +5674,23 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             }
         }
 
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
+        }
+
         else if (game === 'caballos') {
             const bet = interaction.options.getInteger('apuesta');
             const caballo = interaction.options.getInteger('caballo');
@@ -4678,6 +5715,23 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             } else {
                 await supabase.from('casino_chips').update({ total_lost: (userChips.total_lost || 0) + bet, games_played: (userChips.games_played || 0) + 1 }).eq('user_id', userId);
                 return interaction.editReply(`🏇 **Caballo ${winner} ganó**\n\n❌ Perdiste ${bet} fichas\n💼 ${(userChips.chips - bet).toLocaleString()} fichas`);
+            }
+        }
+
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
             }
         }
 
@@ -4706,6 +5760,23 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             } else {
                 await supabase.from('casino_chips').update({ total_lost: (userChips.total_lost || 0) + bet, games_played: (userChips.games_played || 0) + 1 }).eq('user_id', userId);
                 return interaction.editReply(`🐓 **Gallo ${winner.toUpperCase()} ganó** ${winnerEmoji}\n\n❌ -${bet} fichas\n💼 ${(userChips.chips - bet).toLocaleString()} fichas`);
+            }
+        }
+
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
             }
         }
 
@@ -4747,6 +5818,23 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             const resultText = survived ? `✅ **¡SOBREVIVISTE!**\n💰 +${payout} fichas (5x)` : `☠️ **ELIMINADO**\n💸 Perdiste ${bet} fichas`;
             return interaction.editReply(`🔫 **RULETA RUSA**\n\nCámara: **${chamber}/6**\n${survived ? '💥 *Click*' : '💀 **BANG!**'}\n\n${resultText}\n💼 ${(userChips.chips - bet + payout).toLocaleString()} fichas`);
         }
+
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
+        }
     }
 
 
@@ -4764,6 +5852,23 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
 
         if (!isJuntaDirectiva) {
             return interaction.editReply('⛔ Este comando es solo para Junta Directiva.');
+        }
+
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
         }
 
         const targetUser = interaction.options.getUser('usuario');
@@ -4808,6 +5913,23 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             console.error('Error distribuyendo robo:', error);
             await interaction.editReply('❌ Error al distribuir el dinero. Verifica que el usuario exista.');
         }
+
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
+        }
     }
 
 
@@ -4819,6 +5941,23 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
         const STAFF_ROLE_ID = '1450688555503587459'; // Same as empresa crear
         if (!interaction.member.roles.cache.has(STAFF_ROLE_ID) && !interaction.member.permissions.has('Administrator')) {
             return interaction.reply({ content: '⛔ Solo el staff puede gestionar tarjetas business.', flags: 64 });
+        }
+
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
         }
 
         if (subcommand === 'vincular') {
@@ -4933,6 +6072,23 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             }
         }
 
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
+        }
+
         else if (subcommand === 'listar') {
             await interaction.deferReply({ flags: 64 });
 
@@ -4973,6 +6129,23 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             }
         }
 
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
+        }
+
         else if (subcommand === 'cancelar') {
             await interaction.deferReply({ flags: 64 });
 
@@ -5007,6 +6180,23 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 await interaction.editReply('❌ Error cancelando tarjetas.');
             }
         }
+
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
+        }
     }
 
 
@@ -5017,6 +6207,23 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
         } catch (err) {
             console.error('[ERROR] Failed to defer balanza:', err);
             return; // Exit early if defer fails
+        }
+
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
         }
 
         try {
@@ -5075,6 +6282,23 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
         } catch (error) {
             console.error(error);
             await interaction.editReply('❌ Error obteniendo tu balanza.');
+        }
+
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
         }
     }
 
@@ -5192,6 +6416,23 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
         } catch (error) {
             console.error(error);
             await interaction.editReply('❌ Error calculando el ranking de riqueza.');
+        }
+
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
         }
     }
 
@@ -5342,6 +6583,23 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 await interaction.editReply('❌ Error procesando licencia.');
             }
         }
+
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
+        }
     }
 
     // TIENDA COMMAND  
@@ -5427,6 +6685,23 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             } catch (error) {
                 console.error('[tienda ver] Error:', error);
                 await interaction.editReply('❌ Error cargando la tienda.');
+            }
+        }
+
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
             }
         }
 
@@ -5568,6 +6843,23 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 await interaction.editReply('❌ Error procesando la compra.');
             }
         }
+
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
+        }
     }
 
     // ===================================================================
@@ -5587,6 +6879,23 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             return interaction.editReply('🛡️ **Protección Anti-Robo Activa**\nTienes un sistema de seguridad que te impide robar a otros usuarios.');
         }
 
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
+        }
+
         // Cooldown Check (2 Hours)
         const COOLDOWN_TIME = 2 * 60 * 60 * 1000;
         const cooldownKey = `rob_${interaction.user.id}`;
@@ -5599,6 +6908,23 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
         if (Date.now() - lastRob < COOLDOWN_TIME) {
             const remaining = Math.ceil((COOLDOWN_TIME - (Date.now() - lastRob)) / 60000);
             return interaction.editReply(`⏳ **Cooldown Activo**\nDebes esperar **${remaining} minutos** para volver a robar.`);
+        }
+
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
         }
 
         try {
@@ -5669,6 +6995,23 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             console.error('[robar] Error:', error);
             await interaction.editReply('❌ Error procesando el robo.');
         }
+
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
+        }
     }
     // ENHANCED TRABAJAR & CRIMEN HANDLERS
     // Copy this content to replace the current handlers in index.js
@@ -5682,6 +7025,23 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
         if (Date.now() - lastJob < JOB_COOLDOWN) {
             const remaining = Math.ceil((JOB_COOLDOWN - (Date.now() - lastJob)) / 60000);
             return interaction.editReply(`⏳ **Estás cansado**\nDebes descansar **${remaining} minutos**.`);
+        }
+
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
         }
 
         // Enhanced job selection with visuals
@@ -5790,6 +7150,23 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             await interaction.editReply({ embeds: [embed] });
         }
 
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
+        }
+
         // Collector for button/message responses
         if (job.type === 'typing' || job.type === 'math') {
             const filter = m => m.author.id === interaction.user.id;
@@ -5863,6 +7240,23 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 }
             });
         }
+
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
+        }
     }
 
     else if (commandName === 'crimen') {
@@ -5874,6 +7268,23 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
         if (Date.now() - lastCrime < CRIME_COOLDOWN) {
             const min = Math.ceil((CRIME_COOLDOWN - (Date.now() - lastCrime)) / 60000);
             return interaction.editReply(`🚓 **Buscado por la policía**\nEscóndete **${min} minutos**.`);
+        }
+
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
         }
 
         // Enhanced crimes with BALANCED risks/rewards (reduced 50-60%)
@@ -5972,6 +7383,23 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             await interaction.editReply({ embeds: [embed] });
         }
 
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
+        }
+
         // Collector (same logic but with crime penalties)
         if (crime.type === 'typing') {
             const filter = m => m.author.id === interaction.user.id;
@@ -6048,6 +7476,23 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 }
             });
         }
+
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
+        }
     }
 
     else if (commandName === 'bolsa') {
@@ -6089,6 +7534,23 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             return interaction.editReply({ embeds: [embed] });
         }
 
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
+        }
+
         if (subCmd === 'comprar') {
             const symbol = interaction.options.getString('empresa').toUpperCase();
             const qty = interaction.options.getNumber('cantidad');
@@ -6128,6 +7590,23 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             return interaction.editReply(`✅ **Compra Exitosa**\nComprado **${qty}** de **${symbol}** a $${price}.\nTotal: $${costWithFee.toLocaleString()} (${methodLabel})`);
         }
 
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
+        }
+
         if (subCmd === 'vender') {
             const symbol = interaction.options.getString('empresa').toUpperCase();
             const qty = interaction.options.getNumber('cantidad');
@@ -6156,6 +7635,23 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             return interaction.editReply(`✅ **Venta Exitosa**\nHas vendido **${qty}** de **${symbol}** a $${price}.\nRecibido: $${valWithFee.toLocaleString()}`);
         }
 
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
+        }
+
         if (subCmd === 'portafolio') {
             const { data: myStocks } = await supabase.from('stock_portfolios').select('*').eq('discord_user_id', interaction.user.id);
             if (!myStocks || myStocks.length === 0) return interaction.editReply('📉 No tienes inversiones activas.');
@@ -6171,6 +7667,23 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             }
             embed.setDescription(`**Valor Total:** $${totalValue.toLocaleString()}`);
             return interaction.editReply({ embeds: [embed] });
+        }
+
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
         }
     }
 
@@ -6209,6 +7722,23 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             return interaction.editReply({ embeds: [embed] });
         }
 
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
+        }
+
         if (subCmd === 'retirar') {
             const amount = interaction.options.getNumber('monto');
             if (amount <= 0) return interaction.editReply('❌ Monto inválido.');
@@ -6219,6 +7749,23 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             return interaction.editReply(`✅ **Retiro Exitoso**\nRetiraste $${amount.toLocaleString()} del banco.`);
         }
 
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
+        }
+
         if (subCmd === 'depositar') {
             const amount = interaction.options.getNumber('monto');
             if (amount <= 0) return interaction.editReply('❌ Monto inválido.');
@@ -6227,6 +7774,23 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, amount, 'Depósito cajero', 'cash');
             await billingService.ubService.addMoney(interaction.guildId, interaction.user.id, amount, 'Depósito cajero', 'bank');
             return interaction.editReply(`✅ **Depósito Exitoso**\nDepositaste $${amount.toLocaleString()} en el banco.`);
+        }
+
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
         }
 
         if (subCmd === 'transferir') {
@@ -6286,6 +7850,23 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
 
             return interaction.editReply({ embeds: [embed] });
         }
+
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
+        }
     }
 
     else if (commandName === 'transferir') {
@@ -6299,11 +7880,45 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             return interaction.editReply('❌ No puedes transferirte a ti mismo.');
         }
 
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
+        }
+
         if (amount <= 0) return interaction.editReply('❌ Monto inválido.');
 
         const balance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
         if ((balance.bank || 0) < amount) {
             return interaction.editReply(`❌ **Fondos Insuficientes en Banco**\nRequiere: $${amount.toLocaleString()}\nTienes: $${(balance.bank || 0).toLocaleString()}`);
+        }
+
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
         }
 
         // Check recipient has debit card
@@ -6316,6 +7931,23 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
 
         if (!recipientCard) {
             return interaction.editReply(`❌ ${targetUser.tag} no tiene una tarjeta de débito activa para recibir transferencias.`);
+        }
+
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
         }
 
         // GHOST MODE: Check if sender has Elite privacy
@@ -6344,6 +7976,23 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             try {
                 await targetUser.send(`💰 **Transferencia Recibida**\n$${amount.toLocaleString()} de ${senderName}\nConcepto: ${concepto}`);
             } catch (e) { }
+        }
+
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
         }
 
         const embed = new EmbedBuilder()
@@ -6492,6 +8141,23 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             });
         }
 
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
+        }
+
         else if (subCmd === 'ruleta') {
             const option = interaction.options.getString('opcion');
             await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, bet, 'Ruleta Bet', 'cash');
@@ -6529,6 +8195,23 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 }
                 await interaction.editReply({ content: '', embeds: [embed] });
             }, 4000);
+        }
+
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
         }
 
         else if (subCmd === 'fichas') {
@@ -6601,6 +8284,23 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 return interaction.editReply({ embeds: [embed] });
             }
         }
+
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
+        }
     }
 
 
@@ -6636,6 +8336,23 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             console.error(error);
             await interaction.editReply('❌ Error obteniendo el ranking.');
         }
+
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
+        }
     }
 
     else if (commandName === 'depositar') {
@@ -6645,6 +8362,23 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
         // Prevent self-transfer
         if (destUser.id === interaction.user.id) {
             return interaction.editReply('❌ No puedes depositarte a ti mismo. Usa `/debito depositar` para guardar efectivo en tu banco.');
+        }
+
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
         }
 
         const inputMonto = interaction.options.getString('monto');
@@ -6664,9 +8398,43 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             monto = parseFloat(cleanMonto);
         }
 
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
+        }
+
         // Security: Check for NaN, Finite, and positive amount
         if (isNaN(monto) || !isFinite(monto) || monto <= 0) {
             return interaction.editReply('❌ Monto inválido. Debes ingresar un número positivo mayor a 0.');
+        }
+
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
         }
 
 
@@ -6739,6 +8507,23 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             console.error(error);
             await interaction.editReply('❌ Error procesando el depósito.');
         }
+
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
+        }
     }
 
 
@@ -6761,9 +8546,43 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             monto = parseFloat(cleanMonto);
         }
 
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
+        }
+
         // Security: Check for NaN, Finite, and positive amount
         if (isNaN(monto) || !isFinite(monto) || monto <= 0) {
             return interaction.editReply({ content: '❌ Monto inválido. Debes ingresar un número positivo mayor a 0.' });
+        }
+
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
         }
         if (destUser.id === interaction.user.id) return interaction.editReply({ content: '❌ No puedes enviarte un giro a ti mismo.' });
 
@@ -6822,6 +8641,23 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             console.error(error);
             await interaction.editReply('❌ Error procesando el giro postal.');
         }
+
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
+        }
     }
 
     else if (commandName === 'impuestos') {
@@ -6859,6 +8695,23 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             console.error('[impuestos] Error:', error);
             await interaction.editReply('❌ Error al calcular impuestos.');
         }
+
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
+        }
     }
 
     // ===================================================================
@@ -6871,6 +8724,23 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
         } catch (err) {
             console.error('[ERROR] Failed to defer stake:', err);
             return;
+        }
+
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
         }
 
         const subcommand = interaction.options.getSubcommand();
@@ -6926,6 +8796,23 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             }
         }
 
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
+        }
+
         else if (subcommand === 'mis-stakes') {
             const stakes = await stakingService.getUserStakes(interaction.user.id);
 
@@ -6952,6 +8839,23 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             await interaction.editReply({ embeds: [embed] });
         }
 
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
+        }
+
         else if (subcommand === 'retirar') {
             const stakeId = interaction.options.getString('id');
 
@@ -6966,6 +8870,23 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 await interaction.editReply(`❌ ${error.message}`);
             }
         }
+
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
+        }
     }
 
     else if (commandName === 'slots') {
@@ -6976,10 +8897,44 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             return;
         }
 
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
+        }
+
         const apuesta = interaction.options.getInteger('apuesta');
 
         if (apuesta < 100) {
             return interaction.editReply('❌ Apuesta mínima: $100');
+        }
+
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
         }
 
         try {
@@ -7028,6 +8983,23 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             console.error(error);
             await interaction.editReply('❌ Error en slots');
         }
+
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
+        }
     }
 
     else if (commandName === 'fondos') {
@@ -7036,6 +9008,23 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
         } catch (err) {
             console.error('[ERROR] Failed to defer fondos:', err);
             return;
+        }
+
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
         }
 
         const subcommand = interaction.options.getSubcommand();
@@ -7060,6 +9049,23 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             });
 
             await interaction.editReply({ embeds: [embed] });
+        }
+
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
         }
 
         else if (subcommand === 'invertir') {
@@ -7104,6 +9110,23 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             });
         }
 
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
+        }
+
         else if (subcommand === 'mis-fondos') {
             const { data: investments } = await supabase
                 .from('fund_investments')
@@ -7131,6 +9154,23 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             });
 
             await interaction.editReply({ embeds: [embed] });
+        }
+
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
         }
     }
 
@@ -7186,6 +9226,23 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             return interaction.editReply({ embeds: [embed] });
         }
 
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
+        }
+
         else if (subCmd === 'desactivar') {
             if (!privacyData) {
                 return interaction.editReply('❌ No tienes privacidad activa');
@@ -7193,6 +9250,23 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
 
             await supabase.from('privacy_accounts').delete().eq('user_id', userId);
             return interaction.editReply('✅ Privacidad desactivada');
+        }
+
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
         }
 
         else if (subCmd === 'estado') {
@@ -7226,6 +9300,23 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             return interaction.editReply({ embeds: [embed] });
         }
 
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
+        }
+
         else if (subCmd === 'upgrade') {
             if (!privacyData) {
                 return interaction.editReply('❌ Primero activa un nivel con `/privacidad activar`');
@@ -7254,6 +9345,23 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             await supabase.from('privacy_accounts').update({ level: newLevel }).eq('user_id', userId);
 
             return interaction.editReply(`✅ Privacidad mejorada a **${newLevel.toUpperCase()}**\nCosto: $${upgradeCost.toLocaleString()}`);
+        }
+
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
         }
 
         else if (subCmd === 'boveda') {
@@ -7351,6 +9459,23 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             }
         }
 
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
+        }
+
         else if (subCmd === 'offshore') {
             if (!privacyData || privacyData.level !== 'elite') {
                 return interaction.editReply('❌ Requiere nivel **Elite**');
@@ -7361,6 +9486,23 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             await supabase.from('privacy_accounts').update({ offshore_name: nombre }).eq('user_id', userId);
 
             return interaction.editReply(`✅ Nombre Offshore configurado: **${nombre}**\nTus transferencias ahora mostrarán este nombre`);
+        }
+
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
         }
 
         else if (subCmd === 'panico') {
@@ -7410,6 +9552,23 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             }
         }
 
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
+        }
+
         else if (subCmd === 'trial') {
             if (privacyData && privacyData.trial_used) {
                 return interaction.editReply('❌ Ya usaste tu prueba gratis de 3 días');
@@ -7432,6 +9591,23 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             });
 
             return interaction.editReply(`🎁 **Prueba Gratis Activada!**\n🥉 Privacidad Básica por 3 días\nExpira: <t:${Math.floor(expiresAt.getTime() / 1000)}:R>`);
+        }
+
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
         }
 
         else if (subCmd === 'dashboard') {
@@ -7463,6 +9639,23 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             }
 
             return interaction.editReply({ embeds: [embed] });
+        }
+
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
         }
 
         else if (subCmd === 'recuperar') {
@@ -7505,6 +9698,23 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             return interaction.editReply(`🔓 **Modo Pánico Desactivado**\n\n💵 Efectivo restaurado: $${cashToRestore.toLocaleString()}\n🏦 Banco restaurado: $${bankToRestore.toLocaleString()}\n✅ Total recuperado: $${vault.amount.toLocaleString()}\n\n**Tus cuentas han sido restauradas exactamente como estaban**`);
         }
 
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
+        }
+
         else if (subCmd === 'alertas') {
             const estado = interaction.options.getString('estado');
             const enabled = estado === 'on';
@@ -7512,6 +9722,23 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             await supabase.from('privacy_accounts').upsert({ user_id: userId, alerts_enabled: enabled }, { onConflict: 'user_id' });
 
             return interaction.editReply(`🔔 Alertas ${enabled ? '✅ activadas' : '❌ desactivadas'}`);
+        }
+
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
         }
 
         else if (subCmd === 'autorenovar') {
@@ -7525,6 +9752,23 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             await supabase.from('privacy_accounts').update({ auto_renew: enabled }).eq('user_id', userId);
 
             return interaction.editReply(`♻️ Auto-renovación ${enabled ? '✅ activada' : '❌ desactivada'}\n${enabled ? 'Se renovará automáticamente cada mes' : 'Deberás renovar manualmente'}`);
+        }
+
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
         }
 
         else if (subCmd === 'viaje') {
@@ -7548,6 +9792,23 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             });
 
             return interaction.editReply(`✈️ **Modo Viaje Activado**\n🥉 Privacidad Básica por ${horas}h\nCosto: $${costo.toLocaleString()}\nExpira: <t:${Math.floor(expiresAt.getTime() / 1000)}:R>`);
+        }
+
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
         }
 
         else if (subCmd === 'referir') {
@@ -7576,6 +9837,23 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             } catch (e) { }
 
             return interaction.editReply(`✅ Referencia enviada a ${targetUser.tag}\nCódigo: \`${referralCode}\`\nAmbos recibirán 10% descuento al suscribirse`);
+        }
+
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
         }
 
         else if (subCmd === 'familia') {
@@ -7660,6 +9938,23 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             }
         }
 
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
+        }
+
         else if (subCmd === 'score') {
             let score = 0;
 
@@ -7690,6 +9985,23 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 .addFields({ name: '💡 Cómo Mejorar', value: '• Mantén privacidad activa\n• Usa la bóveda\n• Activa auto-renovación\n• Completa verificación' });
 
             return interaction.editReply({ embeds: [embed] });
+        }
+
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
         }
     }
 
@@ -7739,6 +10051,23 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 return true;
             } catch (error) {
                 console.error('Channel cleanup error:', error);
+                return false;
+            }
+        }
+
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
                 return false;
             }
         }
@@ -7828,6 +10157,8 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             try {
                 const targetChannel = await client.channels.fetch(targetChannelId);
                 if (targetChannel) {
+                    // Rename channel to voting state
+                    await renameChannel(targetChannelId, '🗳️・votaciones');
                     const msg = await targetChannel.send({
                         content: `<@&${pingRoleId}>`,
                         embeds: [embed],
@@ -7931,6 +10262,23 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             }
         }
 
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
+        }
+
         else if (subCmd === 'cancelar') {
             const { data: session } = await supabase
                 .from('session_votes')
@@ -7953,6 +10301,9 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 .update({ status: 'cancelled' })
                 .eq('id', session.id);
 
+            // Rename channel back to default/closed state
+            await renameChannel(session.channel_id || '1412963363545284680', '⏸️・sesiones');
+
             // Delete ONLY the voting message
             if (session.message_id && session.channel_id) {
                 try {
@@ -7969,6 +10320,23 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             }
 
             return interaction.editReply('✅ Votación cancelada y mensaje eliminado.');
+        }
+
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
         }
 
         else if (subCmd === 'forzar') {
@@ -8033,6 +10401,9 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             const targetChannelId = '1412963363545284680';
             await clearChannelMessages(targetChannelId);
 
+            // Rename channel to open state
+            await renameChannel(targetChannelId, '✅・servidor-abierto');
+
             // Send the OPEN embed to the clean channel
             try {
                 const channel = await client.channels.fetch(targetChannelId);
@@ -8068,6 +10439,23 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             return interaction.editReply('✅ Servidor abierto forzadamente. Embed actualizado y participantes notificados.');
         }
 
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
+        }
+
         if (subCmd === 'cerrar') {
             // Junta Directiva only
             const member = await interaction.guild.members.fetch(userId);
@@ -8083,8 +10471,11 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 .update({ status: 'cancelled' })
                 .in('status', ['active', 'opened']);
 
-            // Clean up channel messages
+            // Rename channel to closed state
             const targetChannelId = '1412963363545284680';
+            await renameChannel(targetChannelId, '🔴・servidor-cerrado');
+
+            // Clean up channel messages
             try {
                 const channel = await client.channels.fetch(targetChannelId);
                 if (channel) {
@@ -8118,6 +10509,23 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             return interaction.editReply({ content: '✅ Servidor cerrado. Canal limpiado y anuncio enviado.', ephemeral: true });
         }
 
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
+        }
+
         if (subCmd === 'mantenimiento') {
             // Junta Directiva only
             const member = await interaction.guild.members.fetch(userId);
@@ -8137,6 +10545,23 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
 
             await interaction.channel.send({ embeds: [embed] });
             return interaction.editReply({ content: '✅ Anuncio de mantenimiento enviado.', ephemeral: true });
+        }
+
+        // Helper function to rename channel based on state
+        async function renameChannel(channelId, newName) {
+            try {
+                const channel = await client.channels.fetch(channelId);
+                if (!channel) {
+                    console.log(\`Channel \${channelId} not found\`);
+                    return false;
+                }
+                await channel.setName(newName);
+                console.log(\`Channel renamed to: \${newName}\`);
+                return true;
+            } catch (error) {
+                console.error('Channel rename error:', error);
+                return false;
+            }
         }
     }
 });
