@@ -8441,92 +8441,10 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
 
                     await interaction.editReply(`✅ Votación creada en <#${targetChannelId}>`);
 
-                    // Set up button collector on the channel message
-                    const collector = msg.createMessageComponentCollector({ time: 24 * 60 * 60 * 1000 });
+                    await interaction.editReply(`✅ Votación creada en <#${targetChannelId}>`);
 
-
-
-                    collector.on('collect', async i => {
-                        if (!i.customId.startsWith('vote_')) return;
-
-                        const sessionId = i.customId.split('_')[2];
-                        const voteType = i.customId.split('_')[1]; // yes, late, no
-
-                        // Update or insert vote
-                        await supabase.from('vote_responses').upsert({
-                            session_id: sessionId,
-                            user_id: i.user.id,
-                            vote_type: voteType
-                        }, { onConflict: 'session_id,user_id' });
-
-                        // Get updated vote counts
-                        const { data: votes } = await supabase
-                            .from('vote_responses')
-                            .select('vote_type')
-                            .eq('session_id', sessionId);
-
-                        const yesCount = votes?.filter(v => v.vote_type === 'yes').length || 0;
-                        const lateCount = votes?.filter(v => v.vote_type === 'late').length || 0;
-                        const noCount = votes?.filter(v => v.vote_type === 'no').length || 0;
-
-                        // Update embed
-                        const updatedEmbed = EmbedBuilder.from(embed)
-                            .setFields(
-                                { name: '⏰ Horario de Rol', value: horario, inline: true },
-                                { name: '🎯 Votos Necesarios', value: `${minimo}`, inline: true },
-                                { name: '\u200B', value: '\u200B' },
-                                { name: '✅ Participar en la sesion', value: `${yesCount} votos`, inline: false },
-                                { name: '📋 asistire, pero con retraso', value: `${lateCount} votos`, inline: false },
-                                { name: '❌ No podre asistir', value: `${noCount} votos`, inline: false }
-                            );
-
-                        // Check if minimum reached
-                        if (yesCount >= minimo) {
-                            const { data: session } = await supabase
-                                .from('session_votes')
-                                .select('status')
-                                .eq('id', sessionId)
-                                .single();
-
-                            if (session && session.status === 'active') {
-                                // Mark as opened
-                                await supabase
-                                    .from('session_votes')
-                                    .update({ status: 'opened' })
-                                    .eq('id', sessionId);
-
-                                updatedEmbed
-                                    .setColor(0x00FF00)
-                                    .setTitle('✅ SESIÓN CONFIRMADA - SERVIDOR ABIERTO')
-                                    .setImage('https://cdn.discordapp.com/attachments/885232074083143741/1453225155185737749/standard.gif');
-
-                                // Create join button
-                                const joinButton = new ActionRowBuilder()
-                                    .addComponents(
-                                        new ButtonBuilder()
-                                            .setLabel('🎮 Unirse al Servidor')
-                                            .setStyle(ButtonStyle.Link)
-                                            .setURL('https://www.roblox.com/games/start?launchData=%7B%22psCode%22%3A%22NACIONMX%22%7D&placeId=2534724415')
-                                    );
-
-                                // Notify voters
-                                const { data: allVoters } = await supabase
-                                    .from('vote_responses')
-                                    .select('user_id')
-                                    .eq('session_id', sessionId)
-                                    .in('vote_type', ['yes', 'late']);
-
-                                for (const voter of (allVoters || [])) {
-                                    try {
-                                        const user = await client.users.fetch(voter.user_id);
-                                        await user.send(`🎮 **¡SERVIDOR ABIERTO!**\nSe alcanzó el mínimo de ${minimo} votos. ¡Hora de rolear!`);
-                                    } catch (e) { }
-                                }
-                            }
-                        }
-
-                        await i.update({ embeds: [updatedEmbed], components: [joinButton || row] });
-                    });
+                    // NOTE: Interaction handling is done via global button handlers (lines ~2160)
+                    // This prevents duplicate handling and reference errors.
                 } else {
                     return interaction.editReply('❌ No se encontró el canal de votaciones.');
                 }
