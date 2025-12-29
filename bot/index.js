@@ -24,7 +24,7 @@ const StakingService = require('./services/StakingService');
 log('StakingService required');
 const SlotsService = require('./services/SlotsService');
 log('SlotsService required');
-const levelService = require('./services/LevelService');
+const LevelService = require('./services/LevelService');
 log('LevelService required');
 const achievementService = require('./services/AchievementService');
 log('AchievementService required');
@@ -38,6 +38,8 @@ const taxService = new TaxService(process.env.SUPABASE_URL, process.env.SUPABASE
 log('TaxService instantiated');
 const companyService = new CompanyService(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY);
 log('CompanyService instantiated');
+const levelService = new LevelService(supabase);
+log('LevelService instantiated');
 
 // 1. Initialize Discord Client
 const client = new Client({
