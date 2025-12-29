@@ -4,11 +4,13 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "start": "node bot/index.js",
+    "start": "cd bot && npm start",
+    "bot": "cd bot && npm start",
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "postinstall": "cd bot && npm install"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.87.1",
