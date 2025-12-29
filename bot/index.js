@@ -1,38 +1,43 @@
 require('dotenv').config();
-console.log('🟢 [BOT] Starting bot/index.js execution...');
-process.stdout.write('🟢 [BOT] Stdout check\n');
+// 1. Unbuffered Logger
+const log = (msg) => process.stderr.write(`🟢 [BOT] ${msg}\n`);
+
+log('Starting bot/index.js execution...');
 const fs = require('fs');
-console.log('🟢 [BOT] fs required');
+log('fs required');
 const path = require('path');
-console.log('🟢 [BOT] path required');
-const { Client, GatewayIntentBits, EmbedBuilder, REST, Routes } = require('discord.js');
-console.log('🟢 [BOT] discord.js required');
+log('path required');
+
+// RESTORED FULL IMPORT
+const { Client, GatewayIntentBits, EmbedBuilder, REST, Routes, ActivityType, ActionRowBuilder, ButtonBuilder, ButtonStyle, AttachmentBuilder, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, ComponentType } = require('discord.js');
+log('discord.js required');
+
 const { createClient } = require('@supabase/supabase-js');
-console.log('🟢 [BOT] supabase required');
+log('supabase required');
 const BillingService = require('./services/BillingService');
-console.log('🟢 [BOT] BillingService required');
+log('BillingService required');
 const TaxService = require('./services/TaxService');
-console.log('🟢 [BOT] TaxService required');
+log('TaxService required');
 const CompanyService = require('./services/CompanyService');
-console.log('🟢 [BOT] CompanyService required');
+log('CompanyService required');
 const StakingService = require('./services/StakingService');
-console.log('🟢 [BOT] StakingService required');
+log('StakingService required');
 const SlotsService = require('./services/SlotsService');
-console.log('🟢 [BOT] SlotsService required');
+log('SlotsService required');
 const levelService = require('./services/LevelService');
-console.log('🟢 [BOT] LevelService required');
+log('LevelService required');
 const achievementService = require('./services/AchievementService');
-console.log('🟢 [BOT] AchievementService required');
+log('AchievementService required');
 const missionService = require('./services/MissionService');
-console.log('🟢 [BOT] MissionService required');
+log('MissionService required');
 const { renameChannel, clearChannelMessages } = require('./utils/channelUtils');
-console.log('🟢 [BOT] channelUtils required');
+log('channelUtils required');
 const { loadCommands } = require('./handlers/commandLoader');
-console.log('🟢 [BOT] commandLoader required');
+log('commandLoader required');
 const taxService = new TaxService(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY);
-console.log('🟢 [BOT] TaxService instantiated');
+log('TaxService instantiated');
 const companyService = new CompanyService(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY);
-console.log('🟢 [BOT] CompanyService instantiated');
+log('CompanyService instantiated');
 
 // 1. Initialize Discord Client
 const client = new Client({
