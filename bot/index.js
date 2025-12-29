@@ -2167,6 +2167,8 @@ client.on('interactionCreate', async interaction => {
             const userId = interaction.user.id;
             const ACTIVO_CHANNEL_ID = '1454993258911633418';
 
+            await interaction.deferReply({ ephemeral: true });
+
             try {
                 if (customId === 'mod_active_toggle') {
                     const { data: existing } = await supabase.from('moderator_status').select('*').eq('discord_user_id', userId).maybeSingle();
@@ -2175,7 +2177,7 @@ client.on('interactionCreate', async interaction => {
                     } else {
                         await supabase.from('moderator_status').insert({ discord_user_id: userId, is_active: true });
                     }
-                    await interaction.reply({ content: '✅ Te has marcado como **activo**.', ephemeral: true });
+                    await interaction.editReply({ content: '✅ Te has marcado como **activo**.' });
                 } else if (customId === 'mod_inactive_toggle') {
                     const { data: existing } = await supabase.from('moderator_status').select('*').eq('discord_user_id', userId).maybeSingle();
                     if (existing) {
@@ -2183,7 +2185,7 @@ client.on('interactionCreate', async interaction => {
                     } else {
                         await supabase.from('moderator_status').insert({ discord_user_id: userId, is_active: false });
                     }
-                    await interaction.reply({ content: '🔇 Te has marcado como **inactivo**.', ephemeral: true });
+                    await interaction.editReply({ content: '🔇 Te has marcado como **inactivo**.' });
                 }
 
                 // Refresh embed
@@ -2236,11 +2238,12 @@ client.on('interactionCreate', async interaction => {
                     );
 
                     await message.edit({ embeds: [embed], components: [row] });
-                    if (customId === 'mod_status_refresh') await interaction.reply({ content: '🔄 Actualizado.', ephemeral: true });
+                    if (customId === 'mod_status_refresh') await interaction.editReply({ content: '🔄 Actualizado.' });
                 }
             } catch (error) {
                 console.error('Error mod toggle:', error);
-                if (!interaction.replied) await interaction.reply({ content: '❌ Error.', ephemeral: true });
+                if (interaction.deferred) await interaction.editReply({ content: '❌ Error.' });
+                else await interaction.reply({ content: '❌ Error.', ephemeral: true });
             }
             return;
         }
