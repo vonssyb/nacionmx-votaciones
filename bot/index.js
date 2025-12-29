@@ -7,7 +7,11 @@ const TaxService = require('./services/TaxService');
 const CompanyService = require('./services/CompanyService');
 const StakingService = require('./services/StakingService');
 const SlotsService = require('./services/SlotsService');
+const levelService = require('./services/LevelService');
+const achievementService = require('./services/AchievementService');
+const missionService = require('./services/MissionService');
 const { renameChannel, clearChannelMessages } = require('./utils/channelUtils');
+const { loadCommands } = require('./handlers/commandLoader');
 const taxService = new TaxService(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY);
 const companyService = new CompanyService(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY);
 
@@ -25,7 +29,12 @@ const express = require('express');
 const app = express();
 const port = process.env.PORT || 3000;
 app.get('/', (req, res) => res.send('🤖 Nacion MX Bot is running!'));
-app.listen(port, () => console.log(`🌐 Web server listening on port ${port}`));
+app.listen(port, () => {
+    console.log(`🌐 Web server listening on port ${port}`);
+    // Start Keep-Alive (Self Ping)
+    const keepAliveService = require('./services/KeepAliveService');
+    keepAliveService.start();
+});
 // -----------------------------------------------------
 
 // 2. Initialize Supabase Client
@@ -40,10 +49,20 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 const NOTIFICATION_CHANNEL_ID = process.env.NOTIFICATION_CHANNEL_ID; // Channel to send banking logs
 const CANCELLATIONS_CHANNEL_ID = '1450610756663115879'; // Channel for Role Cancellations
 const GUILD_ID = process.env.GUILD_ID ? process.env.GUILD_ID.trim() : null;
-const DISCORD_TOKEN = process.env.DISCORD_TOKEN ? process.env.DISCORD_TOKEN.trim() : null;
+const DISCORD_TOKEN = (process.env.DISCORD_BOT_TOKEN || process.env.DISCORD_TOKEN || '').trim() || null;
 
 // Initialize Billing Service
 const billingService = new BillingService(client);
+
+// Attach services to client for modular commands
+client.services = {
+    billing: billingService,
+    tax: taxService,
+    company: companyService,
+    levels: levelService,
+    achievements: achievementService,
+    missions: missionService
+};
 
 // Initialize Economy Services
 let stakingService, slotsService; // Will initialize after supabase is ready
@@ -870,6 +889,10 @@ async function handleBlackjackAction(interaction) {
 
 client.once('ready', async () => {
     console.log(`🤖 Bot iniciado como ${client.user.tag}!`);
+
+    // Load Modular Commands
+    await loadCommands(client, path.join(__dirname, 'commands'));
+
     console.log(`📡 Conectado a Supabase: ${supabaseUrl}`);
 
     // Update Status to indicate DEBUG MODE
@@ -880,8 +903,14 @@ client.once('ready', async () => {
     billingService.startCron();
 
     // Initialize Economy Services
+    // Initialize Economy Services
     stakingService = new StakingService(supabase);
     slotsService = new SlotsService(supabase);
+
+    // Attach late-init services
+    client.services.staking = stakingService;
+    client.services.slots = slotsService;
+
     console.log('✅ Economy services initialized (Staking, Slots)');
 
     // Start Stock Market Loop (Updates every 10 minutes)
@@ -1220,7 +1249,27 @@ client.on('interactionCreate', async interaction => {
     processedInteractions.add(interaction.id);
 
     // BUTTON: Investment Collection
-    if (interaction.isButton() && interaction.customId.startsWith('btn_collect_')) {
+
+    // BUTTONS: Claim Mission Rewards (Gamification)
+    if (interaction.isButton() && interaction.customId.startsWith('claim_mission_')) {
+        await interaction.deferReply({ ephemeral: true });
+        const missionId = interaction.customId.replace('claim_mission_', '');
+
+        const result = await client.services.missions.claimRewards(interaction.user.id, missionId);
+
+        if (result.success) {
+            const m = result.mission;
+            await interaction.editReply(`🎉 **¡Recompensa Reclamada!**\nHas recibido:\n✨ ${m.rewards.xp} XP\n💵 $${m.rewards.money || 0}`);
+
+            // Optionally disable the button on the message source?
+            // Would require fetching the original interaction message and editing component.
+        } else {
+            await interaction.editReply(`❌ Error: ${result.error}`);
+        }
+        return; // Stop processing
+    }
+
+    if (interaction.isButton() && interaction.customId.startsWith('btn_invest_')) {
         await interaction.deferReply({ ephemeral: true });
         const invId = interaction.customId.replace('btn_collect_', '');
 
@@ -2290,6 +2339,25 @@ client.on('interactionCreate', async interaction => {
     // Only process slash commands
     if (!interaction.isChatInputCommand()) return;
 
+    // --- MODULAR COMMAND HANDLER (NEW) ---
+    const command = client.commands?.get(interaction.commandName);
+    if (command) {
+        try {
+            console.log(`[CMD] Executing modular command: /${interaction.commandName}`);
+            await command.execute(interaction, client, supabase);
+            return; // Stop here, don't run legacy code
+        } catch (error) {
+            console.error(`[CMD] Error executing /${interaction.commandName}:`, error);
+            if (interaction.replied || interaction.deferred) {
+                await interaction.followUp({ content: '❌ Error al ejecutar el comando.', ephemeral: true });
+            } else {
+                await interaction.reply({ content: '❌ Error al ejecutar el comando.', ephemeral: true });
+            }
+            return;
+        }
+    }
+    // --- LEGACY HANDLER (OLD) ---
+
     const { commandName } = interaction;
 
     if (commandName === 'ping') {
@@ -2298,123 +2366,7 @@ client.on('interactionCreate', async interaction => {
     }
 
 
-    else if (commandName === 'ayuda') {
-        const initialEmbed = new EmbedBuilder()
-            .setTitle('📘 Centro de Ayuda Nación MX')
-            .setColor(0xD4AF37) // Gold
-            .setDescription('**Selecciona una categoría en el menú de abajo para ver los comandos disponibles.**\n\nAquí encontrarás toda la información sobre el sistema financiero, legal y de entretenimiento.')
-            // .setImage('https://i.imgur.com/K3pW4kC.png') 
-            .setFooter({ text: 'Usa el menú desplegable para navegar' });
 
-        const selectMenu = new StringSelectMenuBuilder()
-            .setCustomId('help_category')
-            .setPlaceholder('Selecciona una categoría...')
-            .addOptions(
-                new StringSelectMenuOptionBuilder().setLabel('Banco & Economía').setDescription('Débito, Transferencias, Efectivo').setValue('economy').setEmoji('🏦'),
-                new StringSelectMenuOptionBuilder().setLabel('Crédito & Deudas').setDescription('Tarjetas de Crédito, Buró, Pagos').setValue('credit').setEmoji('💳'),
-                new StringSelectMenuOptionBuilder().setLabel('Empresas & Negocios').setDescription('Gestión de Empresas, Terminal POS').setValue('business').setEmoji('🏢'),
-                new StringSelectMenuOptionBuilder().setLabel('Inversiones & Bolsa').setDescription('Acciones, Crypto, Plazos Fijos').setValue('invest').setEmoji('📈'),
-                new StringSelectMenuOptionBuilder().setLabel('Casino & Juegos').setDescription('Slots, Ruleta, Caballos, Juegos').setValue('casino').setEmoji('🎰'),
-                new StringSelectMenuOptionBuilder().setLabel('Legal & Policial').setDescription('Multas, Antecedentes, Fichajes').setValue('police').setEmoji('👮'),
-                new StringSelectMenuOptionBuilder().setLabel('Utilidades').setDescription('Ping, Balance, Notificaciones').setValue('utils').setEmoji('⚙️'),
-            );
-
-        const row = new ActionRowBuilder().addComponents(selectMenu);
-
-        const response = await interaction.reply({ embeds: [initialEmbed], components: [row], ephemeral: false });
-
-        const collector = response.createMessageComponentCollector({ componentType: ComponentType.StringSelect, time: 300000 }); // 5 mins
-
-        collector.on('collect', async i => {
-            if (i.customId !== 'help_category') return;
-
-            const category = i.values[0];
-            const newEmbed = new EmbedBuilder().setColor(0xD4AF37).setTimestamp();
-
-            switch (category) {
-                case 'economy':
-                    newEmbed.setTitle('🏦 Banco & Economía')
-                        .addFields(
-                            { name: '`/debito estado`', value: 'Ver tu saldo bancario y número de tarjeta.' },
-                            { name: '`/debito depositar`', value: 'Depositar efectivo a tu cuenta (Inmediato).' },
-                            { name: '`/debito retirar`', value: 'Retirar dinero del banco (Inmediato).' },
-                            { name: '`/debito transferir`', value: 'Transferir a otro usuario (Banco a Banco, 5 min).' },
-                            { name: '`/transferir`', value: 'Transferencia SPEI inmediata (Solo Banco).' },
-                            { name: '`/depositar`', value: 'Depósito en efectivo a terceros (OXXO, 4 horas).' },
-                            { name: '`/giro`', value: 'Envío de efectivo por paquetería (24 horas).' }
-                        );
-                    break;
-                case 'credit':
-                    newEmbed.setTitle('💳 Crédito & Deudas')
-                        .addFields(
-                            { name: '`/credito info`', value: 'Ver estado de cuenta, límite y corte.' },
-                            { name: '`/credito pagar`', value: 'Pagar deuda de tarjeta.' },
-                            { name: '`/credito buro`', value: 'Ver tu historial crediticio.' },
-                            { name: '`/top-morosos`', value: 'Ver quién debe más en el servidor.' },
-                            { name: '`/top-ricos`', value: 'Ver quién tiene mejor Score Crediticio.' }
-                        );
-                    break;
-                case 'business':
-                    newEmbed.setTitle('🏢 Empresas & Negocios')
-                        .addFields(
-                            { name: '`/empresa crear`', value: 'Registrar una nueva empresa ($50k).' },
-                            { name: '`/empresa menu`', value: 'Panel de gestión (pagar nómina, ver saldo).' },
-                            { name: '`/empresa cobrar`', value: 'Generar cobro para clientes (Terminal POS).' },
-                            { name: '`/empresa credito`', value: 'Solicitar crédito empresarial.' }
-                        );
-                    break;
-                case 'invest':
-                    newEmbed.setTitle('📈 Inversiones & Bolsa')
-                        .addFields(
-                            { name: '`/bolsa precios`', value: 'Ver precios de acciones/crypto.' },
-                            { name: '`/bolsa comprar`', value: 'Invertir en activos.' },
-                            { name: '`/bolsa vender`', value: 'Vender activos.' },
-                            { name: '`/bolsa portafolio`', value: 'Ver tus rendimientos.' },
-                            { name: '`/inversion nueva`', value: 'Abrir plazo fijo (CDT).' }
-                        );
-                    break;
-                case 'casino':
-                    newEmbed.setTitle('🎰 Casino Nación MX')
-                        .setDescription('¡Apuesta y gana! La casa (casi) nunca pierde.')
-                        .addFields(
-                            { name: '`/casino fichas comprar`', value: 'Comprar fichas (1 ficha = $1).' },
-                            { name: '`/casino fichas retirar`', value: 'Cambiar fichas por dinero.' },
-                            { name: '`/jugar slots`', value: 'Tragamonedas clásica.' },
-                            { name: '`/jugar dados`', value: 'Adivina suma (Mayor/Menor).' },
-                            { name: '`/jugar ruleta`', value: 'Ruleta (Rojo/Negro/Número).' },
-                            { name: '`/jugar crash`', value: '¡Sal antes de que explote!' },
-                            { name: '`/jugar caballos`', value: 'Carreras.' },
-                            { name: '`/jugar gallos`', value: 'Pelea de gallos.' },
-                            { name: '`/jugar rusa`', value: 'Ruleta Rusa (Peligroso).' }
-                        );
-                    break;
-                case 'police':
-                    newEmbed.setTitle('👮 Legal & Policial')
-                        .addFields(
-                            { name: '`/fichar`', value: 'Buscar antecedentes penales (Policía).' },
-                            { name: '`/multa`', value: 'Imponer multa (Policía/Juez).' },
-                            { name: '`/impuestos pagar`', value: 'Pagar impuestos pendientes.' },
-                            { name: '`/licencia registrar`', value: 'Registrar licencia de conducir.' }
-                        );
-                    break;
-                case 'utils':
-                    newEmbed.setTitle('⚙️ Utilidades')
-                        .addFields(
-                            { name: '`/balanza`', value: 'Resumen financiero total (Net Worth).' },
-                            { name: '`/notificaciones`', value: 'Activar/desactivar DMs del banco.' },
-                            { name: '`/ping`', value: 'Ver latencia del bot.' },
-                            { name: '`/rol`', value: 'Asignarse roles de trabajo.' }
-                        );
-                    break;
-            }
-
-            await i.update({ embeds: [newEmbed], components: [row] });
-        });
-
-        collector.on('end', () => {
-            // Optional: Disable on timeout
-        });
-    }
 
 
 
@@ -3717,6 +3669,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             }
 
             await interaction.editReply({ embeds: [embed] });
+
         } catch (error) {
             console.error('[saldo] Error:', error);
             await interaction.editReply('❌ Error al obtener el saldo.');
@@ -4476,6 +4429,23 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 }]);
 
                 await i.editReply({ content: `✅ Inversión creada (${prInv.method}). Retorno: **$${payout.toLocaleString()}** en 7 días.`, components: [] });
+
+                // GAMIFICATION HOOKS
+                try {
+                    // 1. Add XP (Invest = 100 XP)
+                    const levelRes = await client.services.levels.addXP(interaction.user.id, 100);
+
+                    if (levelRes && levelRes.leveledUp) {
+                        /* use followUp on original interaction to avoid interfering with button flow */
+                        await interaction.followUp({ content: `🎉 **¡SUBISTE DE NIVEL!**\nAhora eres nivel **${levelRes.newLevel}**`, ephemeral: true });
+                    }
+
+                    // 2. Update Mission Progress
+                    await client.services.missions.updateProgress(interaction.user.id, 'invest', { amount: amount });
+
+                } catch (gameErr) {
+                    console.error('Gamification Error:', gameErr);
+                }
             });
             cInv.on('end', c => { if (c.size === 0) interaction.editReply({ content: '⏱️ Tiempo agotado.', components: [] }); });
             return;
@@ -5227,6 +5197,23 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
 
                 await interaction.editReply({ embeds: [embed] });
 
+                // GAMIFICATION HOOKS
+                try {
+                    // 1. Add XP (Work = 30-50 XP)
+                    const xpAmount = Math.floor(Math.random() * 20) + 30;
+                    const levelRes = await client.services.levels.addXP(interaction.user.id, xpAmount);
+
+                    if (levelRes && levelRes.leveledUp) {
+                        await interaction.followUp({ content: `🎉 **¡SUBISTE DE NIVEL!**\nAhora eres nivel **${levelRes.newLevel}**`, ephemeral: true });
+                    }
+
+                    // 2. Update Mission Progress
+                    await client.services.missions.updateProgress(interaction.user.id, 'work', { amount: pay });
+
+                } catch (gameErr) {
+                    console.error('Gamification Error:', gameErr);
+                }
+
             } catch (error) {
                 console.error(error);
                 await interaction.editReply('❌ Error consultando tarjetas.');
@@ -5470,6 +5457,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
         const subcommand = interaction.options.getSubcommand();
 
         if (subcommand === 'otorgar') {
+            await interaction.deferReply();
             const targetUser = interaction.options.getUser('ciudadano');
             const tipo = interaction.options.getString('tipo');
 
@@ -6532,7 +6520,24 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
 
             await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, amount, 'Depósito cajero', 'cash');
             await billingService.ubService.addMoney(interaction.guildId, interaction.user.id, amount, 'Depósito cajero', 'bank');
-            return interaction.editReply(`✅ **Depósito Exitoso**\nDepositaste $${amount.toLocaleString()} en el banco.`);
+            await interaction.editReply(`✅ **Depósito Exitoso**\nDepositaste $${amount.toLocaleString()} en tu cuenta.`);
+
+            // GAMIFICATION HOOKS
+            try {
+                // 1. Add XP (Deposit = 10 XP)
+                const levelRes = await client.services.levels.addXP(interaction.user.id, 10);
+
+                if (levelRes && levelRes.leveledUp) {
+                    await interaction.followUp({ content: `🎉 **¡SUBISTE DE NIVEL!**\nAhora eres nivel **${levelRes.newLevel}**`, ephemeral: true });
+                }
+
+                // 2. Update Mission Progress
+                await client.services.missions.updateProgress(interaction.user.id, 'deposit', { amount: amount });
+
+            } catch (gameErr) {
+                console.error('Gamification Error:', gameErr);
+            }
+            return;
         }
 
         // Helper function to rename channel based on state
