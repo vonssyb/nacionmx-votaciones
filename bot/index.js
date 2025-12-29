@@ -8561,7 +8561,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
 
             // Clear ALL messages in the channel
             const targetChannelId = '1412963363545284680';
-            await clearChannelMessages(targetChannelId);
+            await clearChannelMessages(client, targetChannelId);
 
             // Rename channel to open state
             await renameChannel(client, targetChannelId, '✅・servidor-abierto');

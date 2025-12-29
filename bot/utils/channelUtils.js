@@ -60,11 +60,38 @@ async function clearChannelMessages(client, channelId, limit = 100) {
             return 0;
         }
 
-        const messages = await channel.messages.fetch({ limit });
-        const deleted = await channel.bulkDelete(messages, true);
+        let totalDeleted = 0;
+        let fetched;
 
-        logger.info(`Cleared ${deleted.size} messages from channel ${channelId}`);
-        return deleted.size;
+        do {
+            fetched = await channel.messages.fetch({ limit: Math.min(limit - totalDeleted, 100) });
+            if (fetched.size === 0) break;
+
+            // Try bulk delete first (fastest)
+            const bulkDeletable = fetched.filter(msg => Date.now() - msg.createdTimestamp < 1209600000); // 14 days
+            if (bulkDeletable.size > 0) {
+                await channel.bulkDelete(bulkDeletable);
+                totalDeleted += bulkDeletable.size;
+            }
+
+            // Manually delete old messages (slow but necessary)
+            const oldMessages = fetched.filter(msg => Date.now() - msg.createdTimestamp >= 1209600000);
+            for (const msg of oldMessages.values()) {
+                try {
+                    await msg.delete();
+                    totalDeleted++;
+                } catch (e) {
+                    logger.warn(`Failed to delete message ${msg.id}: ${e.message}`);
+                }
+            }
+
+            // Safety break to prevent infinite loops if deletion fails
+            if (fetched.size > 0 && totalDeleted === 0) break;
+
+        } while (totalDeleted < limit && fetched.size >= 1);
+
+        logger.info(`Cleared ${totalDeleted} messages from channel ${channelId}`);
+        return totalDeleted;
     } catch (error) {
         logger.error('Error clearing channel messages:', {
             channelId,
