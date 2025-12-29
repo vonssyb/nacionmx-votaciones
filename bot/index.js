@@ -2162,6 +2162,91 @@ client.on('interactionCreate', async interaction => {
     if (interaction.isButton()) {
         const customId = interaction.customId;
 
+        // Handle moderator status toggle buttons
+        if (customId === 'mod_active_toggle' || customId === 'mod_inactive_toggle' || customId === 'mod_status_refresh') {
+            const userId = interaction.user.id;
+            const ACTIVO_CHANNEL_ID = '1454993258911633418';
+
+            try {
+                if (customId === 'mod_active_toggle') {
+                    const { data: existing } = await supabase.from('moderator_status').select('*').eq('discord_user_id', userId).maybeSingle();
+                    if (existing) {
+                        await supabase.from('moderator_status').update({ is_active: true, last_toggle: new Date().toISOString() }).eq('discord_user_id', userId);
+                    } else {
+                        await supabase.from('moderator_status').insert({ discord_user_id: userId, is_active: true });
+                    }
+                    await interaction.reply({ content: '✅ Te has marcado como **activo**.', ephemeral: true });
+                } else if (customId === 'mod_inactive_toggle') {
+                    const { data: existing } = await supabase.from('moderator_status').select('*').eq('discord_user_id', userId).maybeSingle();
+                    if (existing) {
+                        await supabase.from('moderator_status').update({ is_active: false, last_toggle: new Date().toISOString() }).eq('discord_user_id', userId);
+                    } else {
+                        await supabase.from('moderator_status').insert({ discord_user_id: userId, is_active: false });
+                    }
+                    await interaction.reply({ content: '🔇 Te has marcado como **inactivo**.', ephemeral: true });
+                }
+
+                // Refresh embed
+                const { data: embedData } = await supabase.from('activo_embed_messages').select('*').eq('channel_id', ACTIVO_CHANNEL_ID).maybeSingle();
+                if (embedData?.message_id) {
+                    const channel = await client.channels.fetch(ACTIVO_CHANNEL_ID);
+                    const message = await channel.messages.fetch(embedData.message_id);
+                    const guild = interaction.guild;
+                    await guild.members.fetch();
+
+                    const { data: statusData } = await supabase.from('moderator_status').select('*');
+                    const statusMap = new Map();
+                    (statusData || []).forEach(s => statusMap.set(s.discord_user_id, s.is_active));
+
+                    const activeModerators = guild.members.cache.filter(member => {
+                        const hasRole = member.roles.cache.has('1412882245735420006'); // Junta Directiva role
+                        // const hasRole = member.roles.cache.has('1450242487422812251'); // Staff role (use consistent role)
+                        // Using Junta Directiva as per your previous code context, adjust if needed for Staff
+                        const isOnline = ['online', 'idle', 'dnd'].includes(member.presence?.status);
+                        const isActive = statusMap.get(member.id) !== false; // Default true if not in DB
+                        return hasRole && isOnline && isActive;
+                    });
+
+                    const embed = new EmbedBuilder()
+                        .setTitle('👮 Moderadores Activos')
+                        .setDescription('Lista de moderadores disponibles para atención')
+                        .setColor(0x5865F2)
+                        .setImage('https://cdn.discordapp.com/attachments/885232074083143741/1454994767761899602/standard3.gif')
+                        .setTimestamp()
+                        .setFooter({ text: `Total: ${activeModerators.size} moderador(es) activo(s)` });
+
+                    let desc = '';
+                    if (activeModerators.size === 0) {
+                        embed.addFields({
+                            name: '⚠️ Sin Moderadores',
+                            value: 'No hay moderadores activos en este momento.\nUsa el botón de abajo para marcarte como activo.',
+                            inline: false
+                        });
+                    } else {
+                        activeModerators.forEach(m => {
+                            const emoji = { 'online': '🟢', 'idle': '🟡', 'dnd': '🔴' }[m.presence?.status] || '⚪';
+                            const act = m.presence?.activities[0] ? ` - *${m.presence.activities[0].name}*` : '';
+                            desc += `${emoji} **${m.user.username}**${act}\n`;
+                        });
+                        embed.setDescription(desc);
+                    }
+
+                    const row = new ActionRowBuilder().addComponents(
+                        new ButtonBuilder().setCustomId('mod_active_toggle').setLabel('✅ Marcarme Activo').setStyle(ButtonStyle.Success),
+                        new ButtonBuilder().setCustomId('mod_inactive_toggle').setLabel('🔇 Marcarme Inactivo').setStyle(ButtonStyle.Secondary),
+                        new ButtonBuilder().setCustomId('mod_status_refresh').setLabel('🔄 Actualizar').setStyle(ButtonStyle.Primary)
+                    );
+
+                    await message.edit({ embeds: [embed], components: [row] });
+                    if (customId === 'mod_status_refresh') await interaction.reply({ content: '🔄 Actualizado.', ephemeral: true });
+                }
+            } catch (error) {
+                console.error('Error mod toggle:', error);
+                if (!interaction.replied) await interaction.reply({ content: '❌ Error.', ephemeral: true });
+            }
+            return;
+        }
+
         // Handle session voting buttons
         if (customId.startsWith('vote_')) {
             const [action, voteType, sessionId] = customId.split('_');
@@ -2565,6 +2650,7 @@ client.on('interactionCreate', async interaction => {
                         .setTitle('👮 Moderadores Activos')
                         .setDescription('Lista de moderadores disponibles para atención')
                         .setColor(0x5865F2)
+                        .setImage('https://cdn.discordapp.com/attachments/885232074083143741/1454994767761899602/standard3.gif')
                         .setTimestamp()
                         .setFooter({ text: `Total: ${activeModerators.size} moderador(es) activo(s)` });
 
