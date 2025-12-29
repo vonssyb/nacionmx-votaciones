@@ -1,17 +1,13 @@
-const { createClient } = require('@supabase/supabase-js');
-const logger = require('../utils/logger');
-
-const supabase = createClient(
-    process.env.SUPABASE_URL,
-    process.env.SUPABASE_SERVICE_ROLE_KEY
-);
-
 class MissionService {
+    constructor(supabaseClient, levelService) {
+        this.supabase = supabaseClient;
+        this.levelService = levelService;
+    }
     async initializeDailyMissions(userId) {
         try {
             logger.info(`Initializing daily missions for user ${userId}`);
 
-            const { data: missions, error: fetchError } = await supabase
+            const { data: missions, error: fetchError } = await this.supabase
                 .from('missions')
                 .select('*')
                 .eq('type', 'daily')
@@ -35,7 +31,7 @@ class MissionService {
                 expires_at: this.getEndOfDay()
             }));
 
-            const { data, error } = await supabase
+            const { data, error } = await this.supabase
                 .from('user_missions')
                 .insert(userMissions)
                 .select();
@@ -52,7 +48,7 @@ class MissionService {
 
     async updateProgress(userId, action, metadata = {}) {
         try {
-            const { data: userMissions, error: fetchError } = await supabase
+            const { data: userMissions, error: fetchError } = await this.supabase
                 .from('user_missions')
                 .select(`*,mission:missions(*)`)
                 .eq('user_id', userId)
@@ -78,7 +74,7 @@ class MissionService {
 
                 const completed = progress.current >= progress.required;
 
-                await supabase
+                await this.supabase
                     .from('user_missions')
                     .update({
                         progress,
@@ -98,7 +94,7 @@ class MissionService {
 
     async claimRewards(userId, missionId) {
         try {
-            const { data: userMission, error: fetchError } = await supabase
+            const { data: userMission, error: fetchError } = await this.supabase
                 .from('user_missions')
                 .select(`*,mission:missions(*)`)
                 .eq('user_id', userId)
@@ -112,8 +108,9 @@ class MissionService {
 
             const rewards = userMission.mission.rewards;
 
-            if (rewards.xp) {
-                await this.addXP(userId, rewards.xp);
+            if (rewards.xp && this.levelService) {
+                // Use Central Level Service
+                await this.levelService.addXP(userId, rewards.xp);
             }
 
             if (rewards.money) {
@@ -128,7 +125,7 @@ class MissionService {
                 );
             }
 
-            await supabase
+            await this.supabase
                 .from('user_missions')
                 .update({ status: 'claimed', claimed_at: new Date().toISOString() })
                 .eq('id', userMission.id);
@@ -142,32 +139,7 @@ class MissionService {
         }
     }
 
-    async addXP(userId, amount) {
-        try {
-            const { data: existing } = await supabase
-                .from('user_stats')
-                .select('*')
-                .eq('discord_user_id', userId)
-                .single();
 
-            if (!existing) {
-                await supabase.from('user_stats').insert({
-                    discord_user_id: userId,
-                    xp: amount
-                });
-            } else {
-                await supabase.from('user_stats').update({
-                    xp: existing.xp + amount
-                }).eq('discord_user_id', userId);
-            }
-
-            logger.info(`Added ${amount} XP to ${userId}`);
-            return true;
-        } catch (error) {
-            logger.error('Error adding XP:', { userId, error: error.message });
-            return false;
-        }
-    }
 
     getEndOfDay() {
         const end = new Date();
@@ -176,4 +148,4 @@ class MissionService {
     }
 }
 
-module.exports = new MissionService();
+module.exports = MissionService;

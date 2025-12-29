@@ -26,9 +26,9 @@ const SlotsService = require('./services/SlotsService');
 log('SlotsService required');
 const LevelService = require('./services/LevelService');
 log('LevelService required');
-const achievementService = require('./services/AchievementService');
+const AchievementService = require('./services/AchievementService');
 log('AchievementService required');
-const missionService = require('./services/MissionService');
+const MissionService = require('./services/MissionService');
 log('MissionService required');
 const { renameChannel, clearChannelMessages } = require('./utils/channelUtils');
 log('channelUtils required');
@@ -40,6 +40,10 @@ const companyService = new CompanyService(process.env.SUPABASE_URL, process.env.
 log('CompanyService instantiated');
 const levelService = new LevelService(supabase);
 log('LevelService instantiated');
+const achievementService = new AchievementService(supabase, levelService);
+log('AchievementService instantiated');
+const missionService = new MissionService(supabase, levelService);
+log('MissionService instantiated');
 
 // 1. Initialize Discord Client
 const client = new Client({
