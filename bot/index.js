@@ -2265,16 +2265,23 @@ client.on('interactionCreate', async interaction => {
                 }
 
                 // Update the embed with new counts
-                const { data: votes } = await supabase
+                const { data: votes, error: voteError } = await supabase
                     .from('session_vote_participants')
                     .select('vote_type')
                     .eq('session_id', sessionId);
+
+                if (voteError) {
+                    console.error('[VOTE DEBUG] Error fetching votes:', voteError);
+                } else {
+                    console.log(`[VOTE DEBUG] Votes fetched for ${sessionId}: ${votes?.length || 0}`);
+                }
 
                 const counts = {
                     yes: votes?.filter(v => v.vote_type === 'yes').length || 0,
                     late: votes?.filter(v => v.vote_type === 'late').length || 0,
                     no: votes?.filter(v => v.vote_type === 'no').length || 0
                 };
+                console.log('[VOTE DEBUG] Counts:', counts);
 
                 // Update the original message
                 if (session.message_id && session.channel_id) {
@@ -2294,6 +2301,7 @@ client.on('interactionCreate', async interaction => {
                             );
 
                         await message.edit({ embeds: [updatedEmbed] });
+                        console.log('[VOTE DEBUG] Message edited successfully');
 
                         // Check if minimum votes reached
                         if (counts.yes >= session.minimum_votes && session.status === 'active') {
