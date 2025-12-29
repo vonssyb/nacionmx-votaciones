@@ -2515,6 +2515,151 @@ client.on('interactionCreate', async interaction => {
             await interaction.reply({ embeds: [embed], files: [file] });
         }
 
+        // ===== /ACTIVO - SHOW ACTIVE MODERATORS (ADVANCED) =====
+        else if (commandName === 'activo') {
+            await interaction.deferReply({ ephemeral: true });
+
+            const STAFF_ROLE_ID = '1450242487422812251';
+            const ACTIVO_CHANNEL_ID = '1454993258911633418';
+
+            // Check permissions
+            const member = interaction.member;
+            if (!member.roles.cache.has(STAFF_ROLE_ID)) {
+                return interaction.editReply('❌ Solo el Staff puede usar este comando.');
+            }
+
+            if (interaction.channelId !== ACTIVO_CHANNEL_ID) {
+                return interaction.editReply(`❌ Este comando solo puede usarse en <#${ACTIVO_CHANNEL_ID}>.`);
+            }
+
+            try {
+                // Helper function to update the embed
+                async function updateActivoEmbed() {
+                    const guild = interaction.guild;
+                    const moderatorRoleIds = ['1412882245735420006']; // Junta Directiva
+
+                    await guild.members.fetch();
+
+                    // Get moderator status from database
+                    const { data: statusData } = await supabase
+                        .from('moderator_status')
+                        .select('*');
+
+                    const statusMap = new Map();
+                    (statusData || []).forEach(s => statusMap.set(s.discord_user_id, s.is_active));
+
+                    const activeModerators = guild.members.cache.filter(member => {
+                        const hasModeratorRole = moderatorRoleIds.some(roleId =>
+                            member.roles.cache.has(roleId)
+                        );
+                        const isOnline = member.presence?.status &&
+                            ['online', 'idle', 'dnd'].includes(member.presence.status);
+
+                        // Check if marked as inactive in database
+                        const isActive = statusMap.has(member.id) ? statusMap.get(member.id) : true;
+
+                        return hasModeratorRole && isOnline && isActive;
+                    });
+
+                    const embed = new EmbedBuilder()
+                        .setTitle('👮 Moderadores Activos')
+                        .setDescription('Lista de moderadores disponibles para atención')
+                        .setColor(0x5865F2)
+                        .setTimestamp()
+                        .setFooter({ text: `Total: ${activeModerators.size} moderador(es) activo(s)` });
+
+                    if (activeModerators.size === 0) {
+                        embed.addFields({
+                            name: '⚠️ Sin Moderadores',
+                            value: 'No hay moderadores activos en este momento.\nUsa el botón de abajo para marcarte como activo.',
+                            inline: false
+                        });
+                    } else {
+                        let description = '';
+                        activeModerators.forEach(member => {
+                            const statusEmoji = {
+                                'online': '🟢',
+                                'idle': '🟡',
+                                'dnd': '🔴'
+                            }[member.presence?.status] || '⚪';
+
+                            const activity = member.presence?.activities[0];
+                            const activityText = activity ? ` - *${activity.name}*` : '';
+
+                            description += `${statusEmoji} **${member.user.username}**${activityText}\n`;
+                        });
+
+                        embed.setDescription(description || 'Cargando...');
+                    }
+
+                    // Toggle buttons
+                    const row = new ActionRowBuilder().addComponents(
+                        new ButtonBuilder()
+                            .setCustomId('mod_active_toggle')
+                            .setLabel('✅ Marcarme Activo')
+                            .setStyle(ButtonStyle.Success),
+                        new ButtonBuilder()
+                            .setCustomId('mod_inactive_toggle')
+                            .setLabel('🔇 Marcarme Inactivo')
+                            .setStyle(ButtonStyle.Secondary),
+                        new ButtonBuilder()
+                            .setCustomId('mod_status_refresh')
+                            .setLabel('🔄 Actualizar')
+                            .setStyle(ButtonStyle.Primary)
+                    );
+
+                    return { embed, row };
+                }
+
+                // Check if there's an existing embed message
+                const { data: existingEmbed } = await supabase
+                    .from('activo_embed_messages')
+                    .select('*')
+                    .eq('channel_id', ACTIVO_CHANNEL_ID)
+                    .maybeSingle();
+
+                const { embed, row } = await updateActivoEmbed();
+
+                if (existingEmbed && existingEmbed.message_id) {
+                    // Try to update existing message
+                    try {
+                        const channel = await client.channels.fetch(ACTIVO_CHANNEL_ID);
+                        const message = await channel.messages.fetch(existingEmbed.message_id);
+                        await message.edit({ embeds: [embed], components: [row] });
+
+                        await interaction.editReply('✅ Embed de moderadores actualizado.');
+                    } catch (err) {
+                        // Message doesn't exist, create new one
+                        const channel = await client.channels.fetch(ACTIVO_CHANNEL_ID);
+                        const newMessage = await channel.send({ embeds: [embed], components: [row] });
+
+                        await supabase
+                            .from('activo_embed_messages')
+                            .update({ message_id: newMessage.id, updated_at: new Date().toISOString() })
+                            .eq('id', existingEmbed.id);
+
+                        await interaction.editReply('✅ Nuevo embed de moderadores creado.');
+                    }
+                } else {
+                    // Create new embed
+                    const channel = await client.channels.fetch(ACTIVO_CHANNEL_ID);
+                    const newMessage = await channel.send({ embeds: [embed], components: [row] });
+
+                    await supabase
+                        .from('activo_embed_messages')
+                        .insert({
+                            channel_id: ACTIVO_CHANNEL_ID,
+                            message_id: newMessage.id
+                        });
+
+                    await interaction.editReply('✅ Embed de moderadores creado exitosamente.');
+                }
+            } catch (error) {
+                console.error('Error in /activo command:', error);
+                return interaction.editReply('❌ Error al gestionar el embed de moderadores.');
+            }
+        }
+
         // Helper function to rename channel based on state
 
         else if (subcommand === 'ver') {
