@@ -2199,9 +2199,7 @@ client.on('interactionCreate', async interaction => {
                     (statusData || []).forEach(s => statusMap.set(s.discord_user_id, s.is_active));
 
                     const activeModerators = guild.members.cache.filter(member => {
-                        const hasRole = member.roles.cache.has('1412882245735420006'); // Junta Directiva role
-                        // const hasRole = member.roles.cache.has('1450242487422812251'); // Staff role (use consistent role)
-                        // Using Junta Directiva as per your previous code context, adjust if needed for Staff
+                        const hasRole = member.roles.cache.has('1412882245735420006') || member.roles.cache.has('1450242487422812251');
                         const isOnline = ['online', 'idle', 'dnd'].includes(member.presence?.status);
                         const isActive = statusMap.get(member.id) !== false; // Default true if not in DB
                         return hasRole && isOnline && isActive;
