@@ -23,7 +23,7 @@ try {
 // Start the bot
 try {
     console.log('🤖 Requiring bot/index.js...');
-    require('./index.js');
+    require('./bot/index.js');
 } catch (err) {
     console.error('❌ Error starting bot:', err);
     process.exit(1);
