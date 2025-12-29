@@ -49,7 +49,7 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 const NOTIFICATION_CHANNEL_ID = process.env.NOTIFICATION_CHANNEL_ID; // Channel to send banking logs
 const CANCELLATIONS_CHANNEL_ID = '1450610756663115879'; // Channel for Role Cancellations
 const GUILD_ID = process.env.GUILD_ID ? process.env.GUILD_ID.trim() : null;
-const DISCORD_TOKEN = (process.env.DISCORD_BOT_TOKEN || process.env.DISCORD_TOKEN || '').trim() || null;
+const DISCORD_TOKEN = process.env.DISCORD_TOKEN ? process.env.DISCORD_TOKEN.trim() : null;
 
 // Initialize Billing Service
 const billingService = new BillingService(client);
@@ -919,7 +919,7 @@ client.once('ready', async () => {
 
 
 
-    const rest = new REST({ version: '10' }).setToken(DISCORD_TOKEN);
+    const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_BOT_TOKEN || process.env.DISCORD_TOKEN || '');
 
     const commands = require('./commands');
 
