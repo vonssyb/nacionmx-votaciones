@@ -2,21 +2,37 @@ require('dotenv').config();
 console.log('🟢 [BOT] Starting bot/index.js execution...');
 process.stdout.write('🟢 [BOT] Stdout check\n');
 const fs = require('fs');
+console.log('🟢 [BOT] fs required');
 const path = require('path');
-const { Client, GatewayIntentBits, EmbedBuilder, REST, Routes, ActivityType, ActionRowBuilder, ButtonBuilder, ButtonStyle, AttachmentBuilder, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, ComponentType } = require('discord.js');
+console.log('🟢 [BOT] path required');
+const { Client, GatewayIntentBits, EmbedBuilder, REST, Routes } = require('discord.js');
+console.log('🟢 [BOT] discord.js required');
 const { createClient } = require('@supabase/supabase-js');
+console.log('🟢 [BOT] supabase required');
 const BillingService = require('./services/BillingService');
+console.log('🟢 [BOT] BillingService required');
 const TaxService = require('./services/TaxService');
+console.log('🟢 [BOT] TaxService required');
 const CompanyService = require('./services/CompanyService');
+console.log('🟢 [BOT] CompanyService required');
 const StakingService = require('./services/StakingService');
+console.log('🟢 [BOT] StakingService required');
 const SlotsService = require('./services/SlotsService');
+console.log('🟢 [BOT] SlotsService required');
 const levelService = require('./services/LevelService');
+console.log('🟢 [BOT] LevelService required');
 const achievementService = require('./services/AchievementService');
+console.log('🟢 [BOT] AchievementService required');
 const missionService = require('./services/MissionService');
+console.log('🟢 [BOT] MissionService required');
 const { renameChannel, clearChannelMessages } = require('./utils/channelUtils');
+console.log('🟢 [BOT] channelUtils required');
 const { loadCommands } = require('./handlers/commandLoader');
+console.log('🟢 [BOT] commandLoader required');
 const taxService = new TaxService(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY);
+console.log('🟢 [BOT] TaxService instantiated');
 const companyService = new CompanyService(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY);
+console.log('🟢 [BOT] CompanyService instantiated');
 
 // 1. Initialize Discord Client
 const client = new Client({
