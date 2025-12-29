@@ -1,4 +1,7 @@
 require('dotenv').config();
+console.log('🟢 [BOT] Starting bot/index.js execution...');
+process.stdout.write('🟢 [BOT] Stdout check\n');
+const fs = require('fs');
 const path = require('path');
 const { Client, GatewayIntentBits, EmbedBuilder, REST, Routes, ActivityType, ActionRowBuilder, ButtonBuilder, ButtonStyle, AttachmentBuilder, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, ComponentType } = require('discord.js');
 const { createClient } = require('@supabase/supabase-js');
