@@ -2158,7 +2158,132 @@ client.on('interactionCreate', async interaction => {
         return;
     }
 
-    if (interaction.isButton()) { return; }
+    // === BUTTON HANDLERS ===
+    if (interaction.isButton()) {
+        const customId = interaction.customId;
+
+        // Handle session voting buttons
+        if (customId.startsWith('vote_')) {
+            const [action, voteType, sessionId] = customId.split('_');
+
+            if (!sessionId) {
+                return interaction.reply({ content: '❌ ID de sesión inválido.', ephemeral: true });
+            }
+
+            try {
+                // Get session
+                const { data: session } = await supabase
+                    .from('session_votes')
+                    .select('*')
+                    .eq('id', sessionId)
+                    .single();
+
+                if (!session || session.status !== 'active') {
+                    return interaction.reply({ content: '❌ Esta votación ya no está activa.', ephemeral: true });
+                }
+
+                const userId = interaction.user.id;
+
+                // Check if user already voted
+                const { data: existingVote } = await supabase
+                    .from('session_vote_participants')
+                    .select('*')
+                    .eq('session_id', sessionId)
+                    .eq('user_id', userId)
+                    .maybeSingle();
+
+                if (existingVote) {
+                    // Update existing vote
+                    await supabase
+                        .from('session_vote_participants')
+                        .update({ vote_type: voteType })
+                        .eq('id', existingVote.id);
+
+                    await interaction.reply({ content: `✅ Voto actualizado a: **${voteType === 'yes' ? 'Participaré' : voteType === 'late' ? 'Con retraso' : 'No podré'}**`, ephemeral: true });
+                } else {
+                    // Create new vote
+                    await supabase
+                        .from('session_vote_participants')
+                        .insert({
+                            session_id: sessionId,
+                            user_id: userId,
+                            vote_type: voteType
+                        });
+
+                    await interaction.reply({ content: `✅ Voto registrado: **${voteType === 'yes' ? 'Participaré' : voteType === 'late' ? 'Con retraso' : 'No podré'}**`, ephemeral: true });
+                }
+
+                // Update the embed with new counts
+                const { data: votes } = await supabase
+                    .from('session_vote_participants')
+                    .select('vote_type')
+                    .eq('session_id', sessionId);
+
+                const counts = {
+                    yes: votes?.filter(v => v.vote_type === 'yes').length || 0,
+                    late: votes?.filter(v => v.vote_type === 'late').length || 0,
+                    no: votes?.filter(v => v.vote_type === 'no').length || 0
+                };
+
+                // Update the original message
+                if (session.message_id && session.channel_id) {
+                    try {
+                        const channel = await client.channels.fetch(session.channel_id);
+                        const message = await channel.messages.fetch(session.message_id);
+                        const oldEmbed = message.embeds[0];
+
+                        const updatedEmbed = EmbedBuilder.from(oldEmbed)
+                            .setFields(
+                                oldEmbed.fields[0], // Horario
+                                oldEmbed.fields[1], // Mínimo
+                                oldEmbed.fields[2], // Spacer
+                                { name: '✅ Participar en la sesion', value: `${counts.yes} votos`, inline: false },
+                                { name: '📋 asistire, pero con retraso', value: `${counts.late} votos`, inline: false },
+                                { name: '❌ No podre asistir', value: `${counts.no} votos`, inline: false }
+                            );
+
+                        await message.edit({ embeds: [updatedEmbed] });
+
+                        // Check if minimum votes reached
+                        if (counts.yes >= session.minimum_votes && session.status === 'active') {
+                            // Auto-open server
+                            await supabase
+                                .from('session_votes')
+                                .update({ status: 'opened' })
+                                .eq('id', sessionId);
+
+                            const targetChannelId = '1412963363545284680';
+                            await clearChannelMessages(client, targetChannelId);
+                            await renameChannel(client, targetChannelId, '✅・servidor-abierto');
+
+                            const openEmbed = new EmbedBuilder()
+                                .setTitle('✅ SERVIDOR ABIERTO')
+                                .setDescription(`Se alcanzó el mínimo de ${session.minimum_votes} votos.\n\n**Votos finales:**\n✅ Participan: ${counts.yes}\n📋 Con retraso: ${counts.late}\n❌ No podrán: ${counts.no}`)
+                                .setColor(0x00FF00)
+                                .setImage(session.image_url)
+                                .setTimestamp();
+
+                            const joinButton = new ActionRowBuilder().addComponents(
+                                new ButtonBuilder()
+                                    .setLabel('Unirse al Servidor de Roblox')
+                                    .setStyle(ButtonStyle.Link)
+                                    .setURL(`https://share.roblox.com/v1/games/start?placeId=18787103515&launchData=${encodeURIComponent(JSON.stringify({ psCode: 'nmx' }))}`)
+                            );
+
+                            await channel.send({ embeds: [openEmbed], components: [joinButton] });
+                        }
+                    } catch (err) {
+                        console.error('Error updating voting message:', err);
+                    }
+                }
+            } catch (error) {
+                console.error('Error processing vote:', error);
+                return interaction.reply({ content: '❌ Error al procesar el voto.', ephemeral: true });
+            }
+        }
+
+        return;
+    }
 
     // Only process slash commands
     if (!interaction.isChatInputCommand()) return;
