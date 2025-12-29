@@ -14,6 +14,8 @@ log('discord.js required');
 
 const { createClient } = require('@supabase/supabase-js');
 log('supabase required');
+const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY);
+log('supabase initialized');
 const BillingService = require('./services/BillingService');
 log('BillingService required');
 const TaxService = require('./services/TaxService');
@@ -74,13 +76,8 @@ app.listen(port, () => {
 });
 // -----------------------------------------------------
 
-// 2. Initialize Supabase Client
-// NOTE: These should be Service Role keys if you want the bot to bypass RLS, 
-// or standard keys if RLS allows anon access. For a bot, Service Role is usually best 
-// to see everything, but BE CAREFUL not to expose it in public repos.
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
-const supabase = createClient(supabaseUrl, supabaseKey);
+// Supabase initialized at top of file
+const supabaseUrl = process.env.SUPABASE_URL; // kept for legacy reference if needed
 
 // 3. Configuration
 const NOTIFICATION_CHANNEL_ID = process.env.NOTIFICATION_CHANNEL_ID; // Channel to send banking logs
