@@ -6,10 +6,10 @@ const { REST, Routes } = require('discord.js');
 
 const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
 const GUILD_ID = process.env.GUILD_ID;
-const CLIENT_ID = process.env.CLIENT_ID;
+let CLIENT_ID = process.env.CLIENT_ID;
 
-if (!DISCORD_TOKEN || !GUILD_ID || !CLIENT_ID) {
-    console.error('❌ ERROR: DISCORD_TOKEN, GUILD_ID y CLIENT_ID son requeridos en .env');
+if (!DISCORD_TOKEN || !GUILD_ID) {
+    console.error('❌ ERROR: DISCORD_TOKEN y GUILD_ID son requeridos en .env');
     process.exit(1);
 }
 
@@ -22,6 +22,14 @@ async function registerCommands() {
     const rest = new REST({ version: '10' }).setToken(DISCORD_TOKEN);
 
     try {
+        // If CLIENT_ID is missing, fetch it from the token/API
+        if (!CLIENT_ID) {
+            console.log('⚠️ CLIENT_ID no encontrado en .env. Obteniendo de la A PI...');
+            const currentUser = await rest.get(Routes.user('@me'));
+            CLIENT_ID = currentUser.id;
+            console.log(`✅ Client ID obtenido: ${CLIENT_ID}`);
+        }
+
         console.log('🔄 Registrando TODOS los comandos en Discord...');
         console.log(`📡 Guild ID: ${GUILD_ID}`);
         console.log(`🎮 Comandos a registrar: ${commands.length}`);
@@ -41,8 +49,7 @@ async function registerCommands() {
         console.error('❌ Error registrando comandos:', error);
 
         if (error.code === 50001) {
-            console.log('\n💡 SOLUCIÓN: Verifica que CLIENT_ID sea correcto.');
-            console.log('   Obtén tu CLIENT_ID desde: https://discord.com/developers/applications');
+            console.log('\n💡 SOLUCIÓN: Verifica que el TOKEN y GUILD_ID sean correctos y el bot esté en el servidor.');
         } else if (error.code === 50035) {
             console.log('\n💡 Error de validación en comandos. Detalles:', error.rawError);
         }
