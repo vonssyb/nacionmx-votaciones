@@ -32,8 +32,15 @@ const MissionService = require('./services/MissionService');
 log('MissionService required');
 const { renameChannel, clearChannelMessages } = require('./utils/channelUtils');
 log('channelUtils required');
-const { loadCommands } = require('./handlers/commandLoader');
-log('commandLoader required');
+let loadCommands;
+try {
+    const loader = require('./handlers/commandLoader');
+    loadCommands = loader.loadCommands;
+    log('commandLoader required');
+} catch (e) {
+    log('❌ CRASH loading commandLoader: ' + e.stack);
+    process.exit(1);
+}
 const taxService = new TaxService(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY);
 log('TaxService instantiated');
 const companyService = new CompanyService(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY);
