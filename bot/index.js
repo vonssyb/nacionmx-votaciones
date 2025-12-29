@@ -220,22 +220,6 @@ async function executeRouletteSession(firstInteraction) {
             }).eq('user_id', bet.userId);
         }
 
-        // Helper function to rename channel based on state
-        async function renameChannel(channelId, newName) {
-            try {
-                const channel = await client.channels.fetch(channelId);
-                if (!channel) {
-                    console.log(\`Channel \${channelId} not found\`);
-                    return false;
-                }
-                await channel.setName(newName);
-                console.log(\`Channel renamed to: \${newName}\`);
-                return true;
-            } catch (error) {
-                console.error('Channel rename error:', error);
-                return false;
-            }
-        }
 
         const resultText = won ? `✅ **¡GANAS!** +${payout} (${mult + 1}x)` : `❌ **Perdiste** -${bet.amount}`;
         await bet.interaction.editReply(`🎡 **RULETA MULTIJUGADOR**\n\n${color} **${spin}**\n\n👥 ${session.bets.length} jugadores\nTu apuesta: **${betType.toUpperCase()}**\n${resultText}\n💼 ${(bet.currentChips - bet.amount + payout).toLocaleString()} fichas`);
