@@ -7,6 +7,7 @@ const TaxService = require('./services/TaxService');
 const CompanyService = require('./services/CompanyService');
 const StakingService = require('./services/StakingService');
 const SlotsService = require('./services/SlotsService');
+const { renameChannel, clearChannelMessages } = require('./utils/channelUtils');
 const taxService = new TaxService(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY);
 const companyService = new CompanyService(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY);
 
@@ -7979,41 +7980,6 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
 
         const juntaDirectivaRoleId = '1412882245735420006';
 
-        // Helper function to clear channel messages
-        async function clearChannelMessages(channelId, keepMessageId = null) {
-            try {
-                const channel = await client.channels.fetch(channelId);
-                if (!channel) {
-                    console.log(`Channel ${channelId} not found`);
-                    return false;
-                }
-
-                const messages = await channel.messages.fetch({ limit: 100 });
-
-                if (keepMessageId) {
-                    // Delete all except specific message
-                    const messagesToDelete = messages.filter(msg => msg.id !== keepMessageId);
-                    if (messagesToDelete.size > 0) {
-                        await channel.bulkDelete(messagesToDelete, true)
-                            .catch(err => console.log("Bulk delete error:", err.message));
-                    }
-                } else {
-                    // Delete ALL messages
-                    if (messages.size > 0) {
-                        await channel.bulkDelete(messages, true)
-                            .catch(err => console.log("Bulk delete error:", err.message));
-                    }
-                }
-
-                return true;
-            } catch (error) {
-                console.error('Channel cleanup error:', error);
-                return false;
-            }
-        }
-
-        // Helper function to rename channel based on state
-
         if (subCmd === 'crear') {
             const member = await interaction.guild.members.fetch(userId);
             if (!member.roles.cache.has(juntaDirectivaRoleId)) {
@@ -8100,7 +8066,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 const targetChannel = await client.channels.fetch(targetChannelId);
                 if (targetChannel) {
                     // Rename channel to voting state
-                    await renameChannel(targetChannelId, '🗳️・votaciones');
+                    await renameChannel(client, targetChannelId, '🗳️・votaciones');
                     const msg = await targetChannel.send({
                         content: `<@&${pingRoleId}>`,
                         embeds: [embed],
@@ -8238,7 +8204,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 .eq('id', session.id);
 
             // Rename channel back to default/closed state
-            await renameChannel(session.channel_id || '1412963363545284680', '⏸️・sesiones');
+            await renameChannel(client, session.channel_id || '1412963363545284680', '⏸️・sesiones');
 
             // Delete ONLY the voting message
             if (session.message_id && session.channel_id) {
@@ -8323,7 +8289,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             await clearChannelMessages(targetChannelId);
 
             // Rename channel to open state
-            await renameChannel(targetChannelId, '✅・servidor-abierto');
+            await renameChannel(client, targetChannelId, '✅・servidor-abierto');
 
             // Send the OPEN embed to the clean channel
             try {
@@ -8388,7 +8354,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
 
             // Rename channel to closed state
             const targetChannelId = '1412963363545284680';
-            await renameChannel(targetChannelId, '🔴・servidor-cerrado');
+            await renameChannel(client, targetChannelId, '🔴・servidor-cerrado');
 
             // Clean up channel messages
             try {
