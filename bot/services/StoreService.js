@@ -180,7 +180,7 @@ class StoreService {
     /**
      * Expire old purchases and remove roles
      */
-    async expirePurchases(client) {
+    async expirePurchases(client, cancellationChannelId) {
         console.log('[StoreService] Checking for expired purchases...');
 
         // Get purchases that just expired
@@ -212,6 +212,29 @@ class StoreService {
                         if (member) {
                             await member.roles.remove(purchase.store_items.role_id);
                             console.log(`✅ Removed role ${purchase.store_items.role_id} from ${purchase.user_id}`);
+
+                            // Log to Cancellations Channel
+                            if (cancellationChannelId) {
+                                try {
+                                    const channel = await client.channels.fetch(cancellationChannelId);
+                                    if (channel) {
+                                        const { EmbedBuilder } = require('discord.js');
+                                        const logEmbed = new EmbedBuilder()
+                                            .setTitle('❌ Rol / Item Vencido')
+                                            .setColor('#FF0000')
+                                            .setDescription(`El periodo de **${purchase.store_items.name}** ha finalizado.`)
+                                            .addFields(
+                                                { name: '👤 Usuario', value: `<@${purchase.user_id}>`, inline: true },
+                                                { name: '📦 Item', value: purchase.store_items.name, inline: true },
+                                                { name: '⏰ Expiró', value: `<t:${Math.floor(new Date(purchase.expiration_date).getTime() / 1000)}:R>`, inline: true }
+                                            )
+                                            .setTimestamp();
+                                        await channel.send({ embeds: [logEmbed] });
+                                    }
+                                } catch (logErr) {
+                                    console.error('Error logging cancellation:', logErr);
+                                }
+                            }
                         }
                     }
                 }

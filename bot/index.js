@@ -32,6 +32,8 @@ const AchievementService = require('./services/AchievementService');
 log('AchievementService required');
 const MissionService = require('./services/MissionService');
 log('MissionService required');
+const StoreService = require('./services/StoreService');
+log('StoreService required');
 const { renameChannel, clearChannelMessages } = require('./utils/channelUtils');
 log('channelUtils required');
 let loadCommands;
@@ -53,6 +55,8 @@ const achievementService = new AchievementService(supabase, levelService);
 log('AchievementService instantiated');
 const missionService = new MissionService(supabase, levelService);
 log('MissionService instantiated');
+const storeService = new StoreService(supabase);
+log('StoreService instantiated');
 
 // 1. Initialize Discord Client
 const client = new Client({
@@ -95,7 +99,8 @@ client.services = {
     company: companyService,
     levels: levelService,
     achievements: achievementService,
-    missions: missionService
+    missions: missionService,
+    store: storeService
 };
 
 // Initialize Economy Services
@@ -949,7 +954,13 @@ client.once('ready', async () => {
 
     // Start Stock Market Loop (Updates every 10 minutes)
     updateStockPrices(); // Initial update
+    updateStockPrices(); // Initial update
     setInterval(updateStockPrices, 10 * 60 * 1000);
+
+    // Start Store Expiration Check (Every 5 minutes)
+    setInterval(() => {
+        storeService.expirePurchases(client, CANCELLATIONS_CHANNEL_ID);
+    }, 5 * 60 * 1000);
 
 
 
