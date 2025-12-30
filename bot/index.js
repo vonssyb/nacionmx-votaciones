@@ -2279,21 +2279,25 @@ client.on('interactionCreate', async interaction => {
 
                 if (existingVote) {
                     // Update existing vote
-                    await supabase
+                    const { error: updateError } = await supabase
                         .from('session_vote_participants')
                         .update({ vote_type: voteType })
                         .eq('id', existingVote.id);
 
+                    if (updateError) throw updateError;
+
                     await interaction.reply({ content: `✅ Voto actualizado a: **${voteType === 'yes' ? 'Participaré' : voteType === 'late' ? 'Con retraso' : 'No podré'}**`, ephemeral: true });
                 } else {
                     // Create new vote
-                    await supabase
+                    const { error: insertError } = await supabase
                         .from('session_vote_participants')
                         .insert({
                             session_id: sessionId,
                             user_id: userId,
                             vote_type: voteType
                         });
+
+                    if (insertError) throw insertError;
 
                     await interaction.reply({ content: `✅ Voto registrado: **${voteType === 'yes' ? 'Participaré' : voteType === 'late' ? 'Con retraso' : 'No podré'}**`, ephemeral: true });
                 }
