@@ -13,7 +13,7 @@ services:
       - key: GUILD_ID
         value: "1398525215134318713"
       - key: NOTIFICATION_CHANNEL_ID
-        value: "1450343644652507136"
+        value: "1450610756663115879"
       - key: SUPABASE_SERVICE_ROLE_KEY
         value: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlnamVkd2R4cXdrcGJncm10cnJxIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2NTczNDEyNCwiZXhwIjoyMDgxMzEwMTI0fQ.DI4Sp6dQu4KVrK525a-VWcdmWx0KQg_MfMrTnjP8pLA
       - key: SUPABASE_URL
