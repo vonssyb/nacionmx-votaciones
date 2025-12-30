@@ -5608,8 +5608,8 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                             .setColor('#00AAC0')
                             .addFields(
                                 { name: 'Ciudadano', value: `<@${targetUser.id}>`, inline: true },
-                                { name: 'Licencia', value: licenseName, inline: true },
-                                { name: 'Costo', value: `$${cost.toLocaleString()}`, inline: true },
+                                { name: 'Licencia', value: license.name, inline: true },
+                                { name: 'Costo', value: `$${license.price.toLocaleString()}`, inline: true },
                                 { name: 'Autorizado por', value: `<@${interaction.user.id}>`, inline: false }
                             )
                             .setTimestamp();
