@@ -8198,7 +8198,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             }
 
             const horario = interaction.options.getString('horario');
-            const minimo = interaction.options.getInteger('minimo') || 4;
+            const minimo = interaction.options.getInteger('minimo') || 8;
             const imagenUrl = interaction.options.getString('imagen') || 'https://cdn.discordapp.com/attachments/885232074083143741/1453225155634663575/standard1.gif';
 
             // Check if there's already an active session
