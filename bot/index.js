@@ -2305,7 +2305,7 @@ client.on('interactionCreate', async interaction => {
                 // Update the embed with new counts
                 const { data: votes, error: voteError } = await supabase
                     .from('session_vote_participants')
-                    .select('vote_type')
+                    .select('user_id, vote_type')
                     .eq('session_id', sessionId);
 
                 if (voteError) {
@@ -2314,12 +2314,38 @@ client.on('interactionCreate', async interaction => {
                     console.log(`[VOTE DEBUG] Votes fetched for ${sessionId}: ${votes?.length || 0}`);
                 }
 
+                const yesVotes = votes?.filter(v => v.vote_type === 'yes') || [];
+                const lateVotes = votes?.filter(v => v.vote_type === 'late') || [];
+                const noVotes = votes?.filter(v => v.vote_type === 'no') || [];
+
+                // Calculate Staff Votes
+                const STAFF_ROLE_ID = '1412882245735420006'; // Junta Directiva
+                let staffYesCount = 0;
+
+                // Check roles for YES voters
+                // Optimization: Fetch members in parallel
+                await Promise.all(yesVotes.map(async (v) => {
+                    try {
+                        const member = await interaction.guild.members.fetch(v.user_id);
+                        if (member.roles.cache.has(STAFF_ROLE_ID)) {
+                            staffYesCount++;
+                        }
+                    } catch (e) {
+                        // User might have left server
+                    }
+                }));
+
                 const counts = {
-                    yes: votes?.filter(v => v.vote_type === 'yes').length || 0,
-                    late: votes?.filter(v => v.vote_type === 'late').length || 0,
-                    no: votes?.filter(v => v.vote_type === 'no').length || 0
+                    yes: yesVotes.length,
+                    late: lateVotes.length,
+                    no: noVotes.length
                 };
-                console.log('[VOTE DEBUG] Counts:', counts);
+
+                // Staff Requirement: 1 staff per 8 voters
+                const requiredStaff = Math.floor(counts.yes / 8);
+                const staffMet = staffYesCount >= requiredStaff;
+
+                console.log('[VOTE DEBUG] Counts:', counts, `Staff: ${staffYesCount}/${requiredStaff}`);
 
                 // Update the original message
                 if (session.message_id && session.channel_id) {
@@ -2331,18 +2357,26 @@ client.on('interactionCreate', async interaction => {
                         const updatedEmbed = EmbedBuilder.from(oldEmbed)
                             .setFields(
                                 oldEmbed.fields[0], // Horario
-                                oldEmbed.fields[1], // Mínimo
+                                { name: '🎯 Requisitos', value: `Votos: ${session.minimum_votes}\nStaff: ${requiredStaff} (1/8)`, inline: true },
                                 oldEmbed.fields[2], // Spacer
-                                { name: '✅ Participar en la sesion', value: `${counts.yes} votos`, inline: false },
-                                { name: '📋 asistire, pero con retraso', value: `${counts.late} votos`, inline: false },
-                                { name: '❌ No podre asistir', value: `${counts.no} votos`, inline: false }
+                                { name: `✅ Participar (${staffYesCount} Staff)`, value: `${counts.yes} votos`, inline: false },
+                                { name: '📋 Asistiré, pero con retraso', value: `${counts.late} votos`, inline: false },
+                                { name: '❌ No podré asistir', value: `${counts.no} votos`, inline: false }
                             );
+
+                        if (!staffMet && counts.yes >= session.minimum_votes) {
+                            updatedEmbed.setFooter({ text: `⚠️ Faltan ${requiredStaff - staffYesCount} votos de Staff para abrir` });
+                        } else {
+                            // Restore original or update footer
+                            updatedEmbed.setFooter({ text: 'Sistema de Votación Nación MX' });
+                        }
+                        updatedEmbed.setTimestamp();
 
                         await message.edit({ embeds: [updatedEmbed] });
                         console.log('[VOTE DEBUG] Message edited successfully');
 
-                        // Check if minimum votes reached
-                        if (counts.yes >= session.minimum_votes && session.status === 'active') {
+                        // Check if minimum votes reached AND Staff requirement met
+                        if (counts.yes >= session.minimum_votes && staffMet && session.status === 'active') {
                             // Auto-open server
                             await supabase
                                 .from('session_votes')
@@ -2355,7 +2389,7 @@ client.on('interactionCreate', async interaction => {
 
                             const openEmbed = new EmbedBuilder()
                                 .setTitle('✅ SERVIDOR ABIERTO')
-                                .setDescription(`Se alcanzó el mínimo de ${session.minimum_votes} votos.\n\n**Votos finales:**\n✅ Participan: ${counts.yes}\n📋 Con retraso: ${counts.late}\n❌ No podrán: ${counts.no}`)
+                                .setDescription(`Se cumplieron los requisitos:\n\n**Votos finales:**\n✅ Participan: ${counts.yes} (Staff: ${staffYesCount})\n📋 Con retraso: ${counts.late}\n❌ No podrán: ${counts.no}`)
                                 .setColor(0x00FF00)
                                 .setImage(session.image_url)
                                 .setTimestamp();
