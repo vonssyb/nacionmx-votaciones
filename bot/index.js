@@ -2401,7 +2401,8 @@ client.on('interactionCreate', async interaction => {
                                     .setURL(`https://share.roblox.com/v1/games/start?placeId=18787103515&launchData=${encodeURIComponent(JSON.stringify({ psCode: 'nmx' }))}`)
                             );
 
-                            await channel.send({ embeds: [openEmbed], components: [joinButton] });
+                            const PING_ROLE_ID = '1412899401000685588';
+                            await channel.send({ content: `<@&${PING_ROLE_ID}> 🚨 ¡SERVIDOR ABIERTO! 🚨`, embeds: [openEmbed], components: [joinButton] });
                         }
                     } catch (err) {
                         console.error('Error updating voting message:', err);
