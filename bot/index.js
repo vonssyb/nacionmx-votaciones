@@ -127,7 +127,8 @@ let globalStocks = [
 ];
 
 // LOG CHANNELS
-const LOG_CREACION_TARJETA = '1450610756663115879';
+const LOG_CREACION_TARJETA = '1452346918620500041'; // Registros Banco
+const LOG_ROL_CANCELADO = '1450610756663115879'; // Rol Cancelado
 const LOG_EMPRESAS = '1452346918620500041';
 const LOG_LICENCIAS = '1450262813548482665';
 const LOG_TIENDA = '1452499876737978438';
@@ -3552,7 +3553,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             if (proof2) embed.setThumbnail(proof2.url);
 
             // Try to send to configured channel
-            const logChannelId = process.env.RP_LOGS_CHANNEL_ID || process.env.NOTIFICATION_CHANNEL_ID;
+            const logChannelId = LOG_ROL_CANCELADO;
             let published = false;
 
             if (logChannelId) {
