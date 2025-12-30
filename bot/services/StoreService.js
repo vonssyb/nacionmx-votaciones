@@ -190,6 +190,7 @@ class StoreService {
                 id,
                 user_id,
                 item_key,
+                expiration_date,
                 store_items!inner(role_id, name)
             `)
             .eq('status', 'active')

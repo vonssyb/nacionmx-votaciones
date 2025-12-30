@@ -85,7 +85,7 @@ const supabaseUrl = process.env.SUPABASE_URL; // kept for legacy reference if ne
 
 // 3. Configuration
 const NOTIFICATION_CHANNEL_ID = process.env.NOTIFICATION_CHANNEL_ID; // Channel to send banking logs
-const CANCELLATIONS_CHANNEL_ID = '1450610756663115879'; // Channel for Role Cancellations
+const CANCELLATIONS_CHANNEL_ID = '1455691472362934475'; // Channel for Role Cancellations
 const GUILD_ID = process.env.GUILD_ID ? process.env.GUILD_ID.trim() : null;
 const DISCORD_TOKEN = process.env.DISCORD_TOKEN ? process.env.DISCORD_TOKEN.trim() : null;
 
