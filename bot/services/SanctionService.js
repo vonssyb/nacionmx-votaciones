@@ -191,4 +191,3 @@ class SanctionService {
 }
 
 module.exports = SanctionService;
-```
