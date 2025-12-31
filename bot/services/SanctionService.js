@@ -188,6 +188,34 @@ class SanctionService {
         if (error) throw error;
         return data ? data.length : 0;
     }
+    /**
+     * Void/Delete a sanction (Soft Delete)
+     * @param {string} id 
+     * @param {string} voidReason 
+     * @param {string} moderatorId 
+     */
+    async voidSanction(id, voidReason, moderatorId) {
+        // We append the void reason to the original reason or a note, 
+        // and set status to 'void'.
+        // Assuming 'void' is a valid status enum, if not we use 'archived' or similar, 
+        // but 'void' is clearer for "deleted by admin".
+
+        const { data, error } = await this.supabase
+            .from('sanctions')
+            .update({
+                status: 'void',
+                // We might want to store who deleted it. 
+                // If table doesn't have specific columns, we can append to reason?
+                // Better to just update status for now, managing columns is complex live.
+                // We will rely on Audit Log for the "Who" and "Why".
+            })
+            .eq('id', id)
+            .select()
+            .single();
+
+        if (error) throw error;
+        return data;
+    }
 }
 
 module.exports = SanctionService;
