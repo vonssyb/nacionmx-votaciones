@@ -2754,7 +2754,9 @@ client.on('interactionCreate', async interaction => {
             const filter = i => i.user.id === targetUser.id;
             const collector = message.createMessageComponentCollector({ filter, time: 300000 }); // 5 min
 
+            let processed = false;
             collector.on('collect', async i => {
+                if (processed) return;
                 if (i.customId === 'btn_terms') {
                     const tycEmbed = new EmbedBuilder()
                         .setTitle('📜 Términos y Condiciones')
@@ -2784,7 +2786,6 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
 
                     const payRow = new ActionRowBuilder().addComponents(
                         new ButtonBuilder().setCustomId('reg_pay_cash').setLabel('💵 Efectivo').setStyle(ButtonStyle.Success),
-                        new ButtonBuilder().setCustomId('reg_pay_bank').setLabel('🏦 Banco (UB)').setStyle(ButtonStyle.Primary),
                         new ButtonBuilder().setCustomId('reg_pay_debit').setLabel('💳 Débito (NMX)').setStyle(ButtonStyle.Secondary)
                     );
                     await i.update({ content: '💳 **Selecciona método de pago para la apertura:**', embeds: [], components: [payRow] });
@@ -2799,11 +2800,6 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                                 if ((bal.cash || 0) < stats.cost) return i.followUp({ content: `❌ No tienes suficiente efectivo. Tienes: $${(bal.cash || 0).toLocaleString()}`, ephemeral: true });
                                 await billingService.ubService.removeMoney(interaction.guildId, targetUser.id, stats.cost, `Apertura ${cardType}`, 'cash');
                             }
-                            else if (i.customId === 'reg_pay_bank') {
-                                const bal = await billingService.ubService.getUserBalance(interaction.guildId, targetUser.id);
-                                if ((bal.bank || 0) < stats.cost) return i.followUp({ content: `❌ No tienes suficiente en Banco UB. Tienes: $${(bal.bank || 0).toLocaleString()}`, ephemeral: true });
-                                await billingService.ubService.removeMoney(interaction.guildId, targetUser.id, stats.cost, `Apertura ${cardType}`, 'bank');
-                            }
                             else if (i.customId === 'reg_pay_debit') {
                                 // Unified with Bank
                                 const bal = await billingService.ubService.getUserBalance(interaction.guildId, targetUser.id);
@@ -2811,6 +2807,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                                 await billingService.ubService.removeMoney(interaction.guildId, targetUser.id, stats.cost, `Apertura ${cardType}`, 'bank');
                             }
                         }
+                        processed = true;
 
                         // *** DEBIT CARD LOGIC ***
                         if (cardType.includes('Débito')) {
