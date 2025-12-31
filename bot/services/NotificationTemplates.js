@@ -262,27 +262,28 @@ module.exports = {
         // Build Sanction Checkbox visual
         // We now have more types, so we organize them better
         const types = [
-            { label: 'Advertencia Verbal', match: ['Advertencia'] },
-            { label: 'Warn (Advertencia)', match: ['Warn'] },
-            { label: 'Kick (Expulsión)', match: ['Kick'] },
-            { label: 'Ban Temporal', match: ['Ban Temporal'] },
-            { label: 'Ban Permanente', match: ['Ban Permanente', 'Blacklist Total'] },
-            { label: 'Blacklist (Veto)', match: ['Blacklist'] }
+            { label: 'Advertencia Verbal', match: ['verbal', 'advertencia verbal'] },
+            { label: 'Warn (Advertencia)', match: ['warn', 'advertencia'] },
+            { label: 'Kick (Expulsión)', match: ['kick', 'expulsión'] },
+            { label: 'Ban Temporal', match: ['ban temporal'] },
+            { label: 'Ban Permanente', match: ['ban permanente', 'blacklist total', 'permanent'] },
+            { label: 'Blacklist (Veto)', match: ['blacklist'] }
         ];
 
         const sanctionVisual = types.map(t => {
-            // Check if available sanctionType matches this category
-            const isSelected = t.match.some(m => sanctionType && sanctionType.includes(m));
+            // Check if available sanctionType matches this category (Case Insensitive)
+            const safeType = (sanctionType || '').toLowerCase();
+            const isSelected = t.match.some(m => safeType.includes(m));
 
             let text = t.label;
 
             // Dynamic Text Logic
             if (isSelected) {
-                if (sanctionType.includes('Ban Temporal')) {
+                if (safeType.includes('ban temporal')) {
                     text = `Ban Temporal (${duration || '?'} Días)`;
-                } else if (sanctionType.includes('ERLC')) {
+                } else if (safeType.includes('erlc')) {
                     text += ' (In-Game / ERLC)';
-                } else if (sanctionType.includes('Blacklist')) {
+                } else if (safeType.includes('blacklist')) {
                     // Extract specific blacklist type if present
                     text = sanctionType; // e.g. "BLACKLIST: Cartel"
                 }
