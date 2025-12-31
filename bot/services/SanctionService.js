@@ -78,6 +78,54 @@ class SanctionService {
 
         return counts;
     }
+
+    /**
+     * Get a specific sanction by ID
+     * @param {string} id 
+     */
+    async getSanctionById(id) {
+        const { data, error } = await this.supabase
+            .from('sanctions')
+            .select('*')
+            .eq('id', id)
+            .single();
+
+        if (error) return null;
+        return data;
+    }
+
+    /**
+     * Update a sanction's details
+     * @param {string} id 
+     * @param {object} updates 
+     */
+    async updateSanction(id, updates) {
+        const { data, error } = await this.supabase
+            .from('sanctions')
+            .update(updates)
+            .eq('id', id)
+            .select()
+            .single();
+
+        if (error) throw error;
+        return data;
+    }
+
+    /**
+     * Get total count of 'general' sanctions (warns) for a user
+     * @param {string} discordUserId 
+     */
+    async getWarnCount(discordUserId) {
+        const { count, error } = await this.supabase
+            .from('sanctions')
+            .select('*', { count: 'exact', head: true })
+            .eq('discord_user_id', discordUserId)
+            .eq('type', 'general')
+            .eq('status', 'active');
+
+        if (error) throw error;
+        return count;
+    }
 }
 
 module.exports = SanctionService;
