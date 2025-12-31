@@ -54,7 +54,9 @@ module.exports = {
                 const list = sanctions.slice(0, 10).map(s => {
                     const icon = s.type === 'general' ? '📜' : (s.type === 'sa' ? '🚨' : '📢');
                     const date = new Date(s.created_at).toLocaleDateString('es-MX');
-                    return `**ID: ${s.id}** | ${icon} **${date}**\nMotivo: ${s.reason}`;
+                    const evidenceLink = s.evidence_url ? ` | [📸 Evidencia](${s.evidence_url})` : '';
+                    const expiration = s.expires_at ? `\n⏳ Expira: ${new Date(s.expires_at).toLocaleDateString('es-MX')} ${new Date(s.expires_at).toLocaleTimeString('es-MX')}` : '';
+                    return `**ID: ${s.id}** | ${icon} **${date}**${evidenceLink}\nMotivo: ${s.reason}${expiration}`;
                 }).join('\n-------------------\n');
 
                 embed.setDescription(list);

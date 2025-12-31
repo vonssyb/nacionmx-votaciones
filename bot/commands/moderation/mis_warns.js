@@ -34,7 +34,9 @@ module.exports = {
                 recentSanctions.forEach(s => {
                     const icon = s.type === 'general' ? '📜' : (s.type === 'sa' ? '🚨' : '📢');
                     const date = new Date(s.created_at).toLocaleDateString('es-MX');
-                    descriptionList += `**${icon} [${date}]** - ${s.reason}\n`;
+                    const evidenceLink = s.evidence_url ? ` [📸 Ver Evidencia](${s.evidence_url})` : '';
+                    const expiration = s.expires_at ? ` (Expira: ${new Date(s.expires_at).toLocaleDateString('es-MX')})` : '';
+                    descriptionList += `**${icon} [${date}]**${evidenceLink} - ${s.reason}${expiration}\n`;
                 });
 
                 embed.addFields({ name: '📝 Últimos Registros', value: descriptionList || 'Sin detalles.' });
