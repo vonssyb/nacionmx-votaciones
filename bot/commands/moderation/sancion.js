@@ -28,6 +28,10 @@ module.exports = {
             option.setName('usuario')
                 .setDescription('Usuario a sancionar o notificar')
                 .setRequired(true))
+        .addAttachmentOption(option =>
+            option.setName('evidencia')
+                .setDescription('Evidencia obligatoria (Imagen/Video)')
+                .setRequired(true))
         .addStringOption(option =>
             option.setName('accion')
                 .setDescription('Solo para Sanción General: Tipo de castigo')
@@ -43,11 +47,7 @@ module.exports = {
         .addIntegerOption(option =>
             option.setName('dias')
                 .setDescription('Solo para Ban Temporal: Duración en días')
-                .setRequired(false))
-        .addAttachmentOption(option =>
-            option.setName('evidencia')
-                .setDescription('Evidencia obligatoria (Imagen/Video)')
-                .setRequired(true)),
+                .setRequired(false)),
 
     async execute(interaction) {
         // Defer reply as we might need time for DB ops (though usually fast)
