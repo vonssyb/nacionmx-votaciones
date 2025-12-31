@@ -1367,6 +1367,115 @@ client.on('interactionCreate', async interaction => {
 
         // Parse customId: btn_udp_upgrade_{cardId}_{TierName_With_Underscores}
         // Example: btn_udp_upgrade_123_NMX_Débito_Gold
+        // --- TWO-MAN RULE: SANCTION APPROVAL HANDLER ---
+        if (interaction.customId.startsWith('approve_sancion_') || interaction.customId === 'reject_sancion') {
+            // 1. Security Check: Only Board/Encargados
+            const ALLOWED_APPROVERS = [
+                '1412882245735420006', // Junta Directiva
+                '1456020936229912781', // Encargado de Sanciones
+                '1451703422800625777', // Encargado de Apelaciones
+                '1454985316292100226'  // Encargado de Staff
+            ];
+            const hasPermission = interaction.member.roles.cache.some(r => ALLOWED_APPROVERS.includes(r.id));
+
+            if (!hasPermission) {
+                return interaction.reply({ content: '🛑 **Acceso Denegado:** Solo la Junta Directiva o Encargados pueden aprobar esto.', ephemeral: true });
+            }
+
+            if (interaction.customId === 'reject_sancion') {
+                const rejectEmbed = EmbedBuilder.from(interaction.message.embeds[0])
+                    .setColor(0xFF0000)
+                    .setTitle('❌ Solicitud Rechazada');
+
+                await interaction.update({ embeds: [rejectEmbed], components: [] });
+                return;
+            }
+
+            // APPROVE LOGIC
+            await interaction.deferUpdate();
+            const targetId = interaction.customId.split('_')[2];
+            const embed = interaction.message.embeds[0];
+
+            // Parse Embed Fields to Reconstruct Data
+            // Fields: [0]: Solicitante, [1]: Usuario Objetivo, [2]: Tipo, [3]: Motivo, [4]: Evidencia
+            const typeField = embed.fields[2].value; // "BLACKLIST (Moderacion)" or "sa"
+            const reason = embed.fields[3].value;
+            const evidence = embed.fields[4].value === 'No adjunta' ? null : embed.fields[4].value;
+            const moderatorId = embed.fields[0].value.match(/<@(\d+)>/)[1];
+
+            // Reconstruct Action/Type
+            let type = 'general';
+            let action = null;
+            let blacklistType = null;
+
+            if (typeField.includes('BLACKLIST')) {
+                type = 'general';
+                action = 'Blacklist';
+                blacklistType = typeField.match(/\((.*?)\)/)[1]; // Extract "Moderacion" from "BLACKLIST (Moderacion)"
+            } else if (typeField === 'sa') {
+                type = 'sa';
+            } else if (typeField === 'Ban Permanente ERLC') {
+                type = 'general';
+                action = 'Ban Permanente ERLC';
+            }
+
+            // EXECUTE SANCTION (Copy of sancion.js logic)
+            let actionResult = '';
+            try {
+                // 1. DB Create
+                await client.services.sanctions.createSanction(targetId, moderatorId, type, reason, evidence);
+
+                // 2. Enforcement (Ban/Roles)
+                const guild = interaction.guild;
+                const member = await guild.members.fetch(targetId).catch(() => null);
+
+                if (member) {
+                    if (action === 'Blacklist') {
+                        const BLACKLIST_ROLES = {
+                            'Blacklist Moderacion': '1451860028653834300',
+                            'Blacklist Facciones Policiales': '1413714060423200778',
+                            'Blacklist Cartel': '1449930883762225253',
+                            'Blacklist Politica': '1413714467287470172',
+                            'Blacklist Empresas': '1413714540834852875',
+                            'Blacklist Total': 'PERM_BAN'
+                        };
+
+                        if (blacklistType === 'Blacklist Total') {
+                            await member.ban({ reason: `Blacklist TOTAL (Aprobado): ${reason}` });
+                            actionResult = 'User Banned (Blacklist Total)';
+                        } else {
+                            const roleId = BLACKLIST_ROLES[`Blacklist ${blacklistType}`] || BLACKLIST_ROLES[blacklistType];
+                            if (roleId) await member.roles.add(roleId);
+                        }
+                    } else if (type === 'sa') {
+                        // SA Auto-Role Logic (Simplified)
+                        const count = await client.services.sanctions.getSACount(targetId);
+                        const SA_ROLES = { 1: '1450997809234051122', 2: '1454636391932756049', 3: '1456028699718586459', 4: '1456028797638934704', 5: '1456028933995630701' };
+                        const newRole = SA_ROLES[count];
+                        if (newRole) await member.roles.add(newRole);
+                    }
+                }
+
+                // 3. Update Message
+                const successEmbed = EmbedBuilder.from(interaction.message.embeds[0])
+                    .setColor(0x00FF00)
+                    .setTitle('✅ Solicitud Aprobada y Ejecutada')
+                    .addFields({ name: '👮 Aprobado por', value: interaction.user.tag, inline: true });
+
+                await interaction.editReply({ embeds: [successEmbed], components: [] });
+
+                // 4. Notify Original Log Channel (Audit)
+                if (client.logAudit) {
+                    await client.logAudit('Sanción Aprobada (Two-Man Rule)', `La sanción solicitada por <@${moderatorId}> ha sido aprobada por <@${interaction.user.id}>.`, interaction.user, { id: targetId, tag: 'Target' }, 0x00FF00);
+                }
+
+            } catch (err) {
+                console.error('Error approving sanction:', err);
+                interaction.followUp({ content: `❌ Error ejecutando la sanción: ${err.message}`, ephemeral: true });
+            }
+            return;
+        }
+
         const parts = interaction.customId.split('_');
         const cardId = parts[3];
         const targetTierRaw = parts.slice(4).join('_'); // Rejoin: "NMX_Débito_Gold"
