@@ -1085,8 +1085,10 @@ async function getAvailablePaymentMethods(userId, guildId) {
                 .maybeSingle();
 
             if (creditCard) {
-                const availableCredit = creditCard.credit_limit - creditCard.current_balance;
-                console.log(`[DEBUG] Credit Check: User ${userId} | Citizen ${citizen.id} | Card ${creditCard.id} | Limit ${creditCard.credit_limit} | Balance ${creditCard.current_balance} | Avail ${availableCredit}`);
+                const limit = creditCard.credit_limit || 0;
+                const balance = creditCard.current_balance || 0;
+                const availableCredit = limit - balance;
+                console.log(`[DEBUG] Credit Check: User ${userId} | Citizen ${citizen.id} | Card ${creditCard.id} | Limit ${limit} (Raw: ${creditCard.credit_limit}) | Balance ${balance} | Avail ${availableCredit}`);
                 if (availableCredit > 0) {
                     methods.credit.available = true;
                     methods.credit.card = creditCard;
