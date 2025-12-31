@@ -109,7 +109,13 @@ module.exports = {
 
             // --- PERMISSIONS CHECKS (RBAC SYSTEM v2) ---
             const ROLES_CONFIG = {
-                LEVEL_3_ADMIN: ['1412882248411381872', '1412882245735420006'], // Administrators & Junta Directiva (Access to EVERYTHING)
+                LEVEL_3_ADMIN: [
+                    '1412882248411381872', // Administrador
+                    '1412882245735420006', // Junta Directiva
+                    '1456020936229912781', // Encargado de Sanciones
+                    '1451703422800625777', // Encargado de Apelaciones
+                    '1454985316292100226'  // Encargado de Staff
+                ],
                 LEVEL_2_STAFF: ['1412887079612059660'], // Staff (Access to Kicks, TempBans)
                 LEVEL_1_TRAINING: ['1412887167654690908'] // Training (Warns Only)
             };
