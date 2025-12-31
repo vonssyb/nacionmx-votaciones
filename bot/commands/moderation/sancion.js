@@ -214,7 +214,7 @@ module.exports = {
             if (interaction.client.logAudit) {
                 await interaction.client.logAudit(
                     'Sanción Ejecutada',
-                    `**Tipo:** ${type}\n**Acción:** ${accion || 'N/A'}\n**Motivo:** ${motivo}\n**Duración:** ${dias || 'N/A'} días`,
+                    `**Tipo:** ${type}\n**Acción:** ${accion || 'N/A'}\n**Motivo:** ${motivo}\n**Duración:** ${dias || 'N/A'} días\n**Evidencia:** ${evidencia || 'Sin evidencia'}`,
                     interaction.user,
                     targetUser,
                     type === 'sa' ? 0x8b0000 : 0xFFD700
