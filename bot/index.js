@@ -100,7 +100,9 @@ client.services = {
     levels: levelService,
     achievements: achievementService,
     missions: missionService,
-    store: storeService
+    missions: missionService,
+    store: storeService,
+    sanctions: new (require('./services/SanctionService'))(supabase, client)
 };
 
 // Initialize Economy Services

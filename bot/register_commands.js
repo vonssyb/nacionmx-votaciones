@@ -8,30 +8,67 @@
 const { REST, Routes, SlashCommandBuilder } = require('discord.js');
 require('dotenv').config();
 
-const commands = [
-    // /status command
-    new SlashCommandBuilder()
-        .setName('status')
-        .setDescription('Ver el estado del bot y estadísticas del sistema')
-        .toJSON(),
+const fs = require('fs');
+const path = require('path');
 
-    // /ayuda command with categories
-    new SlashCommandBuilder()
-        .setName('ayuda')
-        .setDescription('Sistema de ayuda interactivo con categorías')
-        .addStringOption(option =>
-            option.setName('categoria')
-                .setDescription('Categoría de comandos')
-                .setRequired(false)
-                .addChoices(
-                    { name: '💳 Tarjetas', value: 'cards' },
-                    { name: '💰 Transacciones', value: 'transactions' },
-                    { name: '🏢 Empresas', value: 'companies' },
-                    { name: '🎰 Casino', value: 'casino' },
-                    { name: '📊 Información', value: 'info' }
-                ))
-        .toJSON()
-];
+const commands = [];
+const commandsPath = path.join(__dirname, 'commands');
+
+// Dynamic Command Loading
+const commandFolders = fs.readdirSync(commandsPath);
+
+for (const folder of commandFolders) {
+    const folderPath = path.join(commandsPath, folder);
+    if (!fs.lstatSync(folderPath).isDirectory()) continue;
+
+    const commandFiles = fs.readdirSync(folderPath).filter(file => file.endsWith('.js'));
+    for (const file of commandFiles) {
+        const filePath = path.join(folderPath, file);
+        try {
+            const command = require(filePath);
+            if ('data' in command && 'execute' in command) {
+                commands.push(command.data.toJSON());
+                console.log(`[LOAD] Copiando comando: ${command.data.name}`);
+            } else {
+                console.warn(`[WARN] El comando en ${filePath} le falta 'data' o 'execute'.`);
+            }
+        } catch (error) {
+            console.error(`[ERR] Error cargando comando ${file}:`, error);
+        }
+    }
+}
+
+// Add manual commands if needed (or move them to files)
+// For now, keeping status/ayuda if they aren't in files yet.
+// Checking if 'status' exists in loaded commands
+if (!commands.find(c => c.name === 'status')) {
+    commands.push(
+        new SlashCommandBuilder()
+            .setName('status')
+            .setDescription('Ver el estado del bot y estadísticas del sistema')
+            .toJSON()
+    );
+}
+
+if (!commands.find(c => c.name === 'ayuda')) {
+    commands.push(
+        new SlashCommandBuilder()
+            .setName('ayuda')
+            .setDescription('Sistema de ayuda interactivo con categorías')
+            .addStringOption(option =>
+                option.setName('categoria')
+                    .setDescription('Categoría de comandos')
+                    .setRequired(false)
+                    .addChoices(
+                        { name: '💳 Tarjetas', value: 'cards' },
+                        { name: '💰 Transacciones', value: 'transactions' },
+                        { name: '🏢 Empresas', value: 'companies' },
+                        { name: '🎰 Casino', value: 'casino' },
+                        { name: '📊 Información', value: 'info' }
+                    ))
+            .toJSON()
+    );
+}
 
 const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
 

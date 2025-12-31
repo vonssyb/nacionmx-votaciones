@@ -1131,10 +1131,6 @@ const commands = [
                 ]
             }
         ]
-    },
-    {
-        name: 'activo',
-        description: '👮 Ver moderadores activos en línea ahora'
     }
 ];
 
