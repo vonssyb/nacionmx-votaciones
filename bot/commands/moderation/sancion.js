@@ -116,18 +116,53 @@ module.exports = {
             // Actually, we should probably instantiate it here if missing or just rely on 'interaction.client.services' if we added it.
             // PROCEEDING: We will assume the restart happens.
 
-            // Send the embed to the channel
-            await interaction.editReply({
-                content: type === 'notificacion' ? '@everyone' : null,
-                ...embedPayload
-            });
+            // THRESHOLD ALERT & ROLE ASSIGNMENT (SA Sanctions)
+            if (type === 'sa') {
+                const currentSAs = await interaction.client.services.sanctions.getSACount(targetUser.id);
 
-            // Try to DM the user if it's a sanction
-            if (targetUser && (type === 'general' || type === 'sa')) {
-                try {
-                    await targetUser.send({ ...embedPayload, content: `Has recibido una sanción en **${interaction.guild.name}**.` });
-                } catch (err) {
-                    await interaction.followUp({ content: '⚠️ No se pudo enviar el MD al usuario (DM cerrado).', ephemeral: true });
+                // SA ROLES MAP
+                const SA_ROLES = {
+                    1: '1450997809234051122', // SA 1
+                    2: '1454636391932756049', // SA 2
+                    3: '1456028699718586459', // SA 3
+                    4: '1456028797638934704', // SA 4
+                    5: '1456028933995630701'  // SA 5
+                };
+
+                const member = await interaction.guild.members.fetch(targetUser.id).catch(() => null);
+                if (member) {
+                    try {
+                        // 1. Remove ALL existing SA roles to ensure we only have the current level
+                        const allSaRoles = Object.values(SA_ROLES);
+                        await member.roles.remove(allSaRoles);
+
+                        // 2. Add the correct Role for current count
+                        const newRole = SA_ROLES[currentSAs];
+                        if (newRole) {
+                            await member.roles.add(newRole);
+                            actionResult += `\n🏷️ **Rol Actualizado:** Se ha asignado el rol **SA ${currentSAs}**.`;
+                        }
+                    } catch (roleErr) {
+                        console.error('Error managing SA roles:', roleErr);
+                        actionResult += `\n⚠️ **Error al actualizar roles de SA** (Revisar jerarquía del bot).`;
+                    }
+                }
+
+                // 3. CRITICAL THRESHOLD ALERT (5+)
+                if (currentSAs >= 5) {
+                    const ALERT_CHANNEL_ID = '1456021466356387861';
+                    const alertChannel = interaction.client.channels.cache.get(ALERT_CHANNEL_ID);
+                    if (alertChannel) {
+                        await alertChannel.send({
+                            embeds: [{
+                                title: '🚨 ALERTA CRÍTICA: Límite de SAs Alcanzado',
+                                description: `🛑 **El usuario ha acumulado 5 Sanciones Administrativas (SA).**\n\n👤 **Usuario:** ${targetUser.tag} (<@${targetUser.id}>)\n⚖️ **Sanción Automática Requerida:** BAN PERMANENTE (Directo).\n📜 **Último Motivo:** ${motivo}`,
+                                color: 0xFF0000,
+                                timestamp: new Date()
+                            }]
+                        });
+                        actionResult += `\n⛔ **CRÍTICO: El usuario ha alcanzado 5 SAs. Se ha solicitado su BAN PERMANENTE a la Administración.**`;
+                    }
                 }
             }
 
