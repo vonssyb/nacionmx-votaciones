@@ -1088,6 +1088,7 @@ async function getAvailablePaymentMethods(userId, guildId) {
                 const limit = creditCard.credit_limit || 0;
                 const balance = creditCard.current_balance || 0;
                 const availableCredit = limit - balance;
+                console.log(`[DEBUG] Credit Card Keys:`, Object.keys(creditCard));
                 console.log(`[DEBUG] Credit Check: User ${userId} | Citizen ${citizen.id} | Card ${creditCard.id} | Limit ${limit} (Raw: ${creditCard.credit_limit}) | Balance ${balance} | Avail ${availableCredit}`);
                 if (availableCredit > 0) {
                     methods.credit.available = true;
@@ -2860,6 +2861,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                             const { error: insertError } = await supabase.from('credit_cards').insert([{
                                 citizen_id: citizen.id,
                                 discord_user_id: targetUser.id,
+                                discord_id: targetUser.id,
                                 card_type: cardType,
                                 card_name: cardType,
                                 card_limit: stats.limit,
