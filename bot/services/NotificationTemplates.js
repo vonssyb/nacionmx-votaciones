@@ -260,28 +260,41 @@ module.exports = {
         const { date, time, offender, moderator, ruleCode, description, sanctionType, duration, evidenceUrl } = data;
 
         // Build Sanction Checkbox visual
+        // We now have more types, so we organize them better
         const types = [
-            'Advertencia Verbal',
-            'Warn (N° _/_)',
-            'Ban Temporal',
-            'Blacklist'
+            { label: 'Advertencia Verbal', match: ['Advertencia'] },
+            { label: 'Warn (Advertencia)', match: ['Warn'] },
+            { label: 'Kick (Expulsión)', match: ['Kick'] },
+            { label: 'Ban Temporal', match: ['Ban Temporal'] },
+            { label: 'Ban Permanente', match: ['Ban Permanente', 'Blacklist Total'] },
+            { label: 'Blacklist (Veto)', match: ['Blacklist'] }
         ];
 
         const sanctionVisual = types.map(t => {
-            const isSelected = t.includes(sanctionType) || (sanctionType === 'Ban Temporal' && t.includes('Ban Temporal'));
-            let text = t;
-            if (sanctionType === 'Ban Temporal' && t.includes('Ban Temporal')) {
-                text = `Ban Temporal(${duration || '_'} Días)`;
-            } else if (sanctionType.startsWith('Warn') && t.startsWith('Warn')) {
-                text = sanctionType; // e.g., "Warn (N° 1/3)"
+            // Check if available sanctionType matches this category
+            const isSelected = t.match.some(m => sanctionType && sanctionType.includes(m));
+
+            let text = t.label;
+
+            // Dynamic Text Logic
+            if (isSelected) {
+                if (sanctionType.includes('Ban Temporal')) {
+                    text = `Ban Temporal (${duration || '?'} Días)`;
+                } else if (sanctionType.includes('ERLC')) {
+                    text += ' (In-Game / ERLC)';
+                } else if (sanctionType.includes('Blacklist')) {
+                    // Extract specific blacklist type if present
+                    text = sanctionType; // e.g. "BLACKLIST: Cartel"
+                }
             }
-            return `${isSelected ? '☑️' : '⬜'} ${text} `;
+
+            return `${isSelected ? '☑️' : '⬜'} ${text}`;
         }).join('\n');
 
         return {
             embeds: [{
                 title: '👮‍♂️ REPORTE OFICIAL DE SANCIÓN',
-                description: `**⚖️ Sanción Aplicada:**\n${sanctionVisual} `,
+                description: `**⚖️ Sanción Aplicada:**\n${sanctionVisual}`,
                 color: 0x2f3136, // Dark grey/formal
                 fields: [
                     {
@@ -291,12 +304,12 @@ module.exports = {
                     },
                     {
                         name: '👤 Usuario Sancionado',
-                        value: `${offender} \n🆔 ID: ${offender.id || 'N/A'} `,
+                        value: `${offender}\n🆔 ${offender.id || 'N/A'}`,
                         inline: true
                     },
                     {
                         name: '📜 Infracción Cometida',
-                        value: `** ${ruleCode}** `,
+                        value: `**${ruleCode}**`,
                         inline: false
                     },
                     {
@@ -312,7 +325,7 @@ module.exports = {
                 ],
                 image: evidenceUrl ? { url: evidenceUrl } : null,
                 footer: {
-                    text: `Firma: @${moderator.username} | Nación MX RP`,
+                    text: `Moderador: ${moderator.username} | Nación MX RP`,
                     icon_url: moderator.displayAvatarURL ? moderator.displayAvatarURL() : null
                 },
                 timestamp: new Date()
