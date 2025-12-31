@@ -115,23 +115,42 @@ module.exports = {
                 return interaction.editReply({ content: '🛑 **Acceso Denegado:** Solo la Administración Superior puede utilizar estas opciones.' });
             }
 
-            // --- ENFORCEMENT & BLACKLIST LOGIC ---
-            // NOTE: ERLC sanctions are GAME bans, so we do NOT ban them from Discord.
-            // Only 'Blacklist Total' or explicit Discord bans should trigger discord enforcement.
+            // --- ENFORCEMENT & BLACKLIST ROLE LOGIC ---
+            // Blacklist Role Mapping
+            const BLACKLIST_ROLES = {
+                'Blacklist Moderacion': '1451860028653834300',
+                'Blacklist Facciones Policiales': '1413714060423200778',
+                'Blacklist Cartel': '1449930883762225253',
+                'Blacklist Politica': '1413714467287470172',
+                'Blacklist Empresas': '1413714540834852875'
+            };
 
             if (accion) {
                 const member = await interaction.guild.members.fetch(targetUser.id).catch(() => null);
 
                 if (member) {
                     try {
-                        if (accion === 'Blacklist' && tipoBlacklist === 'Blacklist Total') {
-                            if (!member.bannable) actionResult = '\n⚠️ No se pudo banear al usuario del Discord (Jerarquía).';
-                            else {
-                                await member.ban({ reason: `Blacklist TOTAL: ${motivo} - Por ${interaction.user.tag}` });
-                                actionResult = '\n🔨 **Usuario Baneado Permanentemente de Discord (Blacklist Total).**';
+                        // 1. BLACKLIST LOGIC
+                        if (accion === 'Blacklist') {
+                            if (tipoBlacklist === 'Blacklist Total') {
+                                if (!member.bannable) actionResult = '\n⚠️ No se pudo banear al usuario del Discord (Jerarquía).';
+                                else {
+                                    await member.ban({ reason: `Blacklist TOTAL: ${motivo} - Por ${interaction.user.tag}` });
+                                    actionResult = '\n🔨 **Usuario Baneado Permanentemente de Discord (Blacklist Total).**';
+                                }
+                            } else {
+                                // Partial Blacklist - Assign Role
+                                const roleIdToAssign = BLACKLIST_ROLES[tipoBlacklist];
+                                if (roleIdToAssign) {
+                                    await member.roles.add(roleIdToAssign);
+                                    actionResult = `\n🚫 **Rol de Blacklist Asignado:** ${tipoBlacklist}`;
+                                } else {
+                                    actionResult = `\n⚠️ Tipo de blacklist registrado, pero no se encontró un Rol configurado para ID: ${tipoBlacklist}`;
+                                }
                             }
                         }
-                        // ERLC Sanctions are purely informational/logging for the game
+
+                        // 2. ERLC GAME SANCTIONS (Log Only)
                         else if (accion === 'Kick ERLC') {
                             actionResult = '\n🦵 **Sanción de Kick (ERLC/Juego) Registrada.** (No afecta Discord)';
                         }
@@ -141,8 +160,9 @@ module.exports = {
                         else if (accion === 'Ban Temporal ERLC') {
                             actionResult = `\n⏳ **Sanción de Ban Temporal_(${dias}d) (ERLC/Juego) Registrada.** (No afecta Discord)`;
                         }
+
                     } catch (e) {
-                        actionResult = `\n⚠️ Error ejecutando lógica de sanción: ${e.message}`;
+                        actionResult = `\n⚠️ Error ejecutando lógica de sanción/roles: ${e.message}`;
                     }
                 }
             }
@@ -197,11 +217,10 @@ module.exports = {
                 } catch (e) { /* Ignore */ }
             }
 
-            // THRESHOLD ALERT & ROLE ASSIGNMENT (SA Sanctions)
+            // SA AUTO-ROLE LOGIC
             if (type === 'sa') {
                 const currentSAs = await interaction.client.services.sanctions.getSACount(targetUser.id);
-
-                // SA ROLES MAP
+                // SA Roles Logic
                 const SA_ROLES = {
                     1: '1450997809234051122', // SA 1
                     2: '1454636391932756049', // SA 2
@@ -209,7 +228,6 @@ module.exports = {
                     4: '1456028797638934704', // SA 4
                     5: '1456028933995630701'  // SA 5
                 };
-
                 const member = await interaction.guild.members.fetch(targetUser.id).catch(() => null);
                 if (member) {
                     try {
