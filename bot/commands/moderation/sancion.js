@@ -109,53 +109,111 @@ module.exports = {
 
             // --- PERMISSIONS CHECKS (RBAC SYSTEM v2) ---
             const ROLES_CONFIG = {
-                LEVEL_3_ADMIN: [
-                    '1412882248411381872', // Administrador
+                // Junta Directiva & Encargados (FULL ACCESS - Bypass Approval)
+                LEVEL_4_BOARD: [
                     '1412882245735420006', // Junta Directiva
                     '1456020936229912781', // Encargado de Sanciones
                     '1451703422800625777', // Encargado de Apelaciones
                     '1454985316292100226'  // Encargado de Staff
                 ],
-                LEVEL_2_STAFF: ['1412887079612059660'], // Staff (Access to Kicks, TempBans)
-                LEVEL_1_TRAINING: ['1412887167654690908'] // Training (Warns Only)
+                // Admins (FULL ACCESS - BUT REQUIRES APPROVAL for Critical)
+                LEVEL_3_ADMIN: ['1412882248411381872'],
+                // Staff (Kick/TempBan)
+                LEVEL_2_STAFF: ['1412887079612059660'],
+                // Training (Warns Only)
+                LEVEL_1_TRAINING: ['1412887167654690908']
             };
 
             const memberRoles = interaction.member.roles.cache;
 
             // Helper to check levels
             const hasRole = (roleIds) => roleIds.some(id => memberRoles.has(id));
-            const isLevel3 = hasRole(ROLES_CONFIG.LEVEL_3_ADMIN);
-            const isLevel2 = hasRole(ROLES_CONFIG.LEVEL_2_STAFF) || isLevel3;
-            const isLevel1 = hasRole(ROLES_CONFIG.LEVEL_1_TRAINING) || isLevel2;
+            const isBoard = hasRole(ROLES_CONFIG.LEVEL_4_BOARD);
+            const isAdmin = hasRole(ROLES_CONFIG.LEVEL_3_ADMIN) || isBoard;
+            const isStaff = hasRole(ROLES_CONFIG.LEVEL_2_STAFF) || isAdmin;
+            const isTraining = hasRole(ROLES_CONFIG.LEVEL_1_TRAINING) || isStaff;
 
-            // 1. Critical Actions Check (Blacklist, SA, Ban Perm) -> Requires LEVEL 3
+            // 1. Critical Actions Check (Blacklist, SA, Ban Perm) -> Requires Admin/Board
             const isCriticalAction = (type === 'sa') ||
                 (accion === 'Blacklist') ||
                 (accion === 'Ban Permanente ERLC');
 
-            if (isCriticalAction && !isLevel3) {
+            if (isCriticalAction && !isAdmin) {
                 return interaction.editReply({
                     content: '🛑 **Acceso Denegado (Nivel 3 Requerido)**\nSolo la **Administración y Junta Directiva** pueden aplicar Blacklists, SAs o Baneos Permanentes.'
                 });
             }
 
-            // 2. High Actions Check (Kick, Ban Temp) -> Requires LEVEL 2
+            // 2. High Actions Check (Kick, Ban Temp) -> Requires Staff
             const isHighAction = (accion === 'Kick ERLC') || (accion === 'Ban Temporal ERLC');
 
-            if (isHighAction && !isLevel2) {
+            if (isHighAction && !isStaff) {
                 return interaction.editReply({
                     content: '🛑 **Acceso Denegado (Nivel 2 Requerido)**\nComo Staff en Entrenamiento, no puedes aplicar Kicks ni Baneos Temporales. Solicita ayuda a un Staff superior.'
                 });
             }
 
-            // 3. Basic Actions Check (Warns, Notif) -> Requires LEVEL 1
-            if (!isLevel1) {
+            // 3. Basic Actions Check (Warns, Notif) -> Requires Training
+            if (!isTraining) {
                 return interaction.editReply({
                     content: '🛑 **Acceso Denegado**\nNo tienes el rol de Staff necesario para usar este comando.'
                 });
             }
 
-            // --- ENFORCEMENT & BLACKLIST ROLE LOGIC ---
+            // --- TWO-MAN RULE: APPROVAL WORKFLOW ---
+            // If it's a Critical Action AND user is Admin (but NOT Board/Encargado)
+            if (isCriticalAction && isAdmin && !isBoard) {
+                const APPROVAL_CHANNEL_ID = '1456047784724529316';
+                const approvalChannel = interaction.client.channels.cache.get(APPROVAL_CHANNEL_ID);
+
+                if (!approvalChannel) {
+                    return interaction.editReply({ content: '⚠️ Error de Configuración: No se encuentra el canal de aprobaciones.' });
+                }
+
+                // Create Approval Request Embed
+                const approvalEmbed = new EmbedBuilder()
+                    .setTitle('👮 Solicitud de Aprobación de Sanción')
+                    .setDescription(`Un Administrador ha solicitado una sanción crítica. Requiere aprobación de Junta/Encargados.`)
+                    .addFields(
+                        { name: '🛡️ Solicitante', value: `${interaction.user.tag} (<@${interaction.user.id}>)`, inline: true },
+                        { name: '👤 Usuario Objetivo', value: `${targetUser.tag} (<@${targetUser.id}>)`, inline: true },
+                        { name: '⚖️ Tipo de Sanción', value: accion === 'Blacklist' ? `BLACKLIST (${tipoBlacklist})` : (accion || type), inline: false },
+                        { name: '📝 Motivo', value: motivo, inline: false },
+                        { name: '📸 Evidencia', value: evidencia || 'No adjunta', inline: false }
+                    )
+                    .setColor(0xFFA500) // Orange for Pending
+                    .setTimestamp();
+
+                const buttons = new ActionRowBuilder().addComponents(
+                    new ButtonBuilder()
+                        .setCustomId(`approve_sancion_${targetUser.id}`)
+                        .setLabel('✅ Aprobar Sanción')
+                        .setStyle(ButtonStyle.Success),
+                    new ButtonBuilder()
+                        .setCustomId('reject_sancion')
+                        .setLabel('❌ Rechazar')
+                        .setStyle(ButtonStyle.Danger)
+                );
+
+                // Send to Approval Channel
+                const sentMsg = await approvalChannel.send({
+                    content: `<@&${ROLES_CONFIG.LEVEL_4_BOARD[0]}> <@&${ROLES_CONFIG.LEVEL_4_BOARD[1]}>`, // Ping Junta/Encargado
+                    embeds: [approvalEmbed],
+                    components: [buttons]
+                });
+
+                // Store metadata in cache (or relying on button handler to parse, but cache is safer for complex data)
+                // For simplicity/reliability against restarts, we will encode ESSENTIALS in the handler 
+                // BUT we need the full reason/evidence.
+                // We'll attach the data to the message client-side properties if possible, or use a temporary Map if restarts are rare.
+                // Best approach for now: The BUTTON HANDLER will read the EMBED fields to execute.
+
+                return interaction.editReply({
+                    content: `⏳ **Sanción Pausada por Seguridad (Two-Man Rule)**\n\nTu solicitud de **${accion}** ha sido enviada al canal de aprobaciones.\nDebe ser validada por un Encargado o Junta Directiva antes de aplicarse.`
+                });
+            }
+
+            // --- ENFORCEMENT & BLACKLIST ROLE LOGIC (EXECUTED IF NO APPROVAL NEEDED OR APPROVED) ---
             // Blacklist Role Mapping
             const BLACKLIST_ROLES = {
                 'Blacklist Moderacion': '1451860028653834300',
