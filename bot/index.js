@@ -1262,6 +1262,7 @@ async function processPayment(method, userId, guildId, amount, description, avai
             const creditCard = availableMethods.credit.card;
             const available = (creditCard.card_limit || creditCard.credit_limit || 0) - (creditCard.current_balance || 0);
             if (available < amount) {
+                console.log(`[DEBUG] Credit Rejected: Available ${available} (Type: ${typeof available}) < Amount ${amount} (Type: ${typeof amount})`);
                 return { success: false, error: `❌ Crédito insuficiente.\nDisponible: $${available.toLocaleString()}\nNecesitas: $${amount.toLocaleString()}` };
             }
             await supabase.from('credit_cards').update({
