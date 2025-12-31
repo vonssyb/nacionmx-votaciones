@@ -107,12 +107,46 @@ module.exports = {
                 } catch (dbError) { console.error('DB Error:', dbError); }
             }
 
-            // --- PERMISSIONS CHECKS ---
-            const ROLE_SUPERIOR = '1456020936229912781';
-            const hasSuperiorRole = interaction.member.roles.cache.has(ROLE_SUPERIOR);
+            // --- PERMISSIONS CHECKS (RBAC SYSTEM v2) ---
+            const ROLES_CONFIG = {
+                LEVEL_3_ADMIN: ['1412882248411381872', '1412882245735420006'], // Administrators & Junta Directiva (Access to EVERYTHING)
+                LEVEL_2_STAFF: ['1412887079612059660'], // Staff (Access to Kicks, TempBans)
+                LEVEL_1_TRAINING: ['1412887167654690908'] // Training (Warns Only)
+            };
 
-            if ((type === 'sa' || type === 'notificacion') && !hasSuperiorRole) {
-                return interaction.editReply({ content: '🛑 **Acceso Denegado:** Solo la Administración Superior puede utilizar estas opciones.' });
+            const memberRoles = interaction.member.roles.cache;
+
+            // Helper to check levels
+            const hasRole = (roleIds) => roleIds.some(id => memberRoles.has(id));
+            const isLevel3 = hasRole(ROLES_CONFIG.LEVEL_3_ADMIN);
+            const isLevel2 = hasRole(ROLES_CONFIG.LEVEL_2_STAFF) || isLevel3;
+            const isLevel1 = hasRole(ROLES_CONFIG.LEVEL_1_TRAINING) || isLevel2;
+
+            // 1. Critical Actions Check (Blacklist, SA, Ban Perm) -> Requires LEVEL 3
+            const isCriticalAction = (type === 'sa') ||
+                (accion === 'Blacklist') ||
+                (accion === 'Ban Permanente ERLC');
+
+            if (isCriticalAction && !isLevel3) {
+                return interaction.editReply({
+                    content: '🛑 **Acceso Denegado (Nivel 3 Requerido)**\nSolo la **Administración y Junta Directiva** pueden aplicar Blacklists, SAs o Baneos Permanentes.'
+                });
+            }
+
+            // 2. High Actions Check (Kick, Ban Temp) -> Requires LEVEL 2
+            const isHighAction = (accion === 'Kick ERLC') || (accion === 'Ban Temporal ERLC');
+
+            if (isHighAction && !isLevel2) {
+                return interaction.editReply({
+                    content: '🛑 **Acceso Denegado (Nivel 2 Requerido)**\nComo Staff en Entrenamiento, no puedes aplicar Kicks ni Baneos Temporales. Solicita ayuda a un Staff superior.'
+                });
+            }
+
+            // 3. Basic Actions Check (Warns, Notif) -> Requires LEVEL 1
+            if (!isLevel1) {
+                return interaction.editReply({
+                    content: '🛑 **Acceso Denegado**\nNo tienes el rol de Staff necesario para usar este comando.'
+                });
             }
 
             // --- ENFORCEMENT & BLACKLIST ROLE LOGIC ---
