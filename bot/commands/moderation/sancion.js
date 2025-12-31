@@ -26,28 +26,28 @@ module.exports = {
                 .setRequired(true))
         .addUserOption(option =>
             option.setName('usuario')
-                .setDescription('Usuario a sancionar (Opcional para Notificación General)')
-                .setRequired(false))
+                .setDescription('Usuario a sancionar o notificar')
+                .setRequired(true))
         .addStringOption(option =>
             option.setName('accion')
                 .setDescription('Solo para Sanción General: Tipo de castigo')
                 .setRequired(false)
                 .addChoices(
                     { name: 'Advertencia Verbal', value: 'Advertencia Verbal' },
-                    { name: 'Warn (1/3)', value: 'Warn (N° 1/3)' },
-                    { name: 'Warn (2/3)', value: 'Warn (N° 2/3)' },
-                    { name: 'Warn (3/3)', value: 'Warn (N° 3/3)' },
+                    { name: 'Warn (Advertencia)', value: 'Warn' },
                     { name: 'Ban Temporal', value: 'Ban Temporal' },
-                    { name: 'Blacklist', value: 'Blacklist' }
+                    { name: 'Blacklist', value: 'Blacklist' },
+                    { name: 'Mute (Timeout)', value: 'Mute' },
+                    { name: 'Kick (Expulsar)', value: 'Kick' }
                 ))
         .addIntegerOption(option =>
             option.setName('dias')
                 .setDescription('Solo para Ban Temporal: Duración en días')
                 .setRequired(false))
-        .addStringOption(option =>
+        .addAttachmentOption(option =>
             option.setName('evidencia')
-                .setDescription('URL de la evidencia (Imagen/Video)')
-                .setRequired(false)),
+                .setDescription('Evidencia obligatoria (Imagen/Video)')
+                .setRequired(true)),
 
     async execute(interaction) {
         // Defer reply as we might need time for DB ops (though usually fast)
@@ -59,7 +59,10 @@ module.exports = {
         const descripcion = interaction.options.getString('descripcion');
         const accion = interaction.options.getString('accion');
         const dias = interaction.options.getInteger('dias');
-        const evidencia = interaction.options.getString('evidencia');
+
+        // Handle Attachment
+        const evidenciaAttachment = interaction.options.getAttachment('evidencia');
+        const evidencia = evidenciaAttachment ? evidenciaAttachment.url : null;
 
         const date = moment().tz('America/Mexico_City').format('DD/MM/YYYY');
         const time = moment().tz('America/Mexico_City').format('HH:mm');
