@@ -116,43 +116,39 @@ module.exports = {
             }
 
             // --- ENFORCEMENT & BLACKLIST LOGIC ---
+            // NOTE: ERLC sanctions are GAME bans, so we do NOT ban them from Discord.
+            // Only 'Blacklist Total' or explicit Discord bans should trigger discord enforcement.
+
             if (accion) {
                 const member = await interaction.guild.members.fetch(targetUser.id).catch(() => null);
 
                 if (member) {
                     try {
-                        if (accion === 'Kick ERLC') {
-                            if (!member.kickable) actionResult = '\n⚠️ No se pudo expulsar (Kick) al usuario (Jerarquía o permisos).';
+                        if (accion === 'Blacklist' && tipoBlacklist === 'Blacklist Total') {
+                            if (!member.bannable) actionResult = '\n⚠️ No se pudo banear al usuario del Discord (Jerarquía).';
                             else {
-                                await member.kick(`${motivo} - Por ${interaction.user.tag}`);
-                                actionResult = '\n🦵 **Usuario Expulsado (Kick ERLC).**';
+                                await member.ban({ reason: `Blacklist TOTAL: ${motivo} - Por ${interaction.user.tag}` });
+                                actionResult = '\n🔨 **Usuario Baneado Permanentemente de Discord (Blacklist Total).**';
                             }
                         }
-                        else if (accion === 'Ban Permanente ERLC' || (accion === 'Blacklist' && tipoBlacklist === 'Blacklist Total')) {
-                            if (!member.bannable) actionResult = '\n⚠️ No se pudo banear al usuario.';
-                            else {
-                                await member.ban({ reason: `${motivo} [${tipoBlacklist || 'Ban Permanente'}] - Por ${interaction.user.tag}` });
-                                actionResult = '\n🔨 **Usuario Baneado Permanentemente.**';
-                            }
+                        // ERLC Sanctions are purely informational/logging for the game
+                        else if (accion === 'Kick ERLC') {
+                            actionResult = '\n🦵 **Sanción de Kick (ERLC/Juego) Registrada.** (No afecta Discord)';
+                        }
+                        else if (accion === 'Ban Permanente ERLC') {
+                            actionResult = '\n🔨 **Sanción de Ban Permanente (ERLC/Juego) Registrada.** (No afecta Discord)';
                         }
                         else if (accion === 'Ban Temporal ERLC') {
-                            if (!member.bannable) actionResult = '\n⚠️ No se pudo banear al usuario.';
-                            else {
-                                await member.ban({ reason: `Temporal (${dias}d): ${motivo} - Por ${interaction.user.tag}` });
-                                actionResult = `\n⏳ **Usuario Baneado Temporalmente (${dias} días).**`;
-                            }
+                            actionResult = `\n⏳ **Sanción de Ban Temporal_(${dias}d) (ERLC/Juego) Registrada.** (No afecta Discord)`;
                         }
                     } catch (e) {
-                        actionResult = `\n⚠️ Error ejecutando castigo: ${e.message}`;
+                        actionResult = `\n⚠️ Error ejecutando lógica de sanción: ${e.message}`;
                     }
                 }
             }
 
             // Build Template
             if (type === 'general') {
-                // if (!accion) { // This validation is now handled by the new logic
-                //     return interaction.editReply({ content: '❌ Para el Reporte Oficial de Sanción, debes especificar la **acción** (Advertencia, Warn, etc.).' });
-                // }
                 const sanctionTitle = (accion === 'Blacklist') ? `BLACKLIST: ${tipoBlacklist}` : accion;
 
                 embedPayload = NotificationTemplates.officialSanction({
