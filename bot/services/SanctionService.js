@@ -166,6 +166,29 @@ class SanctionService {
 
         if (error) console.error(`Error expiring sanction ${id}:`, error);
     }
+
+    // --- CLEAN SLATE / ARCHIVE LOGIC ---
+    async archiveOldSanctions(userId, months = 6) {
+        const cutoffDate = new Date();
+        cutoffDate.setMonth(cutoffDate.getMonth() - months);
+        const cutoffISO = cutoffDate.toISOString();
+
+        // Only archive 'general' sanctions (Warns/Verbal)
+        // SAs should generally be permanent or handled differently, but requirement says "Warns old".
+        // We will target 'general' type.
+        const { data, error } = await this.supabase
+            .from('sanctions')
+            .update({ status: 'archived' })
+            .eq('discord_user_id', userId)
+            .eq('type', 'general')
+            .eq('status', 'active')
+            .lt('created_at', cutoffISO)
+            .select();
+
+        if (error) throw error;
+        return data ? data.length : 0;
+    }
 }
 
 module.exports = SanctionService;
+```
