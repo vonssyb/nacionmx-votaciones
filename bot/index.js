@@ -1483,7 +1483,31 @@ client.on('interactionCreate', async interaction => {
                     }
                 }
 
-                // 3. Update Message
+                // 3. Notify User (DM)
+                try {
+                    const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+                    const appealButtons = new ActionRowBuilder().addComponents(
+                        new ButtonBuilder()
+                            .setLabel('📩 Apelar (Baneo/Perm)')
+                            .setStyle(ButtonStyle.Link)
+                            .setURL('https://melonly.xyz/dashboard/7374175961132044288/applications/7412242701552193536'),
+                        new ButtonBuilder()
+                            .setLabel('📝 Apelar (Otras Sanciones)')
+                            .setStyle(ButtonStyle.Link)
+                            .setURL('https://discord.com/channels/1398525215134318713/1398889153919189042')
+                    );
+
+                    const user = await client.users.fetch(targetId);
+                    await user.send({
+                        embeds: [interaction.message.embeds[0]], // Send the approval embed (which describes the sanction)
+                        content: `Has recibido una sanción en **${interaction.guild.name}** (Aprobada por Dirección).\n${actionResult}`,
+                        components: [appealButtons]
+                    });
+                } catch (dmErr) {
+                    console.log('Could not DM user:', dmErr.message);
+                }
+
+                // 4. Update Message
                 const successEmbed = EmbedBuilder.from(interaction.message.embeds[0])
                     .setColor(0x00FF00)
                     .setTitle('✅ Solicitud Aprobada y Ejecutada')
