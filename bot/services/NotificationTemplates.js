@@ -292,46 +292,69 @@ module.exports = {
             return `${isSelected ? '☑️' : '⬜'} ${text}`;
         }).join('\n');
 
-        return {
-            embeds: [{
-                title: '👮‍♂️ REPORTE OFICIAL DE SANCIÓN',
-                description: `**⚖️ Sanción Aplicada:**\n${sanctionVisual}`,
-                color: 0x2f3136, // Dark grey/formal
-                fields: [
-                    {
-                        name: '📅 Fecha y Hora',
-                        value: `${date} - ${time} (Hora México)`,
-                        inline: true
-                    },
-                    {
-                        name: '👤 Usuario Sancionado',
-                        value: `${offender}\n🆔 ${offender.id || 'N/A'}`,
-                        inline: true
-                    },
-                    {
-                        name: '📜 Infracción Cometida',
-                        value: `**${ruleCode}**`,
-                        inline: false
-                    },
-                    {
-                        name: '📝 Descripción de los Hechos',
-                        value: description,
-                        inline: false
-                    },
-                    {
-                        name: '📸 Evidencia Adjunta',
-                        value: evidenceUrl || 'Sin evidencia adjunta',
-                        inline: false
-                    }
-                ],
-                image: evidenceUrl ? { url: evidenceUrl } : null,
-                footer: {
-                    text: `Moderador: ${moderator.username} | Nación MX RP`,
-                    icon_url: moderator.displayAvatarURL ? moderator.displayAvatarURL() : null
+        // Check if it's a BLACKLIST TOTAL (Perm Ban)
+        const isBlacklist = (sanctionType || '').toLowerCase().includes('blacklist');
+        const isPerm = (sanctionType || '').toLowerCase().includes('total') || (sanctionType || '').toLowerCase().includes('permanente');
+
+        let title = '👮‍♂️ REPORTE OFICIAL DE SANCIÓN';
+        let color = 0x2f3136; // Dark grey/formal
+        let thumbnail = null;
+
+        // Custom Styling for Blacklist
+        if (isBlacklist) {
+            title = '⛔ EXPULSIÓN DE LA COMUNIDAD (BLACKLIST)';
+            color = 0x000000; // Pitch Black
+            thumbnail = 'https://cdn-icons-png.flaticon.com/512/1602/1602305.png'; // Stop/Ban icon
+
+            if (isPerm) {
+                title = '☠️ BLACKLIST TOTAL - VETO PERMANENTE';
+                color = 0x8b0000; // Blood Red
+                thumbnail = 'https://cdn-icons-png.flaticon.com/512/9205/9205315.png'; // Adios icon
+            }
+        }
+
+        const embedData = {
+            title: title,
+            description: `**⚖️ Sanción Aplicada:**\n${sanctionVisual}`,
+            color: color,
+            fields: [
+                {
+                    name: '📅 Fecha y Hora',
+                    value: `${date} - ${time} (Hora México)`,
+                    inline: true
                 },
-                timestamp: new Date()
-            }]
+                {
+                    name: '👤 Usuario Sancionado',
+                    value: `${offender}\n🆔 ${offender.id || 'N/A'}`,
+                    inline: true
+                },
+                {
+                    name: '📜 Infracción Cometida',
+                    value: `**${ruleCode}**`,
+                    inline: false
+                },
+                {
+                    name: '📝 Descripción de los Hechos',
+                    value: description,
+                    inline: false
+                },
+                {
+                    name: '📸 Evidencia Adjunta',
+                    value: evidenceUrl || 'Sin evidencia adjunta',
+                    inline: false
+                }
+            ],
+            image: evidenceUrl ? { url: evidenceUrl } : null,
+            footer: {
+                text: `Moderador: ${moderator.username} | Nación MX RP`,
+                icon_url: moderator.displayAvatarURL ? moderator.displayAvatarURL() : null
+            },
+            timestamp: new Date()
         };
+
+        if (thumbnail) embedData.thumbnail = { url: thumbnail };
+
+        return { embeds: [embedData] };
     },
 
     /**
