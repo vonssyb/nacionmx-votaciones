@@ -37,8 +37,7 @@ module.exports = {
                 },
                 {
                     name: stats.change >= 0 ? '📈 Ganancia' : '📉 Pérdida',
-                    value: `${stats.change >= 0 ? '+' : ''}${format Money(stats.change)
-                }`,
+                    value: `${stats.change >= 0 ? '+' : ''}${formatMoney(stats.change)}`,
                     inline: true
                 }
             ],
@@ -56,11 +55,11 @@ module.exports = {
         const emoji = percentage >= 95 ? '🚨' : percentage >= 90 ? '⚠️' : '📊';
         const color = percentage >= 95 ? 0xFF0000 : percentage >= 90 ? 0xFF4500 : 0xFFA500;
         const title = percentage >= 95 ? 'ALERTA CRÍTICA DE DEUDA' : percentage >= 90 ? 'ALERTA DE DEUDA' : 'Aviso de Deuda';
-        
+
         return {
             embeds: [{
-                title: `${ emoji } ${ title }`,
-                description: `Tu tarjeta ** ${ card.card_type } ** está al ** ${ percentage.toFixed(1) } %** del límite de crédito.`,
+                title: `${emoji} ${title}`,
+                description: `Tu tarjeta ** ${card.card_type} ** está al ** ${percentage.toFixed(1)} %** del límite de crédito.`,
                 color,
                 fields: [
                     {
@@ -85,12 +84,12 @@ module.exports = {
                     },
                     {
                         name: '⚠️ Interés',
-                        value: `${ card.interest_rate } % `,
+                        value: `${card.interest_rate} % `,
                         inline: true
                     },
                     {
                         name: '📅 Recomendación',
-                        value: percentage >= 90 
+                        value: percentage >= 90
                             ? '🚨 Paga URGENTE para evitar más intereses'
                             : '💡 Considera pagar pronto para mantener buen crédito',
                         inline: false
@@ -148,38 +147,38 @@ module.exports = {
         const total = transactions.reduce((sum, t) => sum + t.amount, 0);
         const income = transactions.filter(t => t.amount > 0).reduce((sum, t) => sum + t.amount, 0);
         const expenses = Math.abs(transactions.filter(t => t.amount < 0).reduce((sum, t) => sum + t.amount, 0));
-        
+
         return {
             embeds: [{
-                title: `💰 ${ transactions.length } Transacciones Recientes`,
+                title: `💰 ${transactions.length} Transacciones Recientes`,
                 description: `Resumen de tus últimas transacciones agrupadas: `,
                 color: total >= 0 ? 0x00FF00 : 0xFF0000,
                 fields: [
                     {
                         name: '📊 Total Neto',
-                        value: `${ total >= 0 ? '+' : ''}${ formatMoney(total) }`,
+                        value: `${total >= 0 ? '+' : ''}${formatMoney(total)}`,
                         inline: true
                     },
                     {
                         name: '📥 Ingresos',
-                        value: `+ ${ formatMoney(income) }`,
+                        value: `+ ${formatMoney(income)}`,
                         inline: true
                     },
                     {
                         name: '📤 Gastos',
-                        value: `- ${ formatMoney(expenses) }`,
+                        value: `- ${formatMoney(expenses)}`,
                         inline: true
                     },
                     {
                         name: '📋 Detalles de Transacciones',
-                        value: transactions.slice(0, 5).map(t => 
-                            `• ${ t.type }: ${ t.amount >= 0 ? '+' : '' }$${ Math.abs(t.amount).toLocaleString() }`
-                        ).join('\n') + (transactions.length > 5 ? `\n...y ${ transactions.length - 5 } más` : ''),
+                        value: transactions.slice(0, 5).map(t =>
+                            `• ${t.type}: ${t.amount >= 0 ? '+' : ''}$${Math.abs(t.amount).toLocaleString()}`
+                        ).join('\n') + (transactions.length > 5 ? `\n...y ${transactions.length - 5} más` : ''),
                         inline: false
                     }
                 ],
                 footer: {
-                    text: `Total: ${ transactions.length } transacciones`
+                    text: `Total: ${transactions.length} transacciones`
                 },
                 timestamp: new Date()
             }]
@@ -197,7 +196,7 @@ module.exports = {
             fields: [
                 {
                     name: '👥 Empleados',
-                    value: `${ payroll.employeeCount } empleados`,
+                    value: `${payroll.employeeCount} empleados`,
                     inline: true
                 },
                 {
@@ -236,7 +235,7 @@ module.exports = {
                 },
                 {
                     name: '📊 ROI',
-                    value: `${ investment.roi } % `,
+                    value: `${investment.roi} % `,
                     inline: true
                 },
                 {
@@ -259,7 +258,7 @@ module.exports = {
      */
     officialSanction: (data) => {
         const { date, time, offender, moderator, ruleCode, description, sanctionType, duration, evidenceUrl } = data;
-        
+
         // Build Sanction Checkbox visual
         const types = [
             'Advertencia Verbal',
@@ -267,37 +266,37 @@ module.exports = {
             'Ban Temporal',
             'Blacklist'
         ];
-        
+
         const sanctionVisual = types.map(t => {
             const isSelected = t.includes(sanctionType) || (sanctionType === 'Ban Temporal' && t.includes('Ban Temporal'));
             let text = t;
             if (sanctionType === 'Ban Temporal' && t.includes('Ban Temporal')) {
-                text = `Ban Temporal(${ duration || '_'} Días)`;
+                text = `Ban Temporal(${duration || '_'} Días)`;
             } else if (sanctionType.startsWith('Warn') && t.startsWith('Warn')) {
                 text = sanctionType; // e.g., "Warn (N° 1/3)"
             }
-            return `${ isSelected ? '☑️' : '⬜' } ${ text } `;
+            return `${isSelected ? '☑️' : '⬜'} ${text} `;
         }).join('\n');
 
         return {
             embeds: [{
                 title: '👮‍♂️ REPORTE OFICIAL DE SANCIÓN',
-                description: `**⚖️ Sanción Aplicada:**\n${ sanctionVisual } `,
+                description: `**⚖️ Sanción Aplicada:**\n${sanctionVisual} `,
                 color: 0x2f3136, // Dark grey/formal
                 fields: [
                     {
                         name: '📅 Fecha y Hora',
-                        value: `${ date } - ${ time } (Hora México)`,
+                        value: `${date} - ${time} (Hora México)`,
                         inline: true
                     },
                     {
                         name: '👤 Usuario Sancionado',
-                        value: `${ offender } \n🆔 ID: ${ offender.id || 'N/A' } `,
+                        value: `${offender} \n🆔 ID: ${offender.id || 'N/A'} `,
                         inline: true
                     },
                     {
                         name: '📜 Infracción Cometida',
-                        value: `** ${ ruleCode }** `,
+                        value: `** ${ruleCode}** `,
                         inline: false
                     },
                     {
@@ -313,7 +312,7 @@ module.exports = {
                 ],
                 image: evidenceUrl ? { url: evidenceUrl } : null,
                 footer: {
-                    text: `Firma: @${ moderator.username } | Nación MX RP`,
+                    text: `Firma: @${moderator.username} | Nación MX RP`,
                     icon_url: moderator.displayAvatarURL ? moderator.displayAvatarURL() : null
                 },
                 timestamp: new Date()
@@ -340,12 +339,12 @@ module.exports = {
                     },
                     {
                         name: '👤 Usuario Afectado',
-                        value: `${ offender } \n🆔 ID de Registro: ${ offender.id } `,
+                        value: `${offender} \n🆔 ID de Registro: ${offender.id} `,
                         inline: true
                     },
                     {
                         name: '⚠️ Motivo de la Sanción',
-                        value: `** PÉRDIDA DE CONFIANZA ADMINISTRATIVA / CONDUCTA INACEPTABLE **\n${ reasonDetail } `,
+                        value: `** PÉRDIDA DE CONFIANZA ADMINISTRATIVA / CONDUCTA INACEPTABLE **\n${reasonDetail} `,
                         inline: false
                     },
                     {
@@ -384,7 +383,7 @@ module.exports = {
                         inline: true
                     }
                 ],
-                description: `Estimada comunidad, \n\n${ body } \n\nAtentamente, \n ** Equipo de Administración **\nNación MX RP 🇲🇽`,
+                description: `Estimada comunidad, \n\n${body} \n\nAtentamente, \n ** Equipo de Administración **\nNación MX RP 🇲🇽`,
                 timestamp: new Date()
             }]
         };
