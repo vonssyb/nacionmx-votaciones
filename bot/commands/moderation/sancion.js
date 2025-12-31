@@ -14,7 +14,7 @@ module.exports = {
                 .addChoices(
                     { name: '📜 Sanción General (Reporte)', value: 'general' },
                     { name: '🚨 Sanción Administrativa (SA)', value: 'sa' },
-                    { name: '📢 Notificación General', value: 'notificacion' }
+                    { name: '📢 Notificación', value: 'notificacion' }
                 ))
         .addStringOption(option =>
             option.setName('motivo')
