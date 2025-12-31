@@ -210,10 +210,36 @@ module.exports = {
                 ...embedPayload
             });
 
-            // DM User
+            // AUDIT LOG
+            if (interaction.client.logAudit) {
+                await interaction.client.logAudit(
+                    'Sanción Ejecutada',
+                    `**Tipo:** ${type}\n**Acción:** ${accion || 'N/A'}\n**Motivo:** ${motivo}\n**Duración:** ${dias || 'N/A'} días`,
+                    interaction.user,
+                    targetUser,
+                    type === 'sa' ? 0x8b0000 : 0xFFD700
+                );
+            }
+
+            // DM User with Appeal Buttons
             if (targetUser && (type === 'general' || type === 'sa')) {
                 try {
-                    await targetUser.send({ ...embedPayload, content: `Has recibido una sanción en **${interaction.guild.name}**.\n${actionResult}` });
+                    const appealButtons = new ActionRowBuilder().addComponents(
+                        new ButtonBuilder()
+                            .setLabel('📩 Apelar (Baneo/Perm)')
+                            .setStyle(ButtonStyle.Link)
+                            .setURL('https://melonly.xyz/dashboard/7374175961132044288/applications/7412242701552193536'),
+                        new ButtonBuilder()
+                            .setLabel('📝 Apelar (Otras Sanciones)')
+                            .setStyle(ButtonStyle.Link)
+                            .setURL('https://discord.com/channels/1398525215134318713/1398889153919189042')
+                    );
+
+                    await targetUser.send({
+                        ...embedPayload,
+                        content: `Has recibido una sanción en **${interaction.guild.name}**.\n${actionResult}`,
+                        components: [appealButtons]
+                    });
                 } catch (e) { /* Ignore */ }
             }
 

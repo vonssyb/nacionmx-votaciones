@@ -14,7 +14,7 @@ class SanctionService {
      * @param {string} reason 
      * @param {string|null} evidenceUrl 
      */
-    async createSanction(discordUserId, moderatorId, type, reason, evidenceUrl = null) {
+    async createSanction(discordUserId, moderatorId, type, reason, evidenceUrl = null, expiresAt = null, actionType = null) {
         try {
             const { data, error } = await this.supabase
                 .from('sanctions')
@@ -24,7 +24,9 @@ class SanctionService {
                     type: type,
                     reason: reason,
                     evidence_url: evidenceUrl,
-                    status: 'active'
+                    status: 'active',
+                    expires_at: expiresAt,
+                    action_type: actionType
                 })
                 .select()
                 .single();
@@ -137,6 +139,32 @@ class SanctionService {
 
         if (error) throw error;
         return count;
+    }
+
+    // --- EXPIRATION LOGIC ---
+    async checkExpiredSanctions() {
+        const now = new Date().toISOString();
+        const { data, error } = await this.supabase
+            .from('sanctions')
+            .select('*')
+            .eq('status', 'active')
+            .not('expires_at', 'is', null)
+            .lt('expires_at', now);
+
+        if (error) {
+            console.error('Error checking expired sanctions:', error);
+            return [];
+        }
+        return data;
+    }
+
+    async expireSanction(id) {
+        const { error } = await this.supabase
+            .from('sanctions')
+            .update({ status: 'expired' })
+            .eq('id', id);
+
+        if (error) console.error(`Error expiring sanction ${id}:`, error);
     }
 }
 
