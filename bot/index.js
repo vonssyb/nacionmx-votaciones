@@ -1398,71 +1398,6 @@ client.on('interactionCreate', async interaction => {
     }
 }); // End interactionCreate
 
-// === ELITE FEATURES: AUTO-EXPIRATION CRON ===
-setInterval(async () => {
-    try {
-        // console.log('🔄 Cron: Verificando sanciones expiradas...');
-        const expired = await client.services.sanctions.checkExpiredSanctions();
-
-        if (expired.length > 0) {
-            console.log(`⏱️ Encontradas ${expired.length} sanciones expiradas.`);
-            const guild = client.guilds.cache.get(GUILD_ID || process.env.GUILD_ID);
-
-            for (const leg of expired) {
-                // 1. Execute Unban/Unmute
-                if (guild && leg.action_type === 'ban') {
-                    try {
-                        await guild.members.unban(leg.discord_user_id, 'Sanción Temporal Expirada (Auto)');
-                        console.log(`🔓 Usuario ${leg.discord_user_id} desbaneado automáticamente.`);
-                    } catch (e) {
-                        // Ignore if user not banned or already unbanned
-                        // console.error(`Error unbanning ${leg.discord_user_id}: ${e.message}`);
-                    }
-                }
-
-                // 2. Notify User
-                try {
-                    const user = await client.users.fetch(leg.discord_user_id);
-                    await user.send({
-                        embeds: [{
-                            title: '🎉 Sanción Expirada',
-                            description: `Tu sanción temporal **${leg.reason}** ha finalizado.\nBienvenido de vuelta a ${guild ? guild.name : 'Nación MX'}.`,
-                            color: 0x00FF00,
-                            timestamp: new Date()
-                        }]
-                    });
-                } catch (e) { /* DM Failed */ }
-
-                // 3. Mark as Expired in DB
-                await client.services.sanctions.expireSanction(leg.id);
-            }
-        }
-    } catch (err) {
-        console.error('❌ Error in Auto-Expiration Cron:', err);
-    }
-}, 300000); // Run every 5 minutes
-
-// === AUDIT LOG HELPER ===
-client.logAudit = async (title, description, moderator, target, color = 0xFFD700) => {
-    const AUDIT_CHANNEL_ID = '1456035521141670066';
-    const channel = client.channels.cache.get(AUDIT_CHANNEL_ID);
-    if (!channel) return;
-
-    await channel.send({
-        embeds: [{
-            title: `🛡️ LOG: ${title}`,
-            description: description,
-            color: color,
-            fields: [
-                { name: '👮 Moderador', value: `${moderator.tag} (${moderator.id})`, inline: true },
-                { name: '👤 Usuario', value: target ? `${target.tag || 'Unknown'} (${target.id})` : 'N/A', inline: true }
-            ],
-            timestamp: new Date()
-        }]
-    });
-};
-        });
-
 const tierInfo = CARD_TIERS[targetTier];
 
 // Extract bank balance from UnbelievaBoat response
@@ -8664,3 +8599,63 @@ client.login(token).catch(error => {
     console.error('Token:', token ? 'Present but invalid' : 'MISSING');
     process.exit(1);
 });
+
+// === ELITE FEATURES: AUTO-EXPIRATION CRON ===
+setInterval(async () => {
+    try {
+        const expired = await client.services.sanctions.checkExpiredSanctions();
+        
+        if (expired.length > 0) {
+            console.log(`⏱️ Encontradas ${expired.length} sanciones expiradas.`);
+            const guild = client.guilds.cache.get(GUILD_ID || process.env.GUILD_ID);
+
+            for (const leg of expired) {
+                // 1. Execute Unban/Unmute
+                if (guild && leg.action_type === 'ban') {
+                    try {
+                        await guild.members.unban(leg.discord_user_id, 'Sanción Temporal Expirada (Auto)');
+                        console.log(`🔓 Usuario ${leg.discord_user_id} desbaneado automáticamente.`);
+                    } catch (e) { }
+                }
+
+                // 2. Notify User
+                try {
+                    const user = await client.users.fetch(leg.discord_user_id);
+                    await user.send({
+                        embeds: [{
+                            title: '🎉 Sanción Expirada',
+                            description: `Tu sanción temporal **${leg.reason}** ha finalizado.\nBienvenido de vuelta a ${guild ? guild.name : 'Nación MX'}.`,
+                            color: 0x00FF00,
+                            timestamp: new Date()
+                        }]
+                    });
+                } catch (e) { /* DM Failed */ }
+
+                // 3. Mark as Expired in DB
+                await client.services.sanctions.expireSanction(leg.id);
+            }
+        }
+    } catch (err) {
+        console.error('❌ Error in Auto-Expiration Cron:', err);
+    }
+}, 300000); // Run every 5 minutes
+
+// === AUDIT LOG HELPER ===
+client.logAudit = async (title, description, moderator, target, color = 0xFFD700) => {
+    const AUDIT_CHANNEL_ID = '1456035521141670066';
+    const channel = client.channels.cache.get(AUDIT_CHANNEL_ID);
+    if (!channel) return;
+
+    await channel.send({
+        embeds: [{
+            title: `🛡️ LOG: ${title}`,
+            description: description,
+            color: color,
+            fields: [
+                { name: '👮 Moderador', value: `${moderator.tag} (${moderator.id})`, inline: true },
+                { name: '👤 Usuario', value: target ? `${target.tag || 'Unknown'} (${target.id})` : 'N/A', inline: true }
+            ],
+            timestamp: new Date()
+        }]
+    });
+};
