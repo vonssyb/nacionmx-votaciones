@@ -7,10 +7,6 @@ module.exports = {
         .setName('sancion')
         .setDescription('Sistema de Sanciones Profesional Nación MX')
         .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers)
-        .addUserOption(option =>
-            option.setName('usuario')
-                .setDescription('Usuario a sancionar (Opcional para Notificación General)')
-                .setRequired(false))
         .addStringOption(option =>
             option.setName('tipo')
                 .setDescription('Tipo de sanción/documento')
@@ -28,6 +24,10 @@ module.exports = {
             option.setName('descripcion')
                 .setDescription('Descripción de los hechos o cuerpo del mensaje')
                 .setRequired(true))
+        .addUserOption(option =>
+            option.setName('usuario')
+                .setDescription('Usuario a sancionar (Opcional para Notificación General)')
+                .setRequired(false))
         .addStringOption(option =>
             option.setName('accion')
                 .setDescription('Solo para Sanción General: Tipo de castigo')
