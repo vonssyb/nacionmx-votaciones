@@ -1083,12 +1083,19 @@ async function getAvailablePaymentMethods(userId, guildId) {
 
             if (creditCard) {
                 const availableCredit = creditCard.credit_limit - creditCard.current_balance;
+                console.log(`[DEBUG] Credit Check: User ${userId} | Citizen ${citizen.id} | Card ${creditCard.id} | Limit ${creditCard.credit_limit} | Balance ${creditCard.current_balance} | Avail ${availableCredit}`);
                 if (availableCredit > 0) {
                     methods.credit.available = true;
                     methods.credit.card = creditCard;
                     methods.credit.availableCredit = availableCredit;
+                } else {
+                    console.log(`[DEBUG] Credit Check: User ${userId} has card but 0 available credit.`);
                 }
+            } else {
+                console.log(`[DEBUG] Credit Check: User ${userId} (Citizen ${citizen.id}) has NO credit card.`);
             }
+        } else {
+            console.log(`[DEBUG] Credit Check: User ${userId} is NOT a citizen.`);
         }
 
         // Helper function to rename channel based on state
