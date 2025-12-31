@@ -328,9 +328,9 @@ module.exports = {
 
         return {
             embeds: [{
-                title: '🚨 NOTIFICACIÓN DE SANCIÓN ADMINISTRATIVA (SA) 🚨',
-                description: '**Uso:** Exclusivo para Dirección. Notificación de sanción permanente.',
-                color: 0x8b0000, // Dark Red
+                title: '🚨 SANCIÓN ADMINISTRATIVA (SA) 🚨',
+                description: 'Notificación oficial de falta administrativa.',
+                color: 0x8b0000,
                 fields: [
                     {
                         name: '📅 Fecha de Emisión',
@@ -338,23 +338,23 @@ module.exports = {
                         inline: true
                     },
                     {
-                        name: '👤 Usuario Afectado',
-                        value: `${offender} \n🆔 ID de Registro: ${offender.id} `,
+                        name: '👤 Usuario',
+                        value: `${offender}\n🆔 ${offender.id}`,
                         inline: true
                     },
                     {
-                        name: '⚠️ Motivo de la Sanción',
-                        value: `** PÉRDIDA DE CONFIANZA ADMINISTRATIVA / CONDUCTA INACEPTABLE **\n${reasonDetail} `,
+                        name: '⚠️ Motivo',
+                        value: reasonDetail || 'Conducta inapropiada en el ámbito administrativo.',
                         inline: false
                     },
                     {
-                        name: '⛔ ESTADO DE LA SANCIÓN',
-                        value: 'Esta marca es **PERMANENTE, IMBORRABLE E INAPELABLE**.\nEl usuario queda **vetado de futuras postulaciones a Staff y cargos de confianza de por vida**.\n\n**NO EXISTE DERECHO A RÉPLICA NI APELACIÓN PARA ESTE TIPO DE SANCIÓN.**',
+                        name: 'ℹ️ INFORMACIÓN IMPORTANTE',
+                        value: 'Esta es una **Sanción Administrativa (SA)** acumulativa.\n\n🔸 Las SAs **no caducan** automáticamente.\n🔸 Acumular **5 SAs** resultará en un **Ban Permanente** de la comunidad.\n\nSe le exhorta a mejorar su conducta para evitar futuras sanciones severas.',
                         inline: false
                     }
                 ],
                 footer: {
-                    text: 'Emitido por: Dirección de Nación MX RP'
+                    text: 'Dirección de Nación MX RP • Sistema de Gestión de Personal'
                 },
                 timestamp: new Date()
             }]
