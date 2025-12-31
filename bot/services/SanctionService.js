@@ -126,6 +126,18 @@ class SanctionService {
         if (error) throw error;
         return count;
     }
+
+    async getSACount(discordUserId) {
+        const { count, error } = await this.supabase
+            .from('sanctions')
+            .select('*', { count: 'exact', head: true })
+            .eq('discord_user_id', discordUserId)
+            .eq('type', 'sa')
+            .eq('status', 'active');
+
+        if (error) throw error;
+        return count;
+    }
 }
 
 module.exports = SanctionService;
