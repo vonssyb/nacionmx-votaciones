@@ -1085,11 +1085,11 @@ async function getAvailablePaymentMethods(userId, guildId) {
                 .maybeSingle();
 
             if (creditCard) {
-                const limit = creditCard.credit_limit || 0;
+                // Check both columns because of legacy/migration state
+                const limit = creditCard.card_limit || creditCard.credit_limit || 0;
                 const balance = creditCard.current_balance || 0;
                 const availableCredit = limit - balance;
-                console.log(`[DEBUG] Credit Card Keys:`, Object.keys(creditCard));
-                console.log(`[DEBUG] Credit Check: User ${userId} | Citizen ${citizen.id} | Card ${creditCard.id} | Limit ${limit} (Raw: ${creditCard.credit_limit}) | Balance ${balance} | Avail ${availableCredit}`);
+                console.log(`[DEBUG] Credit Check: User ${userId} | Citizen ${citizen.id} | Card ${creditCard.id} | Limit ${limit} (card_limit: ${creditCard.card_limit}, credit_limit: ${creditCard.credit_limit}) | Balance ${balance} | Avail ${availableCredit}`);
                 if (availableCredit > 0) {
                     methods.credit.available = true;
                     methods.credit.card = creditCard;
