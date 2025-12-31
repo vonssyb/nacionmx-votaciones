@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { BarChart3, Users, Building2, ArrowLeftRight } from 'lucide-react'
+import { BarChart3, Users, Building2, ArrowLeftRight, Trophy } from 'lucide-react'
 
 export default function Navbar() {
     return (
@@ -40,6 +40,13 @@ export default function Navbar() {
                                 >
                                     <Building2 className="h-4 w-4" />
                                     Empresas
+                                </Link>
+                                <Link
+                                    href="/rankings"
+                                    className="text-gray-300 hover:bg-gray-700 hover:text-white px-3 py-2 rounded-md text-sm font-medium transition flex items-center gap-2"
+                                >
+                                    <Trophy className="h-4 w-4" />
+                                    Rankings
                                 </Link>
                             </div>
                         </div>

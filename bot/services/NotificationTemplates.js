@@ -252,5 +252,141 @@ module.exports = {
             ],
             timestamp: new Date()
         }]
-    })
+    }),
+
+    /**
+     * 10.1 REPORTE OFICIAL DE SANCIÓN (General)
+     */
+    officialSanction: (data) => {
+        const { date, time, offender, moderator, ruleCode, description, sanctionType, duration, evidenceUrl } = data;
+        
+        // Build Sanction Checkbox visual
+        const types = [
+            'Advertencia Verbal',
+            'Warn (N° _/_)',
+            'Ban Temporal',
+            'Blacklist'
+        ];
+        
+        const sanctionVisual = types.map(t => {
+            const isSelected = t.includes(sanctionType) || (sanctionType === 'Ban Temporal' && t.includes('Ban Temporal'));
+            let text = t;
+            if (sanctionType === 'Ban Temporal' && t.includes('Ban Temporal')) {
+                text = `Ban Temporal(${ duration || '_'} Días)`;
+            } else if (sanctionType.startsWith('Warn') && t.startsWith('Warn')) {
+                text = sanctionType; // e.g., "Warn (N° 1/3)"
+            }
+            return `${ isSelected ? '☑️' : '⬜' } ${ text } `;
+        }).join('\n');
+
+        return {
+            embeds: [{
+                title: '👮‍♂️ REPORTE OFICIAL DE SANCIÓN',
+                description: `**⚖️ Sanción Aplicada:**\n${ sanctionVisual } `,
+                color: 0x2f3136, // Dark grey/formal
+                fields: [
+                    {
+                        name: '📅 Fecha y Hora',
+                        value: `${ date } - ${ time } (Hora México)`,
+                        inline: true
+                    },
+                    {
+                        name: '👤 Usuario Sancionado',
+                        value: `${ offender } \n🆔 ID: ${ offender.id || 'N/A' } `,
+                        inline: true
+                    },
+                    {
+                        name: '📜 Infracción Cometida',
+                        value: `** ${ ruleCode }** `,
+                        inline: false
+                    },
+                    {
+                        name: '📝 Descripción de los Hechos',
+                        value: description,
+                        inline: false
+                    },
+                    {
+                        name: '📸 Evidencia Adjunta',
+                        value: evidenceUrl || 'Sin evidencia adjunta',
+                        inline: false
+                    }
+                ],
+                image: evidenceUrl ? { url: evidenceUrl } : null,
+                footer: {
+                    text: `Firma: @${ moderator.username } | Nación MX RP`,
+                    icon_url: moderator.displayAvatarURL ? moderator.displayAvatarURL() : null
+                },
+                timestamp: new Date()
+            }]
+        };
+    },
+
+    /**
+     * 10.2 FORMATO DE SANCIÓN ADMINISTRATIVA (SA)
+     */
+    administrativeSanction: (data) => {
+        const { date, offender, reasonDetail } = data;
+
+        return {
+            embeds: [{
+                title: '🚨 NOTIFICACIÓN DE SANCIÓN ADMINISTRATIVA (SA) 🚨',
+                description: '**Uso:** Exclusivo para Dirección. Notificación de sanción permanente.',
+                color: 0x8b0000, // Dark Red
+                fields: [
+                    {
+                        name: '📅 Fecha de Emisión',
+                        value: date,
+                        inline: true
+                    },
+                    {
+                        name: '👤 Usuario Afectado',
+                        value: `${ offender } \n🆔 ID de Registro: ${ offender.id } `,
+                        inline: true
+                    },
+                    {
+                        name: '⚠️ Motivo de la Sanción',
+                        value: `** PÉRDIDA DE CONFIANZA ADMINISTRATIVA / CONDUCTA INACEPTABLE **\n${ reasonDetail } `,
+                        inline: false
+                    },
+                    {
+                        name: '⛔ ESTADO DE LA SANCIÓN',
+                        value: 'Esta marca es **PERMANENTE, IMBORRABLE E INAPELABLE**.\nEl usuario queda **vetado de futuras postulaciones a Staff y cargos de confianza de por vida**.\n\n**NO EXISTE DERECHO A RÉPLICA NI APELACIÓN PARA ESTE TIPO DE SANCIÓN.**',
+                        inline: false
+                    }
+                ],
+                footer: {
+                    text: 'Emitido por: Dirección de Nación MX RP'
+                },
+                timestamp: new Date()
+            }]
+        };
+    },
+
+    /**
+     * 10.3 FORMATO DE NOTIFICACIÓN GENERAL
+     */
+    generalNotification: (data) => {
+        const { date, subject, body } = data;
+
+        return {
+            embeds: [{
+                title: '📢 COMUNICADO OFICIAL - NACIÓN MX RP',
+                color: 0x00BFFF, // Banner Blue
+                fields: [
+                    {
+                        name: '📅 Fecha',
+                        value: date,
+                        inline: true
+                    },
+                    {
+                        name: '📌 Asunto',
+                        value: subject,
+                        inline: true
+                    }
+                ],
+                description: `Estimada comunidad, \n\n${ body } \n\nAtentamente, \n ** Equipo de Administración **\nNación MX RP 🇲🇽`,
+                timestamp: new Date()
+            }]
+        };
+    }
 };
