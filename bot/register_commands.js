@@ -77,8 +77,10 @@ async function registerCommands() {
         console.log('🚀 Registrando comandos en Discord...');
         console.log(`📋 Comandos a registrar: ${commands.length}`);
 
+        const clientId = process.env.CLIENT_ID || process.env.VITE_DISCORD_CLIENT_ID;
+
         const data = await rest.put(
-            Routes.applicationGuildCommands(process.env.CLIENT_ID, process.env.GUILD_ID),
+            Routes.applicationGuildCommands(clientId, process.env.GUILD_ID),
             { body: commands }
         );
 
@@ -95,10 +97,12 @@ async function registerCommands() {
 }
 
 // Validate environment variables
-if (!process.env.DISCORD_TOKEN || !process.env.CLIENT_ID || !process.env.GUILD_ID) {
+const clientId = process.env.CLIENT_ID || process.env.VITE_DISCORD_CLIENT_ID;
+
+if (!process.env.DISCORD_TOKEN || !clientId || !process.env.GUILD_ID) {
     console.error('❌ Error: Faltan variables de entorno requeridas:');
     console.error('   - DISCORD_TOKEN');
-    console.error('   - CLIENT_ID');
+    console.error('   - CLIENT_ID (o VITE_DISCORD_CLIENT_ID)');
     console.error('   - GUILD_ID');
     console.error('\n💡 Asegúrate de tener un archivo .env con estas variables.');
     process.exit(1);
