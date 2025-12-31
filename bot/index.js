@@ -1079,6 +1079,9 @@ async function getAvailablePaymentMethods(userId, guildId) {
                 .from('credit_cards')
                 .select('*')
                 .eq('citizen_id', citizen.id)
+                .eq('status', 'active')
+                .order('created_at', { ascending: false })
+                .limit(1)
                 .maybeSingle();
 
             if (creditCard) {
@@ -1112,6 +1115,9 @@ async function getAvailablePaymentMethods(userId, guildId) {
                 .from('business_credit_cards')
                 .select('*')
                 .eq('company_id', companies[0].id)
+                .eq('status', 'active')
+                .order('created_at', { ascending: false })
+                .limit(1)
                 .maybeSingle();
 
             if (businessCard) {
