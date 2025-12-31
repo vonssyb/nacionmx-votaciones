@@ -75,24 +75,35 @@ app.get('/', (req, res) => res.send('🤖 Nacion MX Bot is running!'));
 app.listen(port, () => {
     console.log(`🌐 Web server listening on port ${port}`);
     // Start Keep-Alive (Self Ping)
-    const keepAliveService = require('./services/KeepAliveService');
-    keepAliveService.start();
+    try {
+        console.log('🔄 Starting Keep-Alive Service...');
+        const keepAliveService = require('./services/KeepAliveService');
+        keepAliveService.start();
+        console.log('✅ Keep-Alive Service started.');
+    } catch (kaError) {
+        console.error('❌ Keep-Alive Start Failed:', kaError);
+    }
 });
+console.log('✅ Express Server Setup Complete.');
 // -----------------------------------------------------
 
 // Supabase initialized at top of file
 const supabaseUrl = process.env.SUPABASE_URL; // kept for legacy reference if needed
 
 // 3. Configuration
+console.log('🔧 Loading Configuration...');
 const NOTIFICATION_CHANNEL_ID = process.env.NOTIFICATION_CHANNEL_ID; // Channel to send banking logs
 const CANCELLATIONS_CHANNEL_ID = '1455691472362934475'; // Channel for Role Cancellations
 const GUILD_ID = process.env.GUILD_ID ? process.env.GUILD_ID.trim() : null;
 const DISCORD_TOKEN = process.env.DISCORD_TOKEN ? process.env.DISCORD_TOKEN.trim() : null;
 
 // Initialize Billing Service
-const billingService = new BillingService(client);
+console.log('💰 Initializing Billing Service (Constructor)...');
+const billingService = new BillingService(client); // Ensure this class exists and is imported
+console.log('✅ Billing Service Initialized.');
 
 // Attach services to client for modular commands
+console.log('🔗 Attaching services to client...');
 client.services = {
     billing: billingService,
     tax: taxService,
