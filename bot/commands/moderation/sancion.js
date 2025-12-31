@@ -39,10 +39,22 @@ module.exports = {
                 .addChoices(
                     { name: 'Advertencia Verbal', value: 'Advertencia Verbal' },
                     { name: 'Warn (Advertencia)', value: 'Warn' },
-                    { name: 'Ban Temporal', value: 'Ban Temporal' },
-                    { name: 'Blacklist', value: 'Blacklist' },
-                    { name: 'Mute (Timeout)', value: 'Mute' },
-                    { name: 'Kick (Expulsar)', value: 'Kick' }
+                    { name: 'Ban Temporal ERLC', value: 'Ban Temporal ERLC' },
+                    { name: 'Ban Permanente ERLC', value: 'Ban Permanente ERLC' },
+                    { name: 'Kick ERLC', value: 'Kick ERLC' },
+                    { name: 'Blacklist', value: 'Blacklist' }
+                ))
+        .addStringOption(option =>
+            option.setName('tipo_blacklist')
+                .setDescription('Solo si accción es Blacklist')
+                .setRequired(false)
+                .addChoices(
+                    { name: 'Moderación', value: 'Blacklist Moderacion' },
+                    { name: 'Facciones Policiales', value: 'Blacklist Facciones Policiales' },
+                    { name: 'Cartel', value: 'Blacklist Cartel' },
+                    { name: 'Política', value: 'Blacklist Politica' },
+                    { name: 'Empresas', value: 'Blacklist Empresas' },
+                    { name: 'TOTAL (Ban Permanente)', value: 'Blacklist Total' }
                 ))
         .addIntegerOption(option =>
             option.setName('dias')
@@ -58,6 +70,7 @@ module.exports = {
         const motivo = interaction.options.getString('motivo');
         const descripcion = interaction.options.getString('descripcion');
         const accion = interaction.options.getString('accion');
+        const tipoBlacklist = interaction.options.getString('tipo_blacklist');
         const dias = interaction.options.getInteger('dias');
 
         // Handle Attachment
@@ -68,6 +81,7 @@ module.exports = {
         const time = moment().tz('America/Mexico_City').format('HH:mm');
 
         let embedPayload = null;
+        let actionResult = '';
 
         try {
             // Validation
@@ -75,49 +89,117 @@ module.exports = {
                 return interaction.editReply({ content: '❌ Para Sanciones Generales y Administrativas, debes especificar un **usuario**.' });
             }
 
+            if (accion === 'Blacklist' && !tipoBlacklist) {
+                return interaction.editReply({ content: '❌ Si seleccionas Blacklist, debes especificar el **Tipo de Blacklist**.' });
+            }
+
             // DB Record Preparation
-            const dbTypeRecord = type; // 'general', 'sa', 'notificacion'
+            if (interaction.client.services && interaction.client.services.sanctions) {
+                try {
+                    const targetId = targetUser ? targetUser.id : 'UNKNOWN';
+                    await interaction.client.services.sanctions.createSanction(
+                        targetId,
+                        interaction.user.id,
+                        type,
+                        motivo,
+                        evidencia
+                    );
+                } catch (dbError) { console.error('DB Error:', dbError); }
+            }
+
+            // --- PERMISSIONS CHECKS ---
+            const ROLE_SUPERIOR = '1456020936229912781';
+            const hasSuperiorRole = interaction.member.roles.cache.has(ROLE_SUPERIOR);
+
+            if ((type === 'sa' || type === 'notificacion') && !hasSuperiorRole) {
+                return interaction.editReply({ content: '🛑 **Acceso Denegado:** Solo la Administración Superior puede utilizar estas opciones.' });
+            }
+
+            // --- ENFORCEMENT & BLACKLIST LOGIC ---
+            if (accion) {
+                const member = await interaction.guild.members.fetch(targetUser.id).catch(() => null);
+
+                if (member) {
+                    try {
+                        if (accion === 'Kick ERLC') {
+                            if (!member.kickable) actionResult = '\n⚠️ No se pudo expulsar (Kick) al usuario (Jerarquía o permisos).';
+                            else {
+                                await member.kick(`${motivo} - Por ${interaction.user.tag}`);
+                                actionResult = '\n🦵 **Usuario Expulsado (Kick ERLC).**';
+                            }
+                        }
+                        else if (accion === 'Ban Permanente ERLC' || (accion === 'Blacklist' && tipoBlacklist === 'Blacklist Total')) {
+                            if (!member.bannable) actionResult = '\n⚠️ No se pudo banear al usuario.';
+                            else {
+                                await member.ban({ reason: `${motivo} [${tipoBlacklist || 'Ban Permanente'}] - Por ${interaction.user.tag}` });
+                                actionResult = '\n🔨 **Usuario Baneado Permanentemente.**';
+                            }
+                        }
+                        else if (accion === 'Ban Temporal ERLC') {
+                            if (!member.bannable) actionResult = '\n⚠️ No se pudo banear al usuario.';
+                            else {
+                                await member.ban({ reason: `Temporal (${dias}d): ${motivo} - Por ${interaction.user.tag}` });
+                                actionResult = `\n⏳ **Usuario Baneado Temporalmente (${dias} días).**`;
+                            }
+                        }
+                    } catch (e) {
+                        actionResult = `\n⚠️ Error ejecutando castigo: ${e.message}`;
+                    }
+                }
+            }
 
             // Build Template
             if (type === 'general') {
-                if (!accion) {
-                    return interaction.editReply({ content: '❌ Para el Reporte Oficial de Sanción, debes especificar la **acción** (Advertencia, Warn, etc.).' });
-                }
+                // if (!accion) { // This validation is now handled by the new logic
+                //     return interaction.editReply({ content: '❌ Para el Reporte Oficial de Sanción, debes especificar la **acción** (Advertencia, Warn, etc.).' });
+                // }
+                const sanctionTitle = (accion === 'Blacklist') ? `BLACKLIST: ${tipoBlacklist}` : accion;
 
                 embedPayload = NotificationTemplates.officialSanction({
-                    date,
-                    time,
-                    offender: targetUser,
-                    moderator: interaction.user,
-                    ruleCode: motivo, // "Infracción Cometida"
-                    description: descripcion,
-                    sanctionType: accion,
-                    duration: dias,
-                    evidenceUrl: evidencia
+                    date, time, offender: targetUser, moderator: interaction.user,
+                    ruleCode: motivo, description: descripcion, sanctionType: sanctionTitle,
+                    duration: dias, evidenceUrl: evidencia
                 });
+
+                // SPECIAL BLACKLIST NOTIFICATION CHANNEL
+                if (accion === 'Blacklist') {
+                    const blChannelId = '1412957060168945747'; // Replace with actual Blacklist channel ID
+                    const blChannel = interaction.client.channels.cache.get(blChannelId);
+                    if (blChannel) {
+                        await blChannel.send({
+                            content: '@everyone',
+                            embeds: [embedPayload.embeds[0]] // Send the same embed
+                        });
+                        actionResult += `\n📢 **Notificación enviada al canal de Blacklists.**`;
+                    } else {
+                        actionResult += `\n⚠️ No se encontró el canal de Blacklists (${blChannelId}).`;
+                    }
+                }
 
             } else if (type === 'sa') {
                 embedPayload = NotificationTemplates.administrativeSanction({
-                    date,
-                    offender: targetUser,
-                    reasonDetail: motivo // "Motivo de la Sanción" detail
+                    date, offender: targetUser, reasonDetail: motivo
                 });
 
             } else if (type === 'notificacion') {
                 embedPayload = NotificationTemplates.generalNotification({
-                    date,
-                    subject: motivo, // "Asunto"
-                    body: descripcion
+                    date, subject: motivo, body: descripcion
                 });
             }
 
-            // Send to DB (via Service ideally, or direct Supabase if service not injected in interaction yet)
-            // Assuming client.services.sanctions might not be set up in index.js yet, let's look at index.js
-            // We should use the service we created. 
-            // Since we can't easily hot-reload index.js to inject 'client.services.sanctions', we will assume user restarts bot.
-            // But for safety in this "execute", let's try to use the one from client if available, or just skip DB for now if panic.
-            // Actually, we should probably instantiate it here if missing or just rely on 'interaction.client.services' if we added it.
-            // PROCEEDING: We will assume the restart happens.
+            // Send to Context Channel (The one where command was used)
+            const mentionEveryone = (type === 'notificacion' && !targetUser);
+            await interaction.editReply({
+                content: (mentionEveryone ? '@everyone ' : '') + (actionResult || ''),
+                ...embedPayload
+            });
+
+            // DM User
+            if (targetUser && (type === 'general' || type === 'sa')) {
+                try {
+                    await targetUser.send({ ...embedPayload, content: `Has recibido una sanción en **${interaction.guild.name}**.\n${actionResult}` });
+                } catch (e) { /* Ignore */ }
+            }
 
             // THRESHOLD ALERT & ROLE ASSIGNMENT (SA Sanctions)
             if (type === 'sa') {
@@ -175,3 +257,4 @@ module.exports = {
         }
     }
 };
+```
