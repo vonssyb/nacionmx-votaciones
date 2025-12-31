@@ -8596,7 +8596,11 @@ client.login(token).catch(error => {
     console.error('Error:', error);
     console.error('Error code:', error.code);
     console.error('Token:', token ? 'Present but invalid' : 'MISSING');
-    process.exit(1);
+
+    // DELAY EXIT TO ALLOW LOGS TO FLUSH
+    setTimeout(() => {
+        process.exit(1);
+    }, 2000);
 });
 
 // === ELITE FEATURES: AUTO-EXPIRATION CRON ===
