@@ -44,7 +44,8 @@ module.exports = {
                     const date = new Date(s.created_at).toLocaleDateString('es-MX');
                     const evidenceLink = s.evidence_url ? ` [📸 Ver Evidencia](${s.evidence_url})` : '';
                     const expiration = s.expires_at ? ` (Expira: ${new Date(s.expires_at).toLocaleDateString('es-MX')})` : '';
-                    descriptionList += `**${icon} ${displayType}** [${date}]${evidenceLink} - ${s.reason}${expiration}\n`;
+                    const descriptionText = s.description ? `\n> *${s.description}*` : '';
+                    descriptionList += `**${icon} ${displayType}** [${date}]${evidenceLink} - **Ref:** ${s.reason}${expiration}${descriptionText}\n`;
                 });
 
                 embed.addFields({ name: '📝 Últimos Registros', value: descriptionList || 'Sin detalles.' });

@@ -19,7 +19,7 @@ module.exports = {
         // 1. RBAC CHECK: Only "Encargado de Sanciones" (1456020936229912781)
         // Also allow Admin/Junta for safety/emergency
         const ALLOWED_ROLES = [
-            '1456020936229912781', // Encargado de Sanciones
+            '1451703422800625777', // Encargado de Apelaciones
             '1412882245735420006', // Junta Directiva
             '1412882248411381872'  // Admin
         ];
@@ -27,7 +27,7 @@ module.exports = {
         const hasPermission = interaction.member.roles.cache.some(r => ALLOWED_ROLES.includes(r.id));
 
         if (!hasPermission) {
-            return interaction.editReply('⛔ **Acceso Denegado:** Este comando es exclusivo del **Encargado de Sanciones**.');
+            return interaction.editReply('⛔ **Acceso Denegado:** Este comando es exclusivo del **Encargado de Apelaciones**.');
         }
 
         const sanctionId = interaction.options.getString('id');

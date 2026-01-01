@@ -216,7 +216,8 @@ module.exports = {
                         motivo,
                         evidencia,
                         expirationDate,
-                        finalActionType
+                        finalActionType,
+                        descripcion // Passed as description
                     );
                 } catch (dbError) { console.error('DB Error:', dbError); }
             }
@@ -408,7 +409,7 @@ module.exports = {
                 embedPayload = NotificationTemplates.officialSanction({
                     date, time, offender: targetUser, moderator: interaction.user,
                     ruleCode: motivo, description: descripcion, sanctionType: sanctionTitle,
-                    duration: dias, evidenceUrl: evidencia
+                    duration: durationText, evidenceUrl: evidencia
                 });
 
                 // SPECIAL BLACKLIST NOTIFICATION CHANNEL
@@ -454,7 +455,7 @@ module.exports = {
             if (interaction.client.logAudit) {
                 await interaction.client.logAudit(
                     'Sanción Ejecutada',
-                    `**Tipo:** ${type}\n**Acción:** ${accion || 'N/A'}\n**Motivo:** ${motivo}\n**Duración:** ${dias || 'N/A'} días\n**Evidencia:** ${evidencia || 'Sin evidencia'}`,
+                    `**Tipo:** ${type}\n**Acción:** ${accion || 'N/A'}\n**Motivo:** ${motivo}\n**Duración:** ${durationText || 'N/A'}\n**Evidencia:** ${evidencia || 'Sin evidencia'}`,
                     interaction.user,
                     targetUser,
                     type === 'sa' ? 0x8b0000 : 0xFFD700
@@ -476,11 +477,14 @@ module.exports = {
                     );
 
                     await targetUser.send({
-                        ...embedPayload,
                         content: `Has recibido una sanción en **${interaction.guild.name}**.\n${actionResult}`,
+                        embeds: embedPayload.embeds,
                         components: [appealButtons]
                     });
-                } catch (e) { /* Ignore */ }
+                } catch (dmError) {
+                    console.error('[Sancion] Failed to send DM to user:', dmError);
+                    actionResult += '\n⚠️ No se pudo enviar MD al usuario (posiblemente bloqueado).';
+                }
             }
 
             // SA AUTO-ROLE LOGIC

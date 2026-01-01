@@ -65,7 +65,8 @@ module.exports = {
                     const evidenceLink = s.evidence_url ? ` | [📸 Evidencia](${s.evidence_url})` : '';
                     const expiration = s.expires_at ? `\n⏳ Expira: ${new Date(s.expires_at).toLocaleDateString('es-MX')} ${new Date(s.expires_at).toLocaleTimeString('es-MX')}` : '';
 
-                    return `**ID: ${s.id}** | ${icon} **${displayType}** [${date}]${evidenceLink}\nMotivo: ${s.reason}${expiration}`;
+                    const descriptionText = s.description ? `\n> *${s.description}*` : '';
+                    return `**${icon} ${displayType}** | <@${s.moderator_id}> | [${date}]${evidenceLink}\n**Motivo:** ${s.reason}${descriptionText}${expiration}`;
                 }).join('\n-------------------\n');
 
                 embed.setDescription(list);
