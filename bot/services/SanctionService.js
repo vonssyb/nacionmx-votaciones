@@ -14,7 +14,7 @@ class SanctionService {
      * @param {string} reason 
      * @param {string|null} evidenceUrl 
      */
-    async createSanction(discordUserId, moderatorId, type, reason, evidenceUrl = null, expiresAt = null, actionType = null) {
+    async createSanction(discordUserId, moderatorId, type, reason, evidenceUrl = null, expiresAt = null, actionType = null, description = null) {
         try {
             const { data, error } = await this.supabase
                 .from('sanctions')
@@ -23,6 +23,7 @@ class SanctionService {
                     moderator_id: moderatorId,
                     type: type,
                     reason: reason,
+                    description: description,
                     evidence_url: evidenceUrl,
                     status: 'active',
                     expires_at: expiresAt,
