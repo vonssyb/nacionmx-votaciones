@@ -26,8 +26,8 @@ module.exports = {
                 .setRequired(true))
         .addUserOption(option =>
             option.setName('usuario')
-                .setDescription('Usuario a sancionar o notificar (Opcional para anuncios generales)')
-                .setRequired(false))
+                .setDescription('Usuario a sancionar o notificar')
+                .setRequired(true))
         .addAttachmentOption(option =>
             option.setName('evidencia')
                 .setDescription('Evidencia obligatoria (Imagen/Video)')
@@ -296,17 +296,10 @@ module.exports = {
                 });
 
             } else if (type === 'notificacion') {
-                if (targetUser) {
-                    // Personal Notification (Targeted)
-                    embedPayload = NotificationTemplates.personalNotification({
-                        date, subject: motivo, body: descripcion, user: targetUser
-                    });
-                } else {
-                    // Public Announcement (Community)
-                    embedPayload = NotificationTemplates.generalNotification({
-                        date, subject: motivo, body: descripcion
-                    });
-                }
+                // Personal Notification (Targeted) - User is mandatory
+                embedPayload = NotificationTemplates.personalNotification({
+                    date, subject: motivo, body: descripcion, user: targetUser
+                });
             }
 
             // Send to Context Channel (The one where command was used)
