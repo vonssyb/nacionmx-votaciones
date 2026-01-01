@@ -399,7 +399,43 @@ module.exports = {
     },
 
     /**
-     * 10.3 FORMATO DE NOTIFICACIÓN GENERAL
+     * 10.4 NOTIFICACIÓN PERSONAL (Directa al Usuario)
+     */
+    personalNotification: (data) => {
+        const { date, subject, body, user } = data;
+
+        return {
+            embeds: [{
+                title: '📩 NOTIFICACIÓN ADMINISTRATIVA',
+                color: 0xFFA500, // Orange/Attention
+                fields: [
+                    {
+                        name: '📅 Fecha',
+                        value: date,
+                        inline: true
+                    },
+                    {
+                        name: '👤 Destinatario',
+                        value: `${user} (\`${user.username}\`)`,
+                        inline: true
+                    },
+                    {
+                        name: '📌 Asunto',
+                        value: subject,
+                        inline: false
+                    }
+                ],
+                description: `**Mensaje Oficial:**\n\n${body}\n\nAtentamente,\n**Dirección de Nación MX RP** 🇲🇽`,
+                footer: {
+                    text: 'Esta notificación ha sido registrada en tu expediente.'
+                },
+                timestamp: new Date()
+            }]
+        };
+    },
+
+    /**
+     * 10.3 FORMATO DE NOTIFICACIÓN GENERAL (Anuncio Global)
      */
     generalNotification: (data) => {
         const { date, subject, body } = data;

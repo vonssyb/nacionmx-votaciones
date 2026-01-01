@@ -296,9 +296,17 @@ module.exports = {
                 });
 
             } else if (type === 'notificacion') {
-                embedPayload = NotificationTemplates.generalNotification({
-                    date, subject: motivo, body: descripcion
-                });
+                if (targetUser) {
+                    // Personal Notification (Targeted)
+                    embedPayload = NotificationTemplates.personalNotification({
+                        date, subject: motivo, body: descripcion, user: targetUser
+                    });
+                } else {
+                    // Public Announcement (Community)
+                    embedPayload = NotificationTemplates.generalNotification({
+                        date, subject: motivo, body: descripcion
+                    });
+                }
             }
 
             // Send to Context Channel (The one where command was used)
