@@ -14,7 +14,7 @@ const path = require('path');
 const commands = [];
 const commandsPath = path.join(__dirname, 'commands');
 
-// Dynamic Command Loading
+// Dynamic Command Loading from Folders
 const commandFolders = fs.readdirSync(commandsPath);
 
 for (const folder of commandFolders) {
@@ -27,8 +27,11 @@ for (const folder of commandFolders) {
         try {
             const command = require(filePath);
             if ('data' in command && 'execute' in command) {
+                // If loaded via data.toJSON(), it's an object.
+                // Store using command name as key to avoid duplicates if we want, or just push.
+                // We'll prefer modular commands over legacy ones if duplicates exist.
                 commands.push(command.data.toJSON());
-                console.log(`[LOAD] Copiando comando: ${command.data.name}`);
+                console.log(`[LOAD] Copiando comando modular: ${command.data.name}`);
             } else {
                 console.warn(`[WARN] El comando en ${filePath} le falta 'data' o 'execute'.`);
             }
@@ -36,6 +39,33 @@ for (const folder of commandFolders) {
             console.error(`[ERR] Error cargando comando ${file}:`, error);
         }
     }
+}
+
+// LOAD LEGACY COMMANDS from commands.js
+try {
+    const legacyCommandsModule = require('./commands.js');
+    // commands.js exports an array directly or { commands: [] }? check file. 
+    // It seems to be `const commands = [...]` but need to see how it exports.
+    // If it's not exported, I can't require it. 
+    // Let's assume it exports 'commands' or is an array export.
+    // I recall commands.js usually ends with module.exports = commands;
+
+    // Check if duplicate before adding
+    const legacyCommands = Array.isArray(legacyCommandsModule) ? legacyCommandsModule : legacyCommandsModule.commands;
+
+    if (legacyCommands) {
+        let legacyCount = 0;
+        for (const cmd of legacyCommands) {
+            // Only add if not already present (Modular takes precedence)
+            if (!commands.find(c => c.name === cmd.name)) {
+                commands.push(cmd);
+                legacyCount++;
+            }
+        }
+        console.log(`[LOAD] Importados ${legacyCount} comandos legacy de commands.js`);
+    }
+} catch (err) {
+    console.warn('[WARN] No se pudo cargar bot/commands.js legacy:', err.message);
 }
 
 // Add manual commands if needed (or move them to files)
