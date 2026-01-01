@@ -32,11 +32,19 @@ module.exports = {
                 let descriptionList = '';
 
                 recentSanctions.forEach(s => {
-                    const icon = s.type === 'general' ? '📜' : (s.type === 'sa' ? '🚨' : '📢');
+                    let icon = '📜';
+                    let displayType = s.action_type || (s.type === 'general' ? 'Sanción' : 'Notificación');
+
+                    if (s.type === 'sa') { icon = '🚨'; displayType = 'SA'; }
+                    else if (s.type === 'notificacion') { icon = '📢'; displayType = 'Notif'; }
+
+                    if (displayType.toLowerCase().includes('blacklist')) icon = '⛔';
+                    if (displayType.toLowerCase().includes('ban')) icon = '🔨';
+
                     const date = new Date(s.created_at).toLocaleDateString('es-MX');
                     const evidenceLink = s.evidence_url ? ` [📸 Ver Evidencia](${s.evidence_url})` : '';
                     const expiration = s.expires_at ? ` (Expira: ${new Date(s.expires_at).toLocaleDateString('es-MX')})` : '';
-                    descriptionList += `**${icon} [${date}]**${evidenceLink} - ${s.reason}${expiration}\n`;
+                    descriptionList += `**${icon} ${displayType}** [${date}]${evidenceLink} - ${s.reason}${expiration}\n`;
                 });
 
                 embed.addFields({ name: '📝 Últimos Registros', value: descriptionList || 'Sin detalles.' });

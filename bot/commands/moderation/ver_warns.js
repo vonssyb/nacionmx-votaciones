@@ -52,11 +52,20 @@ module.exports = {
             if (sanctions && sanctions.length > 0) {
                 // Show up to 10
                 const list = sanctions.slice(0, 10).map(s => {
-                    const icon = s.type === 'general' ? '📜' : (s.type === 'sa' ? '🚨' : '📢');
+                    let icon = '📜';
+                    let displayType = s.action_type || (s.type === 'general' ? 'Sanción General' : 'Notificación');
+
+                    if (s.type === 'sa') { icon = '🚨'; displayType = 'Sanción Administrativa'; }
+                    else if (s.type === 'notificacion') { icon = '📢'; displayType = 'Notificación'; }
+
+                    if (displayType.toLowerCase().includes('blacklist')) icon = '⛔';
+                    if (displayType.toLowerCase().includes('ban')) icon = '🔨';
+
                     const date = new Date(s.created_at).toLocaleDateString('es-MX');
                     const evidenceLink = s.evidence_url ? ` | [📸 Evidencia](${s.evidence_url})` : '';
                     const expiration = s.expires_at ? `\n⏳ Expira: ${new Date(s.expires_at).toLocaleDateString('es-MX')} ${new Date(s.expires_at).toLocaleTimeString('es-MX')}` : '';
-                    return `**ID: ${s.id}** | ${icon} **${date}**${evidenceLink}\nMotivo: ${s.reason}${expiration}`;
+
+                    return `**ID: ${s.id}** | ${icon} **${displayType}** [${date}]${evidenceLink}\nMotivo: ${s.reason}${expiration}`;
                 }).join('\n-------------------\n');
 
                 embed.setDescription(list);

@@ -93,6 +93,17 @@ module.exports = {
                 return interaction.editReply({ content: '❌ Si seleccionas Blacklist, debes especificar el **Tipo de Blacklist**.' });
             }
 
+            // Calculate Expiration & Action Type
+            let expirationDate = null;
+            let finalActionType = accion || type;
+
+            if (accion === 'Ban Temporal ERLC' && dias) {
+                expirationDate = moment().add(dias, 'days').toISOString();
+                finalActionType = `Ban Temporal (${dias}d)`;
+            } else if (accion === 'Blacklist') {
+                finalActionType = `Blacklist: ${tipoBlacklist}`;
+            }
+
             // DB Record Preparation
             if (interaction.client.services && interaction.client.services.sanctions) {
                 try {
@@ -102,7 +113,9 @@ module.exports = {
                         interaction.user.id,
                         type,
                         motivo,
-                        evidencia
+                        evidencia,
+                        expirationDate,
+                        finalActionType
                     );
                 } catch (dbError) { console.error('DB Error:', dbError); }
             }
