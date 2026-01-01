@@ -302,12 +302,17 @@ module.exports = {
 
         // Custom Styling for Blacklist
         if (isBlacklist) {
-            title = '⛔ EXPULSIÓN DE LA COMUNIDAD (BLACKLIST)';
+            // Default to Partial Blacklist title
+            // sanctionType usually looks like "BLACKLIST: Blacklist Empresas" or similar
+            // We clean it up for the title
+            const cleanType = sanctionType.replace(/BLACKLIST:?|Blacklist/gi, '').trim();
+
+            title = `⛔ BLACKLIST ACTIVO: ${cleanType.toUpperCase()}`;
             color = 0x000000; // Pitch Black
             thumbnail = 'https://cdn-icons-png.flaticon.com/512/1602/1602305.png'; // Stop/Ban icon
 
             if (isPerm) {
-                title = '☠️ BLACKLIST TOTAL - VETO PERMANENTE';
+                title = '☠️ BLACKLIST TOTAL - EXPULSIÓN PERMANENTE';
                 color = 0x8b0000; // Blood Red
                 thumbnail = 'https://cdn-icons-png.flaticon.com/512/9205/9205315.png'; // Adios icon
             }
