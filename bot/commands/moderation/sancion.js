@@ -6,7 +6,7 @@ module.exports = {
     data: new SlashCommandBuilder()
         .setName('sancion')
         .setDescription('Sistema de Sanciones Profesional Nación MX')
-        .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers)
+        .setDescription('Sistema de Sanciones Profesional Nación MX')
         .addStringOption(option =>
             option.setName('tipo')
                 .setDescription('Tipo de sanción/documento')
@@ -62,20 +62,98 @@ module.exports = {
                 .setRequired(false)),
 
     async execute(interaction) {
-        // Defer reply as we might need time for DB ops (though usually fast)
+        // Defer reply
         await interaction.deferReply();
 
+        // --- PERMISSIONS CHECKS (RBAC SYSTEM v2) ---
+        // Moved to top for security - Check before DB ops
+        const ROLES_CONFIG = {
+            // Junta Directiva & Encargados (FULL ACCESS - Bypass Approval)
+            LEVEL_4_BOARD: [
+                '1412882245735420006', // Junta Directiva
+                '1456020936229912781', // Encargado de Sanciones
+                '1451703422800625777', // Encargado de Apelaciones
+                '1454985316292100226'  // Encargado de Staff
+            ],
+            // Admins (FULL ACCESS - BUT REQUIRES APPROVAL for Critical)
+            LEVEL_3_ADMIN: ['1412882248411381872'],
+            // Staff (Kick/TempBan)
+            LEVEL_2_STAFF: ['1412887079612059660'],
+            // Training (Warns Only)
+            LEVEL_1_TRAINING: ['1412887167654690908']
+        };
+
+        const memberRoles = interaction.member.roles.cache;
+
+        // Determine User Level
+        let userLevel = 0;
+        if (memberRoles.some(r => ROLES_CONFIG.LEVEL_4_BOARD.includes(r.id))) userLevel = 4;
+        else if (memberRoles.some(r => ROLES_CONFIG.LEVEL_3_ADMIN.includes(r.id))) userLevel = 3;
+        else if (memberRoles.some(r => ROLES_CONFIG.LEVEL_2_STAFF.includes(r.id))) userLevel = 2;
+        else if (memberRoles.some(r => ROLES_CONFIG.LEVEL_1_TRAINING.includes(r.id))) userLevel = 1;
+
+        if (userLevel === 0) {
+            return interaction.editReply({ content: '⛔ **Acceso Denegado:** No tienes rango suficiente para usar este sistema.' });
+        }
+
         const type = interaction.options.getString('tipo');
+        const accion = interaction.options.getString('accion');
+
+        // Validation: Block Lower Levels from performing Critical Actions
+        if (accion) {
+            const isCritical = ['Ban', 'Blacklist', 'Kick'].some(k => accion.includes(k));
+            // Level 1 cannot do critical
+            if (userLevel === 1 && isCritical) {
+                return interaction.editReply({ content: '⛔ **Acceso Denegado:** Tu rango (Training) no permite Bans/Kicks/Blacklists.' });
+            }
+        }
+        // --- PERMISSIONS CHECKS (RBAC SYSTEM v2) ---
+        // Helper to check levels
+        const hasRole = (roleIds) => roleIds.some(id => memberRoles.has(id));
+        const isBoard = hasRole(ROLES_CONFIG.LEVEL_4_BOARD);
+        const isAdmin = hasRole(ROLES_CONFIG.LEVEL_3_ADMIN) || isBoard;
+        const isStaff = hasRole(ROLES_CONFIG.LEVEL_2_STAFF) || isAdmin;
+        const isTraining = hasRole(ROLES_CONFIG.LEVEL_1_TRAINING) || isStaff;
+
+        // 1. Critical Actions Check (Blacklist, SA, Ban Perm) -> Requires Admin/Board
+        const isCriticalAction = (type === 'sa') ||
+            (accion === 'Blacklist') ||
+            (accion === 'Ban Permanente ERLC');
+
+        if (isCriticalAction && !isAdmin) {
+            return interaction.editReply({
+                content: '🛑 **Acceso Denegado (Nivel 3 Requerido)**\nSolo la **Administración y Junta Directiva** pueden aplicar Blacklists, SAs o Baneos Permanentes.'
+            });
+        }
+
+        // 2. High Actions Check (Kick, Ban Temp) -> Requires Staff
+        const isHighAction = (accion === 'Kick ERLC') || (accion === 'Ban Temporal ERLC');
+
+        if (isHighAction && !isStaff) {
+            return interaction.editReply({
+                content: '🛑 **Acceso Denegado (Nivel 2 Requerido)**\nComo Staff en Entrenamiento, no puedes aplicar Kicks ni Baneos Temporales. Solicita ayuda a un Staff superior.'
+            });
+        }
+
+        // 3. Basic Actions Check (Warns, Notif) -> Requires Training
+        if (!isTraining) {
+            return interaction.editReply({
+                content: '🛑 **Acceso Denegado**\nNo tienes el rol de Staff necesario para usar este comando.'
+            });
+        }
+        // Checking Approval Requirement
+        // ------------------------------------------
+
         const targetUser = interaction.options.getUser('usuario');
         const motivo = interaction.options.getString('motivo');
         const descripcion = interaction.options.getString('descripcion');
-        const accion = interaction.options.getString('accion');
         const tipoBlacklist = interaction.options.getString('tipo_blacklist');
         const dias = interaction.options.getInteger('dias');
 
         // Handle Attachment
         const evidenciaAttachment = interaction.options.getAttachment('evidencia');
         const evidencia = evidenciaAttachment ? evidenciaAttachment.url : null;
+
 
         const date = moment().tz('America/Mexico_City').format('DD/MM/YYYY');
         const time = moment().tz('America/Mexico_City').format('HH:mm');
@@ -334,7 +412,7 @@ module.exports = {
             }
 
             // DM User with Appeal Buttons
-            if (targetUser && (type === 'general' || type === 'sa')) {
+            if (targetUser && (type === 'general' || type === 'sa' || type === 'notificacion')) {
                 try {
                     const appealButtons = new ActionRowBuilder().addComponents(
                         new ButtonBuilder()
