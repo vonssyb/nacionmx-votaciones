@@ -442,96 +442,96 @@ function updateStockPrices() {
 const CARD_TIERS = {
     // DEBIT CARDS (3)
     'NMX Débito': {
-        limit: 0, interest: 0, cost: 100, max_balance: 50000,
-        benefits: ['App móvil básica', 'Transferencias gratis', 'Soporte estándar']
+        limit: 0, interest: 0, cost: 100, max_balance: 50000, score: 0, tier: 'Débito', color: 0x808080,
+        benefits: ['Cuenta básica', 'Transferencias gratis', 'Soporte estándar']
     },
     'NMX Débito Plus': {
-        limit: 0, interest: 0, cost: 500, max_balance: 150000,
-        benefits: ['Cashback 0.5%', 'Alertas SMS', 'Retiros sin comisión']
+        limit: 0, interest: 0, cost: 500, max_balance: 150000, score: 0, tier: 'Débito', color: 0x4169E1,
+        benefits: ['Mayor límite', 'Alertas SMS', 'Retiros sin comisión']
     },
     'NMX Débito Gold': {
-        limit: 0, interest: 0, cost: 1000, max_balance: Infinity,
-        benefits: ['Cashback 1.5%', 'Seguro de compras', 'Soporte prioritario', 'Sin límite de saldo']
+        limit: 0, interest: 0, cost: 1000, max_balance: Infinity, score: 0, tier: 'Débito', color: 0xFFD700,
+        benefits: ['Sin límites', 'Cashback 1.5%', 'Soporte prioritario']
     },
 
     // PERSONAL CREDIT CARDS (10)
     'NMX Start': {
-        limit: 15000, interest: 15, cost: 2000, max_balance: Infinity,
-        benefits: ['Sin anualidad 1er año', 'App móvil incluida']
+        limit: 15000, interest: 15, cost: 2000, max_balance: Infinity, score: 0, tier: 'Personal', color: 0xA9A9A9,
+        benefits: ['Ideal para historial', 'Sin anualidad 1er año', 'App móvil incluida']
     },
     'NMX Básica': {
-        limit: 30000, interest: 12, cost: 4000, max_balance: Infinity,
-        benefits: ['Cashback 1%', 'Seguro básico de compras', 'Meses sin intereses']
+        limit: 30000, interest: 12, cost: 4000, max_balance: Infinity, score: 30, tier: 'Personal', color: 0x87CEEB,
+        benefits: ['Límite mejorado', 'Cashback 1%', 'Seguro básico']
     },
     'NMX Plus': {
-        limit: 50000, interest: 10, cost: 6000, max_balance: Infinity,
-        benefits: ['Cashback 2%', 'Protección de compras', 'Asistencia en viajes']
+        limit: 50000, interest: 10, cost: 6000, max_balance: Infinity, score: 50, tier: 'Plus', color: 0x32CD32,
+        benefits: ['Límite superior', 'Cashback 2%', 'Protección de compras']
     },
     'NMX Plata': {
-        limit: 100000, interest: 8, cost: 10000, max_balance: Infinity,
-        benefits: ['Cashback 3%', 'Seguro de viaje', 'Concierge básico', 'Acceso salas VIP (2/año)']
+        limit: 100000, interest: 8, cost: 10000, max_balance: Infinity, score: 60, tier: 'Premium', color: 0xC0C0C0,
+        benefits: ['Límite alto', 'Cashback 3%', 'Acceso salas VIP (2/año)']
     },
     'NMX Oro': {
-        limit: 250000, interest: 7, cost: 15000, max_balance: Infinity,
-        benefits: ['Cashback 4%', 'Lounge aeropuerto ilimitado', 'Asistencia 24/7', 'Seguro médico viajes']
+        limit: 250000, interest: 7, cost: 15000, max_balance: Infinity, score: 70, tier: 'Elite', color: 0xFFD700,
+        benefits: ['Límite Oro', 'Cashback 4%', 'Lounge aeropuerto ilimitado']
     },
     'NMX Rubí': {
-        limit: 500000, interest: 6, cost: 25000, max_balance: Infinity,
-        benefits: ['Cashback 5%', 'Concierge premium', 'Eventos exclusivos', 'Upgrades de vuelos']
+        limit: 500000, interest: 6, cost: 25000, max_balance: Infinity, score: 80, tier: 'Elite Plus', color: 0xE0115F,
+        benefits: ['Medio millón', 'Cashback 5%', 'Concierge premium']
     },
     'NMX Black': {
-        limit: 1000000, interest: 5, cost: 40000, max_balance: Infinity,
-        benefits: ['Cashback 6%', 'Priority Pass', 'Asesor financiero dedicado', 'Reservas premium']
+        limit: 1000000, interest: 5, cost: 40000, max_balance: Infinity, score: 85, tier: 'Black', color: 0x000000,
+        benefits: ['Límite millonario', 'Cashback 6%', 'Priority Pass Total']
     },
     'NMX Diamante': {
-        limit: 2000000, interest: 3, cost: 60000, max_balance: Infinity,
-        benefits: ['Cashback 7%', 'Mayordomo personal', 'Eventos VIP', 'Primera clase gratis']
+        limit: 2000000, interest: 3, cost: 60000, max_balance: Infinity, score: 90, tier: 'Diamante', color: 0xB9F2FF,
+        benefits: ['2 Millones', 'Cashback 8%', 'Mayordomo personal']
     },
     'NMX Zafiro': {
-        limit: 5000000, interest: 2.5, cost: 100000, max_balance: Infinity,
-        benefits: ['Cashback 8%', 'Jet privado (-50%)', 'Reservas imposibles', 'Experiencias únicas']
+        limit: 5000000, interest: 2.5, cost: 100000, max_balance: Infinity, score: 95, tier: 'Zafiro', color: 0x0F52BA,
+        benefits: ['5 Millones', 'Cashback 8%', 'Jet privado (-50%)']
     },
     'NMX Platino Elite': {
-        limit: 10000000, interest: 2, cost: 150000, max_balance: Infinity,
-        benefits: ['Cashback 10%', 'Jet privado ilimitado', 'Ultra exclusivo', 'Gestión patrimonial']
+        limit: 10000000, interest: 2, cost: 150000, max_balance: Infinity, score: 98, tier: 'Platino Elite', color: 0xE5E4E2,
+        benefits: ['10 Millones', 'Cashback 10%', 'Jet privado ilimitado']
     },
 
     // BUSINESS CREDIT CARDS (9)
     'NMX Business Start': {
-        limit: 50000, interest: 2, cost: 8000, max_balance: Infinity,
-        benefits: ['Crédito renovable', 'Reportes mensuales', 'Tarjetas empleados (3)']
+        limit: 50000, interest: 2, cost: 8000, max_balance: Infinity, score: 70, tier: 'Business', color: 0x4682B4,
+        benefits: ['Emprendedores', 'Crédito renovable', 'Reportes mensuales']
     },
     'NMX Business Gold': {
-        limit: 100000, interest: 1.5, cost: 15000, max_balance: Infinity,
-        benefits: ['Cashback empresarial 1%', 'Reportes detallados', 'Tarjetas (10)', 'Asesoría contable']
+        limit: 100000, interest: 1.5, cost: 15000, max_balance: Infinity, score: 75, tier: 'Business', color: 0xFFD700,
+        benefits: ['Pymes', 'Cashback 1%', 'Tarjetas adicionales']
     },
     'NMX Business Platinum': {
-        limit: 200000, interest: 1.2, cost: 20000, max_balance: Infinity,
-        benefits: ['Acceso prioritario', 'Sin comisiones internacionales', 'Tarjetas ilimitadas']
+        limit: 200000, interest: 1.2, cost: 20000, max_balance: Infinity, score: 80, tier: 'Business', color: 0xE5E4E2,
+        benefits: ['Expansión', 'Acceso prioritario', 'Sin comisiones intl']
     },
     'NMX Business Elite': {
-        limit: 500000, interest: 1, cost: 35000, max_balance: Infinity,
-        benefits: ['Línea flexible', 'Seguro viajes corporativo', 'Descuentos proveedores (5%)']
+        limit: 500000, interest: 1, cost: 35000, max_balance: Infinity, score: 85, tier: 'Business', color: 0x4B0082,
+        benefits: ['Corporativo', 'Línea flexible', 'Seguro viajes']
     },
     'NMX Corporate': {
-        limit: 1000000, interest: 0.7, cost: 50000, max_balance: Infinity,
-        benefits: ['Beneficio fiscal máximo', 'Asesor financiero', 'Integración contable']
+        limit: 1000000, interest: 0.7, cost: 50000, max_balance: Infinity, score: 90, tier: 'Corporate', color: 0x800020,
+        benefits: ['Industrias', 'Beneficio fiscal', 'Asesor dedicado']
     },
     'NMX Corporate Plus': {
-        limit: 5000000, interest: 0.5, cost: 100000, max_balance: Infinity,
-        benefits: ['Financiamiento proyectos', 'Líneas adicionales', 'M&A advisory', 'Networking']
+        limit: 5000000, interest: 0.5, cost: 100000, max_balance: Infinity, score: 92, tier: 'Corporate', color: 0xCD7F32, // Bronze-ish
+        benefits: ['Grandes Corps', 'Financiamiento proyectos', 'Líneas extra']
     },
     'NMX Enterprise': {
-        limit: 10000000, interest: 0.4, cost: 200000, max_balance: Infinity,
-        benefits: ['Soluciones corporativas', 'Trade finance', 'Hedging divisas', 'IPO assistance']
+        limit: 10000000, interest: 0.4, cost: 200000, max_balance: Infinity, score: 95, tier: 'Corporate', color: 0x2F4F4F,
+        benefits: ['Transnacionales', 'Trade finance', 'Hedging']
     },
     'NMX Conglomerate': {
-        limit: 25000000, interest: 0.3, cost: 350000, max_balance: Infinity,
-        benefits: ['Fiscalidad internacional', 'M&A', 'Banca de inversión', 'Family office']
+        limit: 25000000, interest: 0.3, cost: 350000, max_balance: Infinity, score: 98, tier: 'Supreme', color: 0x191970,
+        benefits: ['Conglomerados', 'Fiscalidad internacional', 'M&A']
     },
     'NMX Supreme': {
-        limit: 50000000, interest: 0.2, cost: 500000, max_balance: Infinity,
-        benefits: ['Todo incluido', 'Mercado capitales', 'Emisión deuda', 'C-Suite advisory']
+        limit: 50000000, interest: 0.2, cost: 500000, max_balance: Infinity, score: 99, tier: 'Supreme', color: 0xFFFFFF,
+        benefits: ['Top Tier', 'Mercado capitales', 'Todo incluido']
     }
 };
 
@@ -2754,21 +2754,7 @@ client.on('interactionCreate', async interaction => {
             const cardName = interaction.options.getString('nombre');
 
             // Card database with detailed info
-            const allCards = {
-                'NMX Start': { limit: 2000, interest: 3, score: 0, tier: 'Inicial', benefits: ['Sin anualidad', 'App móvil incluida'], color: 0x808080 },
-                'NMX Básica': { limit: 4000, interest: 2.5, score: 30, tier: 'Básica', benefits: ['Cashback 1%', 'Seguro básico'], color: 0x4169E1 },
-                'NMX Plus': { limit: 6000, interest: 2, score: 50, tier: 'Plus', benefits: ['Cashback 2%', 'Protección de compras'], color: 0x32CD32 },
-                'NMX Plata': { limit: 10000, interest: 1.5, score: 60, tier: 'Premium', benefits: ['Cashback 3%', 'Seguro de viaje', 'Concierge'], color: 0xC0C0C0 },
-                'NMX Oro': { limit: 15000, interest: 1.2, score: 70, tier: 'Elite', benefits: ['Cashback 4%', 'Lounge aero', 'Asistencia 24/7'], color: 0xFFD700 },
-                'NMX Rubí': { limit: 25000, interest: 1, score: 80, tier: 'Elite Plus', benefits: ['Cashback 5%', 'Concierge premium', 'Eventos exclusivos'], color: 0xE0115F },
-                'NMX Black': { limit: 40000, interest: 0.8, score: 85, tier: 'Black', benefits: ['Cashback 6%', 'Prioridad máxima', 'Gestor personal'], color: 0x000000 },
-                'NMX Diamante': { limit: 60000, interest: 0.5, score: 90, tier: 'Diamante', benefits: ['Cashback 8%', 'Servicios ilimitados', 'Sin límites'], color: 0xB9F2FF },
-                'NMX Business Start': { limit: 50000, interest: 2, score: 70, tier: 'Empresarial', benefits: ['Facturación integrada', 'Control de gastos'], color: 0x1E90FF },
-                'NMX Business Gold': { limit: 100000, interest: 1.5, score: 75, tier: 'Corporativa', benefits: ['Tarjetas adicionales', 'Reportes avanzados'], color: 0xFFD700 },
-                'NMX Business Platinum': { limit: 200000, interest: 1.2, score: 80, tier: 'Corporativa Plus', benefits: [' Cuentas por pagar', 'API de integración'], color: 0xE5E4E2 },
-                'NMX Business Elite': { limit: 500000, interest: 1, score: 85, tier: 'Elite Corp', benefits: ['Línea directa CFO', 'Asesoría fiscal'], color: 0x4B0082 },
-                'NMX Corporate': { limit: 1000000, interest: 0.7, score: 90, tier: 'Corporate', benefits: ['Gestor dedicado', 'Términos personalizados', 'Liquidez ilimitada'], color: 0x800020 }
-            };
+            const allCards = CARD_TIERS;
 
             const card = allCards[cardName];
 
@@ -2835,7 +2821,9 @@ client.on('interactionCreate', async interaction => {
             const regularBankerAllowedCards = [
                 'NMX Débito', 'NMX Débito Plus', 'NMX Débito Gold',
                 'NMX Start', 'NMX Básica', 'NMX Plus', 'NMX Plata',
-                'NMX Oro', 'NMX Rubí', 'NMX Black', 'NMX Diamante'
+                'NMX Oro', 'NMX Rubí', 'NMX Black', 'NMX Diamante', 'NMX Zafiro', 'NMX Platino Elite',
+                'NMX Business Start', 'NMX Business Gold', 'NMX Business Platinum', 'NMX Business Elite',
+                'NMX Corporate', 'NMX Corporate Plus', 'NMX Enterprise', 'NMX Conglomerate', 'NMX Supreme'
             ];
 
             // Regular bankers can only offer cards up to Diamante
@@ -3772,9 +3760,9 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
     else if (commandName === 'multa') {
         await interaction.deferReply();
 
-        // 1. Role Check (Policia: 1416867605976715363)
-        if (!interaction.member.roles.cache.has('1416867605976715363') && !interaction.member.permissions.has('Administrator')) {
-            return interaction.editReply({ content: '⛔ No tienes placa de policía (Rol Requerido).', ephemeral: false });
+        // 1. Role Check (Role ID: 1456368296818380862)
+        if (!interaction.member.roles.cache.has('1456368296818380862') && !interaction.member.permissions.has('Administrator')) {
+            return interaction.editReply({ content: '⛔ Acceso Denegado: No tienes permiso para aplicar multas.', ephemeral: false });
         }
 
         // Helper function to rename channel based on state
@@ -6966,12 +6954,14 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
         const subCmd = interaction.options.getSubcommand();
         const bet = interaction.options.getNumber('apuesta');
 
-        if (bet < 100) return interaction.editReply('❌ Apuesta mínima $100.');
+        if (['blackjack', 'ruleta'].includes(subCmd)) {
+            if (!bet || bet < 100) return interaction.editReply('❌ Apuesta mínima $100.');
 
-        // Validate Funds
-        const balance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
-        const userCash = balance.cash || 0;
-        if (userCash < bet) return interaction.editReply('❌ No tienes suficiente efectivo.');
+            // Validate Funds
+            const balance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
+            const userCash = balance.cash || 0;
+            if (userCash < bet) return interaction.editReply('❌ No tienes suficiente efectivo.');
+        }
 
         if (subCmd === 'blackjack') {
             const suits = ['♠️', '♥️', '♣️', '♦️'];
@@ -8638,7 +8628,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                                 .setURL('https://www.roblox.com/games/start?launchData=%7B%22psCode%22%3A%22NACIONMX%22%7D&placeId=2534724415')
                         );
 
-                    await channel.send({ embeds: [finalOpenEmbed], components: [joinButton] });
+                    await channel.send({ content: '<@&1412899401000685588>', embeds: [finalOpenEmbed], components: [joinButton] });
                 }
             } catch (sendError) {
                 console.error('Error sending open embed to clean channel:', sendError);

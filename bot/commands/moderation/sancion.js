@@ -42,6 +42,8 @@ module.exports = {
                     { name: 'Ban Temporal ERLC', value: 'Ban Temporal ERLC' },
                     { name: 'Ban Permanente ERLC', value: 'Ban Permanente ERLC' },
                     { name: 'Kick ERLC', value: 'Kick ERLC' },
+                    { name: 'Kick Discord', value: 'Kick Discord' },
+                    { name: 'Timeout / Mute', value: 'Timeout' }, // Added Timeout
                     { name: 'Blacklist', value: 'Blacklist' }
                 ))
         .addStringOption(option =>
@@ -56,17 +58,18 @@ module.exports = {
                     { name: 'Empresas', value: 'Blacklist Empresas' },
                     { name: 'TOTAL (Ban Permanente)', value: 'Blacklist Total' }
                 ))
-        .addIntegerOption(option =>
-            option.setName('dias')
-                .setDescription('Solo para Ban Temporal: Duración en días')
+        .addStringOption(option =>
+            option.setName('duracion')
+                .setDescription('Tiempo (ej: 10m, 2h, 1d, 1s=semana, 1w=mes)')
                 .setRequired(false)),
 
     async execute(interaction) {
-        // Defer reply
-        await interaction.deferReply();
+        // 1. Get Options EARLY to decide ephemeral state
+        const type = interaction.options.getString('tipo');
+        const accion = interaction.options.getString('accion');
 
         // --- PERMISSIONS CHECKS (RBAC SYSTEM v2) ---
-        // Moved to top for security - Check before DB ops
+        // Check permissions BEFORE deferring to allow ephemeral errors
         const ROLES_CONFIG = {
             // Junta Directiva & Encargados (FULL ACCESS - Bypass Approval)
             LEVEL_4_BOARD: [
@@ -93,21 +96,9 @@ module.exports = {
         else if (memberRoles.some(r => ROLES_CONFIG.LEVEL_1_TRAINING.includes(r.id))) userLevel = 1;
 
         if (userLevel === 0) {
-            return interaction.editReply({ content: '⛔ **Acceso Denegado:** No tienes rango suficiente para usar este sistema.' });
+            return interaction.reply({ content: '⛔ **Acceso Denegado:** No tienes rango suficiente para usar este sistema.', ephemeral: true });
         }
 
-        const type = interaction.options.getString('tipo');
-        const accion = interaction.options.getString('accion');
-
-        // Validation: Block Lower Levels from performing Critical Actions
-        if (accion) {
-            const isCritical = ['Ban', 'Blacklist', 'Kick'].some(k => accion.includes(k));
-            // Level 1 cannot do critical
-            if (userLevel === 1 && isCritical) {
-                return interaction.editReply({ content: '⛔ **Acceso Denegado:** Tu rango (Training) no permite Bans/Kicks/Blacklists.' });
-            }
-        }
-        // --- PERMISSIONS CHECKS (RBAC SYSTEM v2) ---
         // Helper to check levels
         const hasRole = (roleIds) => roleIds.some(id => memberRoles.has(id));
         const isBoard = hasRole(ROLES_CONFIG.LEVEL_4_BOARD);
@@ -121,34 +112,41 @@ module.exports = {
             (accion === 'Ban Permanente ERLC');
 
         if (isCriticalAction && !isAdmin) {
-            return interaction.editReply({
-                content: '🛑 **Acceso Denegado (Nivel 3 Requerido)**\nSolo la **Administración y Junta Directiva** pueden aplicar Blacklists, SAs o Baneos Permanentes.'
+            return interaction.reply({
+                content: '🛑 **Acceso Denegado (Nivel 3 Requerido)**\nSolo la **Administración y Junta Directiva** pueden aplicar Blacklists, SAs o Baneos Permanentes.',
+                ephemeral: true
             });
         }
 
         // 2. High Actions Check (Kick, Ban Temp) -> Requires Staff
-        const isHighAction = (accion === 'Kick ERLC') || (accion === 'Ban Temporal ERLC');
+        const isHighAction = (accion === 'Kick ERLC') || (accion === 'Kick Discord') || (accion === 'Ban Temporal ERLC');
 
         if (isHighAction && !isStaff) {
-            return interaction.editReply({
-                content: '🛑 **Acceso Denegado (Nivel 2 Requerido)**\nComo Staff en Entrenamiento, no puedes aplicar Kicks ni Baneos Temporales. Solicita ayuda a un Staff superior.'
+            return interaction.reply({
+                content: '🛑 **Acceso Denegado (Nivel 2 Requerido)**\nComo Staff en Entrenamiento, no puedes aplicar Kicks ni Baneos Temporales. Solicita ayuda a un Staff superior.',
+                ephemeral: true
             });
         }
 
         // 3. Basic Actions Check (Warns, Notif) -> Requires Training
         if (!isTraining) {
-            return interaction.editReply({
-                content: '🛑 **Acceso Denegado**\nNo tienes el rol de Staff necesario para usar este comando.'
+            return interaction.reply({
+                content: '🛑 **Acceso Denegado**\nNo tienes el rol de Staff necesario para usar este comando.',
+                ephemeral: true
             });
         }
-        // Checking Approval Requirement
-        // ------------------------------------------
+
+        // --- DEFERRAL LOGIC ---
+        // Sanciones = Public (No Ephemeral)
+        // Notificaciones = Private (Ephemeral)
+        const isEphemeral = (type === 'notificacion');
+        await interaction.deferReply({ ephemeral: isEphemeral });
 
         const targetUser = interaction.options.getUser('usuario');
         const motivo = interaction.options.getString('motivo');
         const descripcion = interaction.options.getString('descripcion');
         const tipoBlacklist = interaction.options.getString('tipo_blacklist');
-        const dias = interaction.options.getInteger('dias');
+        const duracionInput = interaction.options.getString('duracion'); // String input
 
         // Handle Attachment
         const evidenciaAttachment = interaction.options.getAttachment('evidencia');
@@ -157,6 +155,28 @@ module.exports = {
 
         const date = moment().tz('America/Mexico_City').format('DD/MM/YYYY');
         const time = moment().tz('America/Mexico_City').format('HH:mm');
+
+        // --- DURATION PARSING ---
+        let durationMs = 0;
+        let durationText = '';
+
+        if (duracionInput) {
+            const unit = duracionInput.slice(-1).toLowerCase();
+            const val = parseInt(duracionInput.slice(0, -1));
+
+            if (!isNaN(val)) {
+                // User Mapping: m=min, h=hour, d=day, s=semana(week), w=mes(month)
+                if (unit === 'm') { durationMs = val * 60 * 1000; durationText = `${val} Minutos`; }
+                else if (unit === 'h') { durationMs = val * 3600 * 1000; durationText = `${val} Horas`; }
+                else if (unit === 'd') { durationMs = val * 24 * 3600 * 1000; durationText = `${val} Días`; }
+                else if (unit === 's') { durationMs = val * 7 * 24 * 3600 * 1000; durationText = `${val} Semanas`; }
+                else if (unit === 'w') { durationMs = val * 30 * 24 * 3600 * 1000; durationText = `${val} Meses`; }
+                else {
+                    // Fallback if just number = days
+                    durationMs = val * 24 * 3600 * 1000; durationText = `${val} Días`;
+                }
+            }
+        }
 
         let embedPayload = null;
         let actionResult = '';
@@ -175,9 +195,12 @@ module.exports = {
             let expirationDate = null;
             let finalActionType = accion || type;
 
-            if (accion === 'Ban Temporal ERLC' && dias) {
-                expirationDate = moment().add(dias, 'days').toISOString();
-                finalActionType = `Ban Temporal (${dias}d)`;
+            if (accion === 'Ban Temporal ERLC' && durationMs > 0) {
+                expirationDate = moment().add(durationMs, 'ms').toISOString();
+                finalActionType = `Ban Temporal (${durationText})`;
+            } else if (accion === 'Timeout' && durationMs > 0) {
+                expirationDate = moment().add(durationMs, 'ms').toISOString();
+                finalActionType = `Timeout / Mute (${durationText})`;
             } else if (accion === 'Blacklist') {
                 finalActionType = `Blacklist: ${tipoBlacklist}`;
             }
@@ -347,7 +370,29 @@ module.exports = {
                             actionResult = '\n🔨 **Sanción de Ban Permanente (ERLC/Juego) Registrada.** (No afecta Discord)';
                         }
                         else if (accion === 'Ban Temporal ERLC') {
-                            actionResult = `\n⏳ **Sanción de Ban Temporal_(${dias}d) (ERLC/Juego) Registrada.** (No afecta Discord)`;
+                            actionResult = `\n⏳ **Sanción de Ban Temporal_(${durationText}) (ERLC/Juego) Registrada.** (No afecta Discord)`;
+                        }
+                        // 3. TIMEOUT / MUTE LOGIC
+                        else if (accion === 'Timeout') {
+                            if (member.moderatable) {
+                                if (durationMs > 0) {
+                                    await member.timeout(durationMs, `Sanción: ${motivo} - Por ${interaction.user.tag}`);
+                                    actionResult = `\n🤐 **Usuario Silenciado (Timeout)** por **${durationText}**.`;
+                                } else {
+                                    actionResult = `\n⚠️ Solicitaste Timeout pero no especificaste duración válida. (Mínimo 1m).`;
+                                }
+                            } else {
+                                actionResult = '\n⚠️ No puedo silenciar a este usuario (Jerarquía de Roles).';
+                            }
+                        }
+                        // 4. KICK DISCORD LOGIC
+                        else if (accion === 'Kick Discord') {
+                            if (member.kickable) {
+                                await member.kick(`Sanción: ${motivo} - Por ${interaction.user.tag}`);
+                                actionResult = '\n👢 **Usuario Expulsado (Kick) del Discord.**';
+                            } else {
+                                actionResult = '\n⚠️ No puedo expulsar a este usuario (Jerarquía de Roles).';
+                            }
                         }
 
                     } catch (e) {
@@ -368,16 +413,21 @@ module.exports = {
 
                 // SPECIAL BLACKLIST NOTIFICATION CHANNEL
                 if (accion === 'Blacklist') {
-                    const blChannelId = '1412957060168945747'; // Replace with actual Blacklist channel ID
-                    const blChannel = interaction.client.channels.cache.get(blChannelId);
-                    if (blChannel) {
-                        await blChannel.send({
-                            content: '@everyone',
-                            embeds: [embedPayload.embeds[0]] // Send the same embed
-                        });
-                        actionResult += `\n📢 **Notificación enviada al canal de Blacklists.**`;
-                    } else {
-                        actionResult += `\n⚠️ No se encontró el canal de Blacklists (${blChannelId}).`;
+                    const blChannelId = '1412957060168945747';
+                    try {
+                        const blChannel = await interaction.client.channels.fetch(blChannelId);
+                        if (blChannel) {
+                            await blChannel.send({
+                                content: '@everyone',
+                                embeds: [embedPayload.embeds[0]]
+                            });
+                            actionResult += `\n📢 **Notificación enviada al canal de Blacklists.**`;
+                        } else {
+                            actionResult += `\n⚠️ No se encontró el canal de Blacklists (${blChannelId}).`;
+                        }
+                    } catch (blError) {
+                        console.error('Error sending blacklist notification:', blError);
+                        actionResult += `\n⚠️ Error al notificar Blacklist: ${blError.message}`;
                     }
                 }
 
