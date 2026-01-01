@@ -26,8 +26,8 @@ module.exports = {
                 .setRequired(true))
         .addUserOption(option =>
             option.setName('usuario')
-                .setDescription('Usuario a sancionar o notificar')
-                .setRequired(true))
+                .setDescription('Usuario a sancionar o notificar (Opcional para anuncios generales)')
+                .setRequired(false))
         .addAttachmentOption(option =>
             option.setName('evidencia')
                 .setDescription('Evidencia obligatoria (Imagen/Video)')
