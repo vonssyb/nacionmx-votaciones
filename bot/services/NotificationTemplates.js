@@ -417,7 +417,7 @@ module.exports = {
                     {
                         name: '📌 Asunto',
                         value: subject,
-                        inline: true
+                        inline: false
                     }
                 ],
                 description: `Estimada comunidad, \n\n${body} \n\nAtentamente, \n ** Equipo de Administración **\nNación MX RP 🇲🇽`,
