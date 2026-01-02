@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
+const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder } = require('discord.js');
 const NotificationTemplates = require('../../services/NotificationTemplates');
 
 module.exports = {
@@ -100,9 +100,19 @@ module.exports = {
                 // Notify User
                 try {
                     const user = await interaction.client.users.fetch(userId);
-                    await user.send({
-                        content: `📢 **Actualización de Sanción:**\nTu sanción con ID \`${sanctionId}\` ha sido convertida a **Sanción Administrativa (SA)** por la Administración Superior.\nEsto afecta tu historial y roles acumulados.`
-                    });
+
+                    const dmEmbed = new EmbedBuilder()
+                        .setTitle('🚨 Sanción Convertida a Administrativa (SA)')
+                        .setColor('#8B0000') // Dark Red
+                        .setDescription(`Tu sanción con ID \`${sanctionId}\` ha sido escalada a **Sanción Administrativa** por la Administración Superior.`)
+                        .addFields(
+                            { name: '⚠️ ¿Qué implica?', value: 'Las SAs son acumulativas y no caducan. Al llegar a 5, implica expulsión permanente.', inline: false },
+                            { name: '📋 Nuevo Motivo', value: newReason, inline: false }
+                        )
+                        .setFooter({ text: 'Sistema de Gestión de Personal | Nación MX' })
+                        .setTimestamp();
+
+                    await user.send({ embeds: [dmEmbed] });
                 } catch (e) {
                     console.error('Failed to DM user about SA conversion:', e);
                     actionResult += '\n⚠️ No se pudo enviar MD al usuario.';

@@ -83,10 +83,9 @@ module.exports = {
             try {
                 const user = await interaction.client.users.fetch(sanction.discord_user_id);
                 if (user) {
-                    await user.send({
-                        content: `✅ **¡Buenas noticias!** Tu apelación ha sido **APROBADA** en **${interaction.guild.name}**.\nLa sanción (ID: ${idSancion}) ha sido retirada.`,
-                        embeds: [embed]
-                    });
+                    // Update embed for DM context
+                    embed.setDescription(`✅ **¡Buenas noticias!**\nTu apelación ha sido ** APROBADA** en **${interaction.guild.name}**.\nLa sanción ha sido retirada.`);
+                    await user.send({ embeds: [embed] });
                 }
             } catch (e) { /* Ignore DM fail */ }
 
