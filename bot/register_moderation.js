@@ -3,6 +3,7 @@ require('dotenv').config({ path: path.join(__dirname, '.env') });
 require('dotenv').config({ path: path.join(__dirname, '../.env') });
 
 const { REST, Routes } = require('discord.js');
+const { loadCommands } = require('./handlers/commandLoader');
 
 const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
 const GUILD_ID = process.env.GUILD_ID;
@@ -30,25 +31,30 @@ async function registerModerationCommands() {
         }
     }
 
-    // Load ALL commands from commands.js
-    const allCommands = require('./commands.js');
+    // 1. Load modular commands from /commands/moderation (utils are in economy bot)
+    const client = { commands: new Map() };
+    const commandsPath = path.join(__dirname, 'commands');
+    await loadCommands(client, commandsPath, ['moderation']);
 
-    // Filter ONLY Moderation/Staff commands
-    const moderationCommandNames = [
-        'ping', 'ayuda', 'info',
-        'rol', 'multa', 'licencia', 'sesion', 'fichar'
-    ];
+    // 2. Load legacy moderation commands from commands.js
+    const allLegacyCommands = require('./commands.js');
+    const legacyModerationNames = ['fichar', 'rol', 'multa', 'licencia', 'sesion', 'ping', 'ayuda', 'info'];
+    const legacyCommands = allLegacyCommands.filter(cmd => legacyModerationNames.includes(cmd.name));
 
-    const moderationCommands = allCommands.filter(cmd => moderationCommandNames.includes(cmd.name));
+    // 3. Combine modular + legacy
+    const modularCommandsData = Array.from(client.commands.values()).map(cmd => cmd.data.toJSON());
+    const allCommands = [...modularCommandsData, ...legacyCommands];
 
-    console.log(`🔄 Registrando ${moderationCommands.length} comandos de MODERACIÓN en Discord...`);
+    console.log(`🔄 Registrando ${allCommands.length} comandos de MODERACIÓN/STAFF en Discord...`);
+    console.log(`   -> ${modularCommandsData.length} modulares (moderation)`);
+    console.log(`   -> ${legacyCommands.length} legacy (fichar, rol, multa, etc.)`);
     console.log(`📡 Guild ID: ${GUILD_ID}`);
     console.log(`🤖 Client ID: ${CLIENT_ID}`);
 
     try {
         const data = await rest.put(
             Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID),
-            { body: moderationCommands }
+            { body: allCommands }
         );
 
         console.log(`✅ ${data.length} comandos registrados para el Bot de MODERACIÓN!`);

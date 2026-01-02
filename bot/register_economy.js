@@ -3,6 +3,7 @@ require('dotenv').config({ path: path.join(__dirname, '.env') });
 require('dotenv').config({ path: path.join(__dirname, '../.env') });
 
 const { REST, Routes } = require('discord.js');
+const { loadCommands } = require('./handlers/commandLoader');
 
 const DISCORD_TOKEN = process.env.DISCORD_TOKEN_ECO;
 const GUILD_ID = process.env.GUILD_ID;
@@ -30,29 +31,37 @@ async function registerEconomyCommands() {
         }
     }
 
-    // Load ALL commands from commands.js
-    const allCommands = require('./commands.js');
+    // 1. Load modular commands from /commands/games and /commands/utils
+    const client = { commands: new Map() };
+    const commandsPath = path.join(__dirname, 'commands');
+    await loadCommands(client, commandsPath, ['games', 'utils']);
 
-    // Filter ONLY Economy commands
-    const economyCommandNames = [
-        'ping', 'ayuda', 'info',
-        'registrar-tarjeta', 'tarjeta', 'credito', 'depositar', 'giro', 'movimientos',
-        'notificaciones', 'top-morosos', 'top-ricos', 'tienda', 'inversion', 'impuestos',
-        'empresa', 'robar', 'trabajar', 'bolsa', 'crimen', 'casino', 'nomina',
-        'dar-robo', 'stake', 'slots', 'fondos', 'balanza', 'saldo', 'jugar',
-        'business', 'debito', 'privacidad'
-    ];
+    // 2. Load legacy economy commands from commands.js
+    const allLegacyCommands = require('./commands.js');
 
-    const economyCommands = allCommands.filter(cmd => economyCommandNames.includes(cmd.name));
+    // Exclude moderation commands AND modular command names (to avoid duplicates)
+    const excludedCommands = ['fichar', 'rol', 'multa', 'licencia', 'sesion'];
+    const modularCommandNames = Array.from(client.commands.keys()); // Get names of modular commands
 
-    console.log(`🔄 Registrando ${economyCommands.length} comandos de ECONOMÍA en Discord...`);
+    const legacyEconomyCommands = allLegacyCommands.filter(cmd =>
+        !excludedCommands.includes(cmd.name) &&
+        !modularCommandNames.includes(cmd.name) // Avoid duplicates
+    );
+
+    // 3. Combine modular + legacy
+    const modularCommandsData = Array.from(client.commands.values()).map(cmd => cmd.data.toJSON());
+    const allCommands = [...modularCommandsData, ...legacyEconomyCommands];
+
+    console.log(`🔄 Registrando ${allCommands.length} comandos de ECONOMÍA en Discord...`);
+    console.log(`   -> ${modularCommandsData.length} modulares (games, utils)`);
+    console.log(`   -> ${legacyEconomyCommands.length} legacy (economy, business, casino, etc.)`);
     console.log(`📡 Guild ID: ${GUILD_ID}`);
     console.log(`🤖 Client ID: ${CLIENT_ID}`);
 
     try {
         const data = await rest.put(
             Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID),
-            { body: economyCommands }
+            { body: allCommands }
         );
 
         console.log(`✅ ${data.length} comandos registrados para el Bot de ECONOMÍA!`);
