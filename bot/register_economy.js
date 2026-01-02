@@ -31,10 +31,10 @@ async function registerEconomyCommands() {
         }
     }
 
-    // 1. Load modular commands from /commands/games and /commands/utils
+    // 1. Load modular commands from /commands/economy, /commands/games, /commands/utils
     const client = { commands: new Map() };
     const commandsPath = path.join(__dirname, 'commands');
-    await loadCommands(client, commandsPath, ['games', 'utils']);
+    await loadCommands(client, commandsPath, ['economy', 'games', 'utils']);
 
     // 2. Load legacy economy commands from commands.js
     const allLegacyCommands = require('./commands.js');
@@ -53,8 +53,8 @@ async function registerEconomyCommands() {
     const allCommands = [...modularCommandsData, ...legacyEconomyCommands];
 
     console.log(`🔄 Registrando ${allCommands.length} comandos de ECONOMÍA en Discord...`);
-    console.log(`   -> ${modularCommandsData.length} modulares (games, utils)`);
-    console.log(`   -> ${legacyEconomyCommands.length} legacy (economy, business, casino, etc.)`);
+    console.log(`   -> ${modularCommandsData.length} modulares (economy, games, utils)`);
+    console.log(`   -> ${legacyEconomyCommands.length} legacy (bank, business, casino, etc.)`);
     console.log(`📡 Guild ID: ${GUILD_ID}`);
     console.log(`🤖 Client ID: ${CLIENT_ID}`);
 

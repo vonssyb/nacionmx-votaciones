@@ -31,14 +31,15 @@ async function registerModerationCommands() {
         }
     }
 
-    // 1. Load modular commands from /commands/moderation (utils are in economy bot)
+    // 1. Load modular commands from /commands/moderation (includes new moderation-specific ayuda.js)
     const client = { commands: new Map() };
     const commandsPath = path.join(__dirname, 'commands');
     await loadCommands(client, commandsPath, ['moderation']);
 
     // 2. Load legacy moderation commands from commands.js
     const allLegacyCommands = require('./commands.js');
-    const legacyModerationNames = ['fichar', 'rol', 'multa', 'licencia', 'sesion', 'ping', 'ayuda', 'info'];
+    const legacyModerationNames = ['fichar', 'rol', 'multa', 'licencia', 'sesion', 'ping', 'info'];
+    // Exclude 'ayuda' because we have moderation-specific ayuda in /commands/moderation/
     const legacyCommands = allLegacyCommands.filter(cmd => legacyModerationNames.includes(cmd.name));
 
     // 3. Combine modular + legacy
@@ -46,7 +47,7 @@ async function registerModerationCommands() {
     const allCommands = [...modularCommandsData, ...legacyCommands];
 
     console.log(`🔄 Registrando ${allCommands.length} comandos de MODERACIÓN/STAFF en Discord...`);
-    console.log(`   -> ${modularCommandsData.length} modulares (moderation)`);
+    console.log(`   -> ${modularCommandsData.length} modulares (moderation - includes ayuda)`);
     console.log(`   -> ${legacyCommands.length} legacy (fichar, rol, multa, etc.)`);
     console.log(`📡 Guild ID: ${GUILD_ID}`);
     console.log(`🤖 Client ID: ${CLIENT_ID}`);
