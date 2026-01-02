@@ -69,8 +69,6 @@ client.logAudit = async (action, details, moderator, target, color = 0x00AAFF) =
 client.once('ready', async () => {
     console.log(`🤖 MODERATION BOT Started as ${client.user.tag}!`);
 
-    // Load Commands (ONLY MODERATION & UTILITY)
-    const loader = require('./handlers/commandLoader');
     // Load Commands (MODERATION & UTILS)
     const loader = require('./handlers/commandLoader');
     await loader.loadCommands(client, path.join(__dirname, 'commands'), ['moderation', 'utils']);
