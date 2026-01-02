@@ -6,10 +6,11 @@ module.exports = {
         .setDescription('🏓 Ver la latencia del bot con Discord'),
 
     async execute(interaction, client, supabase) {
-        const sent = await interaction.reply({ content: 'Pinging...', fetchReply: true, ephemeral: true });
+        const sent = await interaction.reply({ content: 'Pinging...', withResponse: true, ephemeral: true });
 
-        const roundtripLatency = sent.createdTimestamp - interaction.createdTimestamp;
-        const wsLatency = client.ws.ping;
+        const roundtripLatency = sent.resource.message.createdTimestamp - interaction.createdTimestamp;
+        // Check if client.ws exists (it should if passed correctly)
+        const wsLatency = (client && client.ws) ? client.ws.ping : -1;
 
         await interaction.editReply({
             content: `🏓 **Pong!**\n\n📡 Latencia: **${roundtripLatency}ms**\n💓 API Heartbeat: **${wsLatency}ms**`
