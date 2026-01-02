@@ -837,8 +837,8 @@ const startLegacyBackgroundTasks = async (client) => {
     billingService = client.services.billing;
     console.log(`🤖 Bot iniciado como ${client.user.tag}!`);
 
-    // Load Modular Commands
-    await loadCommands(client, path.join(__dirname, 'commands'));
+    // Load Modular Commands - ALREADY DONE IN INDEX_ECONOMIA.JS
+    // await loadCommands(client, path.join(__dirname, 'commands'));
 
     console.log(`📡 Conectado a Supabase: ${supabaseUrl}`);
 
