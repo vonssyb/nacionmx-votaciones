@@ -5,7 +5,9 @@
     "main": "index.js",
     "scripts": {
         "start": "node index.js",
-        "dev": "nodemon index.js"
+        "dev": "nodemon index.js",
+        "deploy:mod": "node register_moderacion.js",
+        "deploy:eco": "node register_economia.js"
     },
     "dependencies": {
         "@supabase/supabase-js": "^2.88.0",

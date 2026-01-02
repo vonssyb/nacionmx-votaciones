@@ -72,9 +72,10 @@ client.once('ready', async () => {
     console.log(`🤖 ECONOMY BOT Started as ${client.user.tag}!`);
     console.log('💰 Economy Systems Online.');
 
-    // Load Commands (ONLY ECONOMY, COMPANIES, STORE, UTILITY)
+    // Load Commands (ONLY ECONOMY, COMPANIES/BUSINESS, GAMES, UTILITY/UTILS)
     const loader = require('./handlers/commandLoader');
-    await loader.loadCommands(client, path.join(__dirname, 'commands'), ['economy', 'companies', 'store', 'utility']);
+    // Corrected categories based on actual folder structure
+    await loader.loadCommands(client, path.join(__dirname, 'commands'), ['economy', 'business', 'games', 'utils']);
 
     // Start Jobs
     if (client.services.billing) client.services.billing.startCron();
