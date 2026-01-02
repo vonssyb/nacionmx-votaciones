@@ -69,7 +69,8 @@ module.exports = {
                     let entry = `🆔 \`${s.id}\`\n**${icon} ${displayType}** | <@${s.moderator_id}> | [${date}]${evidenceLink}\n**Motivo:** ${s.reason}${descriptionText}${expiration}`;
 
                     if (s.status === 'appealed') {
-                        entry = `~~${entry}~~\n✨ **[APELADA / PERDONADA]**`;
+                        // Cleaner style: Prefix + Normal text (No strikethrough)
+                        entry = `✨ **[APELADA]** ${entry}`;
                     }
                     return entry;
                 }).join('\n-------------------\n');

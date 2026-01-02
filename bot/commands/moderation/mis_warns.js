@@ -47,7 +47,7 @@ module.exports = {
                     let line = `**${icon} ${displayType}** [${date}]${evidenceLink} - **Ref:** ${s.reason}${expiration}${descriptionText}\n`;
 
                     if (s.status === 'appealed') {
-                        line = `~~${line.trim()}~~ ✨ **[APELADA]**\n`;
+                        line = `✨ **[APELADA]** ${line}`;
                     }
                     descriptionList += line;
                 });
