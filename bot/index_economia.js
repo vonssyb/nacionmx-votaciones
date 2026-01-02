@@ -108,7 +108,7 @@ client.once('clientReady', async () => {
             }
         });
     }
-    console.log(`✅ Loaded ${client.commands.size} total commands (${loader.loadedCount} modular + ${legacyEconomyCommands.length} legacy)`);
+    console.log(`✅ Loaded ${client.commands.size} total commands (${client.commands.size - legacyEconomyCommands.length} modular + ${legacyEconomyCommands.length} legacy)`);
 
     // Start Jobs
     if (client.services.billing) {
