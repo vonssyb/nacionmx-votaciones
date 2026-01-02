@@ -2525,27 +2525,6 @@ const handleEconomyLegacy = async (interaction, client, supabase) => {
     // Only process slash commands
     if (!interaction.isChatInputCommand()) return;
 
-    // --- MODULAR COMMAND HANDLER (NEW) ---
-    const command = client.commands?.get(interaction.commandName);
-    if (command) {
-        try {
-            console.log(`[CMD] Executing modular command: /${interaction.commandName}`);
-            await command.execute(interaction, client, supabase);
-            return; // Stop here, don't run legacy code
-        } catch (error) {
-            console.error(`[CMD] Error executing /${interaction.commandName}:`, error);
-            try {
-                if (interaction.replied || interaction.deferred) {
-                    await interaction.followUp({ content: '❌ Error al ejecutar el comando.', ephemeral: true });
-                } else {
-                    await interaction.reply({ content: '❌ Error al ejecutar el comando.', ephemeral: true });
-                }
-            } catch (err) {
-                console.error('Error sending error response:', err);
-            }
-            return;
-        }
-    }
     // --- LEGACY HANDLER (OLD) ---
 
     const { commandName } = interaction;
