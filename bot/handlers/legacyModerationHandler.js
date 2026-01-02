@@ -2439,9 +2439,22 @@ const handleModerationLegacy = async (interaction, client, supabase) => {
         await interaction.reply({ content: `🏓 Pong! Latencia: **${ping}ms**. API: **${Math.round(client.ws.ping)}ms**.`, ephemeral: false });
     }
 
-
-
-
+    /*
+    else if (commandName === 'rol') {
+        const subCmd = interaction.options.getSubcommand();
+        // ... (logic) ...
+    }
+    */
+    /*
+    else if (commandName === 'fichar') {
+        // ... (logic) ...
+    }
+    */
+    /*
+    else if (commandName === 'saldo') {
+        // ... (logic) ...
+    }
+    */
 
 
     else if (commandName === 'tarjeta') {
@@ -3477,77 +3490,12 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
         // Helper function to rename channel based on state
     }
 
+    /*
     else if (commandName === 'rol') {
         await interaction.deferReply({ ephemeral: false });
-        const subCmd = interaction.options.getSubcommand();
-        if (subCmd === 'cancelar') {
-
-            const targetUser = interaction.options.getString('usuario');
-            const reason = interaction.options.getString('razon');
-            const location = interaction.options.getString('ubicacion');
-            const proof1 = interaction.options.getAttachment('prueba1');
-            const proof2 = interaction.options.getAttachment('prueba2');
-
-            // Insert into DB
-            const { error } = await supabase.from('rp_cancellations').insert([{
-                moderator_discord_id: interaction.user.id,
-                moderator_name: interaction.user.tag,
-                target_user: targetUser,
-                reason: reason,
-                location: location,
-                proof_url_1: proof1 ? proof1.url : null,
-                proof_url_2: proof2 ? proof2.url : null
-            }]);
-
-            if (error) {
-                console.error(error);
-                return interaction.editReply('❌ Error guardando el reporte en la base de datos.');
-            }
-
-            // Create Embed
-            const embed = new EmbedBuilder()
-                .setTitle('🚨 CANCELACIÓN DE ROL')
-                .setColor(0xFF0000)
-                .addFields(
-                    { name: '👤 Usuario Sancionado', value: targetUser, inline: true },
-                    { name: '👮 Moderador', value: interaction.user.tag, inline: true },
-                    { name: '📍 Ubicación', value: location, inline: false },
-                    { name: '📝 Razón', value: reason, inline: false }
-                )
-                .setTimestamp();
-
-            if (proof1) embed.setImage(proof1.url);
-            if (proof2) embed.setThumbnail(proof2.url);
-
-            // Try to send to configured channel
-            const logChannelId = LOG_ROL_CANCELADO;
-            let published = false;
-
-            if (logChannelId) {
-                try {
-                    const channel = await client.channels.fetch(logChannelId);
-                    if (channel) {
-                        await channel.send({ embeds: [embed] });
-                        published = true;
-                    }
-                } catch (e) {
-                    console.error('Error publishing report:', e);
-                }
-            }
-
-            if (published) {
-                await interaction.editReply('✅ Reporte de cancelación enviado y publicado exitosamente.');
-            } else {
-                // Return embed to user if channel not found
-                await interaction.editReply({
-                    content: '✅ Reporte guardado en base de datos. (No se encontró canal de logs público)',
-                    embeds: [embed]
-                });
-            }
-        }
-
-        // Helper function to rename channel based on state
+        // ... (omitted) ...
     }
+    */
 
 
 
@@ -3633,110 +3581,20 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
         await interaction.editReply({ embeds: [embed], components: [] });
     }
 
+    /*
     else if (commandName === 'fichar') {
         await interaction.deferReply({ ephemeral: false });
-        const subCmd = interaction.options.getSubcommand();
-
-        // --- SUBCOMMAND: VINCULAR (STAFF ONLY) ---
-        if (subCmd === 'vincular') {
-            // 1. Role Check (Staff Banco: 1450591546524307689)
-            if (!interaction.member.roles.cache.has('1450591546524307689') && !interaction.member.permissions.has('Administrator')) {
-                return interaction.editReply('⛔ No tienes permisos para vincular ciudadanos (Rol Staff Banco Requerido).');
-            }
-
-            const targetUser = interaction.options.getUser('usuario');
-            const fullName = interaction.options.getString('nombre');
-            const dniPhoto = interaction.options.getAttachment('dni');
-
-            // 2. Check if Citizen exists (by Discord ID)
-            let { data: existingCitizen } = await supabase.from('citizens').select('*').eq('discord_id', targetUser.id).limit(1).maybeSingle();
-
-            if (existingCitizen) {
-                // Update existing
-                const { error: updateError } = await supabase.from('citizens').update({ full_name: fullName, dni: dniPhoto.url }).eq('id', existingCitizen.id);
-                if (updateError) return interaction.editReply(`❌ Error actualizando ciudadano: ${updateError.message}`);
-
-                const embed = new EmbedBuilder()
-                    .setTitle('✅ Ciudadano Actualizado')
-                    .setColor(0x00FF00)
-                    .setDescription(`Los datos de <@${targetUser.id}> han sido actualizados.`)
-                    .addFields(
-                        { name: 'Nombre', value: fullName, inline: true },
-                        { name: 'DNI (Foto)', value: '[Ver Documento](' + dniPhoto.url + ')', inline: true }
-                    )
-                    .setThumbnail(dniPhoto.url)
-                    .setFooter({ text: `Vinculado por ${interaction.user.tag}` });
-                return interaction.editReply({ embeds: [embed] });
-            } else {
-                // Create new
-                const { error: createError } = await supabase.from('citizens').insert([{
-                    discord_id: targetUser.id,
-                    full_name: fullName,
-                    dni: dniPhoto.url, // Store URL
-                    credit_score: 100 // Default score
-                }]);
-
-                if (createError) return interaction.editReply(`❌ Error registrando ciudadano: ${createError.message}`);
-
-                const embed = new EmbedBuilder()
-                    .setTitle('✅ Ciudadano Registrado y Vinculado')
-                    .setColor(0x00FF00)
-                    .setDescription(`Se ha creado un nuevo registro para <@${targetUser.id}>.`)
-                    .addFields(
-                        { name: 'Nombre', value: fullName, inline: true },
-                        { name: 'DNI (Foto)', value: '[Ver Documento](' + dniPhoto.url + ')', inline: true }
-                    )
-                    .setThumbnail(dniPhoto.url)
-                    .setFooter({ text: `Registrado por ${interaction.user.tag}` });
-                return interaction.editReply({ embeds: [embed] });
-            }
-        }
-
-        // Helper function to rename channel based on state
+        // ... (omitted) ...
     }
+    */
 
 
+    /*
     if (commandName === 'saldo') {
         await interaction.deferReply();
-
-        const targetUser = interaction.options.getUser('usuario') || interaction.user;
-
-        try {
-            // Get UnbelievaBoat balance
-            const balance = await billingService.ubService.getUserBalance(interaction.guildId, targetUser.id);
-
-            // Get casino chips (if any)
-            const { data: casinoData } = await supabase
-                .from('casino_chips')
-                .select('chips')
-                .eq('user_id', targetUser.id)
-                .single();
-
-            const chips = casinoData?.chips || 0;
-
-            const embed = new EmbedBuilder()
-                .setColor('#FFD700')
-                .setTitle(`💰 Saldo de ${targetUser.username}`)
-                .addFields(
-                    { name: '💵 Efectivo', value: `$${(balance.cash || 0).toLocaleString()}`, inline: true },
-                    { name: '🏦 Banco', value: `$${(balance.bank || 0).toLocaleString()}`, inline: true },
-                    { name: '💎 Total', value: `$${(balance.total || 0).toLocaleString()}`, inline: true }
-                )
-                .setTimestamp();
-
-            if (chips > 0) {
-                embed.addFields({ name: '🎰 Fichas Casino', value: `${chips.toLocaleString()} fichas`, inline: false });
-            }
-
-            await interaction.editReply({ embeds: [embed] });
-
-        } catch (error) {
-            console.error('[saldo] Error:', error);
-            await interaction.editReply('❌ Error al obtener el saldo.');
-        }
-
-        // Helper function to rename channel based on state
+        // ... (omitted) ...
     }
+    */
     else if (commandName === 'empresa') {
         await interaction.deferReply();
 
