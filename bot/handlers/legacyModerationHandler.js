@@ -933,13 +933,13 @@ async function handleBlackjackAction(interaction) {
 }
 
         // Helper function to rename channel based on state
-    } catch (error) {
+        } catch (error) {
     console.error('❌ Error gestionando comandos (General Catch):', error);
 }
 
-    // Start listening to Supabase changes
+        // Start listening to Supabase changes
 
-}); */
+    }); */
 
 // Interaction Handler (Slash Commands)
 
@@ -1280,11 +1280,13 @@ const handleModerationLegacy = async (interaction, client, supabase) => {
             }
 
             if (interaction.customId === 'reject_sancion') {
+                const file = new AttachmentBuilder(path.join(__dirname, '../assets/img/status/rechazado.png'), { name: 'rechazado.png' });
                 const rejectEmbed = EmbedBuilder.from(interaction.message.embeds[0])
                     .setColor(0xFF0000)
-                    .setTitle('❌ Solicitud Rechazada');
+                    .setTitle(null)
+                    .setImage('attachment://rechazado.png');
 
-                await interaction.update({ embeds: [rejectEmbed], components: [] });
+                await interaction.update({ embeds: [rejectEmbed], components: [], files: [file] });
                 return;
             }
 
@@ -1395,22 +1397,36 @@ const handleModerationLegacy = async (interaction, client, supabase) => {
                     );
 
                     const user = await client.users.fetch(targetId);
+
+                    // Determine Image (Ban/Blacklist vs Sanction)
+                    const isBan = action === 'Blacklist' || action === 'Ban Permanente ERLC' || typeField.includes('BLACKLIST') || typeField.includes('Ban');
+                    const imgName = isBan ? 'baneo.png' : 'sancion.png';
+                    const dmFile = new AttachmentBuilder(path.join(__dirname, `../assets/img/status/${imgName}`), { name: imgName });
+
+                    const dmEmbed = EmbedBuilder.from(interaction.message.embeds[0])
+                        .setTitle(null)
+                        .setImage(`attachment://${imgName}`)
+                        .setColor(isBan ? 0x800080 : 0xFF0000); // Purple/Red
+
                     await user.send({
-                        embeds: [interaction.message.embeds[0]], // Send the approval embed (which describes the sanction)
+                        embeds: [dmEmbed],
                         content: `Has recibido una sanción en **${interaction.guild.name}** (Aprobada por Dirección).\n${actionResult}`,
-                        components: [appealButtons]
+                        components: [appealButtons],
+                        files: [dmFile]
                     });
                 } catch (dmErr) {
                     console.log('Could not DM user:', dmErr.message);
                 }
 
                 // 4. Update Message
+                const successFile = new AttachmentBuilder(path.join(__dirname, '../assets/img/status/aprobado.png'), { name: 'aprobado.png' });
                 const successEmbed = EmbedBuilder.from(interaction.message.embeds[0])
                     .setColor(0x00FF00)
-                    .setTitle('✅ Solicitud Aprobada y Ejecutada')
+                    .setTitle(null)
+                    .setImage('attachment://aprobado.png')
                     .addFields({ name: '👮 Aprobado por', value: interaction.user.tag, inline: true });
 
-                await interaction.editReply({ embeds: [successEmbed], components: [] });
+                await interaction.editReply({ embeds: [successEmbed], components: [], files: [successFile] });
 
                 // 4. Notify Original Log Channel (Audit)
                 if (client.logAudit) {
