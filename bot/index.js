@@ -7134,6 +7134,10 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             if (accion === 'comprar') {
                 const costo = cantidad * FICHA_PRICE;
 
+                // Fetch Balance for this specific action
+                const balance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
+                const userCash = balance.cash || 0;
+
                 if (userCash < costo) {
                     return interaction.editReply(`❌ **Fondos Insuficientes**\nNecesitas: $${costo.toLocaleString()}\nTienes: $${userCash.toLocaleString()}`);
                 }
