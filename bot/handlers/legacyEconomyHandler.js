@@ -5,7 +5,8 @@ const path = require('path');
 require('dotenv').config();
 
 // Initialize Supabase (Global for helpers)
-const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY);
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabase = createClient(supabaseUrl, process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY);
 let billingService; // Global scope for helpers
 
 // LOG CHANNELS (Moved up if needed, but they are defined below usually)
