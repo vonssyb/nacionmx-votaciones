@@ -71,9 +71,9 @@ client.logAudit = async (action, details, moderator, target, color = 0x00AAFF) =
 client.once('clientReady', async () => {
     console.log(`🤖 MODERATION BOT Started as ${client.user.tag}!`);
 
-    // Load Commands (MODERATION & UTILS)
+    // Load Commands (MODERATION ONLY - ayuda, ping, info are included in moderation folder)
     const loader = require('./handlers/commandLoader');
-    await loader.loadCommands(client, path.join(__dirname, 'commands'), ['moderation', 'utils']);
+    await loader.loadCommands(client, path.join(__dirname, 'commands'), ['moderation']);
 
     // Register Commands (We can do this manually or auto, but for now let's rely on manual or existing script)
     // For Split Bot, usually we want to register only the subset.
