@@ -832,114 +832,12 @@ async function handleBlackjackAction(interaction) {
     }
 }
 
-/* client.once('ready', async () => {
-    console.log(`🤖 Bot iniciado como ${client.user.tag}!`);
-
-    // Load Modular Commands
-    await loadCommands(client, path.join(__dirname, 'commands'));
-
-    console.log(`📡 Conectado a Supabase: ${supabaseUrl}`);
-
-    // Update Status to indicate DEBUG MODE
-    // Status Normal
-    client.user.setActivity('Nación MX | /ayuda', { type: ActivityType.Playing });
-
-    // Start Auto-Billing Cron
-    billingService.startCron();
-
-    // Initialize Economy Services
-    // Initialize Economy Services
-    stakingService = new StakingService(supabase);
-    slotsService = new SlotsService(supabase);
-
-    // Attach late-init services
-    client.services.staking = stakingService;
-    client.services.slots = slotsService;
-
-    console.log('✅ Economy services initialized (Staking, Slots)');
-
-    // Start Stock Market Loop (Updates every 10 minutes)
-    updateStockPrices(); // Initial update
-    updateStockPrices(); // Initial update
-    setInterval(updateStockPrices, 10 * 60 * 1000);
-
-    // Start Store Expiration Check (Every 5 minutes)
-    setInterval(() => {
-        storeService.expirePurchases(client, CANCELLATIONS_CHANNEL_ID);
-    }, 5 * 60 * 1000);
-
-
-
-    const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_BOT_TOKEN || process.env.DISCORD_TOKEN || '');
-
-    const commands = require('./commands');
-
-    try {
-        console.log('🔄 Iniciando actualización de comandos...');
-
-        if (GUILD_ID) {
-            // Check if bot is actually in the guild
-            const targetGuild = client.guilds.cache.get(GUILD_ID);
-            if (!targetGuild) {
-                console.error(`❌ CRITICAL ERROR: El bot NO ESTÁ en el servidor con ID '${GUILD_ID}'.`);
-                // ... logs ...
-            } else {
-                console.log(`✅ Verificado: Estoy dentro del servidor '${targetGuild.name}'`);
-            }
-
-            // TEST READ ACCESS
-            try {
-                console.log('🧐 Verificando comandos actuales en la API...');
-                const currentCommands = await rest.get(Routes.applicationGuildCommands(client.user.id, GUILD_ID));
-                console.log(`📋 El bot ya tiene ${currentCommands.length} comandos registrados en la nube.`);
-            } catch (readError) {
-                console.error('❌ ERROR DE LECTURA (Scope?):', readError);
-            }
-
-            // Register Guild Commands (Overwrite)
-            // DISABLED ON RENDER DUE TO IP BLOCK / TIMEOUTS
-            // RUN `node bot/manual_register.js` LOCALLY TO UPDATE COMMANDS
-            console.log('⚠️ AUTO-REGISTRO DESACTIVADO: Se omite la carga de comandos para evitar Timeouts en Render.');
-            console.log('   -> Ejecuta `node bot/manual_register.js` en tu PC si necesitas actualizar comandos.');
-
-            /*
-            console.log(`✨ Registrando SOLO 1 COMANDO (ping) en: '${GUILD_ID}'...`);
-            console.log(`🔑 Client ID: ${client.user.id}`);
-            // console.log('📦 Payloads:', JSON.stringify(commands, null, 2)); // Too verbose for 17 commands
-    
-            // Timeout implementation to prevent hanging indefinitely
-            const registrationTimeout = new Promise((_, reject) =>
-                setTimeout(() => reject(new Error('TIMEOUT: La conexión con Discord API tardó demasiado (>30s).')), 30000)
-            );
-    
-            try {
-                await Promise.race([
-                    rest.put(Routes.applicationGuildCommands(client.user.id, GUILD_ID), { body: commands }),
-                    registrationTimeout
-                ]);
-                console.log('✅ Comandos (PING) verificados y limpios (REST PUT Success).');
-            } catch (putError) {
-                console.error('❌ FATAL REST ERROR:', putError);
-                // Optionally Fallback to Global? catch -> log
-            }
-            */
-
-        } else {
-    console.log('⚠️ GUILD_ID no encontrado o vacío. Registrando Globalmente (No recomendado para desarrollo).');
-    await rest.put(
-        Routes.applicationCommands(client.user.id),
-        { body: commands }
-    );
-}
-
-        // Helper function to rename channel based on state
-        } catch (error) {
-    console.error('❌ Error gestionando comandos (General Catch):', error);
-}
-
-        // Start listening to Supabase changes
-
-    }); */
+// DEPRECATED: Ready event moved to index_moderacion.js
+/*
+client.once('ready', async () => {
+    // Legacy logic...
+});
+*/
 
 // Interaction Handler (Slash Commands)
 
@@ -2532,27 +2430,6 @@ const handleModerationLegacy = async (interaction, client, supabase) => {
     // Only process slash commands
     if (!interaction.isChatInputCommand()) return;
 
-    // --- MODULAR COMMAND HANDLER (NEW) ---
-    const command = client.commands?.get(interaction.commandName);
-    if (command) {
-        try {
-            console.log(`[CMD] Executing modular command: /${interaction.commandName}`);
-            await command.execute(interaction, client, supabase);
-            return; // Stop here, don't run legacy code
-        } catch (error) {
-            console.error(`[CMD] Error executing /${interaction.commandName}:`, error);
-            try {
-                if (interaction.replied || interaction.deferred) {
-                    await interaction.followUp({ content: '❌ Error al ejecutar el comando.', ephemeral: true });
-                } else {
-                    await interaction.reply({ content: '❌ Error al ejecutar el comando.', ephemeral: true });
-                }
-            } catch (err) {
-                console.error('Error sending error response:', err);
-            }
-            return;
-        }
-    }
     // --- LEGACY HANDLER (OLD) ---
 
     const { commandName } = interaction;
