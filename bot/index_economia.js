@@ -88,6 +88,28 @@ client.once('clientReady', async () => {
     // Corrected categories based on actual folder structure
     await loader.loadCommands(client, path.join(__dirname, 'commands'), ['economy', 'business', 'games', 'utils']);
 
+    // Load Legacy Economy Commands from commands.js
+    const allLegacyCommands = require('./commands.js');
+    const excludedCommands = ['fichar', 'rol', 'multa', 'licencia', 'sesion']; // Moderation only
+    const modularCommandNames = Array.from(client.commands.keys());
+
+    const legacyEconomyCommands = allLegacyCommands.filter(cmd =>
+        !excludedCommands.includes(cmd.name) &&
+        !modularCommandNames.includes(cmd.name)
+    );
+
+    // Add legacy commands to client.commands
+    for (const cmd of legacyEconomyCommands) {
+        client.commands.set(cmd.name, {
+            data: { name: cmd.name },
+            execute: async (interaction, client, supabase) => {
+                const { handleEconomyLegacy } = require('./handlers/legacyEconomyHandler');
+                await handleEconomyLegacy(interaction, client, supabase);
+            }
+        });
+    }
+    console.log(`✅ Loaded ${client.commands.size} total commands (${loader.loadedCount} modular + ${legacyEconomyCommands.length} legacy)`);
+
     // Start Jobs
     if (client.services.billing) {
         console.log('⏳ Starting Billing Service Cron...');
