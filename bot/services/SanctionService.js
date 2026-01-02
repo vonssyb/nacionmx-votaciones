@@ -49,7 +49,7 @@ class SanctionService {
             .from('sanctions')
             .select('*')
             .eq('discord_user_id', discordUserId)
-            .eq('status', 'active')
+            .in('status', ['active', 'appealed'])
             .order('created_at', { ascending: false });
 
         if (error) throw error;
@@ -209,6 +209,19 @@ class SanctionService {
                 // If table doesn't have specific columns, we can append to reason?
                 // Better to just update status for now, managing columns is complex live.
                 // We will rely on Audit Log for the "Who" and "Why".
+            })
+            .eq('id', id)
+            .select()
+            .single();
+
+        if (error) throw error;
+        return data;
+    }
+    async appealSanction(id, reason) {
+        const { data, error } = await this.supabase
+            .from('sanctions')
+            .update({
+                status: 'appealed'
             })
             .eq('id', id)
             .select()

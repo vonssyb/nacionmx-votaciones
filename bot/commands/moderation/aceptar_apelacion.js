@@ -47,8 +47,8 @@ module.exports = {
                 return interaction.editReply('🛑 **Acción Prohibida:** Las Sanciones Administrativas (SA) no pueden ser removidas mediante apelación ordinaria.');
             }
 
-            // 4. Void (Soft Delete)
-            await interaction.client.services.sanctions.voidSanction(idSancion, motivo, interaction.user.id);
+            // 4. Set Status to 'appealed' (Visible but struck-through)
+            await interaction.client.services.sanctions.appealSanction(idSancion, motivo);
 
             // 5. Try to remove roles/unban if possible (Best Effect)
             // Note: DB doesn't store role IDs usually, but for Blacklist we might checking action_type.

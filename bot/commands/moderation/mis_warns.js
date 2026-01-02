@@ -43,9 +43,13 @@ module.exports = {
 
                     const date = new Date(s.created_at).toLocaleDateString('es-MX');
                     const evidenceLink = s.evidence_url ? ` [📸 Ver Evidencia](${s.evidence_url})` : '';
-                    const expiration = s.expires_at ? ` (Expira: ${new Date(s.expires_at).toLocaleDateString('es-MX')})` : '';
                     const descriptionText = s.description ? `\n> *${s.description}*` : '';
-                    descriptionList += `**${icon} ${displayType}** [${date}]${evidenceLink} - **Ref:** ${s.reason}${expiration}${descriptionText}\n`;
+                    let line = `**${icon} ${displayType}** [${date}]${evidenceLink} - **Ref:** ${s.reason}${expiration}${descriptionText}\n`;
+
+                    if (s.status === 'appealed') {
+                        line = `~~${line.trim()}~~ ✨ **[APELADA]**\n`;
+                    }
+                    descriptionList += line;
                 });
 
                 embed.addFields({ name: '📝 Últimos Registros', value: descriptionList || 'Sin detalles.' });
