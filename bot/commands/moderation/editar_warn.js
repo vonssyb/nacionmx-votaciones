@@ -58,6 +58,18 @@ module.exports = {
 
             await service.updateSanction(sanctionId, updates);
 
+            // Notify User
+            if (existing.discord_user_id) {
+                try {
+                    const user = await interaction.client.users.fetch(existing.discord_user_id);
+                    await user.send({
+                        content: `✏️ **Tu sanción ha sido editada** en **${interaction.guild.name}**.\n\n🆔 **ID:** \`${sanctionId}\`\n${newReason ? `📄 **Nuevo Motivo:** ${newReason}\n` : ''}${newEvidence ? `📎 **Nueva Evidencia:** ${newEvidence}` : ''}`
+                    });
+                } catch (dmError) {
+                    console.error('Could not DM user about edit:', dmError);
+                }
+            }
+
             await interaction.editReply(`✅ **Sanción #${sanctionId} actualizada correctamente.**\n${newReason ? `📄 Motivo: ${newReason}\n` : ''}${newEvidence ? `📎 Evidencia: [Ver](${newEvidence})` : ''}`);
 
         } catch (error) {

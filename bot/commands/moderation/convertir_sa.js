@@ -103,7 +103,10 @@ module.exports = {
                     await user.send({
                         content: `📢 **Actualización de Sanción:**\nTu sanción con ID \`${sanctionId}\` ha sido convertida a **Sanción Administrativa (SA)** por la Administración Superior.\nEsto afecta tu historial y roles acumulados.`
                     });
-                } catch (e) { /* Ignore */ }
+                } catch (e) {
+                    console.error('Failed to DM user about SA conversion:', e);
+                    actionResult += '\n⚠️ No se pudo enviar MD al usuario.';
+                }
             }
 
             await interaction.editReply({ content: actionResult });

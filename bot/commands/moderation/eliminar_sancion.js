@@ -47,8 +47,18 @@ module.exports = {
             // Execute Void
             await interaction.client.services.sanctions.voidSanction(sanctionId, reason, interaction.user.id);
 
-            // Notify User (Optional, maybe DM the affected user that they were pardoned?)
-            // For now, confirm to admin.
+            // Notify User
+            if (existing.discord_user_id) {
+                try {
+                    const user = await interaction.client.users.fetch(existing.discord_user_id);
+                    await user.send({
+                        content: `🛡️ **Actualización de Sanción:**\nTu sanción con ID \`${sanctionId}\` ha sido **ANULADA/REMOVIDA** por el Encargado de Apelaciones.\n\n📋 **Razón:** ${reason}\n\n✅ Ya no cuenta en tu historial activo.`
+                    });
+                } catch (dmError) {
+                    console.error('Failed to DM user about void:', dmError);
+                }
+            }
+
             await interaction.editReply(`✅ **Sanción Anulada Correctamente.**\n🆔: \`${sanctionId}\`\n📋 Estado cambiado a: **VOID**`);
 
             // Audit Log
