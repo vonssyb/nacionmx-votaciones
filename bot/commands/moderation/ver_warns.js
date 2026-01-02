@@ -11,6 +11,9 @@ module.exports = {
                 .setRequired(true)),
 
     async execute(interaction) {
+        // Defer immediately to prevent timeout on slow systems (e.g. Render spin-up)
+        await interaction.deferReply({ ephemeral: true });
+
         // SECURITY CHECK: Specific Role/User ID Check
         const authorizedIds = [
             '1450242487422812251', // Staff Leader / Viewer
@@ -25,10 +28,10 @@ module.exports = {
             interaction.member.roles.cache.has('1456020936229912781');
 
         if (!isAuthorized && !interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
-            return interaction.reply({ content: '🛑 No tienes permiso para ver el historial de otros usuarios.', ephemeral: true });
+            return interaction.editReply({ content: '🛑 No tienes permiso para ver el historial de otros usuarios.' });
         }
 
-        await interaction.deferReply({ ephemeral: true });
+        // Already deferred
 
         try {
             const targetUser = interaction.options.getUser('usuario');

@@ -2628,10 +2628,14 @@ client.on('interactionCreate', async interaction => {
             return; // Stop here, don't run legacy code
         } catch (error) {
             console.error(`[CMD] Error executing /${interaction.commandName}:`, error);
-            if (interaction.replied || interaction.deferred) {
-                await interaction.followUp({ content: '❌ Error al ejecutar el comando.', ephemeral: true });
-            } else {
-                await interaction.reply({ content: '❌ Error al ejecutar el comando.', ephemeral: true });
+            try {
+                if (interaction.replied || interaction.deferred) {
+                    await interaction.followUp({ content: '❌ Error al ejecutar el comando.', ephemeral: true });
+                } else {
+                    await interaction.reply({ content: '❌ Error al ejecutar el comando.', ephemeral: true });
+                }
+            } catch (err) {
+                console.error('Error sending error response:', err);
             }
             return;
         }
