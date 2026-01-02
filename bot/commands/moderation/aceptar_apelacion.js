@@ -12,7 +12,7 @@ module.exports = {
         .addStringOption(option =>
             option.setName('motivo')
                 .setDescription('Razón de la aprobación')
-                .setRequired(false)),
+                .setRequired(true)),
 
     async execute(interaction) {
         await interaction.deferReply({ ephemeral: false }); // Public logic as it's an official act? Or Ephemeral? Usually public "Appeal Accepted".
