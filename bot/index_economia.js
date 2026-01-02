@@ -102,9 +102,15 @@ client.once('clientReady', async () => {
     // Start Legacy Background Tasks (Stock Market, Store Expiration)
     console.log('⏳ Starting Legacy Background Tasks...');
     try {
-        const { startLegacyBackgroundTasks } = require('./handlers/legacyEconomyHandler');
+        const { startLegacyBackgroundTasks, handleEconomyLegacy } = require('./handlers/legacyEconomyHandler');
         await startLegacyBackgroundTasks(client);
         console.log('✅ Legacy Background Tasks Started.');
+
+        // Expose handler globally or attach to client if needed, but we can just require it here? 
+        // Better: require it at top or keep it here if only used here.
+        // Actually, we need 'handleEconomyLegacy' in the interaction listener below.
+        // So let's attach it to client or make it available.
+        client.legacyHandler = handleEconomyLegacy;
     } catch (err) {
         console.error('❌ Failed to start Legacy Background Tasks:', err);
     }
@@ -114,7 +120,14 @@ client.on('interactionCreate', async interaction => {
     // 1. SLASH COMMANDS
     if (interaction.isChatInputCommand()) {
         const command = client.commands.get(interaction.commandName);
-        if (!command) return;
+        if (!command) {
+            // FALLBACK TO LEGACY HANDLER for migrated commands not yet modularized
+            if (client.legacyHandler) {
+                // console.log(`[Proxy] Routing /${interaction.commandName} to Legacy Handler...`);
+                await client.legacyHandler(interaction, client, supabase);
+            }
+            return;
+        }
 
         try {
             await command.execute(interaction, client, supabase);
