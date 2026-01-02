@@ -66,7 +66,7 @@ module.exports = {
                     const expiration = s.expires_at ? `\n⏳ Expira: ${new Date(s.expires_at).toLocaleDateString('es-MX')} ${new Date(s.expires_at).toLocaleTimeString('es-MX')}` : '';
 
                     const descriptionText = s.description ? `\n> *${s.description}*` : '';
-                    return `**${icon} ${displayType}** | <@${s.moderator_id}> | [${date}]${evidenceLink}\n**Motivo:** ${s.reason}${descriptionText}${expiration}`;
+                    return `🆔 \`${s.id}\`\n**${icon} ${displayType}** | <@${s.moderator_id}> | [${date}]${evidenceLink}\n**Motivo:** ${s.reason}${descriptionText}${expiration}`;
                 }).join('\n-------------------\n');
 
                 embed.setDescription(list);
