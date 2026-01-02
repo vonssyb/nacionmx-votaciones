@@ -6,13 +6,18 @@ const path = require('path');
  * @param {Client} client - The Discord Client instance
  * @param {string} commandsPath - Path to the commands directory
  */
-const loadCommands = async (client, commandsPath) => {
+const loadCommands = async (client, commandsPath, allowedCategories = null) => {
     client.commands = new Map();
     const commandFolders = fs.readdirSync(commandsPath);
 
     let loadedCount = 0;
 
     for (const folder of commandFolders) {
+        // Filter Logic
+        if (allowedCategories && !allowedCategories.includes(folder)) {
+            continue; // Skip this folder if not in allowed list
+        }
+
         const folderPath = path.join(commandsPath, folder);
 
         // Skip if not a directory
@@ -39,7 +44,7 @@ const loadCommands = async (client, commandsPath) => {
         }
     }
 
-    console.log(`✅ Successfully loaded ${loadedCount} commands.`);
+    console.log(`✅ Successfully loaded ${loadedCount} commands (Categories: ${allowedCategories ? allowedCategories.join(', ') : 'ALL'}).`);
     return loadedCount;
 };
 
