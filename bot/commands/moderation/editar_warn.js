@@ -5,7 +5,7 @@ module.exports = {
         .setName('editar_warn')
         .setDescription('Editar una sanción existente (Solo Staff)')
         .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers)
-        .addIntegerOption(option =>
+        .addStringOption(option =>
             option.setName('id_sancion')
                 .setDescription('ID de la sanción a editar (Ver /ver_warns)')
                 .setRequired(true))
@@ -34,7 +34,7 @@ module.exports = {
 
         await interaction.deferReply({ ephemeral: true });
 
-        const sanctionId = interaction.options.getInteger('id_sancion');
+        const sanctionId = interaction.options.getString('id_sancion');
         const newReason = interaction.options.getString('nuevo_motivo');
         const newEvidence = interaction.options.getString('nueva_evidencia');
 
