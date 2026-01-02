@@ -15,6 +15,17 @@ const GUILD_ID = process.env.GUILD_ID ? process.env.GUILD_ID.trim() : null;
 const DISCORD_TOKEN = process.env.DISCORD_TOKEN_ECO || process.env.DISCORD_BOT_TOKEN || process.env.DISCORD_TOKEN;
 // ---------------------
 
+// --- GLOBAL ERROR HANDLERS (MUST BE AT TOP) ---
+process.on('unhandledRejection', (reason, p) => {
+    console.error('❌ [Unhandled Rejection] at:', p, 'reason:', reason);
+    // console.error('Full Stack:', reason.stack);
+});
+
+process.on('uncaughtException', (err) => {
+    console.error('❌ [Uncaught Exception] thrown:', err);
+    // process.exit(1); // Do not exit, try to stay alive
+});
+
 // --- SERVICES ---
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY);
 log('Supabase Initialized');
@@ -68,7 +79,7 @@ client.services = {
 
 // --- EVENTS ---
 
-client.once('ready', async () => {
+client.once('clientReady', async () => {
     console.log(`🤖 ECONOMY BOT Started as ${client.user.tag}!`);
     console.log('💰 Economy Systems Online.');
 
@@ -78,8 +89,25 @@ client.once('ready', async () => {
     await loader.loadCommands(client, path.join(__dirname, 'commands'), ['economy', 'business', 'games', 'utils']);
 
     // Start Jobs
-    if (client.services.billing) client.services.billing.startCron();
-    if (client.services.staking) client.services.staking.startStakingCron();
+    if (client.services.billing) {
+        console.log('⏳ Starting Billing Service Cron...');
+        try {
+            client.services.billing.startCron();
+            console.log('✅ Billing Service Cron Started.');
+        } catch (err) {
+            console.error('❌ Failed to start Billing Cron:', err);
+        }
+    }
+
+    // Start Legacy Background Tasks (Stock Market, Store Expiration)
+    console.log('⏳ Starting Legacy Background Tasks...');
+    try {
+        const { startLegacyBackgroundTasks } = require('./handlers/legacyEconomyHandler');
+        await startLegacyBackgroundTasks(client);
+        console.log('✅ Legacy Background Tasks Started.');
+    } catch (err) {
+        console.error('❌ Failed to start Legacy Background Tasks:', err);
+    }
 });
 
 client.on('interactionCreate', async interaction => {
@@ -98,6 +126,15 @@ client.on('interactionCreate', async interaction => {
             } catch (e) { }
         }
         return;
+    }
+
+    // 2. LEGACY HANDLER FALLBACK
+    // If not a modular command, try legacy handler
+    try {
+        const { handleEconomyLegacy } = require('./handlers/legacyEconomyHandler');
+        await handleEconomyLegacy(interaction, client, supabase);
+    } catch (err) {
+        console.error('Legacy Handler Error:', err);
     }
 
     // 2. BUTTONS (ECONOMY ONLY - MODULAR)

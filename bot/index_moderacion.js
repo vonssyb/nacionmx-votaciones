@@ -20,6 +20,7 @@ log('Supabase Initialized');
 
 const SanctionService = require('./services/SanctionService');
 const NotificationTemplates = require('./services/NotificationTemplates'); // Often used in mod
+const BillingService = require('./services/BillingService');
 
 // Instantiate Only Moderation Services
 const sanctionService = new SanctionService(supabase);
@@ -39,7 +40,8 @@ const client = new Client({
 
 // Attach Services to Client
 client.services = {
-    sanctions: sanctionService
+    sanctions: sanctionService,
+    billing: new BillingService(client, supabase)
 };
 
 // --- AUDIT LOG ---
@@ -66,7 +68,7 @@ client.logAudit = async (action, details, moderator, target, color = 0x00AAFF) =
 
 // --- EVENTS ---
 
-client.once('ready', async () => {
+client.once('clientReady', async () => {
     console.log(`🤖 MODERATION BOT Started as ${client.user.tag}!`);
 
     // Load Commands (MODERATION & UTILS)
@@ -95,6 +97,14 @@ client.on('interactionCreate', async interaction => {
             } catch (e) { }
         }
         return;
+    }
+
+    // 2. LEGACY HANDLER FALLBACK (MODERATION)
+    try {
+        const { handleModerationLegacy } = require('./handlers/legacyModerationHandler');
+        await handleModerationLegacy(interaction, client, supabase);
+    } catch (err) {
+        // console.error('Legacy Handler Error:', err);
     }
 
     // 2. BUTTONS (MODERATION ONLY)
@@ -191,6 +201,46 @@ app.get('/', (req, res) => res.send('🛡️ Nacion MX MODERATION Bot is running
 app.listen(port, () => {
     console.log(`🌐 Mod Server listening on port ${port}`);
 });
+
+// === ELITE FEATURES: AUTO-EXPIRATION CRON ===
+setInterval(async () => {
+    try {
+        const expired = await client.services.sanctions.checkExpiredSanctions();
+
+        if (expired.length > 0) {
+            console.log(`⏱️ Encontradas ${expired.length} sanciones expiradas.`);
+            const guild = client.guilds.cache.get(GUILD_ID);
+
+            for (const leg of expired) {
+                // 1. Execute Unban/Unmute
+                if (guild && leg.action_type === 'ban') {
+                    try {
+                        await guild.members.unban(leg.discord_user_id, 'Sanción Temporal Expirada (Auto)');
+                        console.log(`🔓 Usuario ${leg.discord_user_id} desbaneado automáticamente.`);
+                    } catch (e) { }
+                }
+
+                // 2. Notify User
+                try {
+                    const user = await client.users.fetch(leg.discord_user_id);
+                    await user.send({
+                        embeds: [{
+                            title: '🎉 Sanción Expirada',
+                            description: `Tu sanción temporal **${leg.reason}** ha finalizado.\nBienvenido de vuelta a ${guild ? guild.name : 'Nación MX'}.`,
+                            color: 0x00FF00,
+                            timestamp: new Date()
+                        }]
+                    });
+                } catch (e) { /* DM Failed */ }
+
+                // 3. Mark as Expired in DB
+                await client.services.sanctions.expireSanction(leg.id);
+            }
+        }
+    } catch (err) {
+        console.error('❌ Error in Auto-Expiration Cron:', err);
+    }
+}, 300000); // Run every 5 minutes
 
 // LOGIN
 client.login(DISCORD_TOKEN);
