@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
+const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder } = require('discord.js');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -51,9 +51,19 @@ module.exports = {
             if (existing.discord_user_id) {
                 try {
                     const user = await interaction.client.users.fetch(existing.discord_user_id);
-                    await user.send({
-                        content: `🛡️ **Actualización de Sanción:**\nTu sanción con ID \`${sanctionId}\` ha sido **ANULADA/REMOVIDA** por el Encargado de Apelaciones.\n\n📋 **Razón:** ${reason}\n\n✅ Ya no cuenta en tu historial activo.`
-                    });
+
+                    const dmEmbed = new EmbedBuilder()
+                        .setTitle('🛡️ Sanción Anulada / Removida')
+                        .setColor('#00FF00') // Green
+                        .setDescription(`Tu sanción ha sido **anulada** por el equipo de Apelaciones.\nYa no cuenta en tu historial.`)
+                        .addFields(
+                            { name: '🆔 ID Sanción', value: `\`${sanctionId}\``, inline: true },
+                            { name: '📋 Razón de Anulación', value: reason, inline: false }
+                        )
+                        .setFooter({ text: 'Nación MX | Moderación', iconURL: interaction.guild.iconURL() })
+                        .setTimestamp();
+
+                    await user.send({ embeds: [dmEmbed] });
                 } catch (dmError) {
                     console.error('Failed to DM user about void:', dmError);
                 }
