@@ -142,37 +142,41 @@ client.on('interactionCreate', async interaction => {
     // 1. SLASH COMMANDS
     if (interaction.isChatInputCommand()) {
         const command = client.commands.get(interaction.commandName);
+
         if (!command) {
             // FALLBACK TO LEGACY HANDLER for migrated commands not yet modularized
             if (client.legacyHandler) {
-                // console.log(`[Proxy] Routing /${interaction.commandName} to Legacy Handler...`);
-                await client.legacyHandler(interaction, client, supabase);
+                try {
+                    // console.log(`[Proxy] Routing /${interaction.commandName} to Legacy Handler...`);
+                    await client.legacyHandler(interaction, client, supabase);
+                } catch (error) {
+                    console.error(`[Legacy Error] /${interaction.commandName}:`, error);
+                    if (!interaction.replied && !interaction.deferred) {
+                        await interaction.reply({ content: '❌ Error en comando legacy.', ephemeral: true }).catch(() => { });
+                    } else {
+                        await interaction.editReply({ content: '❌ Error en comando legacy.' }).catch(() => { });
+                    }
+                }
             }
             return;
         }
 
         try {
+            // Modular commands
             await command.execute(interaction, client, supabase);
         } catch (error) {
-            console.error(error);
-            try {
-                if (interaction.replied || interaction.deferred) await interaction.followUp({ content: '❌ Error ejecutando comando.', ephemeral: true });
-                else await interaction.reply({ content: '❌ Error ejecutando comando.', ephemeral: true });
-            } catch (e) { }
+            console.error(`[Command Error] /${interaction.commandName}:`, error);
+            const content = '❌ Error ejecutando comando.';
+            if (interaction.replied || interaction.deferred) {
+                await interaction.followUp({ content, ephemeral: true }).catch(() => { });
+            } else {
+                await interaction.reply({ content, ephemeral: true }).catch(() => { });
+            }
         }
         return;
     }
 
-    // 2. LEGACY HANDLER FALLBACK
-    // If not a modular command, try legacy handler
-    try {
-        const { handleEconomyLegacy } = require('./handlers/legacyEconomyHandler');
-        await handleEconomyLegacy(interaction, client, supabase);
-    } catch (err) {
-        console.error('Legacy Handler Error:', err);
-    }
-
-    // 2. BUTTONS (ECONOMY ONLY - MODULAR)
+    // 2. BUTTONS & SELECT MENUS (ECONOMY ONLY - MODULAR)
     if (interaction.isButton() || interaction.isStringSelectMenu()) {
         const customId = interaction.customId;
 
@@ -183,8 +187,12 @@ client.on('interactionCreate', async interaction => {
         }
 
         // -- GENERAL ECONOMY BUTTONS (Debt, Payroll, Vehicles) --
-        const { handleEconomyButtons } = require('./handlers/economyButtonHandler');
-        await handleEconomyButtons(interaction, client, supabase, billingService);
+        try {
+            const { handleEconomyButtons } = require('./handlers/economyButtonHandler');
+            await handleEconomyButtons(interaction, client, supabase, billingService);
+        } catch (err) {
+            console.error('[Button Error]:', err);
+        }
     }
 });
 
