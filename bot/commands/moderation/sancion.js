@@ -1,4 +1,5 @@
-const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, AttachmentBuilder } = require('discord.js');
+const path = require('path');
 const NotificationTemplates = require('../../services/NotificationTemplates');
 const moment = require('moment-timezone');
 
@@ -286,8 +287,10 @@ module.exports = {
                 }
 
                 // Create Approval Request Embed
+                const file = new AttachmentBuilder(path.join(__dirname, '../../assets/img/status/pendiente.png'), { name: 'pendiente.png' });
+
                 const approvalEmbed = new EmbedBuilder()
-                    .setTitle('👮 Solicitud de Aprobación de Sanción')
+                    // .setTitle('👮 Solicitud de Aprobación de Sanción') // Image has text
                     .setDescription(`Un Administrador ha solicitado una sanción crítica. Requiere aprobación de Junta/Encargados.`)
                     .addFields(
                         { name: '🛡️ Solicitante', value: `${interaction.user.tag} (<@${interaction.user.id}>)`, inline: true },
@@ -297,6 +300,7 @@ module.exports = {
                         { name: '📸 Evidencia', value: evidencia || 'No adjunta', inline: false }
                     )
                     .setColor(0xFFA500) // Orange for Pending
+                    .setImage('attachment://pendiente.png')
                     .setTimestamp();
 
                 const buttons = new ActionRowBuilder().addComponents(
@@ -314,7 +318,8 @@ module.exports = {
                 const sentMsg = await approvalChannel.send({
                     content: `<@&${ROLES_CONFIG.LEVEL_4_BOARD[0]}> <@&${ROLES_CONFIG.LEVEL_4_BOARD[1]}>`, // Ping Junta/Encargado
                     embeds: [approvalEmbed],
-                    components: [buttons]
+                    components: [buttons],
+                    files: [file]
                 });
 
                 // Store metadata in cache (or relying on button handler to parse, but cache is safer for complex data)

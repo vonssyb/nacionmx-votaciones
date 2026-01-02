@@ -4,6 +4,8 @@
  */
 
 const { formatMoney, formatNumber } = require('../utils/formatters');
+const { AttachmentBuilder } = require('discord.js');
+const path = require('path');
 
 module.exports = {
     /**
@@ -272,31 +274,32 @@ module.exports = {
         // Check if it's a BLACKLIST TOTAL (Perm Ban)
         const isBlacklist = (sanctionType || '').toLowerCase().includes('blacklist');
         const isPerm = (sanctionType || '').toLowerCase().includes('total') || (sanctionType || '').toLowerCase().includes('permanente');
+        const isBan = isBlacklist || (sanctionType || '').toLowerCase().includes('ban');
 
         let title = '👮‍♂️ REPORTE OFICIAL DE SANCIÓN';
         let color = 0x2f3136; // Dark grey/formal
         let thumbnail = null;
 
+        // Determine which status image to use
+        const imgName = isBan ? 'baneo.png' : (isBlacklist ? 'blacklist.png' : 'sancion.png');
+        const file = new AttachmentBuilder(path.join(__dirname, `../assets/img/status/${imgName}`), { name: imgName });
+
         // Custom Styling for Blacklist
         if (isBlacklist) {
-            // Default to Partial Blacklist title
-            // sanctionType usually looks like "BLACKLIST: Blacklist Empresas" or similar
-            // We clean it up for the title
             const cleanType = String(sanctionType).replace(/BLACKLIST:?|Blacklist/gi, '').trim();
-
             title = `⛔ BLACKLIST ACTIVO: ${cleanType.toUpperCase()}`;
             color = 0x000000; // Pitch Black
-            thumbnail = 'https://cdn-icons-png.flaticon.com/512/1602/1602305.png'; // Stop/Ban icon
+            thumbnail = 'https://cdn-icons-png.flaticon.com/512/1602/1602305.png';
 
             if (isPerm) {
                 title = '☠️ BLACKLIST TOTAL - EXPULSIÓN PERMANENTE';
                 color = 0x8b0000; // Blood Red
-                thumbnail = 'https://cdn-icons-png.flaticon.com/512/9205/9205315.png'; // Adios icon
+                thumbnail = 'https://cdn-icons-png.flaticon.com/512/9205/9205315.png';
             }
         }
 
         const embedData = {
-            title: title,
+            title: null, // Image has title
             description: sanctionVisual,
             color: color,
             fields: [
@@ -326,7 +329,7 @@ module.exports = {
                     inline: false
                 }
             ],
-            image: evidenceUrl ? { url: evidenceUrl } : null,
+            image: { url: `attachment://${imgName}` },
             footer: {
                 text: `Moderador: ${moderator.username} | Nación MX RP`,
                 icon_url: moderator.displayAvatarURL ? moderator.displayAvatarURL() : null
@@ -336,7 +339,7 @@ module.exports = {
 
         if (thumbnail) embedData.thumbnail = { url: thumbnail };
 
-        return { embeds: [embedData] };
+        return { embeds: [embedData], files: [file] };
     },
 
     /**
@@ -344,10 +347,11 @@ module.exports = {
      */
     administrativeSanction: (data) => {
         const { date, offender, reasonDetail } = data;
+        const file = new AttachmentBuilder(path.join(__dirname, '../assets/img/status/sancion.png'), { name: 'sancion.png' });
 
         return {
             embeds: [{
-                title: '🚨 SANCIÓN ADMINISTRATIVA (SA) 🚨',
+                title: null, // Image has title
                 description: 'Notificación oficial de falta administrativa.',
                 color: 0x8b0000,
                 fields: [
@@ -372,11 +376,13 @@ module.exports = {
                         inline: false
                     }
                 ],
+                image: { url: 'attachment://sancion.png' },
                 footer: {
                     text: 'Dirección de Nación MX RP • Sistema de Gestión de Personal'
                 },
                 timestamp: new Date()
-            }]
+            }],
+            files: [file]
         };
     },
 
@@ -385,10 +391,11 @@ module.exports = {
      */
     personalNotification: (data) => {
         const { date, subject, body, user } = data;
+        const file = new AttachmentBuilder(path.join(__dirname, '../assets/img/status/notificacion.png'), { name: 'notificacion.png' });
 
         return {
             embeds: [{
-                title: '📩 NOTIFICACIÓN ADMINISTRATIVA',
+                title: null, // Image has title
                 color: 0xFFA500, // Orange/Attention
                 fields: [
                     {
@@ -408,11 +415,13 @@ module.exports = {
                     }
                 ],
                 description: `**Mensaje Oficial:**\n\n${body}\n\nAtentamente,\n**Dirección de Nación MX RP** 🇲🇽`,
+                image: { url: 'attachment://notificacion.png' },
                 footer: {
                     text: 'Esta notificación ha sido registrada en tu expediente.'
                 },
                 timestamp: new Date()
-            }]
+            }],
+            files: [file]
         };
     },
 
