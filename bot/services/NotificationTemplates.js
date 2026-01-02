@@ -259,38 +259,15 @@ module.exports = {
     officialSanction: (data) => {
         const { date, time, offender, moderator, ruleCode, description, sanctionType, duration, evidenceUrl } = data;
 
-        // Build Sanction Checkbox visual
-        // We now have more types, so we organize them better
-        const types = [
-            { label: 'Advertencia Verbal', match: ['verbal', 'advertencia verbal'] },
-            { label: 'Warn (Advertencia)', match: ['warn', 'advertencia'] },
-            { label: 'Kick (Expulsión)', match: ['kick', 'expulsión'] },
-            { label: 'Ban Temporal', match: ['ban temporal'] },
-            { label: 'Ban Permanente', match: ['ban permanente', 'blacklist total', 'permanent'] },
-            { label: 'Blacklist (Veto)', match: ['blacklist'] }
-        ];
-
-        const sanctionVisual = types.map(t => {
-            // Check if available sanctionType matches this category (Case Insensitive)
-            const safeType = (sanctionType || '').toLowerCase();
-            const isSelected = t.match.some(m => safeType.includes(m));
-
-            let text = t.label;
-
-            // Dynamic Text Logic
-            if (isSelected) {
-                if (safeType.includes('ban temporal')) {
-                    text = `Ban Temporal (${duration || '?'} Días)`;
-                } else if (safeType.includes('erlc')) {
-                    text += ' (In-Game / ERLC)';
-                } else if (safeType.includes('blacklist')) {
-                    // Extract specific blacklist type if present
-                    text = sanctionType; // e.g. "BLACKLIST: Cartel"
-                }
+        // Logic to show specific sanction or nothing
+        let sanctionVisual = null;
+        if (sanctionType) {
+            let text = sanctionType;
+            if (String(sanctionType).toLowerCase().includes('ban temporal') && duration) {
+                text += ` (${duration} Días)`;
             }
-
-            return `${isSelected ? '☑️' : '⬜'} ${text}`;
-        }).join('\n');
+            sanctionVisual = `**⚖️ Sanción Aplicada:**\n${text}`;
+        }
 
         // Check if it's a BLACKLIST TOTAL (Perm Ban)
         const isBlacklist = (sanctionType || '').toLowerCase().includes('blacklist');
@@ -305,7 +282,7 @@ module.exports = {
             // Default to Partial Blacklist title
             // sanctionType usually looks like "BLACKLIST: Blacklist Empresas" or similar
             // We clean it up for the title
-            const cleanType = sanctionType.replace(/BLACKLIST:?|Blacklist/gi, '').trim();
+            const cleanType = String(sanctionType).replace(/BLACKLIST:?|Blacklist/gi, '').trim();
 
             title = `⛔ BLACKLIST ACTIVO: ${cleanType.toUpperCase()}`;
             color = 0x000000; // Pitch Black
@@ -320,7 +297,7 @@ module.exports = {
 
         const embedData = {
             title: title,
-            description: `**⚖️ Sanción Aplicada:**\n${sanctionVisual}`,
+            description: sanctionVisual,
             color: color,
             fields: [
                 {
