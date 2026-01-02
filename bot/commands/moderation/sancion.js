@@ -469,7 +469,7 @@ module.exports = {
                         new ButtonBuilder()
                             .setLabel('📩 Apelar (Baneo/Perm)')
                             .setStyle(ButtonStyle.Link)
-                            .setURL('https://melonly.xyz/dashboard/7374175961132044288/applications/7412242701552193536'),
+                            .setURL('https://melon.ly/form/7412242701552193536'),
                         new ButtonBuilder()
                             .setLabel('📝 Apelar (Otras Sanciones)')
                             .setStyle(ButtonStyle.Link)
