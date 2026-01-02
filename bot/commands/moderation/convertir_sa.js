@@ -14,8 +14,8 @@ module.exports = {
     async execute(interaction) {
         await interaction.deferReply();
 
-        const THE_BOSS_ID = '1456020936229912781';
-        if (interaction.user.id !== THE_BOSS_ID) {
+        const ALLOWED_ROLE_ID = '1456020936229912781'; // ID Rol Administración Superior
+        if (!interaction.member.roles.cache.has(ALLOWED_ROLE_ID)) {
             return interaction.editReply({ content: '🛑 **Acceso Denegado:** Solo la Administración Superior puede ejecutar este comando.' });
         }
 
