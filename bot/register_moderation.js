@@ -4,22 +4,22 @@ require('dotenv').config({ path: path.join(__dirname, '../.env') });
 
 const { REST, Routes } = require('discord.js');
 
-const DISCORD_TOKEN = process.env.DISCORD_TOKEN_ECO;
+const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
 const GUILD_ID = process.env.GUILD_ID;
-let CLIENT_ID = process.env.CLIENT_ID_ECO;
+let CLIENT_ID = process.env.CLIENT_ID || process.env.VITE_DISCORD_CLIENT_ID;
 
 if (!DISCORD_TOKEN || !GUILD_ID) {
-    console.error('❌ ERROR: DISCORD_TOKEN_ECO y GUILD_ID son requeridos.');
+    console.error('❌ ERROR: DISCORD_TOKEN y GUILD_ID son requeridos.');
     console.error('   -> Variables disponibles:', Object.keys(process.env).filter(k => k.includes('DISCORD') || k.includes('ID')));
     process.exit(1);
 }
 
-async function registerEconomyCommands() {
+async function registerModerationCommands() {
     const rest = new REST({ version: '10' }).setToken(DISCORD_TOKEN);
 
     // Fetch Client ID if missing
     if (!CLIENT_ID) {
-        console.log('⚠️ CLIENT_ID_ECO no encontrado. Obteniendo de la API...');
+        console.log('⚠️ CLIENT_ID no encontrado. Obteniendo de la API...');
         try {
             const currentUser = await rest.get(Routes.user('@me'));
             CLIENT_ID = currentUser.id;
@@ -33,29 +33,25 @@ async function registerEconomyCommands() {
     // Load ALL commands from commands.js
     const allCommands = require('./commands.js');
 
-    // Filter ONLY Economy commands
-    const economyCommandNames = [
+    // Filter ONLY Moderation/Staff commands
+    const moderationCommandNames = [
         'ping', 'ayuda', 'info',
-        'registrar-tarjeta', 'tarjeta', 'credito', 'depositar', 'giro', 'movimientos',
-        'notificaciones', 'top-morosos', 'top-ricos', 'tienda', 'inversion', 'impuestos',
-        'empresa', 'robar', 'trabajar', 'bolsa', 'crimen', 'casino', 'nomina',
-        'dar-robo', 'stake', 'slots', 'fondos', 'balanza', 'saldo', 'jugar',
-        'business', 'debito', 'privacidad'
+        'rol', 'multa', 'licencia', 'sesion', 'fichar'
     ];
 
-    const economyCommands = allCommands.filter(cmd => economyCommandNames.includes(cmd.name));
+    const moderationCommands = allCommands.filter(cmd => moderationCommandNames.includes(cmd.name));
 
-    console.log(`🔄 Registrando ${economyCommands.length} comandos de ECONOMÍA en Discord...`);
+    console.log(`🔄 Registrando ${moderationCommands.length} comandos de MODERACIÓN en Discord...`);
     console.log(`📡 Guild ID: ${GUILD_ID}`);
     console.log(`🤖 Client ID: ${CLIENT_ID}`);
 
     try {
         const data = await rest.put(
             Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID),
-            { body: economyCommands }
+            { body: moderationCommands }
         );
 
-        console.log(`✅ ${data.length} comandos registrados para el Bot de ECONOMÍA!`);
+        console.log(`✅ ${data.length} comandos registrados para el Bot de MODERACIÓN!`);
         console.log('\n📋 Comandos registrados:');
         data.forEach(cmd => console.log(`   - /${cmd.name}`));
 
@@ -65,4 +61,4 @@ async function registerEconomyCommands() {
     }
 }
 
-registerEconomyCommands();
+registerModerationCommands();
