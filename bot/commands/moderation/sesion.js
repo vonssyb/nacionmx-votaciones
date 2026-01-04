@@ -172,8 +172,97 @@ module.exports = {
 
             await interaction.editReply('✅ Votación cancelada.');
         }
+        else if (subCmd === 'forzar') {
+            await interaction.deferReply();
+
+            // Check Permissions
+            if (!interaction.member.roles.cache.has(juntaDirectivaRoleId) && !interaction.member.permissions.has('Administrator')) {
+                return interaction.editReply('❌ Solo la Junta Directiva puede forzar la sesión.');
+            }
+
+            // Find any 'active' session (pending vote) to upgrade, or create new 'live' session
+            let { data: session } = await supabase.from('session_votes').select('*').eq('status', 'active').maybeSingle();
+
+            if (!session) {
+                // Create a new session record if none exists
+                const { data: newSession, error } = await supabase.from('session_votes').insert({
+                    created_by: userId,
+                    scheduled_time: new Date().toISOString(),
+                    minimum_votes: 0,
+                    status: 'live', // Mark as live immediately
+                    channel_id: channelIds.voting
+                }).select().single();
+                session = newSession;
+            } else {
+                // Update existing session
+                await supabase.from('session_votes').update({ status: 'live' }).eq('id', session.id);
+            }
+
+            const targetChannel = await client.channels.fetch(channelIds.voting);
+            if (targetChannel) {
+                await renameChannel(channelIds.voting, '🟢・sesion-activa');
+                await targetChannel.send({ content: `<@&${channelIds.pingRole}> 🚨 **¡SESIÓN FORZADA INICIADA!** 🚨\nEl servidor se abre inmediatamente por orden de la administración. ¡Entren ya!` });
+            }
+
+            await interaction.editReply('✅ **Sesión Forzada Correctamente.** El canal ha sido renombrado y se ha notificado.');
+        }
+        else if (subCmd === 'cerrar') {
+            await interaction.deferReply();
+
+            // Check Permissions
+            if (!interaction.member.roles.cache.has(juntaDirectivaRoleId) && !interaction.member.permissions.has('Administrator')) {
+                return interaction.editReply('❌ Solo la Junta Directiva puede cerrar la sesión.');
+            }
+
+            // Find 'live' or 'active' session
+            const { data: session } = await supabase.from('session_votes').select('*').or('status.eq.live,status.eq.active').maybeSingle();
+
+            if (session) {
+                await supabase.from('session_votes').update({ status: 'closed', ended_at: new Date().toISOString() }).eq('id', session.id);
+            }
+
+            const razon = interaction.options.getString('razon') || 'Sesión finalizada.';
+            const targetChannel = await client.channels.fetch(channelIds.voting);
+
+            if (targetChannel) {
+                await renameChannel(channelIds.voting, '🔴・sesion-finalizada');
+                await targetChannel.send({ content: `🔒 **Sesión Cerrada**\n\n${razon}\nGracias por participar.` });
+            }
+
+            await interaction.editReply(`✅ Sesión cerrada: ${razon}`);
+        }
+        else if (subCmd === 'mantenimiento') {
+            await interaction.deferReply();
+
+            // Check Permissions
+            if (!interaction.member.roles.cache.has(juntaDirectivaRoleId) && !interaction.member.permissions.has('Administrator')) {
+                return interaction.editReply('❌ Permiso denegado.');
+            }
+
+            const duracion = interaction.options.getString('duracion') || 'Indefinido';
+            const razon = interaction.options.getString('razon') || 'Mantenimiento programado';
+            const targetChannel = await client.channels.fetch(channelIds.voting);
+
+            if (targetChannel) {
+                await renameChannel(channelIds.voting, '🟠・mantenimiento');
+
+                const embed = new EmbedBuilder()
+                    .setTitle('🛠️ SISTEMA EN MANTENIMIENTO')
+                    .setColor(0xFFA500)
+                    .setDescription(`El servidor se encuentra en mantenimiento técnico.`)
+                    .addFields(
+                        { name: '⏱️ Duración Estimada', value: duracion, inline: true },
+                        { name: '📋 Razón', value: razon, inline: true }
+                    )
+                    .setTimestamp();
+
+                await targetChannel.send({ embeds: [embed] });
+            }
+
+            await interaction.editReply('✅ Modo mantenimiento activado.');
+        }
         else {
-            await interaction.reply({ content: '❌ Subcomando no implementado aún en esta versión modular.', ephemeral: true });
+            await interaction.reply({ content: '❌ Subcomando desconocido.', ephemeral: true });
         }
     }
 };
