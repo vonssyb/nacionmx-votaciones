@@ -200,11 +200,30 @@ module.exports = {
 
             const targetChannel = await client.channels.fetch(channelIds.voting);
             if (targetChannel) {
-                await renameChannel(channelIds.voting, '🟢・sesion-activa');
-                await targetChannel.send({ content: `<@&${channelIds.pingRole}> 🚨 **¡SESIÓN FORZADA INICIADA!** 🚨\nEl servidor se abre inmediatamente por orden de la administración. ¡Entren ya!` });
+                await renameChannel(channelIds.voting, '✅・servidor-abierto');
+
+                // Rich Embed
+                const openEmbed = new EmbedBuilder()
+                    .setTitle('✅ SESIÓN CONFIRMADA - SERVIDOR ABIERTO')
+                    .setColor(0x00FF00)
+                    .setDescription(`🎮 **¡El servidor ha sido ABIERTO por la Junta Directiva!**\n\n¡Hora de rolear!`)
+                    .setImage('https://cdn.discordapp.com/attachments/885232074083143741/1453225155185737749/standard.gif')
+                    .setFooter({ text: `Apertura forzada por ${interaction.user.tag}` })
+                    .setTimestamp();
+
+                // Button
+                const row = new ActionRowBuilder()
+                    .addComponents(
+                        new ButtonBuilder()
+                            .setLabel('🎮 Unirse al Servidor')
+                            .setStyle(ButtonStyle.Link)
+                            .setURL('https://www.roblox.com/games/start?launchData=%7B%22psCode%22%3A%22NACIONMX%22%7D&placeId=2534724415')
+                    );
+
+                await targetChannel.send({ content: `<@&${channelIds.pingRole}>`, embeds: [openEmbed], components: [row] });
             }
 
-            await interaction.editReply('✅ **Sesión Forzada Correctamente.** El canal ha sido renombrado y se ha notificado.');
+            await interaction.editReply('✅ **Sesión Forzada Correctamente.** El servidor ha sido abierto.');
         }
         else if (subCmd === 'cerrar') {
             await interaction.deferReply();
