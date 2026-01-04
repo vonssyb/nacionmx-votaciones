@@ -2439,12 +2439,74 @@ const handleModerationLegacy = async (interaction, client, supabase) => {
         await interaction.reply({ content: `🏓 Pong! Latencia: **${ping}ms**. API: **${Math.round(client.ws.ping)}ms**.`, ephemeral: false });
     }
 
-    /*
     else if (commandName === 'rol') {
+        await interaction.deferReply({ ephemeral: false });
         const subCmd = interaction.options.getSubcommand();
-        // ... (logic) ...
+        if (subCmd === 'cancelar') {
+
+            const targetUser = interaction.options.getString('usuario');
+            const reason = interaction.options.getString('razon');
+            const location = interaction.options.getString('ubicacion');
+            const proof1 = interaction.options.getAttachment('prueba1');
+            const proof2 = interaction.options.getAttachment('prueba2');
+
+            // Insert into DB
+            const { error } = await supabase.from('rp_cancellations').insert([{
+                moderator_discord_id: interaction.user.id,
+                moderator_name: interaction.user.tag,
+                target_user: targetUser,
+                reason: reason,
+                location: location,
+                proof_url_1: proof1 ? proof1.url : null,
+                proof_url_2: proof2 ? proof2.url : null
+            }]);
+
+            if (error) {
+                console.error(error);
+                return interaction.editReply('❌ Error guardando el reporte en la base de datos.');
+            }
+
+            // Create Embed
+            const embed = new EmbedBuilder()
+                .setTitle('🚨 CANCELACIÓN DE ROL')
+                .setColor(0xFF0000)
+                .addFields(
+                    { name: '👤 Usuario Sancionado', value: targetUser, inline: true },
+                    { name: '👮 Moderador', value: interaction.user.tag, inline: true },
+                    { name: '📍 Ubicación', value: location, inline: false },
+                    { name: '📝 Razón', value: reason, inline: false }
+                )
+                .setTimestamp();
+
+            if (proof1) embed.setImage(proof1.url);
+            if (proof2) embed.setThumbnail(proof2.url);
+
+            // Try to send to configured channel
+            const logChannelId = process.env.RP_LOGS_CHANNEL_ID || '1450610756663115879'; // Fallback to specialized channel if env missing
+            let published = false;
+
+            if (logChannelId) {
+                try {
+                    const channel = await client.channels.fetch(logChannelId);
+                    if (channel) {
+                        await channel.send({ embeds: [embed] });
+                        published = true;
+                    }
+                } catch (e) {
+                    console.error('Error publishing report:', e);
+                }
+            }
+
+            if (published) {
+                await interaction.editReply('✅ Reporte de cancelación enviado y publicado exitosamente.');
+            } else {
+                await interaction.editReply({
+                    content: '✅ Reporte guardado en base de datos. (No se encontró canal de logs público)',
+                    embeds: [embed]
+                });
+            }
+        }
     }
-    */
     /*
     else if (commandName === 'fichar') {
         // ... (logic) ...
