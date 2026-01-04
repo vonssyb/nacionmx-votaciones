@@ -53,6 +53,7 @@ module.exports = {
             .setFooter({ text: 'Nación MX Portal • Bot de Moderación' })
             .setTimestamp();
 
-        await interaction.reply({ embeds: [embed], ephemeral: false });
+        await interaction.deferReply({ ephemeral: false });
+        await interaction.editReply({ embeds: [embed] });
     }
 };
