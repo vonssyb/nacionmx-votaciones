@@ -38,7 +38,7 @@ async function registerModerationCommands() {
 
     // 2. Load legacy moderation commands from commands.js
     const allLegacyCommands = require('./commands.js');
-    const legacyModerationNames = ['multa', 'licencia', 'ping', 'info'];
+    const legacyModerationNames = ['multa', 'licencia', 'rol', 'ping', 'info'];
     // Exclude 'ayuda' because we have moderation-specific ayuda in /commands/moderation/
     const legacyCommands = allLegacyCommands.filter(cmd => legacyModerationNames.includes(cmd.name));
 
