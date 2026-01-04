@@ -1,6 +1,7 @@
 const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, AttachmentBuilder } = require('discord.js');
 const path = require('path');
 const NotificationTemplates = require('../../services/NotificationTemplates');
+const StorageService = require('../../services/StorageService');
 const moment = require('moment-timezone');
 
 module.exports = {
@@ -151,7 +152,28 @@ module.exports = {
 
         // Handle Attachment
         const evidenciaAttachment = interaction.options.getAttachment('evidencia');
-        const evidencia = evidenciaAttachment ? evidenciaAttachment.url : null;
+        let evidencia = evidenciaAttachment ? evidenciaAttachment.url : null;
+
+        // **PERSISTENCE**: Upload to Supabase Storage if possible
+        if (evidencia && interaction.client.supabase) {
+            try {
+                await interaction.editReply({ content: '🔄 Procesando evidencia y guardando en la nube...' });
+                const publicUrl = await StorageService.uploadEvidence(
+                    interaction.client.supabase,
+                    evidencia,
+                    evidenciaAttachment.name
+                );
+
+                if (publicUrl) {
+                    evidencia = publicUrl;
+                    console.log(`[Sancion] Evidence uploaded to Supabase: ${publicUrl}`);
+                } else {
+                    console.warn('[Sancion] Failed to upload evidence to Supabase. Using original Discord URL.');
+                }
+            } catch (storageErr) {
+                console.error('[Sancion] Storage Service Error:', storageErr);
+            }
+        }
 
 
         const date = moment().tz('America/Mexico_City').format('DD/MM/YYYY');

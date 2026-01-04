@@ -43,6 +43,7 @@ client.services = {
     sanctions: sanctionService,
     billing: new BillingService(client, supabase)
 };
+client.supabase = supabase;
 
 // --- AUDIT LOG ---
 client.logAudit = async (action, details, moderator, target, color = 0x00AAFF) => {
@@ -250,6 +251,25 @@ client.on('roleDelete', async role => {
         client.user,
         null,
         0x8B0000 // Dark Red
+    );
+});
+
+// 5. Message Update (Edit)
+client.on('messageUpdate', async (oldMessage, newMessage) => {
+    if (newMessage.partial) {
+        try { await newMessage.fetch(); } catch (e) { return; }
+    }
+    if (oldMessage.partial) return; // Can't log old content if we didn't have it cached
+
+    if (newMessage.author.bot) return;
+    if (oldMessage.content === newMessage.content) return; // Ignore link unfurls/embed updates
+
+    await client.logAudit(
+        'Mensaje Editado',
+        `**Canal:** <#${newMessage.channel.id}>\n**Antes:**\n\`\`\`${oldMessage.content ? oldMessage.content.substring(0, 900) : '[Sin texto]'}\`\`\`\n**Después:**\n\`\`\`${newMessage.content ? newMessage.content.substring(0, 900) : '[Sin texto]'}\`\`\``,
+        client.user,
+        newMessage.author,
+        0xFFFF00 // Yellow
     );
 });
 
