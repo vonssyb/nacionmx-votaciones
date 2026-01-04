@@ -1,3 +1,5 @@
+const logger = require('./Logger');
+
 class LevelService {
     constructor(supabaseClient) {
         this.supabase = supabaseClient;

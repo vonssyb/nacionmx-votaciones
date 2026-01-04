@@ -47,7 +47,7 @@ client.services = {
 // --- AUDIT LOG ---
 client.logAudit = async (action, details, moderator, target, color = 0x00AAFF) => {
     try {
-        const AUDIT_CHANNEL_ID = '1412895669143867454';
+        const AUDIT_CHANNEL_ID = '1457457209268109516';
         const channel = await client.channels.fetch(AUDIT_CHANNEL_ID);
         if (channel) {
             const embed = new EmbedBuilder()
@@ -191,6 +191,66 @@ client.on('interactionCreate', async interaction => {
             await interaction.reply({ content: 'Solicitud rechazada.', ephemeral: true });
         }
     }
+});
+
+// --- DELETION LOGGING EVENTS ---
+
+// 1. Message Delete
+client.on('messageDelete', async message => {
+    if (message.partial) {
+        // Partial means we don't have the content cached, so we can't log the content.
+        // We can try to fetch it if possible, but usually delete partials are empty.
+        // We can still log that *a* message was deleted in the channel.
+        client.logAudit('Mensaje Eliminado (Parcial)', `Mensaje eliminado en <#${message.channelId}> (Contenido desconocido)`, client.user, null, 0xFF0000);
+        return;
+    }
+
+    if (message.author.bot) return; // Optional: Ignore bots
+
+    const content = message.content ? message.content : '[Sin contenido de texto]';
+    const attachments = message.attachments.size > 0 ? `\n📂 Adjuntos: ${message.attachments.size}` : '';
+
+    await client.logAudit(
+        'Mensaje Eliminado',
+        `**Canal:** <#${message.channel.id}>\n**Contenido:**\n\`\`\`${content.substring(0, 1000)}\`\`\`${attachments}`,
+        client.user, // "Moderator" is system/bot for auto-logs
+        message.author,
+        0xFF0000 // Red
+    );
+});
+
+// 2. Bulk Delete
+client.on('messageDeleteBulk', async messages => {
+    const channel = messages.first().channel;
+    await client.logAudit(
+        'Mensajes Eliminados en Masa',
+        `**Canal:** <#${channel.id}>\n**Cantidad:** ${messages.size} mensajes`,
+        client.user,
+        null,
+        0xFF0000
+    );
+});
+
+// 3. Channel Delete
+client.on('channelDelete', async channel => {
+    await client.logAudit(
+        'Canal Eliminado',
+        `**Nombre:** ${channel.name}\n**Tipo:** ${channel.type}`,
+        client.user,
+        null,
+        0x8B0000 // Dark Red
+    );
+});
+
+// 4. Role Delete
+client.on('roleDelete', async role => {
+    await client.logAudit(
+        'Rol Eliminado',
+        `**Nombre:** ${role.name}\n**ID:** ${role.id}`,
+        client.user,
+        null,
+        0x8B0000 // Dark Red
+    );
 });
 
 // --- RENDER KEEP ALIVE (MOD) ---

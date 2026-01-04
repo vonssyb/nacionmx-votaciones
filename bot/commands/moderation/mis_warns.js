@@ -44,6 +44,7 @@ module.exports = {
                     const date = new Date(s.created_at).toLocaleDateString('es-MX');
                     const evidenceLink = s.evidence_url ? ` [📸 Ver Evidencia](${s.evidence_url})` : '';
                     const descriptionText = s.description ? `\n> *${s.description}*` : '';
+                    const expiration = s.expires_at ? ` | ⏳ Expira: ${new Date(s.expires_at).toLocaleDateString('es-MX')}` : '';
                     let line = `**${icon} ${displayType}** [${date}]${evidenceLink} - **Ref:** ${s.reason}${expiration}${descriptionText}\n`;
 
                     if (s.status === 'appealed') {
