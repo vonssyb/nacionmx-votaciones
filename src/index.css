@@ -1,20 +1,26 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 :root {
   /* Premium Dark Theme Palette */
   --bg-dark: #0a0a0a;
   --bg-card: #141414;
   --bg-card-hover: #1f1f1f;
-  
-  --primary: #d4af37; /* Gold/Champagne */
+
+  --primary: #d4af37;
+  /* Gold/Champagne */
   --primary-hover: #f1c40f;
   --primary-dim: rgba(212, 175, 55, 0.1);
 
-  --accent: #3498db; /* Royal Blue */
-  
+  --accent: #3498db;
+  /* Royal Blue */
+
   --text-main: #ffffff;
   --text-muted: #a0a0a0;
-  
+
   --border: #333333;
-  
+
   --success: #2ecc71;
   --error: #e74c3c;
   --warning: #f1c40f;
@@ -27,7 +33,7 @@
   /* Spacing */
   --radius: 8px;
   --radius-lg: 16px;
-  
+
   /* Transitions */
   --transition: all 0.3s ease;
 }
