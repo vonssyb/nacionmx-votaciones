@@ -200,6 +200,12 @@ module.exports = {
 
             const targetChannel = await client.channels.fetch(channelIds.voting);
             if (targetChannel) {
+                // Clear Channel FIRST (Legacy Behavior)
+                try {
+                    const messages = await targetChannel.messages.fetch({ limit: 100 });
+                    if (messages.size > 0) await targetChannel.bulkDelete(messages, true).catch(() => { });
+                } catch (e) { console.log('Error clearing channel:', e.message); }
+
                 await renameChannel(channelIds.voting, '✅・servidor-abierto');
 
                 // Rich Embed
@@ -244,8 +250,23 @@ module.exports = {
             const targetChannel = await client.channels.fetch(channelIds.voting);
 
             if (targetChannel) {
-                await renameChannel(channelIds.voting, '🔴・sesion-finalizada');
-                await targetChannel.send({ content: `🔒 **Sesión Cerrada**\n\n${razon}\nGracias por participar.` });
+                await renameChannel(channelIds.voting, '🔴・servidor-cerrado');
+
+                // Clear Channel messages (Legacy Behavior)
+                try {
+                    const messages = await targetChannel.messages.fetch({ limit: 100 });
+                    if (messages.size > 0) await targetChannel.bulkDelete(messages, true).catch(() => { });
+                } catch (e) { console.log('Error clearing channel:', e.message); }
+
+                const embed = new EmbedBuilder()
+                    .setTitle('🔴 SERVIDOR CERRADO')
+                    .setColor(0xFF0000)
+                    .setImage('https://cdn.discordapp.com/attachments/885232074083143741/1453225156188049458/standard2.gif')
+                    .setDescription(`⚠️ **La sesión de rol ha finalizado.**\n\n📝 **Razón:** ${razon}\n\nGracias por participar en **Nación MX**. \n¡Esperamos verlos en la próxima sesión!`)
+                    .setFooter({ text: `Cerrado por ${interaction.user.tag}` })
+                    .setTimestamp();
+
+                await targetChannel.send({ embeds: [embed] });
             }
 
             await interaction.editReply(`✅ Sesión cerrada: ${razon}`);
@@ -268,11 +289,8 @@ module.exports = {
                 const embed = new EmbedBuilder()
                     .setTitle('🛠️ SISTEMA EN MANTENIMIENTO')
                     .setColor(0xFFA500)
-                    .setDescription(`El servidor se encuentra en mantenimiento técnico.`)
-                    .addFields(
-                        { name: '⏱️ Duración Estimada', value: duracion, inline: true },
-                        { name: '📋 Razón', value: razon, inline: true }
-                    )
+                    .setDescription(`⚠️ **El servidor se encuentra en mantenimiento.**\n\n⏳ **Duración estimada:** ${duracion}\n📝 **Motivo:** ${razon}`)
+                    .setFooter({ text: 'Por favor, no intenten entrar hasta nuevo aviso.' })
                     .setTimestamp();
 
                 await targetChannel.send({ embeds: [embed] });
