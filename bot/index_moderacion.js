@@ -2,7 +2,7 @@ require('dotenv').config();
 // 1. Unbuffered Logger
 const log = (msg) => process.stderr.write(`🟢 [MOD-BOT] ${msg}\n`);
 
-log('Starting Nacion MX MODERATION BOT... (v2.4 - Sesion Legacy Restore)');
+log('Starting Nacion MX MODERATION BOT... (v2.5 - Licencia & Interaction Fixes)');
 const fs = require('fs');
 const path = require('path');
 const { Client, GatewayIntentBits, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
@@ -121,21 +121,24 @@ client.on('interactionCreate', async interaction => {
     // 1. SLASH COMMANDS
     if (interaction.isChatInputCommand()) {
         const command = client.commands.get(interaction.commandName);
-        if (!command) return;
-
-        try {
-            await command.execute(interaction, client, supabase);
-        } catch (error) {
-            console.error(error);
+        if (command) {
             try {
-                if (interaction.replied || interaction.deferred) await interaction.followUp({ content: '❌ Error ejecutando comando.', ephemeral: true });
-                else await interaction.reply({ content: '❌ Error ejecutando comando.', ephemeral: true });
-            } catch (e) { }
+                await command.execute(interaction, client, supabase);
+            } catch (error) {
+                console.error(error);
+                try {
+                    if (interaction.replied || interaction.deferred) await interaction.followUp({ content: '❌ Error ejecutando comando.', ephemeral: true });
+                    else await interaction.reply({ content: '❌ Error ejecutando comando.', ephemeral: true });
+                } catch (e) { }
+            }
+            return;
         }
-        return;
+        // If command not found in modular registry, FALL THROUGH to legacy handler
     }
 
     // 2. LEGACY HANDLER FALLBACK (MODERATION)
+    // Only try legacy if it IS a chat input command (and wasn't handled above) OR if we want legacy to handle other types?
+    // Legacy handler checks interaction type internally.
     try {
         const { handleModerationLegacy } = require('./handlers/legacyModerationHandler');
         await handleModerationLegacy(interaction, client, supabase);
