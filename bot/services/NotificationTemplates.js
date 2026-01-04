@@ -325,7 +325,7 @@ module.exports = {
                 },
                 {
                     name: '📸 Evidencia Adjunta',
-                    value: evidenceUrl || 'Sin evidencia adjunta',
+                    value: evidenceUrl ? `[📸 Ver Evidencia](${evidenceUrl})` : 'Sin evidencia adjunta',
                     inline: false
                 }
             ],
