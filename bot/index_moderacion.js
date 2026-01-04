@@ -46,7 +46,7 @@ client.services = {
 client.supabase = supabase;
 
 // --- AUDIT LOG ---
-client.logAudit = async (action, details, moderator, target, color = 0x00AAFF) => {
+client.logAudit = async (action, details, moderator, target, color = 0x00AAFF, files = []) => {
     try {
         const AUDIT_CHANNEL_ID = '1457457209268109516';
         const channel = await client.channels.fetch(AUDIT_CHANNEL_ID);
@@ -60,7 +60,7 @@ client.logAudit = async (action, details, moderator, target, color = 0x00AAFF) =
                     { name: '📝 Detalles', value: details }
                 )
                 .setTimestamp();
-            await channel.send({ embeds: [embed] });
+            await channel.send({ embeds: [embed], files: files });
         }
     } catch (error) {
         console.error('Audit Log Error:', error);
@@ -209,14 +209,21 @@ client.on('messageDelete', async message => {
     if (message.author.bot) return; // Optional: Ignore bots
 
     const content = message.content ? message.content : '[Sin contenido de texto]';
-    const attachments = message.attachments.size > 0 ? `\n📂 Adjuntos: ${message.attachments.size}` : '';
+    let fileArray = [];
+    if (message.attachments.size > 0) {
+        message.attachments.forEach(attachment => {
+            fileArray.push(attachment.url); // Sending URL in files array makes Discord re-download and attach it if valid
+        });
+    }
+    const attachmentsText = message.attachments.size > 0 ? `\n📂 Adjuntos: ${message.attachments.size} (Re-subidos abajo)` : '';
 
     await client.logAudit(
         'Mensaje Eliminado',
-        `**Canal:** <#${message.channel.id}>\n**Contenido:**\n\`\`\`${content.substring(0, 1000)}\`\`\`${attachments}`,
+        `**Canal:** <#${message.channel.id}>\n**Contenido:**\n\`\`\`${content.substring(0, 1000)}\`\`\`${attachmentsText}`,
         client.user, // "Moderator" is system/bot for auto-logs
         message.author,
-        0xFF0000 // Red
+        0xFF0000, // Red
+        fileArray
     );
 });
 
