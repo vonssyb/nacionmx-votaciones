@@ -7,6 +7,8 @@ const fs = require('fs');
 const path = require('path');
 const { Client, GatewayIntentBits, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { createClient } = require('@supabase/supabase-js');
+const axios = require('axios'); // For downloading images
+
 
 // --- CONFIGURATION ---
 const NOTIFICATION_CHANNEL_ID = process.env.NOTIFICATION_CHANNEL_ID;
@@ -66,6 +68,39 @@ client.logAudit = async (action, details, moderator, target, color = 0x00AAFF, f
         console.error('Audit Log Error:', error);
     }
 };
+
+// --- HELPER: UPLOAD TO SUPABASE ---
+async function uploadToSupabase(fileUrl, filename) {
+    try {
+        // 1. Download file
+        const response = await axios.get(fileUrl, { responseType: 'arraybuffer' });
+        const buffer = Buffer.from(response.data, 'binary');
+
+        // 2. Upload
+        const { data, error } = await supabase.storage
+            .from('evidence')
+            .upload(`logs/${Date.now()}_${filename}`, buffer, {
+                contentType: response.headers['content-type'] || 'image/png',
+                upsert: false
+            });
+
+        if (error) {
+            console.error('Supabase Upload Error:', error);
+            return null;
+        }
+
+        // 3. Get Public URL
+        const { data: publicData } = supabase.storage
+            .from('evidence')
+            .getPublicUrl(data.path);
+
+        return publicData.publicUrl;
+
+    } catch (err) {
+        console.error('Upload Helper Error:', err.message);
+        return null; // Fallback to original URL if upload fails
+    }
+}
 
 // --- EVENTS ---
 
@@ -210,20 +245,38 @@ client.on('messageDelete', async message => {
 
     const content = message.content ? message.content : '[Sin contenido de texto]';
     let fileArray = [];
+    let uploadedUrls = [];
+
     if (message.attachments.size > 0) {
-        message.attachments.forEach(attachment => {
-            fileArray.push(attachment.url); // Sending URL in files array makes Discord re-download and attach it if valid
+        // Process uploads in parallel (limited)
+        const uploadPromises = message.attachments.map(async attachment => {
+            // Original URL
+            fileArray.push(attachment.url);
+
+            // Upload to Supabase for persistence
+            const publicUrl = await uploadToSupabase(attachment.url, attachment.name);
+            if (publicUrl) uploadedUrls.push(publicUrl);
+            return publicUrl;
         });
+
+        await Promise.all(uploadPromises);
     }
-    const attachmentsText = message.attachments.size > 0 ? `\n📂 Adjuntos: ${message.attachments.size} (Re-subidos abajo)` : '';
+
+    // Construct text with permanent links
+    let attachmentsText = '';
+    if (uploadedUrls.length > 0) {
+        attachmentsText = `\n\n📂 **Evidencia Persistente (Supabase):**\n` + uploadedUrls.map(url => `[Ver Imagen](${url})`).join('\n');
+    } else if (message.attachments.size > 0) {
+        attachmentsText = `\n📂 Adjuntos: ${message.attachments.size} (No se pudieron subir a Supabase, ver originales abajo si aún existen)`;
+    }
 
     await client.logAudit(
         'Mensaje Eliminado',
-        `**Canal:** <#${message.channel.id}>\n**Contenido:**\n\`\`\`${content.substring(0, 1000)}\`\`\`${attachmentsText}`,
+        `**Canal:** <#${message.channel.id}>\n**Autor:** <@${message.author.id}>\n**Contenido:**\n\`\`\`${content.substring(0, 1000)}\`\`\`${attachmentsText}`,
         client.user, // "Moderator" is system/bot for auto-logs
         message.author,
         0xFF0000, // Red
-        fileArray
+        fileArray // Still attach originals as fallback/preview in Discord
     );
 });
 
