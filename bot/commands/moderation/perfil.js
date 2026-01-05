@@ -177,7 +177,8 @@ module.exports = {
             await interaction.editReply({ embeds: [embed] });
 
         } catch (error) {
-            console.error('[perfil] Error:', error);
+            console.error('[perfil] Critical Error:', error);
+            console.error('[perfil] Stack:', error.stack);
             await interaction.editReply('❌ Error al cargar el perfil. Intenta de nuevo más tarde.');
         }
     }
