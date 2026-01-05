@@ -13,20 +13,17 @@ module.exports = {
             option.setName('arts')
                 .setDescription('Artículos penales (ej: "10" o "10,30,40")')
                 .setRequired(true))
+        .addAttachmentOption(option =>
+            option.setName('foto')
+                .setDescription('Evidencia fotográfica del arresto')
+                .setRequired(true))
         .addIntegerOption(option =>
             option.setName('tiempo')
                 .setDescription('Tiempo en minutos (Opcional - Se calcula automático si se deja vacío)')
                 .setRequired(false)
                 .setMinValue(1)
                 .setMaxValue(10080)) // 1 week max manually
-        .addAttachmentOption(option =>
-            option.setName('foto')
-                .setDescription('Evidencia fotográfica del arresto')
-                .setRequired(true))
-        .addStringOption(option =>
-            option.setName('razon')
-                .setDescription('Motivo del arresto')
-                .setRequired(true)),
+
 
     async execute(interaction, client, supabase) {
         await interaction.deferReply({ ephemeral: false });

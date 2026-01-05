@@ -30,65 +30,79 @@ module.exports = {
             let cash = 0, bank = 0;
 
             try {
-                const balance = await ubService.getUserBalance(interaction.guildId, targetUser.id);
+                // Add explicit timeout for external API
+                const balancePromise = ubService.getUserBalance(interaction.guildId, targetUser.id);
+                const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('UB Timeout')), 3000));
+
+                const balance = await Promise.race([balancePromise, timeoutPromise]);
                 cash = balance.cash || 0;
                 bank = balance.bank || 0;
                 console.log('[perfil] UnbelievaBoat balance:', { userId: targetUser.id, cash, bank });
             } catch (ubError) {
                 console.error('[perfil] Error fetching UnbelievaBoat balance:', ubError.message);
                 // Continue with 0 if API fails
+                await interaction.followUp({ content: '⚠️ Alerta: No se pudo verificar el saldo en tiempo real (UnbelievaBoat lento).', ephemeral: true });
             }
 
             const total = cash + bank;
 
             // Fetch Credit Card
-            const { data: creditCards } = await supabase
-                .from('credit_cards')
-                .select('card_type, available_limit, used_limit, total_limit')
+            // Fetch DNI
+            const { data: dni } = await supabase
+                .from('citizen_dni')
+                .select('name, date_of_birth')
                 .eq('guild_id', interaction.guildId)
                 .eq('user_id', targetUser.id)
-                .eq('active', true);
+                .maybeSingle();
 
-            const creditCard = creditCards?.[0];
+            // Fetch Vehicle Count
+            const { count: vehicleCount } = await supabase
+                .from('vehicles')
+                .select('*', { count: 'exact', head: true })
+                .eq('guild_id', interaction.guildId)
+                .eq('user_id', targetUser.id);
 
-            // Fetch Licenses
-            const member = await interaction.guild.members.fetch(targetUser.id);
-            const licenses = [];
+            // Check Arrest Status
+            const ARRESTED_ROLE_ID = '1413540729623679056';
+            const isArrestedRole = member.roles.cache.has(ARRESTED_ROLE_ID);
 
-            const licenseRoles = {
-                '1413543909761614005': '🚗 Licencia de Conducir',
-                '1413543907110682784': '🔫 Licencia de Armas Cortas',
-                '1413541379803578431': '🎯 Licencia de Armas Largas'
-            };
-
-            for (const [roleId, licenseName] of Object.entries(licenseRoles)) {
-                if (member.roles.cache.has(roleId)) {
-                    licenses.push(licenseName);
-                }
-            }
-
-            // Fetch Sanctions (last 5)
-            const { data: sanctions } = await supabase
-                .from('sanctions')
-                .select('sanction_type, reason, created_at')
+            // 2nd Check: Active DB Entry (optional but safer)
+            const { data: activeArrest } = await supabase
+                .from('arrests')
+                .select('release_time, reason')
+                .eq('guild_id', interaction.guildId)
                 .eq('user_id', targetUser.id)
-                .order('created_at', { ascending: false })
-                .limit(5);
-
-            // Fetch Active Store Passes
-            const { data: passes } = await supabase
-                .from('store_purchases')
-                .select('item_name, expires_at, uses_remaining')
-                .eq('user_id', targetUser.id)
-                .eq('active', true)
-                .gt('expires_at', new Date().toISOString());
+                .gt('release_time', new Date().toISOString())
+                .maybeSingle();
 
             // Build Embed
             const embed = new EmbedBuilder()
-                .setTitle(`${isOwnProfile ? '👤 Tu Perfil' : `👤 Perfil de ${targetUser.tag}`}`)
-                .setColor('#00AAC0')
+                .setTitle(`${isOwnProfile ? '👤 Tu Perfil Ciudadano' : `👤 Perfil de ${targetUser.username}`}`)
+                .setColor(isArrestedRole ? '#FF0000' : '#00AAC0') // Red if arrested
                 .setThumbnail(targetUser.displayAvatarURL({ dynamic: true, size: 256 }))
                 .setTimestamp();
+
+            // 1. Identity Section
+            const birthDate = dni?.date_of_birth
+                ? new Date(dni.date_of_birth).toLocaleDateString('es-MX')
+                : 'No registrado';
+
+            const arrestStatus = isArrestedRole
+                ? `🚨 **ARRESTADO** (Hasta: ${activeArrest ? new Date(activeArrest.release_time).toLocaleString('es-MX') : 'Indefinido'})`
+                : '✅ Libre';
+
+            embed.addFields({
+                name: '🆔 Identidad',
+                value: `**Nombre:** ${dni?.name || 'Ciudadano sin DNI'}\n**Nacimiento:** ${birthDate}\n**Estado Legal:** ${arrestStatus}`,
+                inline: false
+            });
+
+            // 2. Assets Section
+            embed.addFields({
+                name: '🚗 Patrominio',
+                value: `**Vehículos Registrados:** ${vehicleCount || 0}`,
+                inline: true
+            });
 
             // Economy Section - Enhanced Display
             let economyText = `💵 **EFECTIVO:** $${cash.toLocaleString()}\n`;
@@ -99,31 +113,19 @@ module.exports = {
                 const used = creditCard.used_limit || 0;
                 const creditTotal = total + available;
 
-                economyText += `\n\n💳 **CRÉDITO**\n`;
-                economyText += `Disponible: $${available.toLocaleString()}\n`;
-                economyText += `Deuda: $${used.toLocaleString()}`;
+                economyText += `\n💳 **CRÉDITO:** Disponible $${available.toLocaleString()}`;
 
-                economyText += `\n\n📊 **PATRIMONIO TOTAL**\n`;
-                economyText += `✅ $${creditTotal.toLocaleString()}`;
+                embed.addFields({ name: '💼 Finanzas', value: economyText, inline: false });
             } else {
-                economyText += `\n\n📊 **PATRIMONIO TOTAL**\n`;
-                economyText += `✅ $${total.toLocaleString()}`;
+                embed.addFields({ name: '💼 Finanzas', value: economyText, inline: false });
             }
-
-            embed.addFields({ name: '💼 Economía', value: economyText, inline: false });
 
             // Licenses Section
             if (licenses.length > 0) {
                 embed.addFields({
-                    name: '🪪 Licencias Activas',
+                    name: '🪪 Licencias',
                     value: licenses.join('\n'),
-                    inline: false
-                });
-            } else {
-                embed.addFields({
-                    name: '🪪 Licencias Activas',
-                    value: 'Sin licencias registradas',
-                    inline: false
+                    inline: true
                 });
             }
 
@@ -133,12 +135,12 @@ module.exports = {
                     const expires = new Date(p.expires_at);
                     const remaining = p.uses_remaining
                         ? ` (${p.uses_remaining} usos)`
-                        : ` (hasta ${expires.toLocaleDateString('es-MX')})`;
-                    return `${p.item_name}${remaining}`;
+                        : ` (Vence: ${expires.toLocaleDateString('es-MX')})`;
+                    return `• ${p.item_name}${remaining}`;
                 }).join('\n');
 
                 embed.addFields({
-                    name: '🎫 Pases Activos',
+                    name: '🎫 Pases',
                     value: passText,
                     inline: false
                 });
