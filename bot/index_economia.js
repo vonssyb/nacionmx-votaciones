@@ -90,7 +90,7 @@ client.once('clientReady', async () => {
 
     // Load Legacy Economy Commands from commands.js
     const allLegacyCommands = require('./commands.js');
-    const excludedCommands = ['rol', 'multa', 'licencia', 'sesion']; // Moderation only
+    const excludedCommands = ['rol', 'sesion']; // Moderation only
     const modularCommandNames = Array.from(client.commands.keys());
 
     const legacyEconomyCommands = allLegacyCommands.filter(cmd =>
@@ -151,7 +151,7 @@ client.on('interactionCreate', async interaction => {
             };
         }
 
-        await interaction.deferReply({  }).catch(() => { });
+        await interaction.deferReply({}).catch(() => { });
 
         const commandName = interaction.commandName;
         const command = client.commands.get(commandName);
