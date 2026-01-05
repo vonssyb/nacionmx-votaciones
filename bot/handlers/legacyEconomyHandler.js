@@ -2778,7 +2778,6 @@ const handleEconomyLegacy = async (interaction, client, supabase) => {
         await interaction.deferReply({ ephemeral: false });
 
         try {
-
             // === ROLE-BASED AUTHORIZATION ===
             const BANKER_ROLES = {
                 REGULAR: '1450591546524307689',      // Banquero
@@ -2796,6 +2795,9 @@ const handleEconomyLegacy = async (interaction, client, supabase) => {
 
             const targetUser = interaction.options.getUser('usuario');
             if (!targetUser) return interaction.editReply('❌ Debes especificar un usuario.');
+
+            console.log(`[registrar-tarjeta] Starting for user ${targetUser.id} by moderator ${interaction.user.id}`);
+
 
             // SECURITY: Self-Target Check
             if (targetUser.id === interaction.user.id) {
@@ -3075,7 +3077,14 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
 
         } catch (error) {
             console.error('[registrar-tarjeta] Critical Error:', error);
+            if (interaction.deferred || interaction.replied) {
+                await interaction.editReply({ content: `❌ **Error Crítico:** ${error.message}` }).catch(() => { });
+            } else {
+                await interaction.reply({ content: `❌ **Error Crítico:** ${error.message}`, ephemeral: true }).catch(() => { });
+            }
+            throw error; // Re-throw so index_economia can also log if and track
         }
+
 
         // Helper function to rename channel based on state
     }
