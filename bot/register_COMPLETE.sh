@@ -106,7 +106,7 @@ curl -s -X PUT \
     {"name":"vincular","description":"Vincular usuario - Solo Staff","type":1,"options":[
       {"name":"usuario","description":"Usuario de Discord a vincular","type":6,"required":true},
       {"name":"nombre","description":"Nombre y Apellido RP","type":3,"required":true},
-      {"name":"dni","description":"Foto del DNI","type":11,"required":true}
+      {"name":"dni","description":"Foto del DNI (Opcional)","type":11,"required":false}
     ]}
   ]},
   {"name":"estado","description":"Cambia el estado del servidor","options":[
@@ -129,7 +129,7 @@ curl -s -X PUT \
       {"name":"NMX Black 40k","value":"NMX Black"},
       {"name":"NMX Diamante 60k","value":"NMX Diamante"}
     ]},
-    {"name":"foto_dni","description":"Foto del DNI o Identificacion","type":11,"required":true},
+    {"name":"foto_dni","description":"Foto del DNI (Opcional)","type":11,"required":false},
     {"name":"notas","description":"Notas opcionales","type":3,"required":false}
   ]},
   {"name":"rol","description":"Gestion de Roles y Sanciones","options":[

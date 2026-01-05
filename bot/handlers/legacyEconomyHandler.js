@@ -1,13 +1,16 @@
-const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder, AttachmentBuilder, PermissionsBitField, ComponentType, ActivityType } = require('discord.js');
+const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder, AttachmentBuilder, PermissionsBitField, ComponentType, ActivityType, REST, Routes } = require('discord.js');
 const { createClient } = require('@supabase/supabase-js');
 const fs = require('fs');
 const path = require('path');
+const StakingService = require('../services/StakingService');
+const SlotsService = require('../services/SlotsService');
 require('dotenv').config();
 
 // Initialize Supabase (Global for helpers)
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabase = createClient(supabaseUrl, process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY);
 let billingService; // Global scope for helpers
+const GUILD_ID = process.env.GUILD_ID ? process.env.GUILD_ID.trim() : null;
 
 // LOG CHANNELS (Moved up if needed, but they are defined below usually)
 
@@ -875,7 +878,7 @@ const startLegacyBackgroundTasks = async (client) => {
 
     const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_BOT_TOKEN || process.env.DISCORD_TOKEN || '');
 
-    const commands = require('./commands');
+    const commands = require('../commands');
 
     try {
         console.log('🔄 Iniciando actualización de comandos...');
@@ -3858,7 +3861,6 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
     */
 
     else if (commandName === 'fichar') {
-        await interaction.deferReply({ ephemeral: false });
         const subCmd = interaction.options.getSubcommand();
 
         // --- SUBCOMMAND: VINCULAR (STAFF ONLY) ---
@@ -3875,15 +3877,25 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             // 2. Check if Citizen exists (by Discord ID)
             let { data: existingCitizen } = await supabase.from('citizens').select('*').eq('discord_id', targetUser.id).limit(1).maybeSingle();
 
-            // 3. Handle DNI: Use provided or fetch from existing
+            // 3. Handle DNI: Use provided or fetch from existing sources
             let finalDniUrl = dniPhoto ? dniPhoto.url : null;
 
             if (!finalDniUrl) {
+                // Try source A: citizens table
                 if (existingCitizen && existingCitizen.dni) {
                     finalDniUrl = existingCitizen.dni;
-                } else {
+                }
+                // Try source B: verification_codes table (used by /dni command)
+                else {
+                    const { data: vData } = await supabase.from('verification_codes').select('dni_url').eq('discord_id', targetUser.id).limit(1).maybeSingle();
+                    if (vData && vData.dni_url) {
+                        finalDniUrl = vData.dni_url;
+                    }
+                }
+
+                if (!finalDniUrl) {
                     return interaction.editReply({
-                        content: `❌ **DNI Requerido:** El usuario <@${targetUser.id}> no tiene un DNI registrado y no has subido una foto.\n⚠️ Sube la foto del DNI para completar el registro.`
+                        content: `❌ **DNI Requerido:** El usuario <@${targetUser.id}> no tiene un DNI registrado en el censo ni en verificaciones, y no has subido una foto.\n⚠️ Sube la foto del DNI para completar el registro.`
                     });
                 }
             }

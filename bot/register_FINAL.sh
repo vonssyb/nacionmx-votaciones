@@ -85,7 +85,7 @@ curl -s -X PUT \
       {"name":"Business Elite 500k","value":"NMX Business Elite"},
       {"name":"Corporate 1M","value":"NMX Corporate"}
     ]},
-    {"name":"foto_dni","description":"Foto DNI","type":11,"required":true}
+    {"name":"foto_dni","description":"Foto DNI (Opcional)","type":11,"required":false}
   ]}
 ]'
 

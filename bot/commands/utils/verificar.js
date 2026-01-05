@@ -107,16 +107,19 @@ module.exports = {
                         const successEmbed = new EmbedBuilder()
                             .setTitle('✅ Verificación Exitosa')
                             .setColor(0x00FF00)
-                            .setDescription(`¡Felicidades! Tu cuenta ha sido vinculada con **${realUsername}**.\nYa puedes remover el código de tu bio.${nickChange}`)
+                            .setDescription(`¡Felicidades! <@${discordUserId}> ha vinculado su cuenta con **${realUsername}**.\n${nickChange}`)
                             .setThumbnail(`https://www.roblox.com/headshot-thumbnail/image?userId=${robloxId}&width=150&height=150&format=png`);
 
-                        await i.editReply({ embeds: [successEmbed], components: [] });
+                        // Send public message in channel
+                        await interaction.channel.send({ embeds: [successEmbed] });
+
+                        // Update ephemeral interaction to clear buttons
+                        await i.editReply({ content: '✅ ¡Verificación finalizada con éxito!', embeds: [], components: [] });
 
                         // Log
                         const logChannel = await guild.channels.fetch(LOG_CHANNEL_ID).catch(() => null);
                         if (logChannel) {
-                            const pingMsg = await logChannel.send(`<@${discordUserId}> se ha verificado como **${realUsername}**.`);
-                            setTimeout(() => pingMsg.delete().catch(() => null), 5000);
+                            await logChannel.send(`<@${discordUserId}> se ha verificado como **${realUsername}**.`);
                         }
                     } else {
                         await i.followUp({ content: `❌ **Código no encontrado.**\nAsegúrate de haber pegado \`${verifCode}\` en tu bio de Roblox y que sea visible públicamente.`, ephemeral: true });
