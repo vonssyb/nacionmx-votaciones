@@ -93,7 +93,7 @@ module.exports = {
                     }
                 })(),
 
-                // Fetch Sanctions
+                // Fetch Sanctions - Last 3
                 (async () => {
                     try {
                         console.log(`[perfil] Querying sanctions for user ${targetUser.id}`);
@@ -102,22 +102,43 @@ module.exports = {
                             .select('type, reason, created_at, status')
                             .eq('discord_user_id', targetUser.id)  // Correct column name
                             .order('created_at', { ascending: false })
-                            .limit(5);
+                            .limit(3);  // Changed from 5 to 3
 
                         if (error) {
                             console.error('[perfil] Sanctions query error:', error);
-                            return [];
+                            return { recent: [], counts: { notificacion: 0, sa: 0, general: 0, total: 0 } };
+                        }
+
+                        // Also get counts by type
+                        const { data: allSanctions, error: countError } = await supabase
+                            .from('sanctions')
+                            .select('type')
+                            .eq('discord_user_id', targetUser.id);
+
+                        const counts = {
+                            notificacion: 0,
+                            sa: 0,
+                            general: 0,
+                            total: 0
+                        };
+
+                        if (!countError && allSanctions) {
+                            counts.total = allSanctions.length;
+                            counts.notificacion = allSanctions.filter(s => s.type === 'notificacion').length;
+                            counts.sa = allSanctions.filter(s => s.type === 'sa').length;
+                            counts.general = allSanctions.filter(s => s.type === 'general').length;
                         }
 
                         if (data && data.length > 0) {
-                            console.log(`[perfil] ✅ Found ${data.length} sanction(s)`);
+                            console.log(`[perfil] ✅ Found ${data.length} recent sanction(s), ${counts.total} total`);
                         } else {
                             console.log(`[perfil] ℹ️ No sanctions found for user ${targetUser.id}`);
                         }
-                        return data || [];
+
+                        return { recent: data || [], counts };
                     } catch (e) {
                         console.error('[perfil] Failed to fetch sanctions:', e.message);
-                        return [];
+                        return { recent: [], counts: { notificacion: 0, sa: 0, general: 0, total: 0 } };
                     }
                 })(),
 
