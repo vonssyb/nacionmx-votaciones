@@ -7431,6 +7431,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
         // Helper function to rename channel based on state
     }
 
+    /* DISABLED - Automatic tax collection via background service
     else if (commandName === 'impuestos') {
         await interaction.deferReply();
 
@@ -7608,6 +7609,9 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
 
         // Helper function to rename channel based on state
     }
+    */
+
+    // NOTE: Taxes are now collected automatically by the billing service
 
     // ===================================================================
     // ECONOMY COMMANDS: Stake, Slots, Fondos
