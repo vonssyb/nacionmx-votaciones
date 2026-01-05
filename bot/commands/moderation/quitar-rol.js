@@ -35,6 +35,9 @@ module.exports = {
             // Remove role
             await member.roles.remove(role);
 
+            // Wait briefly to ensure Discord processes the change
+            await new Promise(resolve => setTimeout(resolve, 500));
+
             const embed = new EmbedBuilder()
                 .setTitle('✅ Rol Removido')
                 .setColor('#FF0000')
@@ -46,7 +49,7 @@ module.exports = {
                 )
                 .setTimestamp();
 
-            await interaction.editReply({ embeds: [embed] });
+            return interaction.editReply({ embeds: [embed] });
 
         } catch (error) {
             console.error('[quitar-rol] Error:', error);
