@@ -6129,6 +6129,20 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
     // Copy this content to replace the current handlers in index.js
 
     else if (commandName === 'trabajar') {
+        // DNI Check
+        const { data: jobDni } = await supabase
+            .from('citizen_dni')
+            .select('id')
+            .eq('guild_id', interaction.guildId)
+            .eq('user_id', interaction.user.id)
+            .maybeSingle();
+
+        if (!jobDni) {
+            return interaction.reply({
+                content: '❌ **DNI Requerido**\n\nNecesitas un DNI válido para trabajar.\nCrea uno usando `/dni crear`.',
+                ephemeral: true
+            });
+        }
         await interaction.deferReply();
         const JOB_COOLDOWN = 60 * 60 * 1000;
         const jobKey = `job_${interaction.user.id}`;
