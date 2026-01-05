@@ -18,9 +18,8 @@ class ReminderService {
         // Configuration
         this.config = {
             sessionVoteThreshold: parseInt(process.env.SESSION_VOTE_THRESHOLD) || 5,
-            staffAfkThresholdHours: parseInt(process.env.STAFF_AFK_THRESHOLD_HOURS) || 2,
             suspiciousTransactionAmount: parseInt(process.env.SUSPICIOUS_TRANSACTION_AMOUNT) || 100000,
-            alertChannelId: process.env.ALERT_CHANNEL_ID || '1450610756663115879',
+            sessionVotesChannelId: '1398891368398585886', // Specific channel for session votes
             juntaDirectivaRoleId: '1412882245735420006'
         };
     }
@@ -98,29 +97,56 @@ class ReminderService {
     }
 
     /**
-     * Send session vote threshold alert
+     * Send session vote threshold alert with buttons and stats
      */
     async sendSessionVoteAlert(session, voteCount) {
         try {
-            const channel = await this.client.channels.fetch(this.config.alertChannelId);
+            const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+            const channel = await this.client.channels.fetch(this.config.sessionVotesChannelId);
             if (!channel) return;
 
+            // Build embed with stats
             const embed = new EmbedBuilder()
-                .setTitle('🗳️ ALERTA: Votación Alcanzó Umbral')
+                .setTitle('🗳️ VOTACIÓN DE SESIÓN - DECISIÓN REQUERIDA')
                 .setColor('#FFA500')
-                .setDescription(`Una votación ha alcanzado **${voteCount} votos** y requiere atención de la Junta Directiva.`)
+                .setDescription(`La votación ha alcanzado **${voteCount} votos**. ¿Abrir la sesión?`)
                 .addFields(
                     { name: '📊 Votos Totales', value: `${voteCount}`, inline: true },
                     { name: '✅ A Favor', value: `${session.vote_yes || 0}`, inline: true },
-                    { name: '❌ En Contra', value: `${session.vote_no || 0}`, inline: true },
-                    { name: '📝 Propuesta', value: session.role_name || 'N/A', inline: false }
+                    { name: '❌ En Contra', value: `${session.vote_no || 0}`, inline: true }
                 )
-                .setFooter({ text: 'Considera abrir o cerrar la sesión según los resultados' })
                 .setTimestamp();
 
+            // Add staff stats if available
+            if (session.metadata && session.metadata.staff_stats) {
+                const stats = session.metadata.staff_stats;
+                let statsText = '';
+                if (stats.apuntados) statsText += `📝 Staff Apuntados: ${stats.apuntados}\n`;
+                if (stats.inmediato) statsText += `⚡ Entrada Inmediata: ${stats.inmediato}\n`;
+                if (stats.retraso) statsText += `⏰ Con Retraso: ${stats.retraso}`;
+
+                if (statsText) {
+                    embed.addFields({ name: '👥 Estadísticas del Staff', value: statsText, inline: false });
+                }
+            }
+
+            // Create buttons
+            const row = new ActionRowBuilder()
+                .addComponents(
+                    new ButtonBuilder()
+                        .setCustomId(`session_open_${session.id}`)
+                        .setLabel('✅ Abrir Sesión')
+                        .setStyle(ButtonStyle.Success),
+                    new ButtonBuilder()
+                        .setCustomId(`session_noopen_${session.id}`)
+                        .setLabel('❌ No Abrir')
+                        .setStyle(ButtonStyle.Danger)
+                );
+
             await channel.send({
-                content: `<@&${this.config.juntaDirectivaRoleId}> Se requiere revisión`,
-                embeds: [embed]
+                content: `<@&${this.config.juntaDirectivaRoleId}> Decisión requerida`,
+                embeds: [embed],
+                components: [row]
             });
 
             console.log(`[ReminderService] Sent session vote alert for session ID ${session.id}`);
@@ -129,89 +155,6 @@ class ReminderService {
         }
     }
 
-    /**
-     * Start staff AFK reminder
-     */
-    startStaffAfkReminder() {
-        const checkInterval = setInterval(async () => {
-            await this.checkStaffAfk();
-        }, 15 * 60 * 1000); // Every 15 minutes
-
-        this.checkIntervals.set('staff_afk', checkInterval);
-        console.log('[ReminderService] Staff AFK reminder active');
-    }
-
-    /**
-     * Check for staff members who have been on duty too long
-     */
-    async checkStaffAfk() {
-        try {
-            const thresholdTime = new Date();
-            thresholdTime.setHours(thresholdTime.getHours() - this.config.staffAfkThresholdHours);
-
-            const { data: activeShifts, error } = await this.supabase
-                .from('staff_shifts')
-                .select('*')
-                .is('end_time', null) // Still active
-                .lt('start_time', thresholdTime.toISOString())
-                .order('start_time', { ascending: true });
-
-            if (error || !activeShifts || activeShifts.length === 0) return;
-
-            for (const shift of activeShifts) {
-                // Check if we already sent an alert recently (last hour)
-                const lastAlert = shift.last_afk_alert ? new Date(shift.last_afk_alert) : null;
-                const oneHourAgo = new Date();
-                oneHourAgo.setHours(oneHourAgo.getHours() - 1);
-
-                if (!lastAlert || lastAlert < oneHourAgo) {
-                    await this.sendStaffAfkAlert(shift);
-
-                    // Update last alert time
-                    await this.supabase
-                        .from('staff_shifts')
-                        .update({ last_afk_alert: new Date().toISOString() })
-                        .eq('id', shift.id);
-                }
-            }
-        } catch (error) {
-            console.error('[ReminderService] Error checking staff AFK:', error);
-        }
-    }
-
-    /**
-     * Send staff AFK alert
-     */
-    async sendStaffAfkAlert(shift) {
-        try {
-            const channel = await this.client.channels.fetch(this.config.alertChannelId);
-            if (!channel) return;
-
-            const startTime = new Date(shift.start_time);
-            const hoursOnDuty = Math.floor((Date.now() - startTime.getTime()) / (1000 * 60 * 60));
-
-            const embed = new EmbedBuilder()
-                .setTitle('⏰ ALERTA: Staff en Turno Prolongado')
-                .setColor('#FF6B6B')
-                .setDescription(`Un miembro del staff lleva **${hoursOnDuty} horas** en turno sin reportar salida.`)
-                .addFields(
-                    { name: '👤 Usuario', value: `<@${shift.user_id}>`, inline: true },
-                    { name: '⏱️ Tiempo en Turno', value: `${hoursOnDuty} horas`, inline: true },
-                    { name: '📅 Inicio de Turno', value: startTime.toLocaleString('es-MX'), inline: false }
-                )
-                .setFooter({ text: 'Verifica si el usuario está AFK o necesita ayuda' })
-                .setTimestamp();
-
-            await channel.send({
-                content: `<@&${this.config.juntaDirectivaRoleId}> Revisar turno prolongado`,
-                embeds: [embed]
-            });
-
-            console.log(`[ReminderService] Sent staff AFK alert for user ${shift.user_id}`);
-        } catch (error) {
-            console.error('[ReminderService] Error sending staff AFK alert:', error);
-        }
-    }
 
     /**
      * Send manual notification (utility method)
