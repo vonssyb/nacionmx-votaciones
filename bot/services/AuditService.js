@@ -11,7 +11,7 @@ class AuditService {
         this.client = client;
 
         // Channel routing
-        this.SANCTIONS_LOG_CHANNEL_ID = '1456021466356387861'; // Canal de logs de sanciones
+        this.SANCTIONS_LOG_CHANNEL_ID = '1456035521141670066'; // Canal de logs de sanciones (CORRECTED)
         this.SECURITY_ALERTS_CHANNEL_ID = '1456047784724529316'; // Canal de alertas de seguridad (admin/junta)
     }
 
