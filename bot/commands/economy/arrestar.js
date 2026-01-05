@@ -174,7 +174,7 @@ module.exports = {
                 articles: articlesInput,
                 arrest_time: finalTime,
                 release_time: releaseTime.toISOString(),
-                reason: razon,
+                reason: articleText, // Use articles as reason since 'razon' input is gone
                 evidence_url: evidencia.url,
                 fine_amount: fineAmount
             });
@@ -211,8 +211,7 @@ module.exports = {
                     { name: '📜 Cargos', value: articleText, inline: false },
                     { name: '⏰ Tiempo', value: `${finalTime} min (${(finalTime / 300).toFixed(1)} años RP)`, inline: true },
                     { name: '📅 Liberación', value: releaseTime.format('DD/MM/YYYY HH:mm'), inline: true },
-                    { name: '💰 Multa', value: `$${fineAmount.toLocaleString()}`, inline: true },
-                    { name: '📝 Reporte', value: razon, inline: false }
+                    { name: '💰 Multa', value: `$${fineAmount.toLocaleString()}`, inline: true }
                 )
                 .setImage(evidencia.url)
                 .setFooter({ text: `Nación MX | Sistema Judicial` })
