@@ -5764,7 +5764,8 @@ else if (commandName === 'licencia') {
                 price: 1500,
                 roleId: '1413541379803578431',
                 requiresPolice: true,
-                policeRoleId: '1450312637727375502'
+                policeRoleId: '1450312637727375502',
+                militaryRoles: ['1412898905842122872', '1412898908706963507'] // Ejército y Marina
             }
         };
 
@@ -5772,14 +5773,27 @@ else if (commandName === 'licencia') {
         if (!license) {
             return interaction.editReply('❌ Tipo de licencia inválido.');
         }
-        // Check if issuer has police role for arma_larga
+
+        // Check if issuer has police/staff role for arma_larga
         if (license.requiresPolice) {
+            const STAFF_ROLE_ID = '1412887167654690908';
             const issuerMember = await interaction.guild.members.fetch(interaction.user.id);
             const hasPoliceRole = issuerMember.roles.cache.has(license.policeRoleId);
+            const hasStaffRole = issuerMember.roles.cache.has(STAFF_ROLE_ID);
             const isAdmin = issuerMember.permissions.has('Administrator');
 
-            if (!hasPoliceRole && !isAdmin) {
-                return interaction.editReply('⛔ Solo la Policía puede otorgar Licencias de Armas Largas.');
+            if (!hasPoliceRole && !hasStaffRole && !isAdmin) {
+                return interaction.editReply('⛔ Solo la Policía o Staff pueden otorgar Licencias de Armas Largas.');
+            }
+
+            // If issuer is Staff (not police), verify recipient is military
+            if (hasStaffRole && !hasPoliceRole && !isAdmin) {
+                const recipientMember = await interaction.guild.members.fetch(targetUser.id);
+                const hasMilitaryRole = license.militaryRoles.some(roleId => recipientMember.roles.cache.has(roleId));
+
+                if (!hasMilitaryRole) {
+                    return interaction.editReply('⛔ **Staff solo puede otorgar Armas Largas a militares** (Ejército Mexicano o Infantería Marina).\n\nPara civiles, debe ser otorgada por la Policía.');
+                }
             }
         }
 
