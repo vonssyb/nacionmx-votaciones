@@ -63,8 +63,9 @@ module.exports = {
             console.log('[colectar] Guild ID:', guildId);
 
             const { data: salaries, error: salaryError } = await supabase
-                .from('payroll_members')
+                .from('job_salaries')
                 .select('*')
+                .eq('guild_id', guildId)
                 .in('role_id', userRoleIds);
 
             console.log('[colectar] Salaries query result:', salaries);
