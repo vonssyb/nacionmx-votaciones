@@ -3877,10 +3877,24 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 };
 
                 // If no tipo_local specified, only charge tramite fee
-                let totalCost = TRAMITE_FEE;
+                let baseCost = TRAMITE_FEE;
                 if (tipoLocal) {
-                    totalCost += LOCAL_COSTS[tipoLocal];
+                    baseCost += LOCAL_COSTS[tipoLocal];
                 }
+
+                // Apply Premium 30% discount
+                const PREMIUM_ROLE_ID = '1412887172503175270';
+                const BOOSTER_ROLE_ID = '1423520675158691972';
+                const ULTRAPASS_ROLE_ID = '1414033620636532849';
+
+                const ownerMember = await interaction.guild.members.fetch(dueño.id);
+                const hasPremium = ownerMember.roles.cache.has(PREMIUM_ROLE_ID) ||
+                    ownerMember.roles.cache.has(BOOSTER_ROLE_ID) ||
+                    ownerMember.roles.cache.has(ULTRAPASS_ROLE_ID);
+
+                const discount = hasPremium ? 0.30 : 0;
+                const totalCost = Math.floor(baseCost * (1 - discount));
+                const savedAmount = baseCost - totalCost;
 
                 // Check if name is unique
                 const { data: existing } = await supabase.from('companies').select('id').eq('name', nombre).maybeSingle();
@@ -3891,7 +3905,19 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 // Show rich payment selector
                 const pmEmpresa = await getAvailablePaymentMethods(dueño.id, interaction.guildId);
                 const pbEmpresa = createPaymentButtons(pmEmpresa, 'emp_pay');
-                const empresaEmbed = createPaymentEmbed(`🏢 ${nombre}`, totalCost, pmEmpresa);
+                const empresaEmbed = createPaymentEmbed(
+                    `🏢 ${nombre}` + (hasPremium ? ' (⭐ Descuento Premium 30%)' : ''),
+                    totalCost,
+                    pmEmpresa
+                );
+
+                if (hasPremium && savedAmount > 0) {
+                    empresaEmbed.addFields({
+                        name: '💰 Descuento Aplicado',
+                        value: `Precio normal: $${baseCost.toLocaleString()}\nDescuento: -$${savedAmount.toLocaleString()} (30%)\nPrecio final: **$${totalCost.toLocaleString()}**`,
+                        inline: false
+                    });
+                }
 
                 await interaction.editReply({
                     embeds: [empresaEmbed],
