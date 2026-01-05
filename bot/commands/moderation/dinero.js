@@ -23,11 +23,11 @@ module.exports = {
     async execute(interaction, client, supabase) {
         await interaction.deferReply({ ephemeral: false });
 
-        const juntaDirectivaRoleId = '1412882245735420006';
+        const encargadoEconomiaRoleId = '1457554145719488687';
 
-        // Permission Check
-        if (!interaction.member.roles.cache.has(juntaDirectivaRoleId) && !interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
-            return interaction.editReply('❌ Solo la Junta Directiva puede gestionar dinero administrativo.');
+        // Permission Check - Only Encargado de Economía
+        if (!interaction.member.roles.cache.has(encargadoEconomiaRoleId) && !interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
+            return interaction.editReply('❌ Solo el Encargado de Economía puede gestionar dinero administrativo.');
         }
 
         const subCmd = interaction.options.getSubcommand();
