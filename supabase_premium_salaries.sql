@@ -1,24 +1,18 @@
 -- Premium Membership Salaries
--- Insert salaries for Premium, Booster, and UltraPass roles
+-- Ejecuta estos INSERT SOLO UNA VEZ en Supabase
+-- Si ya existen, primero elimina los registros viejos
 
--- Premium: $45,000 cada 7 días (72 horas)
-INSERT INTO payroll_members (guild_id, role_id, role_name, salary_amount, created_at, updated_at)
+-- Premium: $45,000 cada 72 horas
+INSERT INTO payroll_members (role_id, role_name, salary_amount)
 VALUES 
-    ('1398526215434318713', '1412887172503175270', 'Premium', 45000, NOW(), NOW())
-ON CONFLICT (guild_id, role_id) DO UPDATE
-SET salary_amount = 45000, role_name = 'Premium', updated_at = NOW();
+    ('1412887172503175270', 'Premium', 45000);
 
--- Booster: $40,000 cada 7 días (72 horas)
-INSERT INTO payroll_members (guild_id, role_id, role_name, salary_amount, created_at, updated_at)
+-- Booster: $40,000 cada 72 horas
+INSERT INTO payroll_members (role_id, role_name, salary_amount)
 VALUES 
-    ('1398526215434318713', '1423520675158691972', 'Booster', 40000, NOW(), NOW())
-ON CONFLICT (guild_id, role_id) DO UPDATE
-SET salary_amount = 40000, role_name = 'Booster', updated_at = NOW();
+    ('1423520675158691972', 'Booster', 40000);
 
--- UltraPass: $100,000 cada 7 días (72 horas)
-INSERT INTO payroll_members (guild_id, role_id, role_name, salary_amount, created_at, updated_at)
+-- UltraPass: $100,000 cada 72 horas
+INSERT INTO payroll_members (role_id, role_name, salary_amount)
 VALUES 
-    ('1398526215434318713', '1414033620636532849', 'UltraPass', 100000, NOW(), NOW())
-ON CONFLICT (guild_id, role_id) DO UPDATE
-SET salary_amount = 100000, role_name = 'UltraPass', updated_at = NOW();
-
+    ('1414033620636532849', 'UltraPass', 100000);
