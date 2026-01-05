@@ -12,7 +12,7 @@ module.exports = {
         await interaction.deferReply();
 
         // Staff role check
-        const STAFF_ROLE_ID = '1412887167654690908';
+        const STAFF_ROLE_ID = '1450242487422812251';
         const isStaff = interaction.member.roles.cache.has(STAFF_ROLE_ID) ||
             interaction.member.permissions.has(PermissionFlagsBits.Administrator);
 
