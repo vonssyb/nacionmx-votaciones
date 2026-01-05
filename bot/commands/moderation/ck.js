@@ -212,18 +212,11 @@ module.exports = {
 
                     await i.editReply({ content: '', embeds: [resultEmbed] });
 
-                    // 9. Send to PUBLIC CK channel
+                    // 9. Send to PUBLIC CK channel ONLY (not audit)
                     const CK_PUBLIC_CHANNEL_ID = '1412957234824089732';
                     const ckChannel = await client.channels.fetch(CK_PUBLIC_CHANNEL_ID);
                     if (ckChannel) {
                         await ckChannel.send({ embeds: [resultEmbed] });
-                    }
-
-                    // Also send to audit channel
-                    const AUDIT_CHANNEL_ID = process.env.AUDIT_LOGS_CHANNEL_ID || '1450610756663115879';
-                    const auditChannel = await client.channels.fetch(AUDIT_CHANNEL_ID);
-                    if (auditChannel) {
-                        await auditChannel.send({ embeds: [resultEmbed] });
                     }
 
                     // 10. Notify user via DM
