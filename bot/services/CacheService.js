@@ -51,61 +51,67 @@ class CacheService {
         const success = this.cache.set(key, value, ttl);
         if (success) this.stats.sets++;
         return success;
-    }
-
-    /**
-     * Delete value from cache
-     * @param {string} key - Cache key
-     */
-    del(key) {
-        return this.cache.del(key);
-    }
-
-    /**
-     * Delete keys matching a pattern
-     * @param {string} pattern - Pattern to match (e.g., 'user_balance_*')
-     */
-    delPattern(pattern) {
-        const keys = this.cache.keys();
-        const regex = new RegExp(pattern.replace('*', '.*'));
-        let deleted = 0;
-
-        for (const key of keys) {
-            if (regex.test(key)) {
-                this.cache.del(key);
-                deleted++;
-            }
+        /**
+         * Delete value from cache
+         * @param {string} key - Cache key
+         */
+        del(key) {
+            this.cache.del(key);
         }
 
-        return deleted;
-    }
+        /**
+         * Delete value from cache
+         * @param {string} key - Cache key
+         */
+        del(key) {
+            return this.cache.del(key);
+        }
 
-    /**
-     * Flush all cache
-     */
-    flushAll() {
-        this.cache.flushAll();
-    }
+        /**
+         * Delete keys matching a pattern
+         * @param {string} pattern - Pattern to match (e.g., 'user_balance_*')
+         */
+        delPattern(pattern) {
+            const keys = this.cache.keys();
+            const regex = new RegExp(pattern.replace('*', '.*'));
+            let deleted = 0;
 
-    /**
-     * Get cache statistics
-     */
-    getStats() {
-        const cacheStats = this.cache.getStats();
-        const hitRate = this.stats.hits + this.stats.misses > 0
-            ? (this.stats.hits / (this.stats.hits + this.stats.misses) * 100).toFixed(2)
-            : 0;
+            for (const key of keys) {
+                if (regex.test(key)) {
+                    this.cache.del(key);
+                    deleted++;
+                }
+            }
 
-        return {
-            hits: this.stats.hits,
-            misses: this.stats.misses,
-            sets: this.stats.sets,
-            hitRate: `${hitRate}%`,
-            keys: cacheStats.keys,
-            ksize: cacheStats.ksize,
-            vsize: cacheStats.vsize
-        };
-    }
+            return deleted;
+        }
+
+        /**
+         * Flush all cache
+         */
+        flushAll() {
+            this.cache.flushAll();
+        }
+
+        /**
+         * Get cache statistics
+         */
+        getStats() {
+            const cacheStats = this.cache.getStats();
+            const hitRate = this.stats.hits + this.stats.misses > 0
+                ? (this.stats.hits / (this.stats.hits + this.stats.misses) * 100).toFixed(2)
+                : 0;
+
+            return {
+                hits: this.stats.hits,
+                misses: this.stats.misses,
+                sets: this.stats.sets,
+                hitRate: `${hitRate}%`,
+                keys: cacheStats.keys,
+                ksize: cacheStats.ksize,
+                vsize: cacheStats.vsize
+            };
+        }
 
     /**
      * Cache wrapper for user balance queries
@@ -115,27 +121,27 @@ class CacheService {
      * @returns {Promise<*>} User balance data
      */
     async getUserBalance(fetchFn, guildId, userId) {
-        const key = `user_balance_${guildId}_${userId}`;
-        let balance = this.get(key);
+            const key = `user_balance_${guildId}_${userId}`;
+            let balance = this.get(key);
 
-        if (balance === undefined) {
-            balance = await fetchFn();
-            if (balance) {
-                this.set(key, balance, 300); // Cache for 5 minutes
+            if (balance === undefined) {
+                balance = await fetchFn();
+                if (balance) {
+                    this.set(key, balance, 300); // Cache for 5 minutes
+                }
             }
+
+            return balance;
         }
 
-        return balance;
-    }
-
-    /**
-     * Invalidate user balance cache
-     * @param {string} guildId - Guild ID
-     * @param {string} userId - User ID
-     */
-    invalidateUserBalance(guildId, userId) {
-        return this.del(`user_balance_${guildId}_${userId}`);
-    }
+        /**
+         * Invalidate user balance cache
+         * @param {string} guildId - Guild ID
+         * @param {string} userId - User ID
+         */
+        invalidateUserBalance(guildId, userId) {
+            return this.del(`user_balance_${guildId}_${userId}`);
+        }
 
     /**
      * Cache wrapper for static data (longer TTL)
@@ -145,18 +151,18 @@ class CacheService {
      * @returns {Promise<*>} Cached data
      */
     async getStatic(key, fetchFn, ttl = 1800) {
-        let data = this.get(key);
+            let data = this.get(key);
 
-        if (data === undefined) {
-            data = await fetchFn();
-            if (data) {
-                this.set(key, data, ttl);
+            if (data === undefined) {
+                data = await fetchFn();
+                if (data) {
+                    this.set(key, data, ttl);
+                }
             }
-        }
 
-        return data;
+            return data;
+        }
     }
-}
 
 // Export the class itself (not singleton)
 module.exports = CacheService;
