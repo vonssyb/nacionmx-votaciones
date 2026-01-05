@@ -15,10 +15,10 @@ module.exports = {
                 .setRequired(true))
         .addIntegerOption(option =>
             option.setName('tiempo')
-                .setDescription('Tiempo de arresto en minutos')
-                .setRequired(true)
+                .setDescription('Tiempo en minutos (Opcional - Se calcula automático si se deja vacío)')
+                .setRequired(false)
                 .setMinValue(1)
-                .setMaxValue(1440))
+                .setMaxValue(10080)) // 1 week max manually
         .addAttachmentOption(option =>
             option.setName('foto')
                 .setDescription('Evidencia fotográfica del arresto')
@@ -91,7 +91,8 @@ module.exports = {
             // 3. Get options
             const targetUser = interaction.options.getUser('usuario');
             const articlesInput = interaction.options.getString('arts');
-            const tiempo = interaction.options.getInteger('tiempo');
+            // 'tiempo' is now optional override, otherwise calculated
+            const tiempoOverride = interaction.options.getInteger('tiempo');
             const evidencia = interaction.options.getAttachment('foto');
             const razon = interaction.options.getString('razon');
 
@@ -105,14 +106,41 @@ module.exports = {
 
             const targetMember = await interaction.guild.members.fetch(targetUser.id);
 
-            // 5. Parse articles
-            const articles = articlesInput.split(',').map(a => a.trim()).filter(a => a);
-            const articleText = articles.length === 1
-                ? `Art. ${articles[0]}`
-                : `Arts. ${articles.join(', ')}`;
+            // 5. Parse articles & Calculate Sentence
+            const { calculateSentence } = require('../../data/penalCode');
+            const sentence = calculateSentence(articlesInput);
 
-            // 6. Calculate fine (500 per article)
-            const fineAmount = articles.length * 500;
+            let finalTime = 0;
+            let fineAmount = sentence.totalFine || 0; // Base fines from articles
+
+            if (tiempoOverride) {
+                finalTime = tiempoOverride;
+            } else {
+                // Use calculated time (Default to minimum sentence)
+                finalTime = sentence.suggestedTime;
+            }
+
+            // Fallback if no time calculated (unknown articles)
+            if (finalTime === 0 && !tiempoOverride) {
+                finalTime = 30; // 30 mins default (1 day RP)
+                sentence.reason = `Artículos Desconocidos: ${articlesInput}`;
+            }
+
+            // Cap time strictly to avoid overflows/bad UX?
+            // User requested "Code Penal" times which are huge (15 years = 4500 mins)
+            // We will respect the calculation. 
+
+            // Add standard processing fine ($500 per article if no specific fine?)
+            // If the article didn't have a specific fine in the code, we might want to add a processing fee?
+            // Let's stick to the specific fines defined in the code or $500 fallback per article if desired.
+            // Current PenalCode.js has fines for traffic/arms/hurto. Others might not have monetary fines.
+            // Let's add a flat $500 administrative fee per article on top?
+            // User requirement was "$500 per article" in previous session.
+            // Let's keep $500 per article as "Processing Fee" PLUS specific fines.
+            const processingFee = articlesInput.split(',').length * 500;
+            fineAmount += processingFee;
+
+            const articleText = sentence.reason || articlesInput;
 
             // 7. Add arrested role
             try {
@@ -122,7 +150,7 @@ module.exports = {
             }
 
             // 8. Calculate release time
-            const releaseTime = moment().add(tiempo, 'minutes');
+            const releaseTime = moment().add(finalTime, 'minutes');
 
             // 9. Deduct money
             const UnbelievaBoatService = require('../../services/UnbelievaBoatService');
@@ -144,7 +172,7 @@ module.exports = {
                 arrested_by: interaction.user.id,
                 arrested_by_tag: interaction.user.tag,
                 articles: articlesInput,
-                arrest_time: tiempo,
+                arrest_time: finalTime,
                 release_time: releaseTime.toISOString(),
                 reason: razon,
                 evidence_url: evidencia.url,
@@ -158,10 +186,11 @@ module.exports = {
                     .setColor('#FF0000')
                     .setDescription('⚠️ **IMPORTANTE:** No puedes realizar roleplay durante tu arresto.\nSi roleas mientras estás arrestado, serás sancionado.')
                     .addFields(
-                        { name: '⏰ Tiempo de Arresto', value: `${tiempo} minutos`, inline: true },
+                        { name: '⏰ Tiempo de Arresto', value: `${finalTime} minutos (${(finalTime / 60).toFixed(1)} hrs)`, inline: true },
                         { name: '📅 Liberación', value: releaseTime.format('DD/MM/YYYY HH:mm'), inline: true },
-                        { name: '📜 Artículos', value: articleText, inline: false },
-                        { name: '💰 Multa', value: `$${fineAmount.toLocaleString()}`, inline: true }
+                        { name: '📜 Artículos/Cargos', value: articleText, inline: false },
+                        { name: '💰 Multa Total', value: `$${fineAmount.toLocaleString()}`, inline: true },
+                        { name: '⚖️ Fianza', value: sentence.noBail ? '**DENEGADA** (Delito Grave)' : 'Permitida', inline: true }
                     )
                     .setFooter({ text: 'Espera tu liberación para volver a rolear' })
                     .setTimestamp();
@@ -179,11 +208,11 @@ module.exports = {
                 .addFields(
                     { name: '👤 Arrestado', value: `<@${targetUser.id}>`, inline: true },
                     { name: '👮 Oficial', value: `<@${interaction.user.id}>`, inline: true },
-                    { name: '📜 Artículos', value: articleText, inline: true },
-                    { name: '⏰ Tiempo', value: `${tiempo} minutos`, inline: true },
+                    { name: '📜 Cargos', value: articleText, inline: false },
+                    { name: '⏰ Tiempo', value: `${finalTime} min (${(finalTime / 300).toFixed(1)} años RP)`, inline: true },
                     { name: '📅 Liberación', value: releaseTime.format('DD/MM/YYYY HH:mm'), inline: true },
                     { name: '💰 Multa', value: `$${fineAmount.toLocaleString()}`, inline: true },
-                    { name: '📝 Razón', value: razon, inline: false }
+                    { name: '📝 Reporte', value: razon, inline: false }
                 )
                 .setImage(evidencia.url)
                 .setFooter({ text: `Nación MX | Sistema Judicial` })

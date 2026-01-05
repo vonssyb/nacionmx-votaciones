@@ -27,6 +27,9 @@ if (fs.existsSync(commandsPath)) {
 
         const commandFiles = fs.readdirSync(folderPath).filter(file => file.endsWith('.js'));
         for (const file of commandFiles) {
+            // CONFLICT FIX: Skip ayuda.js from utils because moderation has its own ayuda.js
+            if (folder === 'utils' && file === 'ayuda.js') continue;
+
             const filePath = path.join(folderPath, file);
             try {
                 const command = require(filePath);
