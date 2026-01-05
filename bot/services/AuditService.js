@@ -9,7 +9,7 @@ class AuditService {
     constructor(supabase, client) {
         this.supabase = supabase;
         this.client = client;
-        this.AUDIT_CHANNEL_ID = process.env.AUDIT_LOGS_CHANNEL_ID || '1450610756663115879';
+        this.AUDIT_CHANNEL_ID = '1456035521141670066'; // Canal de logs de seguridad/sanciones
     }
 
     /**
