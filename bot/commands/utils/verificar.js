@@ -94,10 +94,20 @@ module.exports = {
                         if (member.roles.cache.has(ROLE_NO_VERIFICADO)) await member.roles.remove(ROLE_NO_VERIFICADO);
                         if (!member.roles.cache.has(ROLE_VERIFICADO)) await member.roles.add(ROLE_VERIFICADO);
 
+                        // --- NEW: SET NICKNAME ---
+                        let nickChange = '';
+                        try {
+                            await member.setNickname(realUsername);
+                            nickChange = `\n👤 Tu apodo ha sido cambiado a **${realUsername}**.`;
+                        } catch (nickErr) {
+                            console.log(`[VERIFICAR] Could not set nickname for ${discordUserId}:`, nickErr.message);
+                            nickChange = `\n⚠️ No pude cambiar tu apodo (permisos insuficientes).`;
+                        }
+
                         const successEmbed = new EmbedBuilder()
                             .setTitle('✅ Verificación Exitosa')
                             .setColor(0x00FF00)
-                            .setDescription(`¡Felicidades! Tu cuenta ha sido vinculada con **${realUsername}**.\nYa puedes remover el código de tu bio.`)
+                            .setDescription(`¡Felicidades! Tu cuenta ha sido vinculada con **${realUsername}**.\nYa puedes remover el código de tu bio.${nickChange}`)
                             .setThumbnail(`https://www.roblox.com/headshot-thumbnail/image?userId=${robloxId}&width=150&height=150&format=png`);
 
                         await i.editReply({ embeds: [successEmbed], components: [] });
