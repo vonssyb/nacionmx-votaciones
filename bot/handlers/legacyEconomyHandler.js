@@ -5799,7 +5799,12 @@ else if (commandName === 'licencia') {
 
         // Apply Premium 15% discount  
         const PREMIUM_ROLE_ID = '1412887172503175270';
-        targetMember.roles.cache.has(BOOSTER_ROLE_ID) ||
+        const BOOSTER_ROLE_ID = '1423520675158691972';
+        const ULTRAPASS_ROLE_ID = '1414033620636532849';
+
+        const targetMember = await interaction.guild.members.fetch(targetUser.id);
+        const hasPremium = targetMember.roles.cache.has(PREMIUM_ROLE_ID) ||
+            targetMember.roles.cache.has(BOOSTER_ROLE_ID) ||
             targetMember.roles.cache.has(ULTRAPASS_ROLE_ID);
 
         const discount = hasPremium ? 0.15 : 0;
