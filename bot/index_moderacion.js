@@ -2,7 +2,7 @@ require('dotenv').config();
 // 1. Unbuffered Logger
 const log = (msg) => process.stderr.write(`🟢 [MOD-BOT] ${msg}\n`);
 
-log('Starting Nacion MX MODERATION BOT... (v4.6 - DNI Public + Avatar)');
+log('Starting Nacion MX MODERATION BOT... (v4.7 - SA Appeals Confirmation)');
 const fs = require('fs');
 const path = require('path');
 const { Client, GatewayIntentBits, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
@@ -242,13 +242,83 @@ client.on('interactionCreate', async interaction => {
         }
 
         // --- SA APPEAL CANCEL ---
-        if (customId === 'appeal_sa_cancel') {
+        if (customId === 'cancel_sa_appeal') {
             await interaction.deferUpdate();
             await interaction.editReply({
-                content: '❌ Apelación cancelada.',
+                content: '❌ Aceptación de apelación cancelada.',
                 embeds: [],
                 components: []
             });
+            return;
+        }
+
+        // --- CONFIRM SA APPEAL (STAFF) ---
+        if (customId.startsWith('confirm_sa_appeal_')) {
+            await interaction.deferUpdate();
+
+            const sancionId = customId.split('_')[3];
+
+            // Extract motivo from message content
+            const messageContent = interaction.message.content;
+            const motivoMatch = messageContent.match(/_Motivo: (.+)_/);
+            const motivo = motivoMatch ? motivoMatch[1] : 'Apelación Aprobada';
+
+            try {
+                // Process SA appeal acceptance
+                const sanction = await client.services.sanctions.getSanctionById(sancionId);
+
+                if (!sanction) {
+                    return interaction.editReply({
+                        content: '❌ Error: No se encontró la sanción.',
+                        embeds: [],
+                        components: []
+                    });
+                }
+
+                // Remove SA from user
+                await client.services.sanctions.appealSanction(sancionId, motivo);
+
+                // Success embed
+                const successEmbed = new EmbedBuilder()
+                    .setTitle('⚖️ Apelación SA Aprobada')
+                    .setColor(0x00FF00)
+                    .setDescription(`La Sanción Administrativa ha sido **REVOCADA** exitosamente.`)
+                    .addFields(
+                        { name: '🆔 ID Sanción', value: sancionId, inline: true },
+                        { name: '👤 Usuario', value: `<@${sanction.discord_user_id}>`, inline: true },
+                        { name: '👮 Aprobado por', value: interaction.user.tag, inline: true },
+                        { name: '📝 Motivo', value: motivo, inline: false }
+                    )
+                    .setTimestamp();
+
+                await interaction.editReply({
+                    content: '',
+                    embeds: [successEmbed],
+                    components: []
+                });
+
+                // DM user
+                try {
+                    const user = await client.users.fetch(sanction.discord_user_id);
+                    if (user) {
+                        const dmEmbed = new EmbedBuilder()
+                            .setTitle('⚖️ Apelación Aprobada')
+                            .setColor(0x00FF00)
+                            .setDescription(`✅ **¡Buenas noticias!**\n\nTu apelación de Sanción Administrativa ha sido **APROBADA** en **${interaction.guild.name}**.\n\nLa sanción ha sido retirada de tu historial.`)
+                            .addFields({ name: '📝 Motivo', value: motivo, inline: false })
+                            .setTimestamp();
+                        await user.send({ embeds: [dmEmbed] });
+                    }
+                } catch (e) { }
+
+            } catch (error) {
+                console.error('[confirm_sa_appeal] Error:', error);
+                await interaction.editReply({
+                    content: '❌ Error procesando la apelación.',
+                    embeds: [],
+                    components: []
+                });
+            }
             return;
         }
 

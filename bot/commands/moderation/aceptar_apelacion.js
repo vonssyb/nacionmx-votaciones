@@ -42,9 +42,39 @@ module.exports = {
                 return interaction.editReply(`⚠️ Esta sanción no está activa (Estado: ${sanction.status}).`);
             }
 
-            // 3. Restriction: Cannot remove SA
+            // 3. SA requires confirmation
             if (sanction.type === 'sa') {
-                return interaction.editReply('🛑 **Acción Prohibida:** Las Sanciones Administrativas (SA) no pueden ser removidas mediante apelación ordinaria.');
+                const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+
+                const confirmEmbed = new EmbedBuilder()
+                    .setTitle('⚠️ CONFIRMAR ACEPTACIÓN DE APELACIÓN SA')
+                    .setColor('#FFA500')
+                    .setDescription(`¿Estás seguro de aceptar esta apelación de **Sanción Administrativa**?\n\n` +
+                        `**Usuario:** <@${sanction.discord_user_id}>\n` +
+                        `**ID Sanción:** ${idSancion}\n` +
+                        `**Motivo Apelación:** ${motivo}\n\n` +
+                        `⚠️ Esta acción **ELIMINARÁ** la SA del historial del usuario.`)
+                    .setFooter({ text: 'Confirma solo si revisaste el caso completamente' })
+                    .setTimestamp();
+
+                const confirmRow = new ActionRowBuilder()
+                    .addComponents(
+                        new ButtonBuilder()
+                            .setCustomId(`confirm_sa_appeal_${idSancion}`)
+                            .setLabel('✅ Confirmar Aceptación')
+                            .setStyle(ButtonStyle.Success),
+                        new ButtonBuilder()
+                            .setCustomId('cancel_sa_appeal')
+                            .setLabel('❌ Cancelar')
+                            .setStyle(ButtonStyle.Secondary)
+                    );
+
+                // Store motivo in message for later retrieval
+                return interaction.editReply({
+                    content: `_Motivo: ${motivo}_`,
+                    embeds: [confirmEmbed],
+                    components: [confirmRow]
+                });
             }
 
             // 4. Set Status to 'appealed' (Visible but struck-through)
