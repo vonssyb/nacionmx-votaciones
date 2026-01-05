@@ -2,7 +2,7 @@ require('dotenv').config();
 // 1. Unbuffered Logger
 const log = (msg) => process.stderr.write(`🟢 [MOD-BOT] ${msg}\n`);
 
-log('Starting Nacion MX MODERATION BOT... (v2.5 - Licencia & Interaction Fixes)');
+log('Starting Nacion MX MODERATION BOT... (v2.6 - Sesion Async Fix)');
 const fs = require('fs');
 const path = require('path');
 const { Client, GatewayIntentBits, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');

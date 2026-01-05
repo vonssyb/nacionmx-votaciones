@@ -133,7 +133,7 @@ module.exports = {
             const targetChannel = await client.channels.fetch(channelIds.voting);
             if (!targetChannel) return interaction.editReply('❌ No se encontró el canal de votaciones.');
 
-            await renameChannel(channelIds.voting, '🗳️・votaciones');
+            renameChannel(channelIds.voting, '🗳️・votaciones').catch(console.error);
             const msg = await targetChannel.send({
                 content: `<@&${channelIds.pingRole}>`,
                 embeds: [embed],
@@ -162,7 +162,7 @@ module.exports = {
             }
 
             await supabase.from('session_votes').update({ status: 'cancelled' }).eq('id', session.id);
-            await renameChannel(session.channel_id || channelIds.voting, '⏸️・sesiones');
+            renameChannel(session.channel_id || channelIds.voting, '⏸️・sesiones').catch(console.error);
 
             // Try to delete message
             try {
@@ -206,7 +206,7 @@ module.exports = {
                     if (messages.size > 0) await targetChannel.bulkDelete(messages, true).catch(() => { });
                 } catch (e) { console.log('Error clearing channel:', e.message); }
 
-                await renameChannel(channelIds.voting, '✅・servidor-abierto');
+                renameChannel(channelIds.voting, '✅・servidor-abierto').catch(console.error);
 
                 // Rich Embed
                 const openEmbed = new EmbedBuilder()
@@ -250,7 +250,7 @@ module.exports = {
             const targetChannel = await client.channels.fetch(channelIds.voting);
 
             if (targetChannel) {
-                await renameChannel(channelIds.voting, '🔴・servidor-cerrado');
+                renameChannel(channelIds.voting, '🔴・servidor-cerrado').catch(console.error);
 
                 // Clear Channel messages (Legacy Behavior)
                 try {
@@ -284,7 +284,7 @@ module.exports = {
             const targetChannel = await client.channels.fetch(channelIds.voting);
 
             if (targetChannel) {
-                await renameChannel(channelIds.voting, '🟠・mantenimiento');
+                renameChannel(channelIds.voting, '🟠・mantenimiento').catch(console.error);
 
                 const embed = new EmbedBuilder()
                     .setTitle('🛠️ SISTEMA EN MANTENIMIENTO')
