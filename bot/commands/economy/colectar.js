@@ -130,17 +130,17 @@ module.exports = {
             const taxAmount = Math.floor(grossSalary * taxRate);
             const netAmount = grossSalary - taxAmount;
 
-            // Credit using UnbelievaBoat
+            // 4. Credit using UnbelievaBoat
+            if (!process.env.UNBELIEVABOAT_TOKEN) {
+                console.error('[colectar] UNBELIEVABOAT_TOKEN not configured');
+                return interaction.editReply('❌ Error: Token de UnbelievaBoat no configurado.');
+            }
+
+            const UnbelievaBoatService = require('../../services/UnbelievaBoatService');
+            const ubService = new UnbelievaBoatService(process.env.UNBELIEVABOAT_TOKEN);
+
             try {
-                if (!process.env.UNBELIEVABOAT_TOKEN) {
-                    console.error('[colectar] UNBELIEVABOAT_TOKEN not configured');
-                    return interaction.editReply('❌ Error: Token de UnbelievaBoat no configurado.');
-                }
-
-                const UnbelievaBoatService = require('../../services/UnbelievaBoatService');
-                const ubService = new UnbelievaBoatService(process.env.UNBELIEVABOAT_TOKEN);
                 await ubService.addMoney(interaction.guildId, interaction.user.id, netAmount, 0);
-
                 console.log(`[colectar] Deposited $${netAmount} to cash for ${interaction.user.tag}`);
             } catch (ubError) {
                 console.error('[colectar] UnbelievaBoat error:', ubError);
