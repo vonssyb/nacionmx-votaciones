@@ -2,7 +2,7 @@ require('dotenv').config();
 // 1. Unbuffered Logger
 const log = (msg) => process.stderr.write(`🟢 [MOD-BOT] ${msg}\n`);
 
-log('Starting Nacion MX MODERATION BOT... (v4.4 - SA Appeals + Perfil Fix)');
+log('Starting Nacion MX MODERATION BOT... (v4.5 - SA Appeals System)');
 const fs = require('fs');
 const path = require('path');
 const { Client, GatewayIntentBits, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
@@ -149,6 +149,108 @@ client.on('interactionCreate', async interaction => {
     // 2. BUTTONS (MODERATION ONLY)
     if (interaction.isButton()) {
         const customId = interaction.customId;
+
+        // --- SA APPEAL CONFIRMATION ---
+        if (customId.startsWith('appeal_sa_confirm_')) {
+            await interaction.deferReply({ ephemeral: true });
+
+            const userId = customId.split('_')[3];
+
+            if (interaction.user.id !== userId) {
+                return interaction.editReply('❌ Este botón no es para ti.');
+            }
+
+            // Show confirmation with warning
+            const confirmEmbed = new EmbedBuilder()
+                .setTitle('⚠️ CONFIRMAR APELACIÓN DE SA')
+                .setColor('#FFA500')
+                .setDescription('¿Estás seguro que deseas apelar esta Sanción Administrativa?\n\n' +
+                    '✅ Al confirmar, se enviará una notificación al **Encargado de Apelaciones**.\n' +
+                    '⚠️ Solo apela si tienes razones válidas y evidencia.')
+                .setFooter({ text: 'Esta acción no se puede deshacer' })
+                .setTimestamp();
+
+            const confirmRow = new ActionRowBuilder()
+                .addComponents(
+                    new ButtonBuilder()
+                        .setCustomId(`appeal_sa_send_${userId}`)
+                        .setLabel('✅ Sí, Apelar')
+                        .setStyle(ButtonStyle.Success),
+                    new ButtonBuilder()
+                        .setCustomId('appeal_sa_cancel')
+                        .setLabel('❌ Cancelar')
+                        .setStyle(ButtonStyle.Secondary)
+                );
+
+            return interaction.editReply({ embeds: [confirmEmbed], components: [confirmRow] });
+        }
+
+        // --- SA APPEAL SEND (CONFIRMED) ---
+        if (customId.startsWith('appeal_sa_send_')) {
+            await interaction.deferUpdate();
+
+            const userId = customId.split('_')[3];
+
+            if (interaction.user.id !== userId) {
+                return interaction.followUp({ content: '❌ Este botón no es para ti.', ephemeral: true });
+            }
+
+            const encargadoApelacionesRoleId = '1412913086598299738'; // Encargado de Apelaciones
+            const apelacionesChannelId = '1398889153919189042'; // Canal de apelaciones
+
+            try {
+                const apelacionesChannel = await client.channels.fetch(apelacionesChannelId);
+
+                if (apelacionesChannel) {
+                    const notificationEmbed = new EmbedBuilder()
+                        .setTitle('📩 NUEVA APELACIÓN DE SA')
+                        .setColor('#00AAC0')
+                        .setDescription(`El usuario <@${interaction.user.id}> ha solicitado apelar su Sanción Administrativa.`)
+                        .addFields(
+                            { name: '👤 Usuario', value: `<@${interaction.user.id}>`, inline: true },
+                            { name: '🆔 User ID', value: interaction.user.id, inline: true }
+                        )
+                        .setFooter({ text: 'Revisa el caso y toma una decisión' })
+                        .setTimestamp();
+
+                    await apelacionesChannel.send({
+                        content: `<@&${encargadoApelacionesRoleId}> Nueva apelación de SA`,
+                        embeds: [notificationEmbed]
+                    });
+
+                    await interaction.editReply({
+                        content: '✅ **Apelación enviada correctamente.**\n\nEl Encargado de Apelaciones ha sido notificado y revisará tu caso pronto.',
+                        embeds: [],
+                        components: []
+                    });
+                } else {
+                    await interaction.editReply({
+                        content: '❌ Error: No se encontró el canal de apelaciones.',
+                        embeds: [],
+                        components: []
+                    });
+                }
+            } catch (error) {
+                console.error('[appeal_sa] Error:', error);
+                await interaction.editReply({
+                    content: '❌ Error al enviar la apelación. Intenta de nuevo más tarde.',
+                    embeds: [],
+                    components: []
+                });
+            }
+            return;
+        }
+
+        // --- SA APPEAL CANCEL ---
+        if (customId === 'appeal_sa_cancel') {
+            await interaction.deferUpdate();
+            await interaction.editReply({
+                content: '❌ Apelación cancelada.',
+                embeds: [],
+                components: []
+            });
+            return;
+        }
 
         // --- APPROVE SANCTION ---
         if (customId.startsWith('approve_sancion_')) {

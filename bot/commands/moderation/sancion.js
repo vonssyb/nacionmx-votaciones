@@ -492,19 +492,32 @@ module.exports = {
             // DM User with Appeal Buttons
             if (targetUser && (type === 'general' || type === 'sa' || type === 'notificacion')) {
                 try {
-                    const appealButtons = new ActionRowBuilder().addComponents(
-                        new ButtonBuilder()
-                            .setLabel('📩 Apelar (Baneo/Perm)')
-                            .setStyle(ButtonStyle.Link)
-                            .setURL('https://melon.ly/form/7412242701552193536'),
-                        new ButtonBuilder()
-                            .setLabel('📝 Apelar (Otras Sanciones)')
-                            .setStyle(ButtonStyle.Link)
-                            .setURL('https://discord.com/channels/1398525215134318713/1398889153919189042')
-                    );
+                    let appealButtons;
+
+                    if (type === 'sa') {
+                        // SA special appeal button - internal with confirmation
+                        appealButtons = new ActionRowBuilder().addComponents(
+                            new ButtonBuilder()
+                                .setCustomId(`appeal_sa_confirm_${targetUser.id}`)
+                                .setLabel('📩 Apelar SA')
+                                .setStyle(ButtonStyle.Danger)
+                        );
+                    } else {
+                        // General sanctions - external appeal links
+                        appealButtons = new ActionRowBuilder().addComponents(
+                            new ButtonBuilder()
+                                .setLabel('📩 Apelar (Baneo/Perm)')
+                                .setStyle(ButtonStyle.Link)
+                                .setURL('https://melon.ly/form/7412242701552193536'),
+                            new ButtonBuilder()
+                                .setLabel('📝 Apelar (Otras Sanciones)')
+                                .setStyle(ButtonStyle.Link)
+                                .setURL('https://discord.com/channels/1398525215134318713/1398889153919189042')
+                        );
+                    }
 
                     await targetUser.send({
-                        content: `Has recibido una sanción en **${interaction.guild.name}**.\n${actionResult}`,
+                        content: `Has recibido una sanción en **${interaction.guild.name}**.\\n${actionResult}`,
                         embeds: embedPayload.embeds,
                         components: [appealButtons]
                     });
