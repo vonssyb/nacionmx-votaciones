@@ -135,11 +135,17 @@ module.exports = {
                         .eq('user_id', targetUser.id);
 
                     // 4. Remove roles (except protected)
+                    // Additional role to ALWAYS remove regardless
+                    const forceRemoveRoles = ['1449942943648714902']; // Autock role
+
                     for (const [roleId, role] of member.roles.cache) {
-                        if (!protectedRoles.includes(roleId) && roleId !== interaction.guildId) {
+                        const shouldRemove = (!protectedRoles.includes(roleId) && roleId !== interaction.guildId) ||
+                            forceRemoveRoles.includes(roleId);
+
+                        if (shouldRemove) {
                             try {
                                 await member.roles.remove(roleId);
-                                removedRoles.push(role.name);
+                                removedRoles.push(role.name); // Use name, not mention
                             } catch (e) {
                                 console.log(`Could not remove role ${role.name}:`, e.message);
                             }
