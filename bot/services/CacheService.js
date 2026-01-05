@@ -158,5 +158,5 @@ class CacheService {
     }
 }
 
-// Export singleton instance
-module.exports = new CacheService();
+// Export the class itself (not singleton)
+module.exports = CacheService;
