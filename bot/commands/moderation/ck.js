@@ -16,7 +16,8 @@ module.exports = {
                         .setRequired(true)
                         .addChoices(
                             { name: 'CK Normal', value: 'CK Normal' },
-                            { name: 'CK Administrativo', value: 'CK Administrativo' }
+                            { name: 'CK Administrativo', value: 'CK Administrativo' },
+                            { name: 'Auto CK', value: 'Auto CK' }
                         ))
                 .addStringOption(option => option.setName('razon').setDescription('Razón del CK').setRequired(true))
                 .addAttachmentOption(option => option.setName('evidencia').setDescription('Screenshot de evidencia').setRequired(true))),
