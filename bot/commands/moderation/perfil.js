@@ -46,34 +46,92 @@ module.exports = {
 
             const total = cash + bank;
 
+            // Fetch member first (needed for roles)
+            const member = await interaction.guild.members.fetch(targetUser.id);
+
             // Fetch Credit Card
-            // Fetch DNI
-            const { data: dni } = await supabase
-                .from('citizen_dni')
-                .select('name, date_of_birth')
+            const { data: creditCards } = await supabase
+                .from('credit_cards')
+                .select('card_type, available_limit, used_limit, total_limit')
                 .eq('guild_id', interaction.guildId)
                 .eq('user_id', targetUser.id)
-                .maybeSingle();
+                .eq('active', true);
+            const creditCard = creditCards?.[0];
 
-            // Fetch Vehicle Count
-            const { count: vehicleCount } = await supabase
-                .from('vehicles')
-                .select('*', { count: 'exact', head: true })
-                .eq('guild_id', interaction.guildId)
-                .eq('user_id', targetUser.id);
+            // Fetch Licenses
+            const licenses = [];
+            const licenseRoles = {
+                '1413543909761614005': '🚗 Licencia de Conducir',
+                '1413543907110682784': '🔫 Licencia de Armas Cortas',
+                '1413541379803578431': '🎯 Licencia de Armas Largas'
+            };
+            for (const [roleId, licenseName] of Object.entries(licenseRoles)) {
+                if (member.roles.cache.has(roleId)) {
+                    licenses.push(licenseName);
+                }
+            }
 
-            // Check Arrest Status
+            // Fetch Sanctions
+            const { data: sanctions } = await supabase
+                .from('sanctions')
+                .select('sanction_type, reason, created_at')
+                .eq('user_id', targetUser.id)
+                .order('created_at', { ascending: false })
+                .limit(5);
+
+            // Fetch Active Passes
+            const { data: passes } = await supabase
+                .from('store_purchases')
+                .select('item_name, expires_at, uses_remaining')
+                .eq('user_id', targetUser.id)
+                .eq('active', true)
+                .gt('expires_at', new Date().toISOString());
+
+            // Fetch DNI
+            let dni = null;
+            let vehicleCount = 0;
+            let activeArrest = null;
             const ARRESTED_ROLE_ID = '1413540729623679056';
             const isArrestedRole = member.roles.cache.has(ARRESTED_ROLE_ID);
 
-            // 2nd Check: Active DB Entry (optional but safer)
-            const { data: activeArrest } = await supabase
-                .from('arrests')
-                .select('release_time, reason')
-                .eq('guild_id', interaction.guildId)
-                .eq('user_id', targetUser.id)
-                .gt('release_time', new Date().toISOString())
-                .maybeSingle();
+            // Safe Fetch DNI
+            try {
+                const { data } = await supabase
+                    .from('citizen_dni')
+                    .select('name, date_of_birth')
+                    .eq('guild_id', interaction.guildId)
+                    .eq('user_id', targetUser.id)
+                    .maybeSingle();
+                dni = data;
+            } catch (e) {
+                console.error('[perfil] Failed to fetch DNI:', e.message);
+            }
+
+            // Safe Fetch Vehicle Count
+            try {
+                const { count } = await supabase
+                    .from('vehicles')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('guild_id', interaction.guildId)
+                    .eq('user_id', targetUser.id);
+                vehicleCount = count || 0;
+            } catch (e) {
+                console.error('[perfil] Failed to fetch vehicles:', e.message);
+            }
+
+            // Safe Fetch Arrest Status
+            try {
+                const { data } = await supabase
+                    .from('arrests')
+                    .select('release_time, reason')
+                    .eq('guild_id', interaction.guildId)
+                    .eq('user_id', targetUser.id)
+                    .gt('release_time', new Date().toISOString())
+                    .maybeSingle();
+                activeArrest = data;
+            } catch (e) {
+                console.error('[perfil] Failed to fetch arrests:', e.message);
+            }
 
             // Build Embed
             const embed = new EmbedBuilder()

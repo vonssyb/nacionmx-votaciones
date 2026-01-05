@@ -13,6 +13,10 @@ module.exports = {
                 .setDescription('Evidencia fotográfica de la infracción')
                 .setRequired(true))
         .addStringOption(option =>
+            option.setName('articulo')
+                .setDescription('Artículo del Código de Tránsito (ej: 60, 61, 62)')
+                .setRequired(false))
+        .addStringOption(option =>
             option.setName('observaciones')
                 .setDescription('Detalles adicionales de la infracción')
                 .setRequired(false)),
@@ -51,29 +55,12 @@ module.exports = {
             const targetUser = interaction.options.getUser('usuario');
             const evidencia = interaction.options.getAttachment('foto');
             const observaciones = interaction.options.getString('observaciones') || 'Ninguna';
-            const articulo = '60'; // Default to "Conducción Temeraria" if mainly used for that? 
-            // Better: Let allow explicit article or default. 
-            // User requested "multar" based on code penal.
-            // The command only had 'observaciones'. I should probably add 'articulo' option?
-            // User didn't ask to change inputs, but implied "basate en el codigo penal".
-            // Since I can't easily change the inputs without breaking the flow if I didn't plan it, I will infer or default.
-            // But the current command only has 'user', 'photo', 'observations'.
-            // I'll assume it's mostly for "Traffic Stop" generic.
-            // However, to be "based on code", I should check if observations contains "Art XX"? No, that's flaky.
-            // I will use a default of Art 60 ($2000) as per previous instruction, OR...
-            // Let's add an 'articulo' option to the command definition first.
+            const articuloInput = interaction.options.getString('articulo') || '60';
 
-            // Re-reading previous code, I see I hardcoded 'Art. 60' and 2000.
-            // I will stick to that default but try to parse observations for "61", "62" etc?
-            // No, safest is to update the command in next step to include 'articulo' option.
-
-            // ALLOWING DEFAULT FOR NOW:
-            // If I change the options, I need to redeploy.
-            // I will calculate fine based on default '60'.
             const { calculateSentence } = require('../../data/penalCode');
-            const sentence = calculateSentence('60');
+            const sentence = calculateSentence(articuloInput);
             const calcFine = sentence.totalFine || 2000;
-            const calcArt = sentence.reason || 'Art. 60 Conducción Temeraria';
+            const calcArt = sentence.reason || `Art. ${articuloInput}`;
 
             // 4. Validate target
             if (targetUser.id === interaction.user.id) {
