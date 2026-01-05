@@ -7,8 +7,7 @@ module.exports = {
         .addSubcommand(subcommand =>
             subcommand
                 .setName('crear')
-                .setDescription('Crear DNI para un ciudadano')
-                .addUserOption(option => option.setName('usuario').setDescription('Usuario').setRequired(true))
+                .setDescription('Crear tu DNI ciudadano')
                 .addStringOption(option => option.setName('nombre').setDescription('Nombre').setRequired(true))
                 .addStringOption(option => option.setName('apellido').setDescription('Apellido').setRequired(true))
                 .addIntegerOption(option => option.setName('edad').setDescription('Edad (18-99)').setRequired(true).setMinValue(18).setMaxValue(99))
@@ -18,8 +17,7 @@ module.exports = {
                         { name: 'Femenino', value: 'Femenino' },
                         { name: 'Otro', value: 'Otro' }
                     ))
-                .addStringOption(option => option.setName('nacionalidad').setDescription('Nacionalidad').setRequired(false))
-                .addAttachmentOption(option => option.setName('foto').setDescription('Foto del DNI (opcional)').setRequired(false)))
+                .addStringOption(option => option.setName('nacionalidad').setDescription('Nacionalidad').setRequired(true)))
         .addSubcommand(subcommand =>
             subcommand
                 .setName('editar')
@@ -56,13 +54,12 @@ module.exports = {
         }
 
         if (subCmd === 'crear') {
-            const targetUser = interaction.options.getUser('usuario');
+            const targetUser = interaction.user; // Usuario que ejecuta el comando
             const nombre = interaction.options.getString('nombre');
             const apellido = interaction.options.getString('apellido');
             const edad = interaction.options.getInteger('edad');
             const genero = interaction.options.getString('genero');
-            const nacionalidad = interaction.options.getString('nacionalidad') || 'Mexicana';
-            const foto = interaction.options.getAttachment('foto');
+            const nacionalidad = interaction.options.getString('nacionalidad');
 
             // Check if DNI already exists
             const { data: existing } = await supabase
@@ -93,7 +90,6 @@ module.exports = {
                     fecha_nacimiento: fechaNacimiento,
                     genero,
                     nacionalidad,
-                    foto_url: foto?.url || null,
                     created_by: interaction.user.id
                 });
 
@@ -110,14 +106,9 @@ module.exports = {
                     { name: '📝 Nombre Completo', value: `${nombre} ${apellido}`, inline: true },
                     { name: '🎂 Edad', value: `${edad} años`, inline: true },
                     { name: '⚧️ Género', value: genero, inline: true },
-                    { name: '🌍 Nacionalidad', value: nacionalidad, inline: true },
-                    { name: '👮 Registrado por', value: interaction.user.tag, inline: false }
+                    { name: '🌍 Nacionalidad', value: nacionalidad, inline: true }
                 )
                 .setTimestamp();
-
-            if (foto) {
-                embed.setThumbnail(foto.url);
-            }
 
             await interaction.editReply({ embeds: [embed] });
 
