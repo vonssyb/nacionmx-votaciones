@@ -23,8 +23,8 @@ CREATE TABLE IF NOT EXISTS salary_collections (
     net_amount INTEGER NOT NULL
 );
 
-CREATE INDEX idx_salary_collections_user ON salary_collections(guild_id, user_id);
-CREATE INDEX idx_salary_collections_time ON salary_collections(collected_at DESC);
+CREATE INDEX IF NOT EXISTS idx_salary_collections_user ON salary_collections(guild_id, user_id);
+CREATE INDEX IF NOT EXISTS idx_salary_collections_time ON salary_collections(collected_at DESC);
 
 INSERT INTO job_salaries (guild_id, role_id, role_name, salary_amount) VALUES
 ('1398525215134318713', '1412887183089471568', 'Presidente', 100000),
