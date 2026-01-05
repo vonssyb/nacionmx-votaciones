@@ -876,7 +876,8 @@ const startLegacyBackgroundTasks = async (client) => {
 
 
 
-    const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_BOT_TOKEN || process.env.DISCORD_TOKEN || '');
+    const BOT_TOKEN = process.env.DISCORD_TOKEN_ECO || process.env.DISCORD_BOT_TOKEN || process.env.DISCORD_TOKEN || '';
+    const rest = new REST({ version: '10' }).setToken(BOT_TOKEN);
 
     const commands = require('../commands');
 
@@ -2858,7 +2859,6 @@ const handleEconomyLegacy = async (interaction, client, supabase) => {
             const stats = CARD_TIERS[cardType || 'NMX Start'] || CARD_TIERS['NMX Start'];
 
             // 2. Find Citizen (Optional check, but we need to link it eventually. If not found, create one?)
-            // The user said "pide foto de dni, nombre del titular". This implies we might be CREATING the citizen logic here or just linking.
             // I'll search for citizen by Discord ID. If not found, I will create one using the provided Name.
             let { data: citizen } = await supabase.from('citizens').select('id, full_name, dni').eq('discord_id', targetUser.id).limit(1).maybeSingle();
 
@@ -2979,7 +2979,7 @@ El saldo no liquidado generará un interés semanal según el nivel de la tarjet
 
 **4. USO DE LA TARJETA**
 Esta tarjeta es personal e intransferible. El titular es responsable de todos los cargos realizados con ella. El Banco Nacional colaborará con la policía en caso de compras ilegales.`);
-                    await i.reply({ embeds: [tycEmbed], ephemeral: false });
+                    await i.reply({ embeds: [tycEmbed], ephemeral: true });
                 }
                 else if (i.customId === 'btn_reject') {
                     await i.update({ content: '❌ Oferta rechazada.', components: [] });
@@ -3091,7 +3091,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
 
                     } catch (err) {
                         console.error(err);
-                        await i.followUp({ content: `❌ Error procesando: ${err.message}`, ephemeral: false });
+                        await i.followUp({ content: `❌ Error procesando: ${err.message}`, ephemeral: true });
                     }
                     collector.stop();
                 }
@@ -3307,7 +3307,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                     return;
                 } catch (err) {
                     console.error('[credito] Error:', err);
-                    return interaction.editReply({ content: '❌ Error procesando pago.', components: [] });
+                    return interaction.editReply({ content: '❌ Error procesando pago.', ephemeral: true });
                 }
             } catch (err) {
                 console.error('[credito-pagar] Error:', err);
@@ -3322,7 +3322,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
         else if (interaction.options.getSubcommandGroup() === 'admin') {
             // Permission Check
             if (!interaction.member.permissions.has('Administrator')) {
-                return interaction.reply({ content: '⛔ Solo administradores pueden usar esto.', ephemeral: false });
+                return interaction.reply({ content: '⛔ Solo administradores pueden usar esto.', ephemeral: true });
             }
 
             const subCmdAdmin = interaction.options.getSubcommand();
