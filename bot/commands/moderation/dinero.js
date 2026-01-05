@@ -1,4 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } = require('discord.js');
+const AuditService = require('../../services/AuditService');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -69,6 +70,27 @@ module.exports = {
             console.error('Error updating balance:', updateError);
             return interaction.editReply('❌ Error al actualizar el balance.');
         }
+
+        // Log to enhanced audit system
+        const auditService = new AuditService(supabase, client);
+        await auditService.logTransaction({
+            guildId: interaction.guildId,
+            userId: targetUser.id,
+            transactionType: subCmd === 'añadir' ? 'admin_add' : 'admin_remove',
+            amount: subCmd === 'añadir' ? cantidad : -cantidad,
+            currencyType: 'cash',
+            reason: razon,
+            metadata: {
+                previous_balance: currentCash,
+                new_balance: newCash,
+                admin_action: true
+            },
+            createdBy: interaction.user.id,
+            createdByTag: interaction.user.tag,
+            commandName: 'dinero',
+            interactionId: interaction.id,
+            canRollback: true
+        });
 
         // Log to audit
         const auditEmbed = new EmbedBuilder()
