@@ -89,31 +89,85 @@ module.exports = {
 
             const rolesString = roleNames.join(' + ');
 
-            const taxRate = 0.14; // 14% tax
-            const taxAmount = Math.floor(grossAmount * taxRate);
-            const netAmount = grossAmount - taxAmount;
+            // Calculate total salary
+            const totalSalary = salaries.reduce((sum, s) => sum + (s.salary_amount || 0), 0); // Changed from s.amount to s.salary_amount
 
-            // 4. Deposit to bank using UnbelievaBoat
-            const UnbelievaBoatService = require('../../services/UnbelievaBoatService');
-            const ubToken = process.env.UNBELIEVABOAT_TOKEN;
+            // Detect Premium Roles for bonuses
+            const PREMIUM_ROLE_ID = '1412887172503175270';
+            const BOOSTER_ROLE_ID = '1423520675158691972';
+            const ULTRAPASS_ROLE_ID = '1414033620636532849';
+            const EVASOR_FISCAL_ROLE_ID = '1449950636371214397';
 
-            if (!ubToken) {
-                console.error('[colectar] UNBELIEVABOAT_TOKEN not configured');
-                return interaction.editReply('❌ Error de configuración del bot.');
+            const isPremium = interaction.member.roles.cache.has(PREMIUM_ROLE_ID);
+            const isBooster = interaction.member.roles.cache.has(BOOSTER_ROLE_ID);
+            const isUltraPass = interaction.member.roles.cache.has(ULTRAPASS_ROLE_ID);
+            const hasEvasorRole = interaction.member.roles.cache.has(EVASOR_FISCAL_ROLE_ID);
+
+            // Apply +10% bonus for Premium/Booster/UltraPass
+            let bonusMultiplier = 1.0;
+            let bonusLabel = '';
+            if (isUltraPass) {
+                bonusMultiplier = 1.10;
+                bonusLabel = '👑 UltraPass +10%';
+            } else if (isPremium) {
+                bonusMultiplier = 1.10;
+                bonusLabel = '⭐ Premium +10%';
+            } else if (isBooster) {
+                bonusMultiplier = 1.10;
+                bonusLabel = '🚀 Booster +10%';
             }
 
-            const ubService = new UnbelievaBoatService(ubToken);
+            const grossSalary = Math.floor(totalSalary * bonusMultiplier);
 
+            // Tax rates based on role
+            let taxRate = 0.08; // Default 8%
+            if (isUltraPass || hasEvasorRole) {
+                taxRate = 0.04; // UltraPass or Evasor: 4%
+            } else if (isPremium || isBooster) {
+                taxRate = 0.06; // Premium/Booster: 6%
+            }
+
+            const taxAmount = Math.floor(grossSalary * taxRate);
+            const netAmount = grossSalary - taxAmount;
+
+            // Credit using UnbelievaBoat
             try {
-                await ubService.addMoney(guildId, userId, netAmount, 0); // Add to cash only
+                if (!process.env.UNBELIEVABOAT_TOKEN) {
+                    console.error('[colectar] UNBELIEVABOAT_TOKEN not configured');
+                    return interaction.editReply('❌ Error: Token de UnbelievaBoat no configurado.');
+                }
+
+                const UnbelievaBoatService = require('../../services/UnbelievaBoatService');
+                const ubService = new UnbelievaBoatService(process.env.UNBELIEVABOAT_TOKEN);
+                await ubService.addMoney(interaction.guildId, interaction.user.id, netAmount, 0);
+
                 console.log(`[colectar] Deposited $${netAmount} to cash for ${interaction.user.tag}`);
             } catch (ubError) {
                 console.error('[colectar] UnbelievaBoat error:', ubError);
                 console.error('[colectar] UB Error details:', ubError.response?.data || ubError.message);
-                return interaction.editReply('❌ Error al depositar el salario. Intenta más tarde.');
+                return interaction.editReply('❌ Error al depositar el dinero. Intenta de nuevo.');
             }
 
-            // 5. Record collection
+            // Update last collection
+            await supabase
+                .from('citizen_dni')
+                .update({ last_salary_collection: new Date().toISOString() })
+                .eq('guild_id', guildId)
+                .eq('user_id', interaction.user.id);
+
+            // Record transaction history
+            await supabase.from('money_history').insert({
+                guild_id: guildId,
+                user_id: interaction.user.id,
+                amount: netAmount,
+                commandName: 'colectar',
+                method: 'cash',
+                timestamp: new Date().toISOString(),
+            }).catch(insertError => {
+                console.error('[colectar] Error recording collection:', insertError);
+            });
+
+            // 5. Record collection (original table)
             const { error: insertError } = await supabase
                 .from('salary_collections')
                 .insert({
@@ -121,7 +175,7 @@ module.exports = {
                     user_id: userId,
                     collected_at: new Date().toISOString(),
                     role_used: rolesString,
-                    gross_amount: grossAmount,
+                    gross_amount: grossSalary, // Use grossSalary from new logic
                     tax_amount: taxAmount,
                     net_amount: netAmount
                 });
@@ -141,9 +195,6 @@ module.exports = {
                 .setThumbnail(interaction.user.displayAvatarURL({ dynamic: true }))
                 .addFields(
                     { name: '👤 Ciudadano', value: `<@${userId}>`, inline: false },
-                    { name: '🏷️ Roles', value: rolesString, inline: false },
-                    { name: '💵 Salario Bruto Total', value: `$${grossAmount.toLocaleString()}`, inline: true },
-                    { name: '📉 Impuesto (14%)', value: `-$${taxAmount.toLocaleString()}`, inline: true },
                     { name: '💚 Neto Depositado', value: `**$${netAmount.toLocaleString()}**`, inline: true },
                     { name: '💵 Nuevo Balance en Efectivo', value: `$${newCashBalance.toLocaleString()}`, inline: false },
                     { name: '⏰ Próxima Colecta', value: moment().add(72, 'hours').format('DD/MM/YYYY HH:mm'), inline: false }
