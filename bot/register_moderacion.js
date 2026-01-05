@@ -45,7 +45,7 @@ if (fs.existsSync(commandsPath)) {
 try {
     const legacyCommands = require('./commands.js');
     const MOD_LEGACY = [
-        'ping', 'info', 'rol', 'multa', 'licencia', 'sesion', 'ayuda'
+        'ping', 'info', 'rol', 'licencia', 'sesion', 'ayuda'
     ];
 
     legacyCommands.forEach(cmd => {
