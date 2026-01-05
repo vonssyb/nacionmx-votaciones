@@ -25,7 +25,7 @@ module.exports = {
                 .setMaxValue(10080)), // 1 week max manually
 
     async execute(interaction, client, supabase) {
-        await interaction.deferReply({  });
+        await interaction.deferReply({});
 
         const ARREST_CHANNEL_ID = '1398888960519835688';
         const ARREST_LOGS_CHANNEL_ID = '1457583225085100283';
@@ -136,6 +136,20 @@ module.exports = {
             const processingFee = articlesInput.split(',').length * 500;
             fineAmount += processingFee;
 
+            // Apply Premium/UltraPass/Booster 50% Discount on Fine (Bail)
+            const PREMIUM_ROLE_ID = '1412887172503175270';
+            const BOOSTER_ROLE_ID = '1423520675158691972';
+            const ULTRAPASS_ROLE_ID = '1414033620636532849';
+
+            const hasPremium = targetMember.roles.cache.has(PREMIUM_ROLE_ID) ||
+                targetMember.roles.cache.has(BOOSTER_ROLE_ID) ||
+                targetMember.roles.cache.has(ULTRAPASS_ROLE_ID);
+
+            const originalFine = fineAmount;
+            if (hasPremium) {
+                fineAmount = Math.floor(fineAmount * 0.5);
+            }
+
             const articleText = sentence.reason || articlesInput;
 
             // 7. Add arrested role
@@ -185,7 +199,7 @@ module.exports = {
                         { name: '⏰ Tiempo de Arresto', value: `${finalTime} minutos (${(finalTime / 60).toFixed(1)} hrs)`, inline: true },
                         { name: '📅 Liberación', value: releaseTime.format('DD/MM/YYYY HH:mm'), inline: true },
                         { name: '📜 Artículos/Cargos', value: articleText, inline: false },
-                        { name: '💰 Multa Total', value: `$${fineAmount.toLocaleString()}`, inline: true },
+                        { name: '💰 Multa Total', value: hasPremium ? `~~$${originalFine.toLocaleString()}~~ **$${fineAmount.toLocaleString()}**` : `$${fineAmount.toLocaleString()}`, inline: true },
                         { name: '⚖️ Fianza', value: sentence.noBail ? '**DENEGADA** (Delito Grave)' : 'Permitida', inline: true }
                     )
                     .setFooter({ text: 'Espera tu liberación para volver a rolear' })
@@ -207,7 +221,7 @@ module.exports = {
                     { name: '📜 Cargos', value: articleText, inline: false },
                     { name: '⏰ Tiempo', value: `${finalTime} min (${(finalTime / 300).toFixed(1)} años RP)`, inline: true },
                     { name: '📅 Liberación', value: releaseTime.format('DD/MM/YYYY HH:mm'), inline: true },
-                    { name: '💰 Multa', value: `$${fineAmount.toLocaleString()}`, inline: true }
+                    { name: '💰 Multa', value: hasPremium ? `~~$${originalFine.toLocaleString()}~~ **$${fineAmount.toLocaleString()}** (50% OFF)` : `$${fineAmount.toLocaleString()}`, inline: true }
                 )
                 .setImage(evidencia.url)
                 .setFooter({ text: `Nación MX | Sistema Judicial` })

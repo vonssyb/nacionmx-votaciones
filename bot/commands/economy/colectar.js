@@ -4,7 +4,7 @@ const moment = require('moment-timezone');
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('colectar')
-        .setDescription('💰 Colectar tu salario semanal (cada 7 días)'),
+        .setDescription('💰 Colectar tu salario (cada 3 días/72 horas)'),
 
     async execute(interaction, client, supabase) {
         await interaction.deferReply({}); // Show "pensando..."
@@ -40,16 +40,17 @@ module.exports = {
 
             if (lastCollection) {
                 const lastCollectedAt = moment(lastCollection.collected_at);
-                const nextAvailable = lastCollectedAt.add(168, 'hours');
+                // 3 days = 72 hours
+                const nextAvailable = lastCollectedAt.add(72, 'hours');
                 const now = moment();
 
                 if (now.isBefore(nextAvailable)) {
                     const timeLeft = moment.duration(nextAvailable.diff(now));
-                    const daysLeft = Math.floor(timeLeft.asDays());
-                    const hoursLeft = timeLeft.hours();
+                    const hoursLeft = Math.floor(timeLeft.asHours());
+                    const minutesLeft = timeLeft.minutes();
 
                     return interaction.editReply({
-                        content: `⏰ **Cooldown Activo**\n\nYa colectaste tu salario semanal recientemente.\n\n**Próxima colecta disponible:**\n🕐 En ${daysLeft}d ${hoursLeft}h\n📅 ${nextAvailable.format('DD/MM/YYYY HH:mm')}`,
+                        content: `⏰ **Cooldown Activo**\n\nYa colectaste tu salario semanal recientemente.\n\n**Próxima colecta disponible:**\n🕐 En ${hoursLeft}h ${minutesLeft}m\n📅 ${nextAvailable.format('DD/MM/YYYY HH:mm')}`,
                         flags: [64]
                     });
                 }
@@ -197,7 +198,7 @@ module.exports = {
                     { name: '👤 Ciudadano', value: `<@${userId}>`, inline: false },
                     { name: '💚 Neto Depositado', value: `**$${netAmount.toLocaleString()}**`, inline: true },
                     { name: '💵 Nuevo Balance en Efectivo', value: `$${newCashBalance.toLocaleString()}`, inline: false },
-                    { name: '⏰ Próxima Colecta', value: moment().add(168, 'hours').format('DD/MM/YYYY HH:mm'), inline: false }
+                    { name: '⏰ Próxima Colecta', value: moment().add(72, 'hours').format('DD/MM/YYYY HH:mm'), inline: false }
                 )
                 .setFooter({ text: 'Nación MX | Sistema de Nómina (Multiempleo)' })
                 .setTimestamp();
