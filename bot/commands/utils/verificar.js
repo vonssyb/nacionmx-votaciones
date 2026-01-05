@@ -11,7 +11,7 @@ module.exports = {
                 .setRequired(true)),
 
     async execute(interaction, client, supabase) {
-        await interaction.deferReply({ ephemeral: true });
+        await interaction.deferReply({ ephemeral: false });
 
         const robloxUsername = interaction.options.getString('usuario');
         const discordUserId = interaction.user.id;
@@ -37,8 +37,7 @@ module.exports = {
             const robloxId = robloxData.id.toString();
             const realUsername = robloxData.name;
 
-            // 2. Check if this Roblox ID is already linked to ANOTHER Discord user
-            // We check both citizens and profiles for robustness
+            // 2. Check if this Roblox ID is already linked
             const { data: existingUser } = await supabase
                 .from('profiles')
                 .select('discord_id')
@@ -47,48 +46,82 @@ module.exports = {
 
             if (existingUser && existingUser.discord_id !== discordUserId) {
                 return interaction.editReply({
-                    content: `⚠️ **Error de Vinculación**\n\nEl usuario de Roblox **${realUsername}** ya está vinculado a otra cuenta de Discord.\n\nSi crees que esto es un error o quieres recuperar tu cuenta, abre un ticket en <#${TICKET_CHANNEL_ID}>.`
+                    content: `⚠️ **Error de Vinculación**\n\nEl usuario de Roblox **${realUsername}** ya está vinculado a otra cuenta de Discord.\n\nSi crees que esto es un error, abre un ticket en <#${TICKET_CHANNEL_ID}>.`
                 });
             }
 
-            // 3. Update Database (Profiles is the best place for this)
-            await supabase.from('profiles').update({
-                roblox_id: robloxId
-            }).eq('discord_id', discordUserId);
+            // 3. Generate Unique Code
+            const verifCode = `NMX-${Math.floor(1000 + Math.random() * 9000)}`;
 
-            // Also try to update citizens if they exist
-            await supabase.from('citizens').update({
-                roblox_id: robloxId,
-                roblox_username: realUsername
-            }).eq('discord_id', discordUserId);
-
-            // 4. Update Discord Roles
-            const member = await guild.members.fetch(discordUserId);
-
-            if (member.roles.cache.has(ROLE_NO_VERIFICADO)) {
-                await member.roles.remove(ROLE_NO_VERIFICADO).catch(e => console.error('Error removing unverified role:', e));
-            }
-            if (!member.roles.cache.has(ROLE_VERIFICADO)) {
-                await member.roles.add(ROLE_VERIFICADO).catch(e => console.error('Error adding verified role:', e));
-            }
-
-            // 5. Success Message (Ephemeral)
-            const successEmbed = new EmbedBuilder()
-                .setTitle('✅ Verificación Exitosa')
-                .setColor(0x00FF00)
-                .setDescription(`Tu cuenta de Discord ha sido vinculada con **${realUsername}** (${robloxId}).`)
+            const instructionEmbed = new EmbedBuilder()
+                .setTitle('🛡️ Verificación de Cuenta')
+                .setColor(0x3498DB)
+                .setDescription(`Para verificar que eres el dueño de **${realUsername}**, sigue estos pasos:\n\n1️⃣ Copia este código: \`${verifCode}\`\n2️⃣ Pégalo en tu **Bio/Descripción** de tu perfil de Roblox.\n3️⃣ Haz clic en el botón de abajo para confirmar.`)
                 .setThumbnail(`https://www.roblox.com/headshot-thumbnail/image?userId=${robloxId}&width=150&height=150&format=png`)
-                .setFooter({ text: 'Nación MX | Sistema de Verificación' });
+                .setFooter({ text: 'Tienes 10 minutos para completar esto.' });
 
-            await interaction.editReply({ embeds: [successEmbed] });
+            const row = new ActionRowBuilder().addComponents(
+                new ButtonBuilder()
+                    .setCustomId(`confirm_verif_${robloxId}_${verifCode}`)
+                    .setLabel('✅ Confirmar Bio')
+                    .setStyle(ButtonStyle.Primary)
+            );
 
-            // 6. Log Ping and Delete
-            const logChannel = await guild.channels.fetch(LOG_CHANNEL_ID).catch(() => null);
-            if (logChannel) {
-                const pingMsg = await logChannel.send(`<@${discordUserId}> se ha verificado exitosamente como **${realUsername}**.`);
-                // Delete after 5 seconds to notify but not clutter
-                setTimeout(() => pingMsg.delete().catch(() => null), 5000);
-            }
+            const msg = await interaction.editReply({ embeds: [instructionEmbed], components: [row] });
+
+            // 4. Collector for the button
+            const filter = i => i.user.id === discordUserId && i.customId.startsWith('confirm_verif_');
+            const collector = msg.createMessageComponentCollector({ filter, time: 600000 }); // 10 min
+
+            collector.on('collect', async i => {
+                await i.deferUpdate();
+
+                try {
+                    // Fetch full profile info to check description
+                    const userProfileRes = await axios.get(`https://users.roblox.com/v1/users/${robloxId}`);
+                    const description = userProfileRes.data.description || '';
+
+                    if (description.includes(verifCode)) {
+                        // SUCCESS!
+                        collector.stop('success');
+
+                        // Update DB
+                        await supabase.from('profiles').update({ roblox_id: robloxId }).eq('discord_id', discordUserId);
+                        await supabase.from('citizens').update({ roblox_id: robloxId, roblox_username: realUsername }).eq('discord_id', discordUserId);
+
+                        // Roles
+                        const member = await guild.members.fetch(discordUserId);
+                        if (member.roles.cache.has(ROLE_NO_VERIFICADO)) await member.roles.remove(ROLE_NO_VERIFICADO);
+                        if (!member.roles.cache.has(ROLE_VERIFICADO)) await member.roles.add(ROLE_VERIFICADO);
+
+                        const successEmbed = new EmbedBuilder()
+                            .setTitle('✅ Verificación Exitosa')
+                            .setColor(0x00FF00)
+                            .setDescription(`¡Felicidades! Tu cuenta ha sido vinculada con **${realUsername}**.\nYa puedes remover el código de tu bio.`)
+                            .setThumbnail(`https://www.roblox.com/headshot-thumbnail/image?userId=${robloxId}&width=150&height=150&format=png`);
+
+                        await i.editReply({ embeds: [successEmbed], components: [] });
+
+                        // Log
+                        const logChannel = await guild.channels.fetch(LOG_CHANNEL_ID).catch(() => null);
+                        if (logChannel) {
+                            const pingMsg = await logChannel.send(`<@${discordUserId}> se ha verificado como **${realUsername}**.`);
+                            setTimeout(() => pingMsg.delete().catch(() => null), 5000);
+                        }
+                    } else {
+                        await i.followUp({ content: `❌ **Código no encontrado.**\nAsegúrate de haber pegado \`${verifCode}\` en tu bio de Roblox y que sea visible públicamente.`, ephemeral: true });
+                    }
+                } catch (err) {
+                    console.error('[VERIFICAR] Interaction Error:', err);
+                    await i.followUp({ content: '❌ Error al consultar tu perfil de Roblox. Intenta de nuevo en unos segundos.', ephemeral: true });
+                }
+            });
+
+            collector.on('end', (collected, reason) => {
+                if (reason === 'time') {
+                    interaction.editReply({ content: '⏰ Tiempo agotado. Usa `/verificar` de nuevo si deseas continuar.', embeds: [], components: [] }).catch(() => { });
+                }
+            });
 
         } catch (error) {
             console.error('[VERIFICAR] Error:', error);
