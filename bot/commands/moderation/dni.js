@@ -43,14 +43,14 @@ module.exports = {
         await interaction.deferReply({ ephemeral: true });
 
         const subCmd = interaction.options.getSubcommand();
-        const juntaDirectivaRoleId = '1412882245735420006';
+        const administradorRoleId = '1412882248411381872';
 
-        // Permission check for crear/editar
-        const isStaff = interaction.member.roles.cache.has(juntaDirectivaRoleId) ||
+        // Permission check ONLY for editar - only Administrador role
+        const isAdmin = interaction.member.roles.cache.has(administradorRoleId) ||
             interaction.member.permissions.has(PermissionFlagsBits.Administrator);
 
-        if ((subCmd === 'crear' || subCmd === 'editar') && !isStaff) {
-            return interaction.editReply('❌ Solo el staff puede crear o editar DNIs.');
+        if (subCmd === 'editar' && !isAdmin) {
+            return interaction.editReply('❌ Solo los Administradores pueden editar DNIs.');
         }
 
         if (subCmd === 'crear') {
