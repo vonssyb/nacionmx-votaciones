@@ -6325,16 +6325,29 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 else if (job.type === 'luck') win = Math.random() > 0.5;
 
                 if (win) {
-                    const pay = Math.floor(Math.random() * (job.pay[1] - job.pay[0] + 1)) + job.pay[0];
-                    await billingService.ubService.addMoney(interaction.guildId, interaction.user.id, pay, `Trabajo: ${job.title}`, 'cash');
+                    const grossPay = Math.floor(Math.random() * (job.pay[1] - job.pay[0] + 1)) + job.pay[0];
+
+                    // Apply automatic 8% tax (4% if Evasor Fiscal)
+                    const EVASOR_FISCAL_ROLE_ID = '1449950636371214397';
+                    const member = await interaction.guild.members.fetch(interaction.user.id);
+                    const hasEvasorRole = member.roles.cache.has(EVASOR_FISCAL_ROLE_ID);
+                    const taxRate = hasEvasorRole ? 0.04 : 0.08;
+                    const taxAmount = Math.floor(grossPay * taxRate);
+                    const netPay = grossPay - taxAmount;
+
+                    await billingService.ubService.addMoney(interaction.guildId, interaction.user.id, netPay, `Trabajo: ${job.title}`, 'cash');
                     casinoSessions[jobKey] = Date.now();
 
                     const successEmbed = new EmbedBuilder()
                         .setTitle('✅ ¡EXCELENTE TRABAJO!')
                         .setColor(0x00FF00)
                         .setDescription(`Has completado: **${job.title}**`)
-                        .addFields({ name: '💰 Ganancia', value: `$${pay.toLocaleString()}`, inline: true })
-                        .setFooter({ text: '¡Descansa y vuelve en 1 hora!' })
+                        .addFields(
+                            { name: '💰 Ganancia Bruta', value: `$${grossPay.toLocaleString()}`, inline: true },
+                            { name: '💸 Impuesto SAT', value: `-$${taxAmount.toLocaleString()} (${taxRate * 100}%)`, inline: true },
+                            { name: '✅ Ganancia Neta', value: `$${netPay.toLocaleString()}`, inline: true }
+                        )
+                        .setFooter({ text: hasEvasorRole ? '🕶️ Descuento fiscal aplicado (4%) | Vuelve en 1 hora' : 'Impuesto: 8% | Vuelve en 1 hora' })
                         .setTimestamp();
 
                     await i.update({ embeds: [successEmbed], components: [] });
@@ -6540,16 +6553,29 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 else if (crime.type === 'luck') win = Math.random() > (crime.luck || 0.75);
 
                 if (win) {
-                    const pay = Math.floor(Math.random() * (crime.pay[1] - crime.pay[0] + 1)) + crime.pay[0];
-                    await billingService.ubService.addMoney(interaction.guildId, interaction.user.id, pay, `Crimen: ${crime.title}`, 'cash');
+                    const grossPay = Math.floor(Math.random() * (crime.pay[1] - crime.pay[0] + 1)) + crime.pay[0];
+
+                    // Apply automatic 8% tax (4% if Evasor Fiscal)
+                    const EVASOR_FISCAL_ROLE_ID = '1449950636371214397';
+                    const member = await interaction.guild.members.fetch(interaction.user.id);
+                    const hasEvasorRole = member.roles.cache.has(EVASOR_FISCAL_ROLE_ID);
+                    const taxRate = hasEvasorRole ? 0.04 : 0.08;
+                    const taxAmount = Math.floor(grossPay * taxRate);
+                    const netPay = grossPay - taxAmount;
+
+                    await billingService.ubService.addMoney(interaction.guildId, interaction.user.id, netPay, `Crimen: ${crime.title}`, 'cash');
                     casinoSessions[crimeKey] = Date.now();
 
                     const successEmbed = new EmbedBuilder()
                         .setTitle('💸 ¡ÉXITO CRIMINAL!')
                         .setColor(0x00FF00)
                         .setDescription(`Completaste: **${crime.title}**`)
-                        .addFields({ name: '💰 Botín', value: `$${pay.toLocaleString()}`, inline: true })
-                        .setFooter({ text: 'Escóndete por 2 horas' })
+                        .addFields(
+                            { name: '💰 Botín Bruto', value: `$${grossPay.toLocaleString()}`, inline: true },
+                            { name: '💸 Impuesto SAT', value: `-$${taxAmount.toLocaleString()} (${taxRate * 100}%)`, inline: true },
+                            { name: '✅ Botín Neto', value: `$${netPay.toLocaleString()}`, inline: true }
+                        )
+                        .setFooter({ text: hasEvasorRole ? '🕶️ Descuento fiscal (4%) | Escóndete 2 horas' : 'Impuesto: 8% | Escóndete 2 horas' })
                         .setTimestamp();
 
                     await i.update({ embeds: [successEmbed], components: [] });
