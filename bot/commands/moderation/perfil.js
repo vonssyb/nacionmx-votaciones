@@ -50,42 +50,63 @@ module.exports = {
             const member = await interaction.guild.members.fetch(targetUser.id);
 
             // Fetch Credit Card
-            const { data: creditCards } = await supabase
-                .from('credit_cards')
-                .select('card_type, available_limit, used_limit, total_limit')
-                .eq('guild_id', interaction.guildId)
-                .eq('user_id', targetUser.id)
-                .eq('active', true);
-            const creditCard = creditCards?.[0];
+            let creditCard = null;
+            try {
+                const { data: creditCards } = await supabase
+                    .from('credit_cards')
+                    .select('card_type, available_limit, used_limit, total_limit')
+                    .eq('guild_id', interaction.guildId)
+                    .eq('user_id', targetUser.id)
+                    .eq('active', true);
+                creditCard = creditCards?.[0];
+            } catch (e) {
+                console.error('[perfil] Failed to fetch credit cards:', e.message);
+            }
 
             // Fetch Licenses
             const licenses = [];
-            const licenseRoles = {
-                '1413543909761614005': '🚗 Licencia de Conducir',
-                '1413543907110682784': '🔫 Licencia de Armas Cortas',
-                '1413541379803578431': '🎯 Licencia de Armas Largas'
-            };
-            for (const [roleId, licenseName] of Object.entries(licenseRoles)) {
-                if (member.roles.cache.has(roleId)) {
-                    licenses.push(licenseName);
+            try {
+                const licenseRoles = {
+                    '1413543909761614005': '🚗 Licencia de Conducir',
+                    '1413543907110682784': '🔫 Licencia de Armas Cortas',
+                    '1413541379803578431': '🎯 Licencia de Armas Largas'
+                };
+                for (const [roleId, licenseName] of Object.entries(licenseRoles)) {
+                    if (member.roles.cache.has(roleId)) {
+                        licenses.push(licenseName);
+                    }
                 }
+            } catch (e) {
+                console.error('[perfil] Failed to fetch licenses:', e.message);
             }
 
             // Fetch Sanctions
-            const { data: sanctions } = await supabase
-                .from('sanctions')
-                .select('sanction_type, reason, created_at')
-                .eq('user_id', targetUser.id)
-                .order('created_at', { ascending: false })
-                .limit(5);
+            let sanctions = [];
+            try {
+                const { data } = await supabase
+                    .from('sanctions')
+                    .select('sanction_type, reason, created_at')
+                    .eq('user_id', targetUser.id)
+                    .order('created_at', { ascending: false })
+                    .limit(5);
+                sanctions = data || [];
+            } catch (e) {
+                console.error('[perfil] Failed to fetch sanctions:', e.message);
+            }
 
             // Fetch Active Passes
-            const { data: passes } = await supabase
-                .from('store_purchases')
-                .select('item_name, expires_at, uses_remaining')
-                .eq('user_id', targetUser.id)
-                .eq('active', true)
-                .gt('expires_at', new Date().toISOString());
+            let passes = [];
+            try {
+                const { data } = await supabase
+                    .from('store_purchases')
+                    .select('item_name, expires_at, uses_remaining')
+                    .eq('user_id', targetUser.id)
+                    .eq('active', true)
+                    .gt('expires_at', new Date().toISOString());
+                passes = data || [];
+            } catch (e) {
+                console.error('[perfil] Failed to fetch passes:', e.message);
+            }
 
             // Fetch DNI
             let dni = null;
