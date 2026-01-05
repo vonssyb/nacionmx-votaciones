@@ -5437,6 +5437,22 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
 
         if (subcommand === 'otorgar') {
             await interaction.deferReply();
+
+            // DNI Check
+            const { data: licenseDni } = await supabase
+                .from('citizen_dni')
+                .select('id')
+                .eq('guild_id', interaction.guildId)
+                .eq('user_id', interaction.options.getUser('ciudadano').id)
+                .maybeSingle();
+
+            if (!licenseDni) {
+                return interaction.editReply({
+                    content: '❌ **El ciudadano no tiene DNI**\n\nNo se puede otorgar licencia a alguien sin DNI.\nDiles que usen `/dni crear`.',
+                    ephemeral: true
+                });
+            }
+
             const targetUser = interaction.options.getUser('ciudadano');
             const tipo = interaction.options.getString('tipo');
 

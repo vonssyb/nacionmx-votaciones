@@ -2540,6 +2540,20 @@ const handleEconomyLegacy = async (interaction, client, supabase) => {
 
 
     else if (commandName === 'tarjeta') {
+        // DNI Check
+        const { data: tarjetaDni } = await supabase
+            .from('citizen_dni')
+            .select('id')
+            .eq('guild_id', interaction.guildId)
+            .eq('user_id', interaction.user.id)
+            .maybeSingle();
+
+        if (!tarjetaDni) {
+            return interaction.reply({
+                content: '❌ **DNI Requerido**\n\nNecesitas un DNI válido para gestionar tarjetas.\nCrea uno usando `/dni crear`.',
+                ephemeral: true
+            });
+        }
         const subcommand = interaction.options.getSubcommand();
 
         if (subcommand === 'info') {
@@ -5762,6 +5776,23 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
     else if (commandName === 'tienda') {
         const subcommand = interaction.options.getSubcommand();
 
+        // DNI Check for purchases
+        if (['comprar', 'pase'].includes(subcommand)) {
+            const { data: shopDni } = await supabase
+                .from('citizen_dni')
+                .select('id')
+                .eq('guild_id', interaction.guildId)
+                .eq('user_id', interaction.user.id)
+                .maybeSingle();
+
+            if (!shopDni) {
+                return interaction.reply({
+                    content: '❌ **DNI Requerido**\n\nNecesitas un DNI válido para comprar en la tienda.\nCrea uno usando `/dni crear`.',
+                    ephemeral: true
+                });
+            }
+        }
+
         if (subcommand === 'ver') {
             await interaction.deferReply();
 
@@ -6296,6 +6327,20 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
     }
 
     else if (commandName === 'crimen') {
+        // DNI Check
+        const { data: crimenDni } = await supabase
+            .from('citizen_dni')
+            .select('id')
+            .eq('guild_id', interaction.guildId)
+            .eq('user_id', interaction.user.id)
+            .maybeSingle();
+
+        if (!crimenDni) {
+            return interaction.reply({
+                content: '❌ **DNI Requerido**\n\nNecesitas un DNI válido para realizar actividades criminales.\nCrea uno usando `/dni crear`.',
+                ephemeral: true
+            });
+        }
         await interaction.deferReply();
         const CRIME_COOLDOWN = 120 * 60 * 1000;
         const crimeKey = `crime_${interaction.user.id}`;
