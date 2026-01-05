@@ -282,20 +282,19 @@ client.on('interactionCreate', async interaction => {
                 try {
                     const member = await interaction.guild.members.fetch(sanction.discord_user_id);
                     if (member) {
-                        // SA Role IDs
-                        const saRoles = {
-                            '1SA': '1412899401000685588',
-                            '2SA': '1413541382869618731',
-                            '3SA': '1412899404167512064'
+                        // SA Role IDs (matching sancion.js)
+                        const SA_ROLES = {
+                            1: '1450997809234051122', // SA 1
+                            2: '1454636391932756049', // SA 2
+                            3: '1456028699718586459', // SA 3
+                            4: '1456028797638934704', // SA 4
+                            5: '1456028933995630701'  // SA 5
                         };
 
                         // Remove all SA roles
-                        for (const roleId of Object.values(saRoles)) {
-                            if (member.roles.cache.has(roleId)) {
-                                await member.roles.remove(roleId);
-                                console.log(`[SA Appeal] Removed role ${roleId} from ${member.user.tag}`);
-                            }
-                        }
+                        const allSaRoles = Object.values(SA_ROLES);
+                        await member.roles.remove(allSaRoles);
+                        console.log(`[SA Appeal] Removed all SA roles from ${member.user.tag}`);
                     }
                 } catch (roleError) {
                     console.error('[SA Appeal] Error removing SA role:', roleError);
