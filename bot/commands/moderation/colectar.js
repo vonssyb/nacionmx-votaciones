@@ -94,8 +94,8 @@ module.exports = {
             const ubService = new UnbelievaBoatService(ubToken);
 
             try {
-                await ubService.addMoney(guildId, userId, 0, netAmount); // Add to bank only
-                console.log(`[colectar] Deposited $${netAmount} to bank for ${interaction.user.tag}`);
+                await ubService.addMoney(guildId, userId, netAmount, 0); // Add to cash only
+                console.log(`[colectar] Deposited $${netAmount} to cash for ${interaction.user.tag}`);
             } catch (ubError) {
                 console.error('[colectar] UnbelievaBoat error:', ubError);
                 return interaction.editReply('❌ Error al depositar el salario. Intenta más tarde.');
@@ -120,7 +120,7 @@ module.exports = {
 
             // 6. Get new balance
             const balance = await ubService.getUserBalance(guildId, userId);
-            const newBankBalance = balance.bank || 0;
+            const newCashBalance = balance.cash || 0;
 
             // 7. Send success embed
             const successEmbed = new EmbedBuilder()
@@ -133,7 +133,7 @@ module.exports = {
                     { name: '💵 Salario Bruto', value: `$${grossAmount.toLocaleString()}`, inline: true },
                     { name: '📉 Impuesto (14%)', value: `-$${taxAmount.toLocaleString()}`, inline: true },
                     { name: '💚 Neto Depositado', value: `**$${netAmount.toLocaleString()}**`, inline: true },
-                    { name: '🏦 Nuevo Balance Bancario', value: `$${newBankBalance.toLocaleString()}`, inline: false },
+                    { name: '💵 Nuevo Balance en Efectivo', value: `$${newCashBalance.toLocaleString()}`, inline: false },
                     { name: '⏰ Próxima Colecta', value: moment().add(72, 'hours').format('DD/MM/YYYY HH:mm'), inline: false }
                 )
                 .setFooter({ text: 'Nación MX | Sistema de Nómina' })
@@ -150,7 +150,7 @@ module.exports = {
                 userId,
                 transactionType: 'salary_collection',
                 amount: netAmount,
-                currencyType: 'bank',
+                currencyType: 'cash',
                 reason: `Salario colectado: ${highestSalary.role_name}`,
                 metadata: {
                     role: highestSalary.role_name,
