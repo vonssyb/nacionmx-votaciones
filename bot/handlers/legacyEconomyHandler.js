@@ -10,7 +10,11 @@ require('dotenv').config();
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabase = createClient(supabaseUrl, process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY);
 let billingService; // Global scope for helpers
+let storeService;
+let stakingService;
+let slotsService;
 const GUILD_ID = process.env.GUILD_ID ? process.env.GUILD_ID.trim() : null;
+const CANCELLATIONS_CHANNEL_ID = '1455691472362934475';
 
 // LOG CHANNELS (Moved up if needed, but they are defined below usually)
 
@@ -837,8 +841,9 @@ async function handleBlackjackAction(interaction) {
 }
 
 const startLegacyBackgroundTasks = async (client) => {
-    // Inject billingService for background tasks
+    // Inject services for background tasks
     billingService = client.services.billing;
+    storeService = client.services.store;
     console.log(`🤖 Bot iniciado como ${client.user.tag}!`);
 
     // Load Modular Commands - ALREADY DONE IN INDEX_ECONOMIA.JS
@@ -1535,7 +1540,7 @@ const handleEconomyLegacy = async (interaction, client, supabase) => {
 
         await interaction.followUp({
             content: `✅ **¡Mejora Completada!**\n\n🎉 Nueva tarjeta: **${targetTier}**\n💰 Costo: $${tierInfo.cost.toLocaleString()}\n💳 Nuevo saldo: $${newBalance.toLocaleString()}\n📊 Límite: ${tierInfo.max_balance === Infinity ? '♾️ Ilimitado' : '$' + tierInfo.max_balance.toLocaleString()}`,
-            
+
         });
     }
 
@@ -1981,7 +1986,7 @@ const handleEconomyLegacy = async (interaction, client, supabase) => {
 
     // BUTTON: Company Payroll (from panel)
     if (interaction.isButton() && interaction.customId.startsWith('company_payroll_')) {
-        await interaction.deferReply({  });
+        await interaction.deferReply({});
 
         const companyId = interaction.customId.split('_')[2];
 
@@ -2029,7 +2034,7 @@ const handleEconomyLegacy = async (interaction, client, supabase) => {
 
     // BUTTON: Company Withdraw Funds
     if (interaction.isButton() && interaction.customId.startsWith('company_withdraw_')) {
-        await interaction.deferReply({  });
+        await interaction.deferReply({});
 
         const companyId = interaction.customId.split('_')[2];
 
@@ -2121,7 +2126,7 @@ const handleEconomyLegacy = async (interaction, client, supabase) => {
 
     // Apply 8% tax to giro transfers
     if (interaction.isCommand() && interaction.commandName === 'giro') {
-        await interaction.deferReply({  });
+        await interaction.deferReply({});
 
         const destUser = interaction.options.getUser('destinatario');
         const monto = interaction.options.getNumber('monto');
@@ -2373,7 +2378,7 @@ const handleEconomyLegacy = async (interaction, client, supabase) => {
 
     // BUTTON: Company Stats
     if (interaction.isButton() && interaction.customId.startsWith('company_stats_')) {
-        await interaction.deferReply({  });
+        await interaction.deferReply({});
 
         const companyId = interaction.customId.split('_')[2];
 
@@ -2779,7 +2784,7 @@ const handleEconomyLegacy = async (interaction, client, supabase) => {
 
     else if (commandName === 'registrar-tarjeta') {
         // DEFER IMMEDIATELY before anything else
-        await interaction.deferReply({  });
+        await interaction.deferReply({});
 
         try {
             // === ROLE-BASED AUTHORIZATION ===
@@ -3116,7 +3121,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
     }
 
     else if (commandName === 'credito') {
-        await interaction.deferReply({  }); // Global defer to prevent timeouts
+        await interaction.deferReply({}); // Global defer to prevent timeouts
 
         const subCmd = interaction.options.getSubcommand();
         const isPrivate = interaction.options.getBoolean('privado') ?? false;
@@ -3642,7 +3647,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
 
         // Helper function to rename channel based on state
         else if (subCmd === 'debug') {
-            await interaction.deferReply({  });
+            await interaction.deferReply({});
 
             const userId = interaction.user.id;
             const userName = interaction.user.tag;
@@ -3794,7 +3799,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
     }
 
     else if (commandName === 'rol') {
-        await interaction.deferReply({  });
+        await interaction.deferReply({});
         const subCmd = interaction.options.getSubcommand();
         if (subCmd === 'cancelar') {
 
