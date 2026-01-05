@@ -77,17 +77,24 @@ module.exports = {
                 .setThumbnail(targetUser.displayAvatarURL({ dynamic: true, size: 256 }))
                 .setTimestamp();
 
-            // Economy Section
-            let economyText = `💵 **Efectivo:** $${cash.toLocaleString()}\n`;
-            economyText += `🏦 **Banco:** $${bank.toLocaleString()}\n`;
-            economyText += `💰 **Total:** $${total.toLocaleString()}`;
+            // Economy Section - Enhanced Display
+            let economyText = `💵 **EFECTIVO:** $${cash.toLocaleString()}\n`;
+            economyText += `🏦 **BANCO / DÉBITO:** $${bank.toLocaleString()}`;
 
             if (creditCard) {
                 const available = creditCard.available_limit || 0;
                 const used = creditCard.used_limit || 0;
-                economyText += `\n\n💳 **${creditCard.card_type}**\n`;
-                economyText += `   Disponible: $${available.toLocaleString()}\n`;
-                economyText += `   Usado: $${used.toLocaleString()}`;
+                const creditTotal = total + available;
+
+                economyText += `\n\n💳 **CRÉDITO**\n`;
+                economyText += `Disponible: $${available.toLocaleString()}\n`;
+                economyText += `Deuda: $${used.toLocaleString()}`;
+
+                economyText += `\n\n📊 **PATRIMONIO TOTAL**\n`;
+                economyText += `✅ $${creditTotal.toLocaleString()}`;
+            } else {
+                economyText += `\n\n📊 **PATRIMONIO TOTAL**\n`;
+                economyText += `✅ $${total.toLocaleString()}`;
             }
 
             embed.addFields({ name: '💼 Economía', value: economyText, inline: false });
