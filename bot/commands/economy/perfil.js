@@ -119,11 +119,16 @@ module.exports = {
             try {
                 const { data } = await supabase
                     .from('citizen_dni')
-                    .select('name, date_of_birth')
+                    .select('nombre, apellido, fecha_nacimiento, edad')
                     .eq('guild_id', interaction.guildId)
                     .eq('user_id', targetUser.id)
                     .maybeSingle();
                 dni = data;
+                if (dni) {
+                    console.log(`[perfil] DNI found: ${dni.nombre} ${dni.apellido}`);
+                } else {
+                    console.log(`[perfil] No DNI found for user ${targetUser.id}`);
+                }
             } catch (e) {
                 console.error('[perfil] Failed to fetch DNI:', e.message);
             }
@@ -162,8 +167,9 @@ module.exports = {
                 .setTimestamp();
 
             // 1. Identity Section
-            const birthDate = dni?.date_of_birth
-                ? new Date(dni.date_of_birth).toLocaleDateString('es-MX')
+            const fullName = dni ? `${dni.nombre} ${dni.apellido}` : 'Ciudadano sin DNI';
+            const birthDate = dni?.fecha_nacimiento
+                ? new Date(dni.fecha_nacimiento).toLocaleDateString('es-MX')
                 : 'No registrado';
 
             const arrestStatus = isArrestedRole
@@ -172,7 +178,7 @@ module.exports = {
 
             embed.addFields({
                 name: '🆔 Identidad',
-                value: `**Nombre:** ${dni?.name || 'Ciudadano sin DNI'}\n**Nacimiento:** ${birthDate}\n**Estado Legal:** ${arrestStatus}`,
+                value: `**Nombre:** ${fullName}\n**Nacimiento:** ${birthDate}\n**Estado Legal:** ${arrestStatus}`,
                 inline: false
             });
 
