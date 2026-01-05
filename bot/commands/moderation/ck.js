@@ -10,6 +10,14 @@ module.exports = {
                 .setName('aplicar')
                 .setDescription('Aplicar CK a un usuario (reseteo total)')
                 .addUserOption(option => option.setName('usuario').setDescription('Usuario a resetear').setRequired(true))
+                .addStringOption(option =>
+                    option.setName('tipo')
+                        .setDescription('Tipo de CK')
+                        .setRequired(true)
+                        .addChoices(
+                            { name: 'CK Normal', value: 'CK Normal' },
+                            { name: 'CK Administrativo', value: 'CK Administrativo' }
+                        ))
                 .addStringOption(option => option.setName('razon').setDescription('Razón del CK').setRequired(true))
                 .addAttachmentOption(option => option.setName('evidencia').setDescription('Screenshot de evidencia').setRequired(true))),
 
@@ -24,6 +32,7 @@ module.exports = {
         }
 
         const targetUser = interaction.options.getUser('usuario');
+        const ckTipo = interaction.options.getString('tipo');
         const razon = interaction.options.getString('razon');
         const evidencia = interaction.options.getAttachment('evidencia');
 
@@ -50,9 +59,9 @@ module.exports = {
 
         // Confirmation with buttons
         const confirmEmbed = new EmbedBuilder()
-            .setTitle('⚠️ CONFIRMACIÓN DE CHARACTER KILL')
+            .setTitle(`⚠️ CONFIRMACIÓN DE ${ckTipo.toUpperCase()}`)
             .setColor('#FF0000')
-            .setDescription(`Estás a punto de aplicar un CK a **${targetUser.tag}**. Esta acción es **IRREVERSIBLE** y realizará:\n\n` +
+            .setDescription(`Estás a punto de aplicar un **${ckTipo}** a **${targetUser.tag}**. Esta acción es **IRREVERSIBLE** y realizará:\n\n` +
                 `- ❌ Quitar TODO el dinero (cash + banco)\n` +
                 `- ❌ Eliminar tarjetas de crédito/débito\n` +
                 `- ❌ Remover TODOS los roles (excepto ${protectedRoles.length} protegidos)\n` +
@@ -181,12 +190,13 @@ module.exports = {
 
                     // 8. Create result embed
                     const resultEmbed = new EmbedBuilder()
-                        .setTitle('💀 CK NORMAL')
+                        .setTitle(`💀 ${ckTipo.toUpperCase()}`)
                         .setColor('#8B0000')
                         .setThumbnail('https://cdn.discordapp.com/attachments/885232074083143741/1457553016743006363/25174-skull-lmfao.gif')
                         .addFields(
                             { name: 'Aprobado por:', value: `<@${interaction.user.id}>`, inline: true },
                             { name: 'Usuario afectado:', value: `<@${targetUser.id}>`, inline: true },
+                            { name: 'Tipo de CK:', value: ckTipo, inline: true },
                             { name: 'Razón del CK:', value: razon, inline: false },
                             { name: 'Roles removidos:', value: removedRoles.length > 0 ? removedRoles.slice(0, 10).join(', ') + (removedRoles.length > 10 ? `... (+${removedRoles.length - 10} más)` : '') : 'Ninguno', inline: false }
                         )
@@ -213,12 +223,14 @@ module.exports = {
                     // 10. Notify user via DM
                     try {
                         const dmEmbed = new EmbedBuilder()
-                            .setTitle('💀 Character Kill Aplicado')
+                            .setTitle(`💀 ${ckTipo} Aplicado`)
                             .setColor('#FF0000')
                             .setDescription(`Tu personaje en Nación MX ha sido reseteado completamente.`)
                             .addFields(
+                                { name: 'Tipo de CK', value: ckTipo, inline: false },
                                 { name: 'Razón', value: razon, inline: false },
-                                { name: '¿Qué perdiste?', value: 'Dinero, roles, licencias, tarjetas, y DNI', inline: false }
+                                { name: '¿Qué perdiste?', value: 'Dinero, roles, licencias, tarjetas, y DNI', inline: false },
+                                { name: '⚠️ Importante', value: 'Debes crear un nuevo DNI usando `/dni crear`', inline: false }
                             )
                             .setFooter({ text: 'Puedes volver a empezar desde cero' })
                             .setTimestamp();
