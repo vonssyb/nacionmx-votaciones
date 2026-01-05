@@ -6794,8 +6794,18 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             }
 
             if (amount <= 0) return interaction.editReply('❌ Monto inválido.');
-            if ((balance.bank || 0) < amount) {
-                return interaction.editReply(`❌ **Fondos Insuficientes en Banco**\nRequiere: $${amount.toLocaleString()}\nTienes: $${(balance.bank || 0).toLocaleString()}`);
+
+            // Check for Evasor Fiscal role
+            const EVASOR_FISCAL_ROLE_ID = '1449950636371214397';
+            const hasEvasorRole = interaction.member.roles.cache.has(EVASOR_FISCAL_ROLE_ID);
+
+            // Calculate transaction tax
+            const taxRate = hasEvasorRole ? 0.04 : 0.08; // 4% with evasor, 8% normal
+            const taxAmount = Math.floor(amount * taxRate);
+            const totalRequired = amount + taxAmount;
+
+            if ((balance.bank || 0) < totalRequired) {
+                return interaction.editReply(`❌ **Fondos Insuficientes en Banco**\n\nMonto: $${amount.toLocaleString()}\nImpuesto (${taxRate * 100}%): $${taxAmount.toLocaleString()}\nTotal Requerido: $${totalRequired.toLocaleString()}\nTienes: $${(balance.bank || 0).toLocaleString()}`);
             }
 
             // Check recipient has debit card
@@ -6810,8 +6820,11 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 return interaction.editReply(`❌ ${targetUser.tag} no tiene una tarjeta de débito activa.`);
             }
 
-            // Remove money from sender
+            // Remove money from sender (transfer amount + tax)
             await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, amount, `Transfer a ${targetUser.tag}`, 'bank');
+
+            // Charge transaction tax
+            await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, taxAmount, `💸 Impuesto Transaccional (${taxRate * 100}%)`, 'bank');
 
             // Schedule transfer (5 minutes)
             const releaseDate = new Date(Date.now() + (5 * 60 * 1000));
@@ -6832,10 +6845,12 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 .setDescription(`Transferencia a **${targetUser.tag}** en proceso.`)
                 .addFields(
                     { name: '💰 Monto', value: `$${amount.toLocaleString()}`, inline: true },
+                    { name: '💸 Impuesto', value: `$${taxAmount.toLocaleString()} (${taxRate * 100}%)`, inline: true },
+                    { name: '🔢 Total Cobrado', value: `$${totalRequired.toLocaleString()}`, inline: true },
                     { name: '⏱️ Tiempo', value: '5 minutos', inline: true },
                     { name: '📝 Concepto', value: concepto, inline: false }
                 )
-                .setFooter({ text: 'El dinero se acreditará automáticamente' })
+                .setFooter({ text: hasEvasorRole ? '✅ Descuento fiscal aplicado (4%)' : 'Impuesto transaccional: 8%' })
                 .setTimestamp();
 
             return interaction.editReply({ embeds: [embed] });
