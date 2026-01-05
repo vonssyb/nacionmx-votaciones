@@ -6341,8 +6341,6 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             }
         });
     }
-
-    // Helper function to rename channel based on state
 }
 
     else if (commandName === 'crimen') {

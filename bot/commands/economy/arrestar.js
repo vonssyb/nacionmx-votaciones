@@ -22,8 +22,7 @@ module.exports = {
                 .setDescription('Tiempo en minutos (Opcional - Se calcula automático si se deja vacío)')
                 .setRequired(false)
                 .setMinValue(1)
-                .setMaxValue(10080)) // 1 week max manually
-
+                .setMaxValue(10080)), // 1 week max manually
 
     async execute(interaction, client, supabase) {
         await interaction.deferReply({ ephemeral: false });
