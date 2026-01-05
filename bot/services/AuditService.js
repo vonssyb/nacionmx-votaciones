@@ -159,7 +159,7 @@ class AuditService {
      */
     async flagSuspiciousTransaction(transaction) {
         try {
-            const alertChannel = await this.client.channels.fetch(this.AUDIT_CHANNEL_ID);
+            const alertChannel = await this.client.channels.fetch(this.SECURITY_ALERTS_CHANNEL_ID);
             if (!alertChannel) return;
 
             const { EmbedBuilder } = require('discord.js');
