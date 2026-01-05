@@ -90,7 +90,7 @@ client.once('clientReady', async () => {
 
     // Load Legacy Economy Commands from commands.js
     const allLegacyCommands = require('./commands.js');
-    const excludedCommands = ['fichar', 'rol', 'multa', 'licencia', 'sesion']; // Moderation only
+    const excludedCommands = ['rol', 'multa', 'licencia', 'sesion']; // Moderation only
     const modularCommandNames = Array.from(client.commands.keys());
 
     const legacyEconomyCommands = allLegacyCommands.filter(cmd =>
@@ -141,7 +141,20 @@ client.once('clientReady', async () => {
 client.on('interactionCreate', async interaction => {
     // 1. SLASH COMMANDS
     if (interaction.isChatInputCommand()) {
-        const command = client.commands.get(interaction.commandName);
+        // Instant defer to prevent "Application did not respond"
+        // We monkey-patch deferReply to be a no-op if already called later
+        if (interaction.deferReply) {
+            const originalDefer = interaction.deferReply.bind(interaction);
+            interaction.deferReply = async (opts) => {
+                if (interaction.deferred || interaction.replied) return;
+                return originalDefer(opts).catch(e => console.error("Defer error:", e));
+            };
+        }
+
+        await interaction.deferReply({ ephemeral: false }).catch(() => { });
+
+        const commandName = interaction.commandName;
+        const command = client.commands.get(commandName);
 
         if (!command) {
             // FALLBACK TO LEGACY HANDLER for migrated commands not yet modularized

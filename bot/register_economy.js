@@ -34,13 +34,13 @@ async function registerEconomyCommands() {
     // 1. Load modular commands from /commands/economy, /commands/games, /commands/utils
     const client = { commands: new Map() };
     const commandsPath = path.join(__dirname, 'commands');
-    await loadCommands(client, commandsPath, ['economy', 'games', 'utils']);
+    await loadCommands(client, commandsPath, ['economy', 'games', 'utils', 'business']);
 
     // 2. Load legacy economy commands from commands.js
     const allLegacyCommands = require('./commands.js');
 
     // Exclude moderation commands AND modular command names (to avoid duplicates)
-    const excludedCommands = ['fichar', 'rol', 'multa', 'licencia', 'sesion'];
+    const excludedCommands = ['rol', 'multa_legacy', 'licencia', 'sesion', 'verificar', 'sancion'];
     const modularCommandNames = Array.from(client.commands.keys()); // Get names of modular commands
 
     const legacyEconomyCommands = allLegacyCommands.filter(cmd =>

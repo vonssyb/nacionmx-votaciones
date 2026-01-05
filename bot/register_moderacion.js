@@ -12,8 +12,8 @@ const path = require('path');
 const commands = [];
 const commandsPath = path.join(__dirname, 'commands');
 
-// ALLOWED CATEGORIES FOR MODERATION BOT
-const ALLOWED_CATEGORIES = ['moderation', 'utils'];
+// ALLOWED CATEGORIES FOR MODERATION BOT (Strict)
+const ALLOWED_CATEGORIES = ['moderation'];
 
 // 1. DYNAMIC LOADING
 if (fs.existsSync(commandsPath)) {
@@ -45,7 +45,7 @@ if (fs.existsSync(commandsPath)) {
 try {
     const legacyCommands = require('./commands.js');
     const MOD_LEGACY = [
-        'ping', 'info', 'rol', 'licencia', 'sesion', 'ayuda'
+        'ping', 'info', 'sesion', 'ayuda', 'verificar'
     ];
 
     legacyCommands.forEach(cmd => {
