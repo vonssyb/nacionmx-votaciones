@@ -16,11 +16,11 @@ module.exports = {
     async execute(interaction, client, supabase) {
         await interaction.deferReply({ ephemeral: false });
 
-        const juntaDirectivaRoleId = '1412882245735420006';
+        const encargadoCKRoleId = '1450938106395234526';
 
-        // Permission Check - Only Junta Directiva
-        if (!interaction.member.roles.cache.has(juntaDirectivaRoleId) && !interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
-            return interaction.editReply('❌ Solo la Junta Directiva puede aplicar un CK.');
+        // Permission Check - Only Encargado de CK
+        if (!interaction.member.roles.cache.has(encargadoCKRoleId) && !interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
+            return interaction.editReply('❌ Solo el Encargado de CK puede aplicar un CK.');
         }
 
         const targetUser = interaction.options.getUser('usuario');
@@ -196,7 +196,14 @@ module.exports = {
 
                     await i.editReply({ content: '', embeds: [resultEmbed] });
 
-                    // 9. Send to audit channel
+                    // 9. Send to PUBLIC CK channel
+                    const CK_PUBLIC_CHANNEL_ID = '1412957234824089732';
+                    const ckChannel = await client.channels.fetch(CK_PUBLIC_CHANNEL_ID);
+                    if (ckChannel) {
+                        await ckChannel.send({ embeds: [resultEmbed] });
+                    }
+
+                    // Also send to audit channel
                     const AUDIT_CHANNEL_ID = process.env.AUDIT_LOGS_CHANNEL_ID || '1450610756663115879';
                     const auditChannel = await client.channels.fetch(AUDIT_CHANNEL_ID);
                     if (auditChannel) {

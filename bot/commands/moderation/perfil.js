@@ -17,12 +17,19 @@ module.exports = {
 
         try {
             // Fetch Economy Data
-            const { data: balance } = await supabase
+            const { data: balance, error: balanceError } = await supabase
                 .from('user_balances')
                 .select('cash, bank')
                 .eq('guild_id', interaction.guildId)
                 .eq('user_id', targetUser.id)
                 .maybeSingle();
+
+            console.log('[perfil] Balance query:', {
+                guildId: interaction.guildId,
+                userId: targetUser.id,
+                balance,
+                error: balanceError
+            });
 
             const cash = balance?.cash || 0;
             const bank = balance?.bank || 0;
