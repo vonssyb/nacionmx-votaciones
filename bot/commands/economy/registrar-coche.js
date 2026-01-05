@@ -48,7 +48,13 @@ module.exports = {
         const color = interaction.options.getString('color');
         const tipo = interaction.options.getString('tipo');
 
-        // 2. Determine Cost
+        // 2. Validate plate format (ABC-123)
+        const plateRegex = /^[A-Z]{3}-[0-9]{3}$/;
+        if (!plateRegex.test(matricula)) {
+            return interaction.editReply('❌ **Formato de Placa Inválido**\n\nDebe ser 3 letras, guión, 3 números.\n**Ejemplo:** ABC-123');
+        }
+
+        // 3. Determine Cost
         const COSTS = {
             'Particular': 1000,
             'SUV': 1500,
