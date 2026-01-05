@@ -96,16 +96,23 @@ module.exports = {
                 // Fetch Sanctions
                 (async () => {
                     try {
+                        console.log(`[perfil] Querying sanctions for user ${targetUser.id}`);
                         const { data, error } = await supabase
                             .from('sanctions')
-                            .select('sanction_type, reason, created_at')
-                            .eq('user_id', targetUser.id)
+                            .select('type, reason, created_at, status')
+                            .eq('discord_user_id', targetUser.id)  // Correct column name
                             .order('created_at', { ascending: false })
                             .limit(5);
 
                         if (error) {
                             console.error('[perfil] Sanctions query error:', error);
                             return [];
+                        }
+
+                        if (data && data.length > 0) {
+                            console.log(`[perfil] ✅ Found ${data.length} sanction(s)`);
+                        } else {
+                            console.log(`[perfil] ℹ️ No sanctions found for user ${targetUser.id}`);
                         }
                         return data || [];
                     } catch (e) {
@@ -291,13 +298,14 @@ module.exports = {
             if ((isOwnProfile || isStaff) && sanctions && sanctions.length > 0) {
                 const sanctionText = sanctions.map(s => {
                     const date = new Date(s.created_at).toLocaleDateString('es-MX');
-                    return `⚠️ **${s.sanction_type}** (${date})\n   ${s.reason}`;
+                    const statusIcon = s.status === 'active' ? '🔴' : s.status === 'archived' ? '⚪' : '🔵';
+                    return `${statusIcon} **${s.type.toUpperCase()}** (${date})\n   ${s.reason}`;
                 }).join('\n\n');
 
                 embed.addFields({
                     name: '📋 Historial de Sanciones (Últimas 5)',
                     value: sanctionText.substring(0, 1024), // Discord limit
-                    inline: false
+                    inline: false,
                 });
             } else if ((isOwnProfile || isStaff) && (!sanctions || sanctions.length === 0)) {
                 embed.addFields({
