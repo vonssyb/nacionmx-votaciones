@@ -6398,18 +6398,19 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
 
         // Helper function to rename channel based on state
 
-        // Cooldown Check (2 Hours)
-        const COOLDOWN_TIME = 2 * 60 * 60 * 1000;
-        const cooldownKey = `rob_${interaction.user.id}`;
-        const lastRob = casinoSessions[cooldownKey] || 0; // Reusing casinoSessions as simple cache or could use new Map
+        // Cooldown Check
+        // Standard: 2 Hours (120 min), UltraPass: 1 Hour (60 min)
+        const ULTRAPASS_ROLE_ID = '1414033620636532849';
+        const isUltraPass = interaction.member.roles.cache.has(ULTRAPASS_ROLE_ID);
 
-        // Note: Ideally use a dedicated Map for cooldowns, but for now using a global object or Map is fine. 
-        // Let's assume we use a new Map for clarity or just add it to top level variable if needed.
-        // Using `lastRob` from a Map. Let's create a global map in the file scope if not exists.
+        const COOLDOWN_TIME = isUltraPass ? 60 * 60 * 1000 : 2 * 60 * 60 * 1000;
+        const cooldownKey = `rob_${interaction.user.id}`;
+        const lastRob = casinoSessions[cooldownKey] || 0;
+        // Note: Using casinoSessions as simple in-memory cache
 
         if (Date.now() - lastRob < COOLDOWN_TIME) {
             const remaining = Math.ceil((COOLDOWN_TIME - (Date.now() - lastRob)) / 60000);
-            return interaction.editReply(`⏳ **Cooldown Activo**\nDebes esperar **${remaining} minutos** para volver a robar.`);
+            return interaction.editReply(`⏳ **Cooldown Activo**\nDebes esperar **${remaining} minutos** para volver a robar.${!isUltraPass ? '\n💡 **UltraPass** reduce esto a la mitad.' : ''}`);
         }
 
         // Helper function to rename channel based on state
@@ -6430,7 +6431,12 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             if (isSuccess) {
                 // Success: Steal 5-15%
                 const percent = (Math.random() * 0.10) + 0.05;
-                const stealAmount = Math.floor(victimCash * percent);
+                let stealAmount = Math.floor(victimCash * percent);
+
+                // CAP at $15,000 for Premium/Anyone (Global Rule or Premium Rule? Assuming Global for now based on request "Criminal: Limit $15k per robbery")
+                if (stealAmount > 15000) {
+                    stealAmount = 15000;
+                }
 
                 await billingService.ubService.removeMoney(interaction.guildId, targetUser.id, stealAmount, `Robado por ${interaction.user.tag}`, 'cash');
                 await billingService.ubService.addMoney(interaction.guildId, interaction.user.id, stealAmount, `Robo a ${targetUser.tag}`, 'cash');
