@@ -17,7 +17,7 @@ const historyPaginator = new HistoryPaginator(supabase);
 
 // Command handler
 else if (commandName === 'historial') {
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: [64] });
 
     try {
         // Get filters from options (if any)
@@ -66,7 +66,7 @@ client.on('interactionCreate', async (interaction) => {
         if (!session) {
             return interaction.reply({
                 content: '❌ Sesión expirada. Ejecuta `/historial` nuevamente.',
-                ephemeral: true
+                flags: [64]
             });
         }
 
@@ -74,7 +74,7 @@ client.on('interactionCreate', async (interaction) => {
         if (session.userId !== interaction.user.id) {
             return interaction.reply({
                 content: '❌ Esta sesión no te pertenece.',
-                ephemeral: true
+                flags: [64]
             });
         }
 
@@ -133,14 +133,14 @@ client.on('interactionCreate', async (interaction) => {
                 await interaction.followUp({
                     content: '✅ Tu historial ha sido exportado:',
                     files: [attachment],
-                    ephemeral: true
+                    flags: [64]
                 });
 
             } else if (type === 'filter') {
                 // Show filter modal  (future enhancement)
                 await interaction.followUp({
                     content: '🔍 Filtros: Usa las opciones del comando `/historial` para filtrar.\n\nEjemplos:\n`/historial tipo:Transfer`\n`/historial estado:SUCCESS monto_min:1000`',
-                    ephemeral: true
+                    flags: [64]
                 });
             }
 
@@ -148,7 +148,7 @@ client.on('interactionCreate', async (interaction) => {
             console.error('Error in history pagination:', error);
             await interaction.followUp({
                 content: '❌ Error al procesar la acción.',
-                ephemeral: true
+                flags: [64]
             });
         }
     }

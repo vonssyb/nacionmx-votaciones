@@ -41,7 +41,7 @@ module.exports = {
             } catch (ubError) {
                 console.error('[perfil] Error fetching UnbelievaBoat balance:', ubError.message);
                 // Continue with 0 if API fails
-                await interaction.followUp({ content: '⚠️ Alerta: No se pudo verificar el saldo en tiempo real (UnbelievaBoat lento).', ephemeral: true });
+                await interaction.followUp({ content: '⚠️ Alerta: No se pudo verificar el saldo en tiempo real (UnbelievaBoat lento).', flags: [64] });
             }
 
             const total = cash + bank;

@@ -2,7 +2,7 @@
 // Add this to index.js
 
 else if (commandName === 'privacidad') {
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: [64] });
     const subCmd = interaction.options.getSubcommand();
     const userId = interaction.user.id;
 

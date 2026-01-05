@@ -7,7 +7,7 @@ module.exports = {
         .setDescription('💰 Colectar tu salario semanal (cada 72 horas)'),
 
     async execute(interaction, client, supabase) {
-        await interaction.deferReply({ ephemeral: false }); // Show "pensando..."
+        await interaction.deferReply({  }); // Show "pensando..."
 
         const userId = interaction.user.id;
         const guildId = interaction.guildId;
@@ -24,7 +24,7 @@ module.exports = {
             if (!dni) {
                 return interaction.editReply({
                     content: '❌ **DNI Requerido**\n\nNecesitas un DNI válido para colectar salario.\nCrea uno usando `/dni crear`.',
-                    ephemeral: true
+                    flags: [64]
                 });
             }
 
@@ -50,7 +50,7 @@ module.exports = {
 
                     return interaction.editReply({
                         content: `⏰ **Cooldown Activo**\n\nYa colectaste tu salario recientemente.\n\n**Próxima colecta disponible:**\n🕐 En ${hoursLeft}h ${minutesLeft}m\n📅 ${nextAvailable.format('DD/MM/YYYY HH:mm')}`,
-                        ephemeral: true
+                        flags: [64]
                     });
                 }
             }
@@ -74,7 +74,7 @@ module.exports = {
             if (!salaries || salaries.length === 0) {
                 return interaction.editReply({
                     content: '❌ **Sin Rol de Trabajo**\n\nNo tienes ningún rol con salario asignado.\nContacta a un administrador si crees que esto es un error.',
-                    ephemeral: true
+                    flags: [64]
                 });
             }
 

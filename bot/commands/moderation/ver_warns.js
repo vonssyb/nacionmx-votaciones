@@ -12,7 +12,7 @@ module.exports = {
 
     async execute(interaction) {
         // Defer immediately to prevent timeout on slow systems (e.g. Render spin-up)
-        await interaction.deferReply({ ephemeral: true });
+        await interaction.deferReply({ flags: [64] });
 
         // SECURITY CHECK: Specific Role/User ID Check
         const authorizedIds = [

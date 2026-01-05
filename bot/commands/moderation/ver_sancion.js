@@ -12,7 +12,7 @@ module.exports = {
                 .setRequired(true)),
 
     async execute(interaction) {
-        await interaction.deferReply({ ephemeral: true });
+        await interaction.deferReply({ flags: [64] });
 
         const sanctionId = interaction.options.getString('id');
 

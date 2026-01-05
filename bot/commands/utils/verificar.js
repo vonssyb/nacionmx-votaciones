@@ -11,7 +11,7 @@ module.exports = {
                 .setRequired(true)),
 
     async execute(interaction, client, supabase) {
-        await interaction.deferReply({ ephemeral: false });
+        await interaction.deferReply({  });
 
         const robloxUsername = interaction.options.getString('usuario');
         const discordUserId = interaction.user.id;
@@ -122,11 +122,11 @@ module.exports = {
                             await logChannel.send(`<@${discordUserId}> se ha verificado como **${realUsername}**.`);
                         }
                     } else {
-                        await i.followUp({ content: `❌ **Código no encontrado.**\nAsegúrate de haber pegado \`${verifCode}\` en tu bio de Roblox y que sea visible públicamente.`, ephemeral: true });
+                        await i.followUp({ content: `❌ **Código no encontrado.**\nAsegúrate de haber pegado \`${verifCode}\` en tu bio de Roblox y que sea visible públicamente.`, flags: [64] });
                     }
                 } catch (err) {
                     console.error('[VERIFICAR] Interaction Error:', err);
-                    await i.followUp({ content: '❌ Error al consultar tu perfil de Roblox. Intenta de nuevo en unos segundos.', ephemeral: true });
+                    await i.followUp({ content: '❌ Error al consultar tu perfil de Roblox. Intenta de nuevo en unos segundos.', flags: [64] });
                 }
             });
 

@@ -23,11 +23,11 @@ else if (commandName === 'limits') {
     if (!hasPermission) {
         return interaction.reply({
             content: '❌ No tienes permisos para gestionar límites.',
-            ephemeral: true
+            flags: [64]
         });
     }
 
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: [64] });
 
     const subcommand = interaction.options.getSubcommand();
     const limitsService = new (require('./services/LimitsService'))(supabase);
@@ -94,7 +94,7 @@ else if (commandName === 'limits') {
 
             await interaction.editReply({
                 content: `✅ **Límite Actualizado**\n\nRol: @${roleName}\nTipo: \`${tipo}\`\nNuevo límite: $${valor.toLocaleString()}\n\nCambio aplicado por: ${interaction.user.tag}`,
-                ephemeral: true
+                flags: [64]
             });
 
         } else if (subcommand === 'set-user') {
@@ -110,7 +110,7 @@ else if (commandName === 'limits') {
 
             await interaction.editReply({
                 content: `✅ **Override Establecido**\n\nUsuario: ${user.tag}\nTipo: \`${tipo}\`\nNuevo límite: $${valor.toLocaleString()}\nRazón: ${razon}\n\nAplicado por: ${interaction.user.tag}`,
-                ephemeral: true
+                flags: [64]
             });
 
         } else if (subcommand === 'reset-user') {
@@ -120,7 +120,7 @@ else if (commandName === 'limits') {
 
             await interaction.editReply({
                 content: `✅ **Override Eliminado**\n\nUsuario: ${user.tag} ahora usa los límites de su rol.\n\nAplicado por: ${interaction.user.tag}`,
-                ephemeral: true
+                flags: [64]
             });
 
         } else if (subcommand === 'list') {

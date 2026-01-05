@@ -17,7 +17,7 @@ module.exports = {
                 .setDescription('Ver transacciones sospechosas recientes')),
 
     async execute(interaction, client, supabase) {
-        await interaction.deferReply({ ephemeral: true });
+        await interaction.deferReply({ flags: [64] });
 
         const juntaDirectivaRoleId = '1412882245735420006';
 

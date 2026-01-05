@@ -25,7 +25,7 @@ module.exports = {
                 .setMaxValue(10080)), // 1 week max manually
 
     async execute(interaction, client, supabase) {
-        await interaction.deferReply({ ephemeral: false });
+        await interaction.deferReply({  });
 
         const ARREST_CHANNEL_ID = '1398888960519835688';
         const ARREST_LOGS_CHANNEL_ID = '1457583225085100283';
@@ -61,7 +61,7 @@ module.exports = {
             if (interaction.channelId !== ARREST_CHANNEL_ID) {
                 return interaction.editReply({
                     content: `❌ **Canal Incorrecto**\n\nEste comando solo puede usarse en <#${ARREST_CHANNEL_ID}>.`,
-                    ephemeral: true
+                    flags: [64]
                 });
             }
 
@@ -73,14 +73,14 @@ module.exports = {
             if (hasExcludedRole) {
                 return interaction.editReply({
                     content: '❌ **Permiso Denegado**\n\nTu rol no puede realizar arrestos.',
-                    ephemeral: true
+                    flags: [64]
                 });
             }
 
             if (!hasSalaryRole && !member.permissions.has(PermissionFlagsBits.Administrator)) {
                 return interaction.editReply({
                     content: '❌ **Sin Autorización**\n\nNecesitas ser parte de las fuerzas del orden para arrestar.',
-                    ephemeral: true
+                    flags: [64]
                 });
             }
 
@@ -96,7 +96,7 @@ module.exports = {
             if (targetUser.id === interaction.user.id) {
                 return interaction.editReply({
                     content: '❌ No puedes arrestarte a ti mismo.',
-                    ephemeral: true
+                    flags: [64]
                 });
             }
 

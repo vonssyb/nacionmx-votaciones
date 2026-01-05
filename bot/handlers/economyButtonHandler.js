@@ -25,7 +25,7 @@ const handleEconomyButtons = async (interaction, client, supabase, billingServic
                 .single();
 
             if (!card) {
-                return interaction.followUp({ content: '❌ Tarjeta no encontrada.', ephemeral: true });
+                return interaction.followUp({ content: '❌ Tarjeta no encontrada.', flags: [64] });
             }
 
             // Remove money from user
@@ -68,7 +68,7 @@ const handleEconomyButtons = async (interaction, client, supabase, billingServic
             console.error('[pay_biz_debt] Error:', error);
             await interaction.followUp({
                 content: `❌ Error procesando pago: ${error.message}`,
-                ephemeral: true
+                flags: [64]
             });
         }
         return;
@@ -78,7 +78,7 @@ const handleEconomyButtons = async (interaction, client, supabase, billingServic
     // BUTTON: Company Payroll (from panel)
     // ============================================================
     if (interaction.isButton() && interaction.customId.startsWith('company_payroll_')) {
-        await interaction.deferReply({ ephemeral: false });
+        await interaction.deferReply({  });
 
         const companyId = interaction.customId.split('_')[2];
 
@@ -129,7 +129,7 @@ const handleEconomyButtons = async (interaction, client, supabase, billingServic
     // BUTTON: Company Withdraw Funds
     // ============================================================
     if (interaction.isButton() && interaction.customId.startsWith('company_withdraw_')) {
-        await interaction.deferReply({ ephemeral: false });
+        await interaction.deferReply({  });
 
         const companyId = interaction.customId.split('_')[2];
 
@@ -164,17 +164,17 @@ const handleEconomyButtons = async (interaction, client, supabase, billingServic
                 .catch(() => null);
 
             if (!collected) {
-                return interaction.followUp({ content: '⏱️ Tiempo agotado.', ephemeral: true });
+                return interaction.followUp({ content: '⏱️ Tiempo agotado.', flags: [64] });
             }
 
             const amount = parseFloat(collected.first().content.replace(/[$,]/g, ''));
 
             if (isNaN(amount) || amount <= 0) {
-                return interaction.followUp({ content: '❌ Monto inválido.', ephemeral: true });
+                return interaction.followUp({ content: '❌ Monto inválido.', flags: [64] });
             }
 
             if (amount > balance) {
-                return interaction.followUp({ content: `❌ Fondos insuficientes. Balance: $${balance.toLocaleString()}`, ephemeral: true });
+                return interaction.followUp({ content: `❌ Fondos insuficientes. Balance: $${balance.toLocaleString()}`, flags: [64] });
             }
 
             // Calculate tax (10%)
@@ -233,11 +233,11 @@ const handleEconomyButtons = async (interaction, client, supabase, billingServic
                 .single();
 
             if (!company) {
-                return interaction.reply({ content: '❌ Empresa no encontrada.', ephemeral: true });
+                return interaction.reply({ content: '❌ Empresa no encontrada.', flags: [64] });
             }
 
             if (!company.owner_ids.includes(interaction.user.id)) {
-                return interaction.reply({ content: '⛔ Solo los dueños pueden agregar vehículos.', ephemeral: true });
+                return interaction.reply({ content: '⛔ Solo los dueños pueden agregar vehículos.', flags: [64] });
             }
 
             const vehicleMenu = new StringSelectMenuBuilder()
@@ -256,12 +256,12 @@ const handleEconomyButtons = async (interaction, client, supabase, billingServic
             await interaction.reply({
                 content: `🚗 **Selecciona el tipo de vehículo para ${company.name}**`,
                 components: [row],
-                ephemeral: true
+                flags: [64]
             });
 
         } catch (error) {
             console.error('[company_addvehicle]', error);
-            await interaction.reply({ content: '❌ Error cargando opciones.', ephemeral: true });
+            await interaction.reply({ content: '❌ Error cargando opciones.', flags: [64] });
         }
         return;
     }
@@ -378,7 +378,7 @@ const handleEconomyButtons = async (interaction, client, supabase, billingServic
 
     // BUTTON: Company Stats
     if (interaction.isButton() && interaction.customId.startsWith('company_stats_')) {
-        await interaction.deferReply({ ephemeral: false });
+        await interaction.deferReply({  });
 
         const companyId = interaction.customId.split('_')[2];
 

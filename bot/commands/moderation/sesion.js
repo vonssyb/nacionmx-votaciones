@@ -299,7 +299,7 @@ module.exports = {
             await interaction.editReply('✅ Modo mantenimiento activado.');
         }
         else {
-            await interaction.reply({ content: '❌ Subcomando desconocido.', ephemeral: true });
+            await interaction.reply({ content: '❌ Subcomando desconocido.', flags: [64] });
         }
     }
 };

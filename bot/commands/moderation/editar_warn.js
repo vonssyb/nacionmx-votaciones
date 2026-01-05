@@ -29,10 +29,10 @@ module.exports = {
             interaction.member.roles.cache.has('1456020936229912781');
 
         if (!isAuthorized && !interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
-            return interaction.reply({ content: '🛑 No tienes permiso para editar sanciones.', ephemeral: true });
+            return interaction.reply({ content: '🛑 No tienes permiso para editar sanciones.', flags: [64] });
         }
 
-        await interaction.deferReply({ ephemeral: true });
+        await interaction.deferReply({ flags: [64] });
 
         const sanctionId = interaction.options.getString('id_sancion');
         const newReason = interaction.options.getString('nuevo_motivo');

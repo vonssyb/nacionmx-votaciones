@@ -812,10 +812,10 @@ async function handleBlackjackAction(interaction) {
     const userId = interaction.user.id;
     const action = interaction.customId;
 
-    if (!blackjackSession.players[userId]) return interaction.reply({ content: '⛔ No estás en esta partida.', ephemeral: true });
+    if (!blackjackSession.players[userId]) return interaction.reply({ content: '⛔ No estás en esta partida.', flags: [64] });
 
     const player = blackjackSession.players[userId];
-    if (player.status !== 'PLAYING') return interaction.reply({ content: '⛔ Ya terminaste tu turno.', ephemeral: true });
+    if (player.status !== 'PLAYING') return interaction.reply({ content: '⛔ Ya terminaste tu turno.', flags: [64] });
 
     if (action === 'btn_bj_hit') {
         player.hand.push(blackjackSession.deck.pop());
@@ -1238,7 +1238,7 @@ const handleEconomyLegacy = async (interaction, client, supabase) => {
 
     // BUTTONS: Claim Mission Rewards (Gamification)
     if (interaction.isButton() && interaction.customId.startsWith('claim_mission_')) {
-        await interaction.deferReply({ ephemeral: true });
+        await interaction.deferReply({ flags: [64] });
         const missionId = interaction.customId.replace('claim_mission_', '');
 
         const result = await client.services.missions.claimRewards(interaction.user.id, missionId);
@@ -1256,7 +1256,7 @@ const handleEconomyLegacy = async (interaction, client, supabase) => {
     }
 
     if (interaction.isButton() && interaction.customId.startsWith('btn_invest_')) {
-        await interaction.deferReply({ ephemeral: true });
+        await interaction.deferReply({ flags: [64] });
         const invId = interaction.customId.replace('btn_collect_', '');
 
         // Fetch Inv
@@ -1289,7 +1289,7 @@ const handleEconomyLegacy = async (interaction, client, supabase) => {
             const hasPermission = interaction.member.roles.cache.some(r => ALLOWED_APPROVERS.includes(r.id));
 
             if (!hasPermission) {
-                return interaction.reply({ content: '🛑 **Acceso Denegado:** Solo la Junta Directiva o Encargados pueden aprobar esto.', ephemeral: true });
+                return interaction.reply({ content: '🛑 **Acceso Denegado:** Solo la Junta Directiva o Encargados pueden aprobar esto.', flags: [64] });
             }
 
             if (interaction.customId === 'reject_sancion') {
@@ -1432,7 +1432,7 @@ const handleEconomyLegacy = async (interaction, client, supabase) => {
 
             } catch (err) {
                 console.error('Error approving sanction:', err);
-                interaction.followUp({ content: `❌ Error ejecutando la sanción: ${err.message}`, ephemeral: true });
+                interaction.followUp({ content: `❌ Error ejecutando la sanción: ${err.message}`, flags: [64] });
             }
             return;
         }
@@ -1447,7 +1447,7 @@ const handleEconomyLegacy = async (interaction, client, supabase) => {
         if (!targetTier || !CARD_TIERS[targetTier]) {
             return interaction.followUp({
                 content: `❌ Error: Nivel de tarjeta inválido.\nBuscado: "${targetTier}"\nDisponibles: ${Object.keys(CARD_TIERS).filter(k => k.includes('Débito')).join(', ')}`,
-                ephemeral: true
+                flags: [64]
             });
         }
 
@@ -1461,7 +1461,7 @@ const handleEconomyLegacy = async (interaction, client, supabase) => {
         if (cardError || !card) {
             return interaction.reply({
                 content: `❌ Tarjeta no encontrada.\nID buscado: ${cardId}\nError: ${cardError?.message || 'Unknown'}`,
-                ephemeral: true
+                flags: [64]
             });
         }
 
@@ -1489,7 +1489,7 @@ const handleEconomyLegacy = async (interaction, client, supabase) => {
         if (bankBalance < tierInfo.cost) {
             return interaction.reply({
                 content: `❌ **Fondos insuficientes**\n\nCosto: **$${tierInfo.cost.toLocaleString()}**\nTu saldo: **$${bankBalance.toLocaleString()}**\nTarjeta: ${card.card_tier}\nID: ${cardId.slice(0, 8)}...`,
-                ephemeral: true
+                flags: [64]
             });
         }
 
@@ -1522,7 +1522,7 @@ const handleEconomyLegacy = async (interaction, client, supabase) => {
                 'Rollback: Error en mejora de tarjeta',
                 'bank'
             );
-            return interaction.followUp({ content: '❌ Error al procesar la mejora.', ephemeral: true });
+            return interaction.followUp({ content: '❌ Error al procesar la mejora.', flags: [64] });
         }
 
         // Helper function to rename channel based on state
@@ -1535,7 +1535,7 @@ const handleEconomyLegacy = async (interaction, client, supabase) => {
 
         await interaction.followUp({
             content: `✅ **¡Mejora Completada!**\n\n🎉 Nueva tarjeta: **${targetTier}**\n💰 Costo: $${tierInfo.cost.toLocaleString()}\n💳 Nuevo saldo: $${newBalance.toLocaleString()}\n📊 Límite: ${tierInfo.max_balance === Infinity ? '♾️ Ilimitado' : '$' + tierInfo.max_balance.toLocaleString()}`,
-            ephemeral: false
+            
         });
     }
 
@@ -1548,20 +1548,20 @@ const handleEconomyLegacy = async (interaction, client, supabase) => {
 
         // Get user chips to find pending amount
         const { data: userChips } = await supabase.from('casino_chips').select('*').eq('user_id', userId).maybeSingle();
-        if (!userChips) return interaction.followUp({ content: '❌ Error: No se encontró información de fichas.', ephemeral: true });
+        if (!userChips) return interaction.followUp({ content: '❌ Error: No se encontró información de fichas.', flags: [64] });
 
         // For casino, we need to get the amount from the message (parse from embed or message)
         const embedDesc = interaction.message.embeds[0]?.description;
         const amountMatch = embedDesc.match(/\$([0-9,]+)/);
         const amount = amountMatch ? parseInt(amountMatch[1].replace(/,/g, '')) : 0;
 
-        if (amount <= 0) return interaction.followUp({ content: '❌ No se pudo determinar el monto.', ephemeral: true });
+        if (amount <= 0) return interaction.followUp({ content: '❌ No se pudo determinar el monto.', flags: [64] });
 
         const pm = await getAvailablePaymentMethods(userId, interaction.guildId);
         const result = await processPayment(method, userId, interaction.guildId, amount, 'Compra de fichas casino', pm);
 
         if (!result.success) {
-            return interaction.followUp({ content: result.error, ephemeral: true });
+            return interaction.followUp({ content: result.error, flags: [64] });
         }
 
         // Helper function to rename channel based on state
@@ -1569,7 +1569,7 @@ const handleEconomyLegacy = async (interaction, client, supabase) => {
         // Credit the chips
         await supabase.from('casino_chips').update({ chips: (userChips.chips || 0) + amount }).eq('user_id', userId);
 
-        return interaction.followUp({ content: `✅ Pago exitoso con ${result.method}\n💰 +${amount} fichas\n🎰 Total: ${((userChips.chips || 0) + amount).toLocaleString()} fichas`, ephemeral: true });
+        return interaction.followUp({ content: `✅ Pago exitoso con ${result.method}\n💰 +${amount} fichas\n🎰 Total: ${((userChips.chips || 0) + amount).toLocaleString()} fichas`, flags: [64] });
     }
 
     if (interaction.isButton() && interaction.customId.startsWith('pay_')) {
@@ -1601,7 +1601,7 @@ const handleEconomyLegacy = async (interaction, client, supabase) => {
                 .single();
 
             if (!company) {
-                return interaction.followUp({ content: '❌ Empresa no encontrada.', ephemeral: true });
+                return interaction.followUp({ content: '❌ Empresa no encontrada.', flags: [64] });
             }
 
             // Get original message to find reason
@@ -1618,7 +1618,7 @@ const handleEconomyLegacy = async (interaction, client, supabase) => {
                 if (balance.cash < amount) {
                     return interaction.followUp({
                         content: `❌ **Efectivo insuficiente**\n\nNecesitas: $${amount.toLocaleString()}\nTienes: $${balance.cash.toLocaleString()}`,
-                        ephemeral: true
+                        flags: [64]
                     });
                 }
 
@@ -1645,7 +1645,7 @@ const handleEconomyLegacy = async (interaction, client, supabase) => {
                 if (!debitCard) {
                     return interaction.followUp({
                         content: '❌ No tienes tarjeta de débito activa.',
-                        ephemeral: true
+                        flags: [64]
                     });
                 }
 
@@ -1653,7 +1653,7 @@ const handleEconomyLegacy = async (interaction, client, supabase) => {
                 if (balance.bank < amount) {
                     return interaction.followUp({
                         content: `❌ **Saldo insuficiente en débito**\n\nNecesitas: $${amount.toLocaleString()}\nTienes: $${balance.bank.toLocaleString()}`,
-                        ephemeral: true
+                        flags: [64]
                     });
                 }
 
@@ -1682,7 +1682,7 @@ const handleEconomyLegacy = async (interaction, client, supabase) => {
                 if (!creditCards || creditCards.length === 0) {
                     return interaction.followUp({
                         content: '❌ No tienes tarjetas de crédito activas.',
-                        ephemeral: true
+                        flags: [64]
                     });
                 }
 
@@ -1692,7 +1692,7 @@ const handleEconomyLegacy = async (interaction, client, supabase) => {
                 if (available < amount) {
                     return interaction.followUp({
                         content: `❌ **Crédito insuficiente**\n\nDisponible: $${available.toLocaleString()}\nNecesitas: $${amount.toLocaleString()}`,
-                        ephemeral: true
+                        flags: [64]
                     });
                 }
 
@@ -1780,7 +1780,7 @@ const handleEconomyLegacy = async (interaction, client, supabase) => {
             console.error('Payment error:', error);
             await interaction.followUp({
                 content: '❌ Error procesando el pago. Contacta a un administrador.',
-                ephemeral: true
+                flags: [64]
             });
         }
 
@@ -1927,7 +1927,7 @@ const handleEconomyLegacy = async (interaction, client, supabase) => {
                 .single();
 
             if (!card) {
-                return interaction.followUp({ content: '❌ Tarjeta no encontrada.', ephemeral: true });
+                return interaction.followUp({ content: '❌ Tarjeta no encontrada.', flags: [64] });
             }
 
             // Remove money from user
@@ -1971,7 +1971,7 @@ const handleEconomyLegacy = async (interaction, client, supabase) => {
             console.error('[pay_biz_debt] Error:', error);
             await interaction.followUp({
                 content: `❌ Error procesando pago: ${error.message}`,
-                ephemeral: true
+                flags: [64]
             });
         }
 
@@ -1981,7 +1981,7 @@ const handleEconomyLegacy = async (interaction, client, supabase) => {
 
     // BUTTON: Company Payroll (from panel)
     if (interaction.isButton() && interaction.customId.startsWith('company_payroll_')) {
-        await interaction.deferReply({ ephemeral: false });
+        await interaction.deferReply({  });
 
         const companyId = interaction.customId.split('_')[2];
 
@@ -2029,7 +2029,7 @@ const handleEconomyLegacy = async (interaction, client, supabase) => {
 
     // BUTTON: Company Withdraw Funds
     if (interaction.isButton() && interaction.customId.startsWith('company_withdraw_')) {
-        await interaction.deferReply({ ephemeral: false });
+        await interaction.deferReply({  });
 
         const companyId = interaction.customId.split('_')[2];
 
@@ -2064,17 +2064,17 @@ const handleEconomyLegacy = async (interaction, client, supabase) => {
                 .catch(() => null);
 
             if (!collected) {
-                return interaction.followUp({ content: '⏱️ Tiempo agotado.', ephemeral: true });
+                return interaction.followUp({ content: '⏱️ Tiempo agotado.', flags: [64] });
             }
 
             const amount = parseFloat(collected.first().content.replace(/[$,]/g, ''));
 
             if (isNaN(amount) || amount <= 0) {
-                return interaction.followUp({ content: '❌ Monto inválido.', ephemeral: true });
+                return interaction.followUp({ content: '❌ Monto inválido.', flags: [64] });
             }
 
             if (amount > balance) {
-                return interaction.followUp({ content: `❌ Fondos insuficientes. Balance: $${balance.toLocaleString()}`, ephemeral: true });
+                return interaction.followUp({ content: `❌ Fondos insuficientes. Balance: $${balance.toLocaleString()}`, flags: [64] });
             }
 
             // Calculate tax (10%)
@@ -2121,7 +2121,7 @@ const handleEconomyLegacy = async (interaction, client, supabase) => {
 
     // Apply 8% tax to giro transfers
     if (interaction.isCommand() && interaction.commandName === 'giro') {
-        await interaction.deferReply({ ephemeral: false });
+        await interaction.deferReply({  });
 
         const destUser = interaction.options.getUser('destinatario');
         const monto = interaction.options.getNumber('monto');
@@ -2222,11 +2222,11 @@ const handleEconomyLegacy = async (interaction, client, supabase) => {
                 .single();
 
             if (!company) {
-                return interaction.reply({ content: '❌ Empresa no encontrada.', ephemeral: true });
+                return interaction.reply({ content: '❌ Empresa no encontrada.', flags: [64] });
             }
 
             if (!company.owner_ids.includes(interaction.user.id)) {
-                return interaction.reply({ content: '⛔ Solo los dueños pueden agregar vehículos.', ephemeral: true });
+                return interaction.reply({ content: '⛔ Solo los dueños pueden agregar vehículos.', flags: [64] });
             }
 
             const vehicleMenu = new StringSelectMenuBuilder()
@@ -2245,12 +2245,12 @@ const handleEconomyLegacy = async (interaction, client, supabase) => {
             await interaction.reply({
                 content: `🚗 **Selecciona el tipo de vehículo para ${company.name}**`,
                 components: [row],
-                ephemeral: true
+                flags: [64]
             });
 
         } catch (error) {
             console.error('[company_addvehicle]', error);
-            await interaction.reply({ content: '❌ Error cargando opciones.', ephemeral: true });
+            await interaction.reply({ content: '❌ Error cargando opciones.', flags: [64] });
         }
 
         // Helper function to rename channel based on state
@@ -2373,7 +2373,7 @@ const handleEconomyLegacy = async (interaction, client, supabase) => {
 
     // BUTTON: Company Stats
     if (interaction.isButton() && interaction.customId.startsWith('company_stats_')) {
-        await interaction.deferReply({ ephemeral: false });
+        await interaction.deferReply({  });
 
         const companyId = interaction.customId.split('_')[2];
 
@@ -2448,7 +2448,7 @@ const handleEconomyLegacy = async (interaction, client, supabase) => {
             const [action, voteType, sessionId] = customId.split('_');
 
             if (!sessionId) {
-                return interaction.reply({ content: '❌ ID de sesión inválido.', ephemeral: true });
+                return interaction.reply({ content: '❌ ID de sesión inválido.', flags: [64] });
             }
 
             try {
@@ -2460,7 +2460,7 @@ const handleEconomyLegacy = async (interaction, client, supabase) => {
                     .single();
 
                 if (!session || session.status !== 'active') {
-                    return interaction.reply({ content: '❌ Esta votación ya no está activa.', ephemeral: true });
+                    return interaction.reply({ content: '❌ Esta votación ya no está activa.', flags: [64] });
                 }
 
                 const userId = interaction.user.id;
@@ -2482,7 +2482,7 @@ const handleEconomyLegacy = async (interaction, client, supabase) => {
 
                     if (updateError) throw updateError;
 
-                    await interaction.reply({ content: `✅ Voto actualizado a: **${voteType === 'yes' ? 'Participaré' : voteType === 'late' ? 'Con retraso' : 'No podré'}**`, ephemeral: true });
+                    await interaction.reply({ content: `✅ Voto actualizado a: **${voteType === 'yes' ? 'Participaré' : voteType === 'late' ? 'Con retraso' : 'No podré'}**`, flags: [64] });
                 } else {
                     // Create new vote
                     const { error: insertError } = await supabase
@@ -2495,7 +2495,7 @@ const handleEconomyLegacy = async (interaction, client, supabase) => {
 
                     if (insertError) throw insertError;
 
-                    await interaction.reply({ content: `✅ Voto registrado: **${voteType === 'yes' ? 'Participaré' : voteType === 'late' ? 'Con retraso' : 'No podré'}**`, ephemeral: true });
+                    await interaction.reply({ content: `✅ Voto registrado: **${voteType === 'yes' ? 'Participaré' : voteType === 'late' ? 'Con retraso' : 'No podré'}**`, flags: [64] });
                 }
 
                 // Update the embed with new counts
@@ -2606,7 +2606,7 @@ const handleEconomyLegacy = async (interaction, client, supabase) => {
                 }
             } catch (error) {
                 console.error('Error processing vote:', error);
-                return interaction.reply({ content: '❌ Error al procesar el voto.', ephemeral: true });
+                return interaction.reply({ content: '❌ Error al procesar el voto.', flags: [64] });
             }
         }
 
@@ -2622,7 +2622,7 @@ const handleEconomyLegacy = async (interaction, client, supabase) => {
 
     if (commandName === 'ping') {
         const ping = Date.now() - interaction.createdTimestamp;
-        await interaction.reply({ content: `🏓 Pong! Latencia: **${ping}ms**. API: **${Math.round(client.ws.ping)}ms**.`, ephemeral: false });
+        await interaction.reply({ content: `🏓 Pong! Latencia: **${ping}ms**. API: **${Math.round(client.ws.ping)}ms**.` });
     }
 
 
@@ -2642,7 +2642,7 @@ const handleEconomyLegacy = async (interaction, client, supabase) => {
         if (!tarjetaDni) {
             return interaction.reply({
                 content: '❌ **DNI Requerido**\n\nNecesitas un DNI válido para gestionar tarjetas.\nCrea uno usando `/dni crear`.',
-                ephemeral: true
+                flags: [64]
             });
         }
         const subcommand = interaction.options.getSubcommand();
@@ -2753,7 +2753,7 @@ const handleEconomyLegacy = async (interaction, client, supabase) => {
             const card = allCards[cardName];
 
             if (!card) {
-                return await interaction.reply({ content: '❌ Tarjeta no encontrada.', ephemeral: true });
+                return await interaction.reply({ content: '❌ Tarjeta no encontrada.', flags: [64] });
             }
 
             const embed = new EmbedBuilder()
@@ -2779,7 +2779,7 @@ const handleEconomyLegacy = async (interaction, client, supabase) => {
 
     else if (commandName === 'registrar-tarjeta') {
         // DEFER IMMEDIATELY before anything else
-        await interaction.deferReply({ ephemeral: false });
+        await interaction.deferReply({  });
 
         try {
             // === ROLE-BASED AUTHORIZATION ===
@@ -2979,7 +2979,7 @@ El saldo no liquidado generará un interés semanal según el nivel de la tarjet
 
 **4. USO DE LA TARJETA**
 Esta tarjeta es personal e intransferible. El titular es responsable de todos los cargos realizados con ella. El Banco Nacional colaborará con la policía en caso de compras ilegales.`);
-                    await i.reply({ embeds: [tycEmbed], ephemeral: true });
+                    await i.reply({ embeds: [tycEmbed], flags: [64] });
                 }
                 else if (i.customId === 'btn_reject') {
                     await i.update({ content: '❌ Oferta rechazada.', components: [] });
@@ -3000,13 +3000,13 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                         if (stats.cost > 0) {
                             if (i.customId === 'reg_pay_cash') {
                                 const bal = await billingService.ubService.getUserBalance(interaction.guildId, targetUser.id);
-                                if ((bal.cash || 0) < stats.cost) return i.followUp({ content: `❌ No tienes suficiente efectivo. Tienes: $${(bal.cash || 0).toLocaleString()}`, ephemeral: true });
+                                if ((bal.cash || 0) < stats.cost) return i.followUp({ content: `❌ No tienes suficiente efectivo. Tienes: $${(bal.cash || 0).toLocaleString()}`, flags: [64] });
                                 await billingService.ubService.removeMoney(interaction.guildId, targetUser.id, stats.cost, `Apertura ${cardType}`, 'cash');
                             }
                             else if (i.customId === 'reg_pay_debit') {
                                 // Unified with Bank
                                 const bal = await billingService.ubService.getUserBalance(interaction.guildId, targetUser.id);
-                                if ((bal.bank || 0) < stats.cost) return i.followUp({ content: `❌ No tienes suficiente en Banco/Débito.`, ephemeral: true });
+                                if ((bal.bank || 0) < stats.cost) return i.followUp({ content: `❌ No tienes suficiente en Banco/Débito.`, flags: [64] });
                                 await billingService.ubService.removeMoney(interaction.guildId, targetUser.id, stats.cost, `Apertura ${cardType}`, 'bank');
                             }
                         }
@@ -3091,7 +3091,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
 
                     } catch (err) {
                         console.error(err);
-                        await i.followUp({ content: `❌ Error procesando: ${err.message}`, ephemeral: true });
+                        await i.followUp({ content: `❌ Error procesando: ${err.message}`, flags: [64] });
                     }
                     collector.stop();
                 }
@@ -3106,7 +3106,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             if (interaction.deferred || interaction.replied) {
                 await interaction.editReply({ content: `❌ **Error Crítico:** ${error.message}` }).catch(() => { });
             } else {
-                await interaction.reply({ content: `❌ **Error Crítico:** ${error.message}`, ephemeral: true }).catch(() => { });
+                await interaction.reply({ content: `❌ **Error Crítico:** ${error.message}`, flags: [64] }).catch(() => { });
             }
             throw error; // Re-throw so index_economia can also log if and track
         }
@@ -3116,7 +3116,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
     }
 
     else if (commandName === 'credito') {
-        await interaction.deferReply({ ephemeral: false }); // Global defer to prevent timeouts
+        await interaction.deferReply({  }); // Global defer to prevent timeouts
 
         const subCmd = interaction.options.getSubcommand();
         const isPrivate = interaction.options.getBoolean('privado') ?? false;
@@ -3258,19 +3258,19 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
 
             // Robust amount handling
             const amount = interaction.options.getNumber('monto') || interaction.options.getInteger('monto');
-            if (!amount || amount <= 0) return interaction.editReply({ content: '❌ El monto debe ser mayor a 0.', ephemeral: isPrivate });
+            if (!amount || amount <= 0) return interaction.editReply({ content: '❌ El monto debe ser mayor a 0.', flags: isPrivate ? [64] : [] });
 
             try {
                 // 1. Find User (Citizen) & Card
                 // Note: removed profile join to avoid crashes
                 const { data: citizen } = await supabase.from('citizens').select('id, discord_id').eq('discord_id', interaction.user.id).order('created_at', { ascending: false }).limit(1).maybeSingle();
-                if (!citizen) return interaction.editReply({ content: '❌ No tienes cuenta vinculada (Citizen).', ephemeral: isPrivate });
+                if (!citizen) return interaction.editReply({ content: '❌ No tienes cuenta vinculada (Citizen).', flags: isPrivate ? [64] : [] });
 
                 const { data: userCard } = await supabase.from('credit_cards').select('*').eq('citizen_id', citizen.id).order('created_at', { ascending: false }).limit(1).maybeSingle();
-                if (!userCard) return interaction.editReply({ content: '❌ No tienes una tarjeta activa.', ephemeral: isPrivate });
+                if (!userCard) return interaction.editReply({ content: '❌ No tienes una tarjeta activa.', flags: isPrivate ? [64] : [] });
 
                 if (amount > userCard.current_balance) {
-                    return interaction.editReply({ content: `⚠️ Solo debes **$${userCard.current_balance.toLocaleString()}**. No puedes pagar más de lo que debes.`, ephemeral: isPrivate });
+                    return interaction.editReply({ content: `⚠️ Solo debes **$${userCard.current_balance.toLocaleString()}**. No puedes pagar más de lo que debes.`, flags: isPrivate ? [64] : [] });
                 }
 
                 // 2. CHECK FUNDS FIRST (User Request)
@@ -3283,7 +3283,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                     const userMoney = balance.total || (balance.cash + balance.bank);
 
                     if (userMoney < amount) {
-                        return interaction.editReply({ content: `❌ **Fondos Insuficientes**. \nTienes: $${userMoney.toLocaleString()} \nIntentas pagar: $${amount.toLocaleString()}`, ephemeral: isPrivate });
+                        return interaction.editReply({ content: `❌ **Fondos Insuficientes**. \nTienes: $${userMoney.toLocaleString()} \nIntentas pagar: $${amount.toLocaleString()}`, flags: isPrivate ? [64] : [] });
                     }
 
                     // 3. Take Money from UnbelievaBoat
@@ -3307,11 +3307,11 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                     return;
                 } catch (err) {
                     console.error('[credito] Error:', err);
-                    return interaction.editReply({ content: '❌ Error procesando pago.', ephemeral: true });
+                    return interaction.editReply({ content: '❌ Error procesando pago.', flags: [64] });
                 }
             } catch (err) {
                 console.error('[credito-pagar] Error:', err);
-                return interaction.editReply({ content: '❌ Error procesando solicitud.', ephemeral: isPrivate });
+                return interaction.editReply({ content: '❌ Error procesando solicitud.', flags: isPrivate ? [64] : [] });
             }
         }
 
@@ -3322,7 +3322,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
         else if (interaction.options.getSubcommandGroup() === 'admin') {
             // Permission Check
             if (!interaction.member.permissions.has('Administrator')) {
-                return interaction.reply({ content: '⛔ Solo administradores pueden usar esto.', ephemeral: true });
+                return interaction.reply({ content: '⛔ Solo administradores pueden usar esto.', flags: [64] });
             }
 
             const subCmdAdmin = interaction.options.getSubcommand();
@@ -3330,7 +3330,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
 
             // SECURITY: Self-Target Check
             if (targetUser.id === interaction.user.id) {
-                return interaction.reply({ content: '⛔ **Seguridad:** No puedes usar comandos administrativos sobre tu propia cuenta.', ephemeral: true });
+                return interaction.reply({ content: '⛔ **Seguridad:** No puedes usar comandos administrativos sobre tu propia cuenta.', flags: [64] });
             }
 
             // Already deferred globally at command start
@@ -3642,7 +3642,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
 
         // Helper function to rename channel based on state
         else if (subCmd === 'debug') {
-            await interaction.deferReply({ ephemeral: false });
+            await interaction.deferReply({  });
 
             const userId = interaction.user.id;
             const userName = interaction.user.tag;
@@ -3773,7 +3773,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             if (pages.length > 1) {
                 const collector = message.createMessageComponentCollector({ time: 180000 });
                 collector.on('collect', async i => {
-                    if (i.user.id !== interaction.user.id) return i.reply({ content: '❌ Solo tú puedes navegar.', ephemeral: true });
+                    if (i.user.id !== interaction.user.id) return i.reply({ content: '❌ Solo tú puedes navegar.', flags: [64] });
                     await i.deferUpdate();
                     if (i.customId === 'info_next') currentPage++;
                     else currentPage--;
@@ -3794,7 +3794,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
     }
 
     else if (commandName === 'rol') {
-        await interaction.deferReply({ ephemeral: false });
+        await interaction.deferReply({  });
         const subCmd = interaction.options.getSubcommand();
         if (subCmd === 'cancelar') {
 
@@ -3873,7 +3873,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
     
         // 1. Role Check (Role ID: 1456368296818380862)
         if (!interaction.member.roles.cache.has('1456368296818380862') && !interaction.member.permissions.has('Administrator')) {
-            return interaction.editReply({ content: '⛔ Acceso Denegado: No tienes permiso para aplicar multas.', ephemeral: false });
+            return interaction.editReply({ content: '⛔ Acceso Denegado: No tienes permiso para aplicar multas.' });
         }
     
         // Helper function to rename channel based on state
@@ -4883,7 +4883,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
 
                     if (levelRes && levelRes.leveledUp) {
                         /* use followUp on original interaction to avoid interfering with button flow */
-                        await interaction.followUp({ content: `🎉 **¡SUBISTE DE NIVEL!**\nAhora eres nivel **${levelRes.newLevel}**`, ephemeral: true });
+                        await interaction.followUp({ content: `🎉 **¡SUBISTE DE NIVEL!**\nAhora eres nivel **${levelRes.newLevel}**`, flags: [64] });
                     }
 
                     // 2. Update Mission Progress
@@ -5649,7 +5649,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                     const levelRes = await client.services.levels.addXP(interaction.user.id, xpAmount);
 
                     if (levelRes && levelRes.leveledUp) {
-                        await interaction.followUp({ content: `🎉 **¡SUBISTE DE NIVEL!**\nAhora eres nivel **${levelRes.newLevel}**`, ephemeral: true });
+                        await interaction.followUp({ content: `🎉 **¡SUBISTE DE NIVEL!**\nAhora eres nivel **${levelRes.newLevel}**`, flags: [64] });
                     }
 
                     // 2. Update Mission Progress
@@ -6104,7 +6104,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             if (!shopDni) {
                 return interaction.reply({
                     content: '❌ **DNI Requerido**\n\nNecesitas un DNI válido para comprar en la tienda.\nCrea uno usando `/dni crear`.',
-                    ephemeral: true
+                    flags: [64]
                 });
             }
         }
@@ -6457,7 +6457,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             console.error('[trabajar] DNI query error:', dniError);
             return interaction.reply({
                 content: '❌ **Error al verificar DNI**\n\nHubo un problema al consultar tu DNI. Contacta a un administrador.',
-                ephemeral: true
+                flags: [64]
             });
         }
 
@@ -6465,7 +6465,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             console.log(`[trabajar] No DNI found for user ${interaction.user.id} in guild ${interaction.guildId}`);
             return interaction.reply({
                 content: '❌ **DNI Requerido**\n\nNecesitas un DNI válido para trabajar.\n\n**Crea uno usando:** `/dni crear`\n**Verifica tu DNI:** `/dni ver`',
-                ephemeral: true
+                flags: [64]
             });
         }
 
@@ -6735,7 +6735,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             console.error('[crimen] DNI query error:', crimenDniError);
             return interaction.reply({
                 content: '❌ **Error al verificar DNI**\n\nHubo un problema al consultar tu DNI. Contacta a un administrador.',
-                ephemeral: true
+                flags: [64]
             });
         }
 
@@ -6743,7 +6743,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             console.log(`[crimen] No DNI found for user ${interaction.user.id} in guild ${interaction.guildId}`);
             return interaction.reply({
                 content: '❌ **DNI Requerido**\n\nNecesitas un DNI válido para realizar actividades criminales.\n\n**Crea uno usando:** `/dni crear`\n**Verifica tu DNI:** `/dni ver`',
-                ephemeral: true
+                flags: [64]
             });
         }
 
@@ -7128,7 +7128,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
     }
 
     else if (commandName === 'debito') {
-        await interaction.deferReply({ ephemeral: true });
+        await interaction.deferReply({ flags: [64] });
         const subCmd = interaction.options.getSubcommand();
         const balance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
 
@@ -7191,7 +7191,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 const levelRes = await client.services.levels.addXP(interaction.user.id, 10);
 
                 if (levelRes && levelRes.leveledUp) {
-                    await interaction.followUp({ content: `🎉 **¡SUBISTE DE NIVEL!**\nAhora eres nivel **${levelRes.newLevel}**`, ephemeral: true });
+                    await interaction.followUp({ content: `🎉 **¡SUBISTE DE NIVEL!**\nAhora eres nivel **${levelRes.newLevel}**`, flags: [64] });
                 }
 
                 // 2. Update Mission Progress
@@ -8334,7 +8334,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
     // Add this to index.js
 
     else if (commandName === 'privacidad') {
-        await interaction.deferReply({ ephemeral: true });
+        await interaction.deferReply({ flags: [64] });
         const subCmd = interaction.options.getSubcommand();
         const userId = interaction.user.id;
 
@@ -9263,7 +9263,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 console.error('Error sending close embed:', sendError);
             }
 
-            return interaction.editReply({ content: '✅ Servidor cerrado. Canal limpiado y anuncio enviado.', ephemeral: true });
+            return interaction.editReply({ content: '✅ Servidor cerrado. Canal limpiado y anuncio enviado.', flags: [64] });
         }
 
         // Helper function to rename channel based on state
@@ -9286,7 +9286,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 .setTimestamp();
 
             await interaction.channel.send({ embeds: [embed] });
-            return interaction.editReply({ content: '✅ Anuncio de mantenimiento enviado.', ephemeral: true });
+            return interaction.editReply({ content: '✅ Anuncio de mantenimiento enviado.', flags: [64] });
         }
 
         // Helper function to rename channel based on state

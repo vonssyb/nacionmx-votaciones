@@ -129,7 +129,7 @@ client.on('interactionCreate', async interaction => {
             };
         }
 
-        await interaction.deferReply({ ephemeral: false }).catch(() => { });
+        await interaction.deferReply({  }).catch(() => { });
 
         const command = client.commands.get(interaction.commandName);
         if (command) {
@@ -138,8 +138,8 @@ client.on('interactionCreate', async interaction => {
             } catch (error) {
                 console.error(error);
                 try {
-                    if (interaction.replied || interaction.deferred) await interaction.followUp({ content: '❌ Error ejecutando comando.', ephemeral: true });
-                    else await interaction.reply({ content: '❌ Error ejecutando comando.', ephemeral: true });
+                    if (interaction.replied || interaction.deferred) await interaction.followUp({ content: '❌ Error ejecutando comando.', flags: [64] });
+                    else await interaction.reply({ content: '❌ Error ejecutando comando.', flags: [64] });
                 } catch (e) { }
             }
             return;
@@ -165,7 +165,7 @@ client.on('interactionCreate', async interaction => {
 
         // --- SA APPEAL CONFIRMATION ---
         if (customId.startsWith('appeal_sa_confirm_')) {
-            await interaction.deferReply({ ephemeral: true });
+            await interaction.deferReply({ flags: [64] });
 
             const userId = customId.split('_')[3];
 
@@ -205,7 +205,7 @@ client.on('interactionCreate', async interaction => {
             const userId = customId.split('_')[3];
 
             if (interaction.user.id !== userId) {
-                return interaction.followUp({ content: '❌ Este botón no es para ti.', ephemeral: true });
+                return interaction.followUp({ content: '❌ Este botón no es para ti.', flags: [64] });
             }
 
             const encargadoApelacionesRoleId = '1412913086598299738'; // Encargado de Apelaciones
@@ -359,7 +359,7 @@ client.on('interactionCreate', async interaction => {
 
         // --- APPROVE SANCTION ---
         if (customId.startsWith('approve_sancion_')) {
-            await interaction.deferReply({ ephemeral: false });
+            await interaction.deferReply({  });
             const targetId = customId.split('_')[2];
 
             // Extract data from Embed (Stateful Embed)
@@ -434,7 +434,7 @@ client.on('interactionCreate', async interaction => {
                 content: `❌ **RECHAZADO** por <@${interaction.user.id}>`,
                 components: []
             });
-            await interaction.reply({ content: 'Solicitud rechazada.', ephemeral: true });
+            await interaction.reply({ content: 'Solicitud rechazada.', flags: [64] });
         }
     }
 });

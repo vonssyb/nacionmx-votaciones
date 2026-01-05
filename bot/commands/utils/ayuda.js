@@ -28,7 +28,7 @@ module.exports = {
 
         const row = new ActionRowBuilder().addComponents(selectMenu);
 
-        const response = await interaction.reply({ embeds: [initialEmbed], components: [row], ephemeral: false });
+        const response = await interaction.reply({ embeds: [initialEmbed], components: [row] });
 
         const collector = response.createMessageComponentCollector({ componentType: ComponentType.StringSelect, time: 300000 }); // 5 mins
 
@@ -42,7 +42,7 @@ module.exports = {
 
             // Checking if user matches
             if (i.user.id !== interaction.user.id) {
-                return i.reply({ content: '❌ Solo quien ejecutó el comando puede usar el menú.', ephemeral: true });
+                return i.reply({ content: '❌ Solo quien ejecutó el comando puede usar el menú.', flags: [64] });
             }
 
             const category = i.values[0];

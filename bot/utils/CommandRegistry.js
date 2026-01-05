@@ -63,7 +63,7 @@ class CommandRegistry {
         if (!command) {
             return interaction.reply({
                 content: 'Comando no encontrado.',
-                ephemeral: true
+                flags: [64]
             });
         }
 
@@ -73,7 +73,7 @@ class CommandRegistry {
             if (!hasPermission) {
                 return interaction.reply({
                     content: '❌ No tienes permiso para usar este comando.',
-                    ephemeral: true
+                    flags: [64]
                 });
             }
         }
@@ -91,7 +91,7 @@ class CommandRegistry {
                     const timeLeft = ((expirationTime - now) / 1000).toFixed(1);
                     return interaction.reply({
                         content: `⏱️ Espera ${timeLeft}s antes de usar este comando nuevamente.`,
-                        ephemeral: true
+                        flags: [64]
                     });
                 }
             }
@@ -111,7 +111,7 @@ class CommandRegistry {
 
             const reply = {
                 content: '❌ Hubo un error ejecutando este comando.',
-                ephemeral: true
+                flags: [64]
             };
 
             if (interaction.replied || interaction.deferred) {

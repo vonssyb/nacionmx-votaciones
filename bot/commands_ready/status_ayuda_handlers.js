@@ -174,7 +174,7 @@ else if (commandName === 'ayuda') {
             }
         };
 
-        return interaction.reply({ embeds: [embed], ephemeral: true });
+        return interaction.reply({ embeds: [embed], flags: [64] });
     }
 
     // Mostrar comandos de categoría específica
@@ -182,7 +182,7 @@ else if (commandName === 'ayuda') {
     if (!categoryData) {
         return interaction.reply({
             content: '❌ Categoría no encontrada.',
-            ephemeral: true
+            flags: [64]
         });
     }
 
@@ -200,7 +200,7 @@ else if (commandName === 'ayuda') {
         }
     };
 
-    await interaction.reply({ embeds: [embed], ephemeral: true });
+    await interaction.reply({ embeds: [embed], flags: [64] });
 }
 */
 

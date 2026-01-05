@@ -16,7 +16,7 @@ module.exports = {
                 .setDescription('Ver estado de backups recientes')),
 
     async execute(interaction, client, supabase) {
-        await interaction.deferReply({ ephemeral: true });
+        await interaction.deferReply({ flags: [64] });
 
         // Permission Check - Only Administrators
         if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {

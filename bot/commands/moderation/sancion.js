@@ -98,7 +98,7 @@ module.exports = {
         else if (memberRoles.some(r => ROLES_CONFIG.LEVEL_1_TRAINING.includes(r.id))) userLevel = 1;
 
         if (userLevel === 0) {
-            return interaction.reply({ content: '⛔ **Acceso Denegado:** No tienes rango suficiente para usar este sistema.', ephemeral: true });
+            return interaction.reply({ content: '⛔ **Acceso Denegado:** No tienes rango suficiente para usar este sistema.', flags: [64] });
         }
 
         // Helper to check levels
@@ -116,7 +116,7 @@ module.exports = {
         if (isCriticalAction && !isAdmin) {
             return interaction.reply({
                 content: '🛑 **Acceso Denegado (Nivel 3 Requerido)**\nSolo la **Administración y Junta Directiva** pueden aplicar Blacklists, SAs o Baneos Permanentes.',
-                ephemeral: true
+                flags: [64]
             });
         }
 
@@ -126,7 +126,7 @@ module.exports = {
         if (isHighAction && !isStaff) {
             return interaction.reply({
                 content: '🛑 **Acceso Denegado (Nivel 2 Requerido)**\nComo Staff en Entrenamiento, no puedes aplicar Kicks ni Baneos Temporales. Solicita ayuda a un Staff superior.',
-                ephemeral: true
+                flags: [64]
             });
         }
 
@@ -134,7 +134,7 @@ module.exports = {
         if (!isTraining) {
             return interaction.reply({
                 content: '🛑 **Acceso Denegado**\nNo tienes el rol de Staff necesario para usar este comando.',
-                ephemeral: true
+                flags: [64]
             });
         }
 
@@ -142,7 +142,7 @@ module.exports = {
         // Sanciones = Public (No Ephemeral)
         // Notificaciones = Private (Ephemeral)
         const isEphemeral = (type === 'notificacion');
-        await interaction.deferReply({ ephemeral: isEphemeral });
+        await interaction.deferReply({ flags: isEphemeral ? [64] : [] });
 
         const targetUser = interaction.options.getUser('usuario');
         const motivo = interaction.options.getString('motivo');

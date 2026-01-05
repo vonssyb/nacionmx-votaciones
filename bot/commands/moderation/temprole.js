@@ -21,7 +21,7 @@ module.exports = {
     async execute(interaction, client, supabase) {
         // Permission check
         if (!interaction.member.permissions.has(PermissionFlagsBits.ManageRoles)) {
-            return interaction.reply({ content: '❌ No tienes permisos para gestionar roles.', ephemeral: true });
+            return interaction.reply({ content: '❌ No tienes permisos para gestionar roles.', flags: [64] });
         }
 
         const targetUser = interaction.options.getUser('usuario');
@@ -30,7 +30,7 @@ module.exports = {
 
         // Basic check to prevent assigning admin roles
         if (role.permissions.has(PermissionFlagsBits.Administrator)) {
-            return interaction.reply({ content: '❌ No puedes asignar roles de Administrador temporalmente por seguridad.', ephemeral: true });
+            return interaction.reply({ content: '❌ No puedes asignar roles de Administrador temporalmente por seguridad.', flags: [64] });
         }
 
         await interaction.deferReply();

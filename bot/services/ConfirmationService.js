@@ -73,7 +73,7 @@ class ConfirmationService {
         const message = await interaction.followUp({
             embeds: [embed],
             components: [row],
-            ephemeral: false
+            
         });
 
         // Store confirmation data

@@ -23,7 +23,7 @@ module.exports = {
                 .addAttachmentOption(option => option.setName('evidencia').setDescription('Screenshot de evidencia').setRequired(true))),
 
     async execute(interaction, client, supabase) {
-        await interaction.deferReply({ ephemeral: false });
+        await interaction.deferReply({  });
 
         const encargadoCKRoleId = '1450938106395234526';
 

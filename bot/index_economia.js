@@ -151,7 +151,7 @@ client.on('interactionCreate', async interaction => {
             };
         }
 
-        await interaction.deferReply({ ephemeral: false }).catch(() => { });
+        await interaction.deferReply({  }).catch(() => { });
 
         const commandName = interaction.commandName;
         const command = client.commands.get(commandName);
@@ -165,7 +165,7 @@ client.on('interactionCreate', async interaction => {
                 } catch (error) {
                     console.error(`[Legacy Error] /${interaction.commandName}:`, error);
                     if (!interaction.replied && !interaction.deferred) {
-                        await interaction.reply({ content: '❌ Error en comando legacy.', ephemeral: true }).catch(() => { });
+                        await interaction.reply({ content: '❌ Error en comando legacy.', flags: [64] }).catch(() => { });
                     } else {
                         await interaction.editReply({ content: '❌ Error en comando legacy.' }).catch(() => { });
                     }
@@ -181,9 +181,9 @@ client.on('interactionCreate', async interaction => {
             console.error(`[Command Error] /${interaction.commandName}:`, error);
             const content = '❌ Error ejecutando comando.';
             if (interaction.replied || interaction.deferred) {
-                await interaction.followUp({ content, ephemeral: true }).catch(() => { });
+                await interaction.followUp({ content, flags: [64] }).catch(() => { });
             } else {
-                await interaction.reply({ content, ephemeral: true }).catch(() => { });
+                await interaction.reply({ content, flags: [64] }).catch(() => { });
             }
         }
         return;

@@ -22,7 +22,7 @@ module.exports = {
                 .setRequired(false)),
 
     async execute(interaction, client, supabase) {
-        await interaction.deferReply({ ephemeral: false });
+        await interaction.deferReply({  });
 
         const FINE_CHANNEL_ID = '1398888981655064607';
         const FINE_LOGS_CHANNEL_ID = '1457583225085100283';
@@ -36,7 +36,7 @@ module.exports = {
             if (interaction.channelId !== FINE_CHANNEL_ID) {
                 return interaction.editReply({
                     content: `❌ **Canal Incorrecto**\n\nEste comando solo puede usarse en <#${FINE_CHANNEL_ID}>.`,
-                    ephemeral: true
+                    flags: [64]
                 });
             }
 
@@ -47,7 +47,7 @@ module.exports = {
             if (!hasTransitRole) {
                 return interaction.editReply({
                     content: '❌ **Sin Autorización**\n\nSolo la Policía de Tránsito puede emitir multas.',
-                    ephemeral: true
+                    flags: [64]
                 });
             }
 
@@ -66,7 +66,7 @@ module.exports = {
             if (targetUser.id === interaction.user.id) {
                 return interaction.editReply({
                     content: '❌ No puedes multarte a ti mismo.',
-                    ephemeral: true
+                    flags: [64]
                 });
             }
 
