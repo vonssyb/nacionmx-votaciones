@@ -1,4 +1,4 @@
--- Updates for Credit Card Costs and Limits in database if they are stored there.
+    -- Updates for Credit Card Costs and Limits in database if they are stored there.
 -- Assuming table 'store_items' or 'card_types' exists.
 -- Based on user request.
 

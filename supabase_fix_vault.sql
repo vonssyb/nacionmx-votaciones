@@ -3,3 +3,4 @@
 
 ALTER TABLE privacy_vault ADD COLUMN IF NOT EXISTS cash_saved NUMERIC DEFAULT 0;
 ALTER TABLE privacy_vault ADD COLUMN IF NOT EXISTS bank_saved NUMERIC DEFAULT 0;
+    
