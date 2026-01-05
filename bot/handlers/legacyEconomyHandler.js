@@ -5658,7 +5658,6 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             if (!license) {
                 return interaction.editReply('❌ Tipo de licencia inválido.');
             }
-
             // Check if issuer has police role for arma_larga
             if (license.requiresPolice) {
                 const issuerMember = await interaction.guild.members.fetch(interaction.user.id);
@@ -5670,6 +5669,20 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 }
             }
 
+            // Apply Premium 15% discount  
+            const PREMIUM_ROLE_ID = '1412887172503175270';
+            const BOOSTER_ROLE_ID = '1423520675158691972';
+            const ULTRAPASS_ROLE_ID = '1414033620636532849';
+
+            const targetMember = await interaction.guild.members.fetch(targetUser.id);
+            const hasPremium = targetMember.roles.cache.has(PREMIUM_ROLE_ID) ||
+                targetMember.roles.cache.has(BOOSTER_ROLE_ID) ||
+                targetMember.roles.cache.has(ULTRAPASS_ROLE_ID);
+
+            const discount = hasPremium ? 0.15 : 0;
+            const finalPrice = Math.floor(license.price * (1 - discount));
+            const savedAmount = license.price - finalPrice;
+
             try {
                 // Check if user already has the license (role)
                 const member = await interaction.guild.members.fetch(targetUser.id);
@@ -5680,7 +5693,19 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 // Show payment selector
                 const pmLicense = await getAvailablePaymentMethods(targetUser.id, interaction.guildId);
                 const pbLicense = createPaymentButtons(pmLicense, 'license_pay');
-                const licenseEmbed = createPaymentEmbed(license.name, license.price, pmLicense);
+                const licenseEmbed = createPaymentEmbed(
+                    license.name + (hasPremium ? ' (⭐ Descuento Premium 15%)' : ''),
+                    finalPrice,
+                    pmLicense
+                );
+
+                if (hasPremium && savedAmount > 0) {
+                    licenseEmbed.addFields({
+                        name: '💰 Descuento Aplicado',
+                        value: `Precio normal: $${license.price.toLocaleString()}\nDescuento: -$${savedAmount.toLocaleString()} (15%)\nPrecio final: **$${finalPrice.toLocaleString()}**`,
+                        inline: false
+                    });
+                }
 
                 await interaction.editReply({
                     content: `📋 **Emitiendo licencia para** ${targetUser.tag}`,
@@ -5697,12 +5722,12 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                         await i.deferUpdate();
                         const method = i.customId.replace('license_pay_', '');
 
-                        // Process payment
+                        // Process payment with discounted price
                         const paymentResult = await processPayment(
                             method,
                             targetUser.id,
                             interaction.guildId,
-                            license.price,
+                            finalPrice,  // Use discounted price
                             `[Licencia] ${license.name}`,
                             pmLicense
                         );
@@ -7542,24 +7567,24 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
     /* DISABLED - Automatic tax collection via background service
     else if (commandName === 'impuestos') {
         await interaction.deferReply();
-
+    
         const EVASOR_FISCAL_ROLE_ID = '1449950636371214397';
         const targetUser = interaction.options.getUser('usuario') || interaction.user;
         const hasEvasorRole = interaction.member.roles.cache.has(EVASOR_FISCAL_ROLE_ID);
-
+    
         try {
             const balance = await billingService.ubService.getUserBalance(interaction.guildId, targetUser.id);
             const cash = balance.cash || 0;
-
+    
             const TAX_THRESHOLD = 1000000;
             const BASE_TAX_RATE = 0.05;
-
+    
             // Calculate base tax
             let baseTaxAmount = 0;
             if (cash > TAX_THRESHOLD) {
                 baseTaxAmount = Math.floor((cash - TAX_THRESHOLD) * BASE_TAX_RATE);
             }
-
+    
             if (baseTaxAmount === 0) {
                 const embed = new EmbedBuilder()
                     .setColor('#00FF00')
@@ -7572,7 +7597,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                     .setTimestamp();
                 return interaction.editReply({ embeds: [embed] });
             }
-
+    
             // EVASION MECHANICS
             if (hasEvasorRole) {
                 // Get evasion history to calculate suspicion
@@ -7583,27 +7608,27 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                     .eq('user_id', targetUser.id)
                     .order('created_at', { ascending: false })
                     .limit(10);
-
+    
                 const recentEvasions = (history || []).filter(h => h.evasion_type === 'success').length;
                 const recentCaught = (history || []).filter(h => h.evasion_type === 'caught').length;
-
+    
                 // Calculate catch probability
                 let catchProbability = 0.20; // 20% base
                 catchProbability += recentEvasions * 0.05; // +5% per recent evasion
                 catchProbability = Math.min(catchProbability, 0.60); // Max 60%
-
+    
                 // Reduced tax amount
                 const evadedTaxAmount = Math.floor(baseTaxAmount * 0.50); // Pay only 50%
-
+    
                 // Roll for getting caught
                 const caughtRoll = Math.random();
                 const wasCaught = caughtRoll < catchProbability;
-
+    
                 if (wasCaught) {
                     // CAUGHT EVADING
                     const fineMultiplier = recentCaught > 0 ? 3.0 : 2.0; // 300% for recidivists, 200% first time
                     const fineAmount = Math.floor(baseTaxAmount * fineMultiplier);
-
+    
                     // Charge fine
                     await billingService.ubService.removeMoney(
                         interaction.guildId,
@@ -7612,14 +7637,14 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                         '🚨 Multa SAT - Evasión Fiscal Detectada',
                         'cash'
                     );
-
+    
                     // Remove evasor role
                     try {
                         await interaction.member.roles.remove(EVASOR_FISCAL_ROLE_ID);
                     } catch (roleErr) {
                         console.error('[impuestos] Failed to remove evasor role:', roleErr);
                     }
-
+    
                     // Log to history
                     await supabase.from('tax_evasion_history').insert({
                         guild_id: interaction.guildId,
@@ -7629,7 +7654,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                         fine_amount: fineAmount,
                         suspicion_level: Math.floor(catchProbability * 100)
                     });
-
+    
                     const embed = new EmbedBuilder()
                         .setColor('#FF0000')
                         .setTitle('🚨 ¡AUDITORÍA DEL SAT!')
@@ -7642,9 +7667,9 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                         )
                         .setFooter({ text: 'El SAT siempre vigila. Evade con precaución.' })
                         .setTimestamp();
-
+    
                     return interaction.editReply({ embeds: [embed] });
-
+    
                 } else {
                     // SUCCESSFUL EVASION
                     await billingService.ubService.removeMoney(
@@ -7654,7 +7679,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                         '💸 Pago de Impuestos (Evadido)',
                         'cash'
                     );
-
+    
                     // Log success
                     await supabase.from('tax_evasion_history').insert({
                         guild_id: interaction.guildId,
@@ -7664,9 +7689,9 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                         fine_amount: 0,
                         suspicion_level: Math.floor(catchProbability * 100)
                     });
-
+    
                     const saved = baseTaxAmount - evadedTaxAmount;
-
+    
                     const embed = new EmbedBuilder()
                         .setColor('#00FF00')
                         .setTitle('🕶️ Evasión Exitosa')
@@ -7681,7 +7706,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                         )
                         .setFooter({ text: `⚠️ Cada evasión aumenta +5% tu probabilidad de ser atrapado` })
                         .setTimestamp();
-
+    
                     return interaction.editReply({ embeds: [embed] });
                 }
             } else {
@@ -7693,7 +7718,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                     '💼 Pago de Impuestos SAT',
                     'cash'
                 );
-
+    
                 const embed = new EmbedBuilder()
                     .setColor('#FF9800')
                     .setTitle(`💼 Pago de Impuestos`)
@@ -7706,15 +7731,15 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                     )
                     .setFooter({ text: 'Gracias por ser un ciudadano responsable' })
                     .setTimestamp();
-
+    
                 await interaction.editReply({ embeds: [embed] });
             }
-
+    
         } catch (error) {
             console.error('[impuestos] Error:', error);
             await interaction.editReply('❌ Error al procesar impuestos. Contacta a un administrador.');
         }
-
+    
         // Helper function to rename channel based on state
     }
     */
