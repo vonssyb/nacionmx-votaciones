@@ -137,8 +137,14 @@ class UnbelievableBoatService {
             }
         });
 
-        // Invalidate cache after balance change
-        this.balanceCache.del(`balance:${guildId}:${userId}`);
+        // Invalidate cache after balance change safely
+        try {
+            if (this.balanceCache && typeof this.balanceCache.del === 'function') {
+                this.balanceCache.del(`balance:${guildId}:${userId}`);
+            }
+        } catch (cacheError) {
+            console.warn('[UnbelievaBoat] Failed to invalidate cache:', cacheError.message);
+        }
         return result;
     }
 
