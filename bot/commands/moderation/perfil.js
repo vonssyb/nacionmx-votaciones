@@ -16,23 +16,29 @@ module.exports = {
         const isOwnProfile = targetUser.id === interaction.user.id;
 
         try {
-            // Fetch Economy Data
-            const { data: balance, error: balanceError } = await supabase
-                .from('user_balances')
-                .select('cash, bank')
-                .eq('guild_id', interaction.guildId)
-                .eq('user_id', targetUser.id)
-                .maybeSingle();
+            // Fetch Economy Data from UnbelievaBoat API
+            const UnbelievaBoatService = require('../services/UnbelievaBoatService');
+            const ubToken = process.env.UNBELIEVABOAT_TOKEN;
 
-            console.log('[perfil] Balance query:', {
-                guildId: interaction.guildId,
-                userId: targetUser.id,
-                balance,
-                error: balanceError
-            });
+            if (!ubToken) {
+                console.error('[perfil] UNBELIEVABOAT_TOKEN not configured');
+                return interaction.editReply('❌ Error de configuración del bot.');
+            }
 
-            const cash = balance?.cash || 0;
-            const bank = balance?.bank || 0;
+            const ubService = new UnbelievaBoatService(ubToken);
+
+            let cash = 0, bank = 0;
+
+            try {
+                const balance = await ubService.getUserBalance(interaction.guildId, targetUser.id);
+                cash = balance.cash || 0;
+                bank = balance.bank || 0;
+                console.log('[perfil] UnbelievaBoat balance:', { userId: targetUser.id, cash, bank });
+            } catch (ubError) {
+                console.error('[perfil] Error fetching UnbelievaBoat balance:', ubError.message);
+                // Continue with 0 if API fails
+            }
+
             const total = cash + bank;
 
             // Fetch Credit Card
