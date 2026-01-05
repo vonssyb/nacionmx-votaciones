@@ -316,22 +316,32 @@ module.exports = {
             const isStaff = interaction.member.roles.cache.has(juntaDirectivaRoleId) ||
                 interaction.member.permissions.has('Administrator');
 
-            if ((isOwnProfile || isStaff) && sanctions && sanctions.length > 0) {
-                const sanctionText = sanctions.map(s => {
-                    const date = new Date(s.created_at).toLocaleDateString('es-MX');
-                    const statusIcon = s.status === 'active' ? '🔴' : s.status === 'archived' ? '⚪' : '🔵';
-                    return `${statusIcon} **${s.type.toUpperCase()}** (${date})\n   ${s.reason}`;
-                }).join('\n\n');
+            if ((isOwnProfile || isStaff) && sanctions && (sanctions.recent?.length > 0 || sanctions.counts?.total > 0)) {
+                // Display counters
+                const countersText = `📊 **Total:** ${sanctions.counts.total} | 📝 **Notificaciones:** ${sanctions.counts.notificacion} | ⚠️ **SA:** ${sanctions.counts.sa} | 🚫 **Generales:** ${sanctions.counts.general}`;
+
+                let sanctionValue = countersText;
+
+                // Add recent sanctions if any
+                if (sanctions.recent && sanctions.recent.length > 0) {
+                    const sanctionText = sanctions.recent.map(s => {
+                        const date = new Date(s.created_at).toLocaleDateString('es-MX');
+                        const statusIcon = s.status === 'active' ? '🔴' : s.status === 'archived' ? '⚪' : '🔵';
+                        return `${statusIcon} **${s.type.toUpperCase()}** (${date})\n   ${s.reason}`;
+                    }).join('\n\n');
+
+                    sanctionValue += `\n\n**Últimas 3:**\n${sanctionText}`;
+                }
 
                 embed.addFields({
-                    name: '📋 Historial de Sanciones (Últimas 5)',
-                    value: sanctionText.substring(0, 1024), // Discord limit
+                    name: '📋 Historial de Sanciones',
+                    value: sanctionValue.substring(0, 1024), // Discord limit
                     inline: false,
                 });
-            } else if ((isOwnProfile || isStaff) && (!sanctions || sanctions.length === 0)) {
+            } else if ((isOwnProfile || isStaff)) {
                 embed.addFields({
                     name: '📋 Historial de Sanciones',
-                    value: '✅ Registro limpio',
+                    value: '✅ Registro limpio\n📊 **Total:** 0 | 📝 **Notificaciones:** 0 | ⚠️ **SA:** 0 | 🚫 **Generales:** 0',
                     inline: false
                 });
             }
