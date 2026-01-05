@@ -4,10 +4,12 @@
  */
 
 const { REST, Routes, SlashCommandBuilder } = require('discord.js');
-require('dotenv').config();
-
 const fs = require('fs');
 const path = require('path');
+
+// Load env from both locations to be safe
+require('dotenv').config({ path: path.join(__dirname, '.env') });
+require('dotenv').config({ path: path.join(__dirname, '../.env') });
 
 const commands = [];
 const commandsPath = path.join(__dirname, 'commands');
@@ -58,13 +60,6 @@ try {
     });
 } catch (e) { console.warn('[WARN] Legacy load failed', e); }
 
-// LOAD LEGACY COMMANDS (Only if they are moderation related? Assume most legacy are util/mod)
-// Actually, in the split, legacy commands are mostly in index.js manually or commands.js.
-// We'll skip legacy commands.js for now to avoid pollution, as we are moving to modular.
-// Or if the user relies on them, we should include them.
-// Given strict split, let's include them ONLY if they are essential. 
-// For now, I'll assume modular commands are the priority.
-
 // Manual commands specific to Moderation
 if (!commands.find(c => c.name === 'status')) {
     commands.push(
@@ -76,12 +71,12 @@ if (!commands.find(c => c.name === 'status')) {
 }
 
 // TOKEN & CLIENT ID for MODERATION
-const token = process.env.DISCORD_TOKEN; // Original Token
-const clientId = process.env.CLIENT_ID || process.env.VITE_DISCORD_CLIENT_ID;
+const token = process.env.DISCORD_BOT_TOKEN || process.env.DISCORD_TOKEN;
+let clientId = process.env.CLIENT_ID || process.env.VITE_DISCORD_CLIENT_ID;
 const guildId = process.env.GUILD_ID;
 
-if (!token || !clientId || !guildId) {
-    console.error('❌ Faltan variables: DISCORD_TOKEN, CLIENT_ID, o GUILD_ID');
+if (!token || !guildId) {
+    console.error('❌ Faltan variables: DISCORD_TOKEN/DISCORD_BOT_TOKEN o GUILD_ID');
     process.exit(1);
 }
 
@@ -89,6 +84,14 @@ const rest = new REST({ version: '10' }).setToken(token);
 
 (async () => {
     try {
+        // Fetch Client ID if missing or invalid suspect
+        if (!clientId) {
+            console.log('⚠️ CLIENT_ID no encontrado. Obteniendo de la API...');
+            const currentUser = await rest.get(Routes.user('@me'));
+            clientId = currentUser.id;
+            console.log(`✅ Client ID obtenido: ${clientId} (${currentUser.username})`);
+        }
+
         console.log(`🚀 [MOD] Registrando ${commands.length} comandos...`);
 
         const data = await rest.put(

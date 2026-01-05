@@ -129,7 +129,7 @@ client.on('interactionCreate', async interaction => {
             };
         }
 
-        await interaction.deferReply({  }).catch(() => { });
+        await interaction.deferReply({}).catch(() => { });
 
         const command = client.commands.get(interaction.commandName);
         if (command) {
@@ -359,7 +359,7 @@ client.on('interactionCreate', async interaction => {
 
         // --- APPROVE SANCTION ---
         if (customId.startsWith('approve_sancion_')) {
-            await interaction.deferReply({  });
+            await interaction.deferReply({});
             const targetId = customId.split('_')[2];
 
             // Extract data from Embed (Stateful Embed)
@@ -591,6 +591,62 @@ setInterval(async () => {
         console.error('❌ Error in Auto-Expiration Cron:', err);
     }
 }, 300000); // Run every 5 minutes
+
+// --- ERLC INTEGRATION ---
+const ErlcService = require('./services/ErlcService');
+// Key provided by user
+const ERLC_API_KEY = 'ARuRfmzZGTqbqUCjMERA-dzEeGLbRfisfjKtiCOXLHATXDedYZsQQEethQMZp';
+client.services.erlc = new ErlcService(ERLC_API_KEY);
+
+setInterval(async () => {
+    try {
+        const configPath = path.join(__dirname, 'data/erlc_config.json');
+        if (!fs.existsSync(configPath)) return;
+
+        const config = JSON.parse(fs.readFileSync(configPath));
+        if (!config.statusChannelId || !config.statusMessageId) return;
+
+        const info = await client.services.erlc.getServerInfo();
+        if (!info) return; // Rate limited or offline API
+
+        const channel = await client.channels.fetch(config.statusChannelId);
+        if (!channel) return;
+        const message = await channel.messages.fetch(config.statusMessageId);
+        if (!message) return;
+
+        // Build Embed
+        const isOnline = true; // If we got info, it's online usually, check info.Name?
+        // ERLC API returns empty or error if offline, but getting data implies online.
+
+        let statusColor = '#00FF00'; // Green
+        let statusText = '🟢 En Línea';
+
+        // Players List
+        const playerList = info.Players && info.Players.length > 0
+            ? info.Players.map(p => `\`${p.Player}\` (${p.Team})`).join(', ')
+            : 'Ninguno';
+
+        const embed = new EmbedBuilder()
+            .setTitle(`📶 Estado del Servidor: ${info.Name}`)
+            .setColor(statusColor)
+            .addFields(
+                { name: 'Estado', value: statusText, inline: true },
+                { name: '👥 Jugadores', value: `${info.CurrentPlayers} / ${info.MaxPlayers}`, inline: true },
+                { name: '⏳ Cola de Espera', value: `${info.Queue || 0}`, inline: true },
+                { name: '🚓 Policía/Sheriff', value: info.Players ? info.Players.filter(p => p.Team === 'Police' || p.Team === 'Sheriff').length.toString() : '0', inline: true },
+                { name: '📜 Lista de Jugadores', value: playerList.length > 1024 ? playerList.substring(0, 1021) + '...' : playerList }
+            )
+            .setThumbnail('https://cdn.discordapp.com/attachments/885232074083143741/1457553016743006363/25174-skull-lmfao.gif') // Nacion log
+            .setFooter({ text: `Join Key: ${info.JoinKey} | Actualizado: ${new Date().toLocaleTimeString('es-MX', { timeZone: 'America/Mexico_City' })}` })
+            .setTimestamp();
+
+        await message.edit({ embeds: [embed] });
+
+    } catch (err) {
+        // console.error('[ERLC Cron] Error:', err.message); 
+        // Silent fail to avoid spam logs
+    }
+}, 60000); // 60 seconds
 
 // LOGIN
 client.login(DISCORD_TOKEN);
