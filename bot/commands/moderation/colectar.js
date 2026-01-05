@@ -59,11 +59,17 @@ module.exports = {
             const member = await interaction.guild.members.fetch(userId);
             const userRoleIds = member.roles.cache.map(r => r.id);
 
-            const { data: salaries } = await supabase
+            console.log('[colectar] User roles:', userRoleIds);
+            console.log('[colectar] Guild ID:', guildId);
+
+            const { data: salaries, error: salaryError } = await supabase
                 .from('job_salaries')
                 .select('*')
                 .eq('guild_id', guildId)
                 .in('role_id', userRoleIds);
+
+            console.log('[colectar] Salaries query result:', salaries);
+            console.log('[colectar] Salaries error:', salaryError);
 
             if (!salaries || salaries.length === 0) {
                 return interaction.editReply({
@@ -98,6 +104,7 @@ module.exports = {
                 console.log(`[colectar] Deposited $${netAmount} to cash for ${interaction.user.tag}`);
             } catch (ubError) {
                 console.error('[colectar] UnbelievaBoat error:', ubError);
+                console.error('[colectar] UB Error details:', ubError.response?.data || ubError.message);
                 return interaction.editReply('❌ Error al depositar el salario. Intenta más tarde.');
             }
 
