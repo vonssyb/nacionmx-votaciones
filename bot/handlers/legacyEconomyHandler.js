@@ -6132,19 +6132,30 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
 
     else if (commandName === 'trabajar') {
         // DNI Check
-        const { data: jobDni } = await supabase
+        const { data: jobDni, error: dniError } = await supabase
             .from('citizen_dni')
-            .select('id')
+            .select('id, nombre, apellido')
             .eq('guild_id', interaction.guildId)
             .eq('user_id', interaction.user.id)
             .maybeSingle();
 
-        if (!jobDni) {
+        if (dniError) {
+            console.error('[trabajar] DNI query error:', dniError);
             return interaction.reply({
-                content: '❌ **DNI Requerido**\n\nNecesitas un DNI válido para trabajar.\nCrea uno usando `/dni crear`.',
+                content: '❌ **Error al verificar DNI**\n\nHubo un problema al consultar tu DNI. Contacta a un administrador.',
                 ephemeral: true
             });
         }
+
+        if (!jobDni) {
+            console.log(`[trabajar] No DNI found for user ${interaction.user.id} in guild ${interaction.guildId}`);
+            return interaction.reply({
+                content: '❌ **DNI Requerido**\n\nNecesitas un DNI válido para trabajar.\n\n**Crea uno usando:** `/dni crear`\n**Verifica tu DNI:** `/dni ver`',
+                ephemeral: true
+            });
+        }
+
+        console.log(`[trabajar] DNI validated for ${jobDni.nombre} ${jobDni.apellido} (${interaction.user.id})`);
         await interaction.deferReply();
         const JOB_COOLDOWN = 60 * 60 * 1000;
         const jobKey = `job_${interaction.user.id}`;
@@ -6345,19 +6356,30 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
         }
     } else if (commandName === 'crimen') {
         // DNI Check
-        const { data: crimenDni } = await supabase
+        const { data: crimenDni, error: crimenDniError } = await supabase
             .from('citizen_dni')
-            .select('id')
+            .select('id, nombre, apellido')
             .eq('guild_id', interaction.guildId)
             .eq('user_id', interaction.user.id)
             .maybeSingle();
 
-        if (!crimenDni) {
+        if (crimenDniError) {
+            console.error('[crimen] DNI query error:', crimenDniError);
             return interaction.reply({
-                content: '❌ **DNI Requerido**\n\nNecesitas un DNI válido para realizar actividades criminales.\nCrea uno usando `/dni crear`.',
+                content: '❌ **Error al verificar DNI**\n\nHubo un problema al consultar tu DNI. Contacta a un administrador.',
                 ephemeral: true
             });
         }
+
+        if (!crimenDni) {
+            console.log(`[crimen] No DNI found for user ${interaction.user.id} in guild ${interaction.guildId}`);
+            return interaction.reply({
+                content: '❌ **DNI Requerido**\n\nNecesitas un DNI válido para realizar actividades criminales.\n\n**Crea uno usando:** `/dni crear`\n**Verifica tu DNI:** `/dni ver`',
+                ephemeral: true
+            });
+        }
+
+        console.log(`[crimen] DNI validated for ${crimenDni.nombre} ${crimenDni.apellido} (${interaction.user.id})`);
         await interaction.deferReply();
         const CRIME_COOLDOWN = 120 * 60 * 1000;
         const crimeKey = `crime_${interaction.user.id}`;
