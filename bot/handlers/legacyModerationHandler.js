@@ -3561,6 +3561,8 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
 
 
 
+
+    /* DISABLED - Using new /multar command from economy bot instead
     else if (commandName === 'multa') {
         await interaction.deferReply();
 
@@ -3642,6 +3644,8 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
 
         await interaction.editReply({ embeds: [embed], components: [] });
     }
+    */
+
 
     /*
     else if (commandName === 'fichar') {
