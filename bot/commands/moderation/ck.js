@@ -212,11 +212,30 @@ module.exports = {
 
                     await i.editReply({ content: '', embeds: [resultEmbed] });
 
-                    // 9. Send to PUBLIC CK channel ONLY (not audit)
-                    const CK_PUBLIC_CHANNEL_ID = '1412957234824089732';
-                    const ckChannel = await client.channels.fetch(CK_PUBLIC_CHANNEL_ID);
-                    if (ckChannel) {
-                        await ckChannel.send({ embeds: [resultEmbed] });
+                    // 9. Send detailed CK log to logs channel
+                    const CK_LOGS_CHANNEL_ID = '1457576874602659921';
+                    const ckLogsChannel = await client.channels.fetch(CK_LOGS_CHANNEL_ID);
+                    if (ckLogsChannel) {
+                        // Create detailed log embed
+                        const detailedLogEmbed = new EmbedBuilder()
+                            .setTitle(`💀 ${ckTipo.toUpperCase()} - LOG DETALLADO`)
+                            .setColor('#8B0000')
+                            .setThumbnail('https://cdn.discordapp.com/attachments/885232074083143741/1457553016743006363/25174-skull-lmfao.gif')
+                            .addFields(
+                                { name: '👮 Aprobado por:', value: `<@${interaction.user.id}>`, inline: true },
+                                { name: '👤 Usuario afectado:', value: `<@${targetUser.id}>`, inline: true },
+                                { name: '📋 Tipo de CK:', value: ckTipo, inline: true },
+                                { name: '📝 Razón del CK:', value: razon, inline: false },
+                                { name: '💵 Dinero Removido', value: `Cash: $${previousCash.toLocaleString()}\nBanco: $${previousBank.toLocaleString()}\n**Total:** $${(previousCash + previousBank).toLocaleString()}`, inline: true },
+                                { name: '🪪 Licencias Removidas', value: licenseRoles.length > 0 ? '🚗 Conducir\n🔫 Armas Cortas\n🎯 Armas Largas' : 'Ninguna', inline: true },
+                                { name: '💳 Tarjetas', value: 'Todas desactivadas', inline: true },
+                                { name: '🏷️ Roles Removidos', value: removedRoles.length > 0 ? removedRoles.slice(0, 15).join(', ') + (removedRoles.length > 15 ? `\n... (+${removedRoles.length - 15} más)` : '') : 'Ninguno', inline: false }
+                            )
+                            .setImage(evidencia.url)
+                            .setFooter({ text: `CK Registry | ${new Date().toLocaleDateString('es-MX')}, ${new Date().toLocaleTimeString('es-MX')}` })
+                            .setTimestamp();
+
+                        await ckLogsChannel.send({ embeds: [detailedLogEmbed] });
                     }
 
                     // 10. Notify user via DM
