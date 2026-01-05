@@ -139,6 +139,60 @@ async function animateCrash(interaction, crashPoint, cashout) {
     }
 }
 
+// --- ROLE BENEFITS SYSTEM ---
+const BENEFIT_ROLES = {
+    PREMIUM: '1412887172503175270', // Confirmed from SQL
+    BOOSTER: '1423520675158691972', // Confirmed from SQL
+    ULTRAPASS: '1414033620636532849' // Confirmed from SQL
+};
+
+/**
+ * Calculates discounts and bonuses based on user roles
+ * @param {GuildMember} member - Discord GuildMember object
+ * @param {number} baseAmount - The original amount (cost or income)
+ * @param {string} type - 'business_create', 'license', 'job'
+ */
+function applyRoleBenefits(member, baseAmount, type) {
+    if (!member) return { finalAmount: baseAmount, discountRate: 0, appliedRole: null };
+
+    const roles = member.roles.cache;
+    let discountRate = 0; // or bonus rate
+    let appliedRole = null;
+
+    // Hierarchy: UltraPass > Premium > Booster (usually)
+    // Checking explicitly for best benefit
+
+    if (type === 'business_create') {
+        // 30% Discount for Premium/Ultra/Booster
+        if (roles.has(BENEFIT_ROLES.ULTRAPASS) || roles.has(BENEFIT_ROLES.PREMIUM)) {
+            discountRate = 0.30;
+            appliedRole = roles.has(BENEFIT_ROLES.ULTRAPASS) ? 'UltraPass' : 'Premium';
+        }
+    } else if (type === 'license') {
+        // 15% Discount
+        if (roles.has(BENEFIT_ROLES.ULTRAPASS) || roles.has(BENEFIT_ROLES.PREMIUM)) {
+            discountRate = 0.15;
+            appliedRole = roles.has(BENEFIT_ROLES.ULTRAPASS) ? 'UltraPass' : 'Premium';
+        }
+    } else if (type === 'job') {
+        // +10% Bonus
+        if (roles.has(BENEFIT_ROLES.ULTRAPASS) || roles.has(BENEFIT_ROLES.PREMIUM)) {
+            discountRate = 0.10; // Bonus
+            appliedRole = roles.has(BENEFIT_ROLES.ULTRAPASS) ? 'UltraPass' : 'Premium';
+        }
+    }
+
+    // Calculate final
+    let finalAmount = baseAmount;
+    if (type === 'job') {
+        finalAmount = Math.floor(baseAmount * (1 + discountRate));
+    } else {
+        finalAmount = Math.floor(baseAmount * (1 - discountRate));
+    }
+
+    return { finalAmount, discountRate, appliedRole };
+}
+
 // Execute roulette session (called after timeout)
 async function executeRouletteSession(firstInteraction) {
     const session = casinoSessions.roulette;
@@ -4124,18 +4178,10 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                     baseCost += LOCAL_COSTS[tipoLocal];
                 }
 
-                // Apply Premium 30% discount
-                const PREMIUM_ROLE_ID = '1412887172503175270';
-                const BOOSTER_ROLE_ID = '1423520675158691972';
-                const ULTRAPASS_ROLE_ID = '1414033620636532849';
-
+                // Apply Premium/Ultra Discounts
                 const ownerMember = await interaction.guild.members.fetch(dueño.id);
-                const hasPremium = ownerMember.roles.cache.has(PREMIUM_ROLE_ID) ||
-                    ownerMember.roles.cache.has(BOOSTER_ROLE_ID) ||
-                    ownerMember.roles.cache.has(ULTRAPASS_ROLE_ID);
-
-                const discount = hasPremium ? 0.30 : 0;
-                const totalCost = Math.floor(baseCost * (1 - discount));
+                const { finalAmount, discountRate, appliedRole } = applyRoleBenefits(ownerMember, baseCost, 'business_create');
+                const totalCost = finalAmount;
                 const savedAmount = baseCost - totalCost;
 
                 // Check if name is unique
@@ -4148,12 +4194,12 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 const pmEmpresa = await getAvailablePaymentMethods(dueño.id, interaction.guildId);
                 const pbEmpresa = createPaymentButtons(pmEmpresa, 'emp_pay');
                 const empresaEmbed = createPaymentEmbed(
-                    `🏢 ${nombre}` + (hasPremium ? ' (⭐ Descuento Premium 30%)' : ''),
+                    `🏢 ${nombre}` + (appliedRole ? ` (⭐ Descuento ${appliedRole} 30%)` : ''),
                     totalCost,
                     pmEmpresa
                 );
 
-                if (hasPremium && savedAmount > 0) {
+                if (appliedRole && savedAmount > 0) {
                     empresaEmbed.addFields({
                         name: '💰 Descuento Aplicado',
                         value: `Precio normal: $${baseCost.toLocaleString()}\nDescuento: -$${savedAmount.toLocaleString()} (30%)\nPrecio final: **$${totalCost.toLocaleString()}**`,
@@ -5963,18 +6009,11 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 }
             }
 
-            // Apply Premium 15% discount  
-            const PREMIUM_ROLE_ID = '1412887172503175270';
-            const BOOSTER_ROLE_ID = '1423520675158691972';
-            const ULTRAPASS_ROLE_ID = '1414033620636532849';
-
+            // Apply Premium/Ultra Discounts
             const targetMember = await interaction.guild.members.fetch(targetUser.id);
-            const hasPremium = targetMember.roles.cache.has(PREMIUM_ROLE_ID) ||
-                targetMember.roles.cache.has(BOOSTER_ROLE_ID) ||
-                targetMember.roles.cache.has(ULTRAPASS_ROLE_ID);
+            const { finalAmount, discountRate, appliedRole } = applyRoleBenefits(targetMember, license.price, 'license');
 
-            const discount = hasPremium ? 0.15 : 0;
-            const finalPrice = Math.floor(license.price * (1 - discount));
+            const finalPrice = finalAmount;
             const savedAmount = license.price - finalPrice;
 
             try {
@@ -5988,12 +6027,12 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 const pmLicense = await getAvailablePaymentMethods(targetUser.id, interaction.guildId);
                 const pbLicense = createPaymentButtons(pmLicense, 'license_pay');
                 const licenseEmbed = createPaymentEmbed(
-                    license.name + (hasPremium ? ' (⭐ Descuento Premium 15%)' : ''),
+                    license.name + (appliedRole ? ` (⭐ Descuento ${appliedRole} 15%)` : ''),
                     finalPrice,
                     pmLicense
                 );
 
-                if (hasPremium && savedAmount > 0) {
+                if (appliedRole && savedAmount > 0) {
                     licenseEmbed.addFields({
                         name: '💰 Descuento Aplicado',
                         value: `Precio normal: $${license.price.toLocaleString()}\nDescuento: -$${savedAmount.toLocaleString()} (15%)\nPrecio final: **$${finalPrice.toLocaleString()}**`,
@@ -6607,16 +6646,47 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                     (job.type === 'math' && userAnswer === job.ans);
 
                 if (correct) {
-                    const pay = Math.floor(Math.random() * (job.pay[1] - job.pay[0] + 1)) + job.pay[0];
+                    const basePay = Math.floor(Math.random() * (job.pay[1] - job.pay[0] + 1)) + job.pay[0];
+                    const member = await interaction.guild.members.fetch(interaction.user.id);
+                    const { finalAmount, appliedRole } = applyRoleBenefits(member, basePay, 'job');
+                    const grossPay = finalAmount;
+                    const bonusLabel = appliedRole ? `⭐ ${appliedRole} +10%` : '';
+
+                    // Tax Logic
+                    const isPremium = member.roles.cache.has(BENEFIT_ROLES.PREMIUM);
+                    const isBooster = member.roles.cache.has(BENEFIT_ROLES.BOOSTER);
+                    const isUltraPass = member.roles.cache.has(BENEFIT_ROLES.ULTRAPASS);
+                    const hasEvasorRole = member.roles.cache.has('1449950636371214397');
+
+                    let taxRate = 0.08;
+                    if (isUltraPass || hasEvasorRole) taxRate = 0.04;
+                    else if (isPremium || isBooster) taxRate = 0.06;
+
+                    const taxAmount = Math.floor(grossPay * taxRate);
+                    const netPay = grossPay - taxAmount;
+
                     const ubService = new UnbelievaBoatService(process.env.UNBELIEVABOAT_TOKEN);
-                    await ubService.addMoney(interaction.guildId, interaction.user.id, pay, 0);
+                    await ubService.addMoney(interaction.guildId, interaction.user.id, netPay, 0);
                     casinoSessions[jobKey] = Date.now();
+
+                    const fields = [
+                        { name: '💰 Pago Base', value: `$${basePay.toLocaleString()}`, inline: true }
+                    ];
+
+                    if (bonusLabel) {
+                        fields.push({ name: '⭐ Bonus', value: `+$${(grossPay - basePay).toLocaleString()} (${bonusLabel})`, inline: true });
+                    }
+
+                    fields.push(
+                        { name: '💸 Impuesto SAT', value: `-$${taxAmount.toLocaleString()} (${taxRate * 100}%)`, inline: true },
+                        { name: '✅ Ganancia Neta', value: `$${netPay.toLocaleString()}`, inline: false }
+                    );
 
                     const successEmbed = new EmbedBuilder()
                         .setTitle('✅ ¡EXCELENTE TRABAJO!')
                         .setColor(0x00FF00)
                         .setDescription(`Has completado: **${job.title}**`)
-                        .addFields({ name: '💰 Ganancia', value: `$${pay.toLocaleString()}`, inline: true })
+                        .addFields(fields)
                         .setFooter({ text: '¡Sigue así!' });
 
                     await m.react('✅');
@@ -6646,33 +6716,18 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 if (win) {
                     const basePay = Math.floor(Math.random() * (job.pay[1] - job.pay[0] + 1)) + job.pay[0];
 
-                    // Detect Premium Roles
-                    const PREMIUM_ROLE_ID = '1412887172503175270';
-                    const BOOSTER_ROLE_ID = '1423520675158691972';
-                    const ULTRAPASS_ROLE_ID = '1414033620636532849';
-                    const EVASOR_FISCAL_ROLE_ID = '1449950636371214397';
-
+                    // Detect Premium Roles for Tax Logic (Bonus handled by helper)
                     const member = await interaction.guild.members.fetch(interaction.user.id);
-                    const isPremium = member.roles.cache.has(PREMIUM_ROLE_ID);
-                    const isBooster = member.roles.cache.has(BOOSTER_ROLE_ID);
-                    const isUltraPass = member.roles.cache.has(ULTRAPASS_ROLE_ID);
-                    const hasEvasorRole = member.roles.cache.has(EVASOR_FISCAL_ROLE_ID);
+                    const isPremium = member.roles.cache.has(BENEFIT_ROLES.PREMIUM);
+                    const isBooster = member.roles.cache.has(BENEFIT_ROLES.BOOSTER);
+                    const isUltraPass = member.roles.cache.has(BENEFIT_ROLES.ULTRAPASS);
+                    const hasEvasorRole = member.roles.cache.has('1449950636371214397'); // Evasor Fiscal
 
-                    // Apply +10% bonus for Premium/Booster/UltraPass
-                    let bonusMultiplier = 1.0;
-                    let bonusLabel = '';
-                    if (isUltraPass) {
-                        bonusMultiplier = 1.10;
-                        bonusLabel = '👑 UltraPass +10%';
-                    } else if (isPremium) {
-                        bonusMultiplier = 1.10;
-                        bonusLabel = '⭐ Premium +10%';
-                    } else if (isBooster) {
-                        bonusMultiplier = 1.10;
-                        bonusLabel = '🚀 Booster +10%';
-                    }
-
-                    const grossPay = Math.floor(basePay * bonusMultiplier);
+                    // Calculate Bonus
+                    const { finalAmount, appliedRole } = applyRoleBenefits(member, basePay, 'job');
+                    const grossPay = finalAmount;
+                    const bonusMultiplier = appliedRole ? 1.10 : 1.0;
+                    const bonusLabel = appliedRole ? `⭐ ${appliedRole} +10%` : '';
 
                     // Tax rates based on role
                     let taxRate = 0.08; // Default 8%
