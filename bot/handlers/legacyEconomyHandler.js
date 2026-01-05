@@ -5776,7 +5776,7 @@ else if (commandName === 'licencia') {
 
         // Check if issuer has police/staff role for arma_larga
         if (license.requiresPolice) {
-            const STAFF_ROLE_ID = '1412887167654690908';
+            const STAFF_ROLE_ID = '1450242487422812251';
             const issuerMember = await interaction.guild.members.fetch(interaction.user.id);
             const hasPoliceRole = issuerMember.roles.cache.has(license.policeRoleId);
             const hasStaffRole = issuerMember.roles.cache.has(STAFF_ROLE_ID);
