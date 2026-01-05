@@ -54,18 +54,35 @@ module.exports = {
                 // Fetch Credit Card
                 (async () => {
                     try {
+                        // First find the citizen associated with this discord user
+                        const { data: citizen } = await supabase
+                            .from('citizens')
+                            .select('id')
+                            .eq('discord_id', targetUser.id)
+                            .maybeSingle();
+
+                        if (!citizen) return null;
+
                         const { data: creditCards, error } = await supabase
                             .from('credit_cards')
-                            .select('card_type, available_limit, used_limit, total_limit')
-                            .eq('guild_id', interaction.guildId)
-                            .eq('user_id', targetUser.id)
-                            .eq('active', true);
+                            .select('card_type, credit_limit, current_balance')
+                            .eq('citizen_id', citizen.id)
+                            .eq('status', 'active');
 
                         if (error) {
                             console.error('[perfil] Credit card query error:', error);
                             return null;
                         }
-                        return creditCards?.[0] || null;
+
+                        if (!creditCards || creditCards.length === 0) return null;
+
+                        const card = creditCards[0];
+                        return {
+                            card_type: card.card_type,
+                            total_limit: card.credit_limit,
+                            used_limit: card.current_balance,
+                            available_limit: card.credit_limit - card.current_balance
+                        };
                     } catch (e) {
                         console.error('[perfil] Failed to fetch credit cards:', e.message);
                         return null;
@@ -147,17 +164,29 @@ module.exports = {
                 (async () => {
                     try {
                         const { data, error } = await supabase
-                            .from('store_purchases')
-                            .select('item_name, expires_at, uses_remaining')
+                            .from('user_purchases')
+                            .select(`
+                                expiration_date,
+                                uses_remaining,
+                                item:store_items (
+                                    name
+                                )
+                            `)
                             .eq('user_id', targetUser.id)
-                            .eq('active', true)
-                            .gt('expires_at', new Date().toISOString());
+                            .eq('status', 'active')
+                            .or(`expiration_date.gt.${new Date().toISOString()},expiration_date.is.null`);
 
                         if (error) {
                             console.error('[perfil] Passes query error:', error);
                             return [];
                         }
-                        return data || [];
+
+                        // Map to a cleaner format
+                        return (data || []).map(p => ({
+                            item_name: p.item?.name || 'Item Desconocido',
+                            expires_at: p.expiration_date,
+                            uses_remaining: p.uses_remaining
+                        }));
                     } catch (e) {
                         console.error('[perfil] Failed to fetch passes:', e.message);
                         return [];
