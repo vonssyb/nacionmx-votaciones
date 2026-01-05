@@ -5783,7 +5783,7 @@ else if (commandName === 'licencia') {
             const isAdmin = issuerMember.permissions.has('Administrator');
 
             if (!hasPoliceRole && !hasStaffRole && !isAdmin) {
-                return interaction.editReply('⛔ Solo la Policía o Staff pueden otorgar Licencias de Armas Largas.');
+                return interaction.editReply('⛔ **Permiso Denegado:** Solo la Policía, Staff o Administradores pueden otorgar Licencias de Armas Largas.');
             }
 
             // If issuer is Staff (not police), verify recipient is military

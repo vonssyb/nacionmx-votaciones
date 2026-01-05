@@ -62,8 +62,15 @@ const commands = [
                     { name: '💳 NMX Supreme ($500k)', value: 'NMX Supreme' }
                 ]
             },
-            { name: 'foto_dni', description: 'Foto del DNI/Identificación', type: 11, required: true },
+            { name: 'foto_dni', description: 'Foto del DNI/Identificación (Opcional si ya está en censo)', type: 11, required: false },
             { name: 'notas', description: 'Notas opcionales', type: 3, required: false }
+        ]
+    },
+    {
+        name: 'verificar',
+        description: 'Vincular tu cuenta de Discord con Roblox',
+        options: [
+            { name: 'usuario', description: 'Tu nombre de usuario de Roblox', type: 3, required: true }
         ]
     },
     {
