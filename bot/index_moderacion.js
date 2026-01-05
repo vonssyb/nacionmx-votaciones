@@ -109,7 +109,7 @@ client.once('clientReady', async () => {
 
     // Load Commands (MODERATION ONLY - ayuda, ping, info are included in moderation folder)
     const loader = require('./handlers/commandLoader');
-    await loader.loadCommands(client, path.join(__dirname, 'commands'), ['moderation']);
+    await loader.loadCommands(client, path.join(__dirname, 'commands'), ['moderation', 'utils']);
 
     // Register Commands (We can do this manually or auto, but for now let's rely on manual or existing script)
     // For Split Bot, usually we want to register only the subset.
