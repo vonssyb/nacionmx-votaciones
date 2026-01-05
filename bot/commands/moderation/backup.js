@@ -91,5 +91,3 @@ module.exports = {
     }
 };
 
-// Fix path import
-const path = require('path');
