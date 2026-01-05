@@ -35,6 +35,9 @@ module.exports = {
             // Add role
             await member.roles.add(role);
 
+            // Wait briefly to ensure Discord processes the change
+            await new Promise(resolve => setTimeout(resolve, 500));
+
             const embed = new EmbedBuilder()
                 .setTitle('✅ Rol Agregado')
                 .setColor('#00FF00')
@@ -46,7 +49,7 @@ module.exports = {
                 )
                 .setTimestamp();
 
-            await interaction.editReply({ embeds: [embed] });
+            return interaction.editReply({ embeds: [embed] });
 
         } catch (error) {
             console.error('[agregar-rol] Error:', error);
