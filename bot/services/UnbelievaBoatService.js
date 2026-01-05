@@ -17,13 +17,7 @@ class UnbelievableBoatService {
         // Initialize cache with 30 second TTL
         this.balanceCache = new CacheService(30000);
 
-        // Cleanup expired entries every 5 minutes
-        setInterval(() => {
-            const cleaned = this.balanceCache.cleanup();
-            if (cleaned > 0) {
-                logger.debug(`Cache cleanup: ${cleaned} expired entries removed`);
-            }
-        }, 300000);
+        // Note: CacheService (node-cache) auto-cleans expired entries
     }
 
     /**
