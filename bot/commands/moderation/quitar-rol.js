@@ -9,7 +9,7 @@ module.exports = {
         .addStringOption(option => option.setName('razon').setDescription('Razón del cambio').setRequired(false)),
 
     async execute(interaction) {
-        await interaction.deferReply({ ephemeral: true });
+        await interaction.deferReply();
 
         // Staff role check
         const STAFF_ROLE_ID = '1412887167654690908';
