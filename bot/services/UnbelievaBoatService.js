@@ -113,7 +113,7 @@ class UnbelievableBoatService {
         });
 
         // Invalidate cache after balance change
-        this.balanceCache.delete(`balance:${guildId}:${userId}`);
+        this.balanceCache.del(`balance:${guildId}:${userId}`);
         return result;
     }
 
@@ -138,7 +138,7 @@ class UnbelievableBoatService {
         });
 
         // Invalidate cache after balance change
-        this.balanceCache.delete(`balance:${guildId}:${userId}`);
+        this.balanceCache.del(`balance:${guildId}:${userId}`);
         return result;
     }
 
