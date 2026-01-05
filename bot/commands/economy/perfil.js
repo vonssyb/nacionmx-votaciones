@@ -109,11 +109,12 @@ module.exports = {
                             return { recent: [], counts: { notificacion: 0, sa: 0, general: 0, total: 0 } };
                         }
 
-                        // Also get counts by type
+                        // Also get counts by type (ONLY ACTIVE SANCTIONS)
                         const { data: allSanctions, error: countError } = await supabase
                             .from('sanctions')
-                            .select('type')
-                            .eq('discord_user_id', targetUser.id);
+                            .select('type, status')
+                            .eq('discord_user_id', targetUser.id)
+                            .eq('status', 'active');  // ONLY COUNT ACTIVE SANCTIONS
 
                         const counts = {
                             notificacion: 0,
@@ -130,7 +131,7 @@ module.exports = {
                         }
 
                         if (data && data.length > 0) {
-                            console.log(`[perfil] ✅ Found ${data.length} recent sanction(s), ${counts.total} total`);
+                            console.log(`[perfil] ✅ Found ${data.length} recent sanction(s), ${counts.total} active total`);
                         } else {
                             console.log(`[perfil] ℹ️ No sanctions found for user ${targetUser.id}`);
                         }

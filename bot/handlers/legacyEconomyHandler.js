@@ -6325,29 +6325,70 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 else if (job.type === 'luck') win = Math.random() > 0.5;
 
                 if (win) {
-                    const grossPay = Math.floor(Math.random() * (job.pay[1] - job.pay[0] + 1)) + job.pay[0];
+                    const basePay = Math.floor(Math.random() * (job.pay[1] - job.pay[0] + 1)) + job.pay[0];
 
-                    // Apply automatic 8% tax (4% if Evasor Fiscal)
+                    // Detect Premium Roles
+                    const PREMIUM_ROLE_ID = '1412887172503175270';
+                    const BOOSTER_ROLE_ID = '1423520675158691972';
+                    const ULTRAPASS_ROLE_ID = '1414033620636532849';
                     const EVASOR_FISCAL_ROLE_ID = '1449950636371214397';
+
                     const member = await interaction.guild.members.fetch(interaction.user.id);
+                    const isPremium = member.roles.cache.has(PREMIUM_ROLE_ID);
+                    const isBooster = member.roles.cache.has(BOOSTER_ROLE_ID);
+                    const isUltraPass = member.roles.cache.has(ULTRAPASS_ROLE_ID);
                     const hasEvasorRole = member.roles.cache.has(EVASOR_FISCAL_ROLE_ID);
-                    const taxRate = hasEvasorRole ? 0.04 : 0.08;
+
+                    // Apply +10% bonus for Premium/Booster/UltraPass
+                    let bonusMultiplier = 1.0;
+                    let bonusLabel = '';
+                    if (isUltraPass) {
+                        bonusMultiplier = 1.10;
+                        bonusLabel = '👑 UltraPass +10%';
+                    } else if (isPremium) {
+                        bonusMultiplier = 1.10;
+                        bonusLabel = '⭐ Premium +10%';
+                    } else if (isBooster) {
+                        bonusMultiplier = 1.10;
+                        bonusLabel = '🚀 Booster +10%';
+                    }
+
+                    const grossPay = Math.floor(basePay * bonusMultiplier);
+
+                    // Tax rates based on role
+                    let taxRate = 0.08; // Default 8%
+                    if (isUltraPass || hasEvasorRole) {
+                        taxRate = 0.04; // UltraPass or Evasor: 4%
+                    } else if (isPremium || isBooster) {
+                        taxRate = 0.06; // Premium/Booster: 6%
+                    }
+
                     const taxAmount = Math.floor(grossPay * taxRate);
                     const netPay = grossPay - taxAmount;
 
                     await billingService.ubService.addMoney(interaction.guildId, interaction.user.id, netPay, `Trabajo: ${job.title}`, 'cash');
                     casinoSessions[jobKey] = Date.now();
 
+                    const fields = [
+                        { name: '💰 Pago Base', value: `$${basePay.toLocaleString()}`, inline: true }
+                    ];
+
+                    if (bonusLabel) {
+                        const bonusAmount = grossPay - basePay;
+                        fields.push({ name: '⭐ Bonus', value: `+$${bonusAmount.toLocaleString()} (${bonusLabel})`, inline: true });
+                    }
+
+                    fields.push(
+                        { name: '💸 Impuesto SAT', value: `-$${taxAmount.toLocaleString()} (${taxRate * 100}%)`, inline: true },
+                        { name: '✅ Ganancia Neta', value: `$${netPay.toLocaleString()}`, inline: false }
+                    );
+
                     const successEmbed = new EmbedBuilder()
                         .setTitle('✅ ¡EXCELENTE TRABAJO!')
                         .setColor(0x00FF00)
                         .setDescription(`Has completado: **${job.title}**`)
-                        .addFields(
-                            { name: '💰 Ganancia Bruta', value: `$${grossPay.toLocaleString()}`, inline: true },
-                            { name: '💸 Impuesto SAT', value: `-$${taxAmount.toLocaleString()} (${taxRate * 100}%)`, inline: true },
-                            { name: '✅ Ganancia Neta', value: `$${netPay.toLocaleString()}`, inline: true }
-                        )
-                        .setFooter({ text: hasEvasorRole ? '🕶️ Descuento fiscal aplicado (4%) | Vuelve en 1 hora' : 'Impuesto: 8% | Vuelve en 1 hora' })
+                        .addFields(fields)
+                        .setFooter({ text: `${bonusLabel || 'Trabajador Estándar'} | Impuesto: ${taxRate * 100}% | Vuelve en 1 hora` })
                         .setTimestamp();
 
                     await i.update({ embeds: [successEmbed], components: [] });
