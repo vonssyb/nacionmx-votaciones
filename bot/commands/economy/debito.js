@@ -27,8 +27,7 @@ module.exports = {
                 .addStringOption(option => option.setName('concepto').setDescription('Concepto de la transferencia').setRequired(false))),
 
     async execute(interaction, client, supabase) {
-        // This will be handled by legacyEconomyHandler.js
-        // Just need this to register the command with Discord
-        return;
+        const { handleEconomyLegacy } = require('../../handlers/legacyEconomyHandler');
+        await handleEconomyLegacy(interaction, client, supabase);
     }
 };
