@@ -45,7 +45,7 @@ module.exports = {
         await interaction.deferReply({ ephemeral: true });
 
         const subCmd = interaction.options.getSubcommand();
-        const juntaDirectivaRole = '1412882245735420006';
+        const juntaDirectivaRoleId = '1412882245735420006';
 
         // Permission check for crear/editar
         const isStaff = interaction.member.roles.cache.has(juntaDirectivaRoleId) ||
