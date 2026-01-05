@@ -2860,7 +2860,7 @@ const handleEconomyLegacy = async (interaction, client, supabase) => {
             // 2. Find Citizen (Optional check, but we need to link it eventually. If not found, create one?)
             // The user said "pide foto de dni, nombre del titular". This implies we might be CREATING the citizen logic here or just linking.
             // I'll search for citizen by Discord ID. If not found, I will create one using the provided Name.
-            let { data: citizen } = await supabase.from('citizens').select('id, full_name').eq('discord_id', targetUser.id).limit(1).maybeSingle();
+            let { data: citizen } = await supabase.from('citizens').select('id, full_name, dni').eq('discord_id', targetUser.id).limit(1).maybeSingle();
 
             if (!citizen) {
                 // FALLBACK: Check citizen_dni table
@@ -2921,15 +2921,19 @@ const handleEconomyLegacy = async (interaction, client, supabase) => {
             let finalDniUrl = dniPhoto ? dniPhoto.url : null;
 
             if (!finalDniUrl) {
-                const { data: citz } = await supabase
-                    .from('citizens')
-                    .select('dni_image_url')
-                    .eq('discord_id', targetUser.id)
-                    .maybeSingle();
+                // Try source A: The citizen record we just fetched/created
+                if (citizen && citizen.dni) {
+                    finalDniUrl = citizen.dni;
+                }
+                // Try source B: citizen_dni table directly as a last resort
+                else {
+                    const { data: dniRecord } = await supabase.from('citizen_dni').select('foto_url').eq('user_id', targetUser.id).maybeSingle();
+                    if (dniRecord && dniRecord.foto_url) {
+                        finalDniUrl = dniRecord.foto_url;
+                    }
+                }
 
-                if (citz && citz.dni_image_url) {
-                    finalDniUrl = citz.dni_image_url;
-                } else {
+                if (!finalDniUrl) {
                     return interaction.editReply('❌ **Error:** No se ha proporcionado una foto de DNI y el usuario no tiene una registrada en el sistema.\n⚠️ Sube la foto o pide al usuario que se registre primero.');
                 }
             }
