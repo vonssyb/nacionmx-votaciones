@@ -231,7 +231,7 @@ module.exports = {
 
         } catch (error) {
             console.error('[colectar] Error:', error);
-            await interaction.editReply('❌ Error al procesar tu salario. Contacta a un administrador.');
+            await interaction.editReply(`❌ Error al procesar tu salario. Contacta a un administrador.\n\`\`\`${error.message}\`\`\``);
         }
     }
 };
