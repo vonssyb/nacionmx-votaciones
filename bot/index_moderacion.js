@@ -2,7 +2,7 @@ require('dotenv').config();
 // 1. Unbuffered Logger
 const log = (msg) => process.stderr.write(`🟢 [MOD-BOT] ${msg}\n`);
 
-log('Starting Nacion MX MODERATION BOT... (v4.8 - All DNI Public)');
+log('Starting Nacion MX MODERATION BOT... (v4.9 - SA Role Removal on Appeal)');
 const fs = require('fs');
 const path = require('path');
 const { Client, GatewayIntentBits, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
@@ -277,6 +277,29 @@ client.on('interactionCreate', async interaction => {
 
                 // Remove SA from user
                 await client.services.sanctions.appealSanction(sancionId, motivo);
+
+                // Remove SA role from user
+                try {
+                    const member = await interaction.guild.members.fetch(sanction.discord_user_id);
+                    if (member) {
+                        // SA Role IDs
+                        const saRoles = {
+                            '1SA': '1412899401000685588',
+                            '2SA': '1413541382869618731',
+                            '3SA': '1412899404167512064'
+                        };
+
+                        // Remove all SA roles
+                        for (const roleId of Object.values(saRoles)) {
+                            if (member.roles.cache.has(roleId)) {
+                                await member.roles.remove(roleId);
+                                console.log(`[SA Appeal] Removed role ${roleId} from ${member.user.tag}`);
+                            }
+                        }
+                    }
+                } catch (roleError) {
+                    console.error('[SA Appeal] Error removing SA role:', roleError);
+                }
 
                 // Success embed
                 const successEmbed = new EmbedBuilder()
