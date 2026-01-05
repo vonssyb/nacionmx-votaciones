@@ -40,7 +40,7 @@ module.exports = {
                 .addUserOption(option => option.setName('usuario').setDescription('Usuario (opcional - por defecto tú)').setRequired(false))),
 
     async execute(interaction, client, supabase) {
-        await interaction.deferReply({ ephemeral: true });
+        await interaction.deferReply({ ephemeral: false }); // Public now
 
         const subCmd = interaction.options.getSubcommand();
         const administradorRoleId = '1412882248411381872';
@@ -78,6 +78,9 @@ module.exports = {
             const birthYear = currentYear - edad;
             const fechaNacimiento = `${birthYear}-01-01`; // Placeholder date
 
+            // Get Discord profile picture
+            const fotoUrl = targetUser.displayAvatarURL({ dynamic: true, size: 512 });
+
             // Insert DNI
             const { error } = await supabase
                 .from('citizen_dni')
@@ -90,6 +93,7 @@ module.exports = {
                     fecha_nacimiento: fechaNacimiento,
                     genero,
                     nacionalidad,
+                    foto_url: fotoUrl, // Discord avatar
                     created_by: interaction.user.id
                 });
 
@@ -108,6 +112,7 @@ module.exports = {
                     { name: '⚧️ Género', value: genero, inline: true },
                     { name: '🌍 Nacionalidad', value: nacionalidad, inline: true }
                 )
+                .setThumbnail(targetUser.displayAvatarURL({ dynamic: true, size: 256 }))
                 .setTimestamp();
 
             await interaction.editReply({ embeds: [embed] });
