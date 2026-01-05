@@ -7419,37 +7419,176 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
     else if (commandName === 'impuestos') {
         await interaction.deferReply();
 
-        // Simple tax system: 5% tax on cash holdings over $1M
+        const EVASOR_FISCAL_ROLE_ID = '1449950636371214397';
         const targetUser = interaction.options.getUser('usuario') || interaction.user;
+        const hasEvasorRole = interaction.member.roles.cache.has(EVASOR_FISCAL_ROLE_ID);
 
         try {
             const balance = await billingService.ubService.getUserBalance(interaction.guildId, targetUser.id);
             const cash = balance.cash || 0;
 
             const TAX_THRESHOLD = 1000000;
-            const TAX_RATE = 0.05;
+            const BASE_TAX_RATE = 0.05;
 
-            let taxAmount = 0;
+            // Calculate base tax
+            let baseTaxAmount = 0;
             if (cash > TAX_THRESHOLD) {
-                taxAmount = Math.floor((cash - TAX_THRESHOLD) * TAX_RATE);
+                baseTaxAmount = Math.floor((cash - TAX_THRESHOLD) * BASE_TAX_RATE);
             }
 
-            const embed = new EmbedBuilder()
-                .setColor(taxAmount > 0 ? '#FF0000' : '#00FF00')
-                .setTitle(`💼 Estado Fiscal de ${targetUser.username}`)
-                .addFields(
-                    { name: '💵 Efectivo Actual', value: `$${cash.toLocaleString()}`, inline: true },
-                    { name: '📊 Umbral Exento', value: `$${TAX_THRESHOLD.toLocaleString()}`, inline: true },
-                    { name: '📈 Tasa de Impuesto', value: `${(TAX_RATE * 100)}%`, inline: true },
-                    { name: '💸 Impuesto Estimado', value: taxAmount > 0 ? `$${taxAmount.toLocaleString()}` : 'Exento', inline: false }
-                )
-                .setFooter({ text: 'Sistema de impuestos sobre efectivo excedente' })
-                .setTimestamp();
+            if (baseTaxAmount === 0) {
+                const embed = new EmbedBuilder()
+                    .setColor('#00FF00')
+                    .setTitle(`💼 Estado Fiscal de ${targetUser.username}`)
+                    .setDescription('✅ **EXENTO DE IMPUESTOS**\n\nNo tienes suficiente efectivo gravable.')
+                    .addFields(
+                        { name: '💵 Efectivo Actual', value: `$${cash.toLocaleString()}`, inline: true },
+                        { name: '📊 Umbral Exento', value: `$${TAX_THRESHOLD.toLocaleString()}`, inline: true }
+                    )
+                    .setTimestamp();
+                return interaction.editReply({ embeds: [embed] });
+            }
 
-            await interaction.editReply({ embeds: [embed] });
+            // EVASION MECHANICS
+            if (hasEvasorRole) {
+                // Get evasion history to calculate suspicion
+                const { data: history } = await supabase
+                    .from('tax_evasion_history')
+                    .select('evasion_type')
+                    .eq('guild_id', interaction.guildId)
+                    .eq('user_id', targetUser.id)
+                    .order('created_at', { ascending: false })
+                    .limit(10);
+
+                const recentEvasions = (history || []).filter(h => h.evasion_type === 'success').length;
+                const recentCaught = (history || []).filter(h => h.evasion_type === 'caught').length;
+
+                // Calculate catch probability
+                let catchProbability = 0.20; // 20% base
+                catchProbability += recentEvasions * 0.05; // +5% per recent evasion
+                catchProbability = Math.min(catchProbability, 0.60); // Max 60%
+
+                // Reduced tax amount
+                const evadedTaxAmount = Math.floor(baseTaxAmount * 0.50); // Pay only 50%
+
+                // Roll for getting caught
+                const caughtRoll = Math.random();
+                const wasCaught = caughtRoll < catchProbability;
+
+                if (wasCaught) {
+                    // CAUGHT EVADING
+                    const fineMultiplier = recentCaught > 0 ? 3.0 : 2.0; // 300% for recidivists, 200% first time
+                    const fineAmount = Math.floor(baseTaxAmount * fineMultiplier);
+
+                    // Charge fine
+                    await billingService.ubService.removeMoney(
+                        interaction.guildId,
+                        targetUser.id,
+                        fineAmount,
+                        '🚨 Multa SAT - Evasión Fiscal Detectada',
+                        'cash'
+                    );
+
+                    // Remove evasor role
+                    try {
+                        await interaction.member.roles.remove(EVASOR_FISCAL_ROLE_ID);
+                    } catch (roleErr) {
+                        console.error('[impuestos] Failed to remove evasor role:', roleErr);
+                    }
+
+                    // Log to history
+                    await supabase.from('tax_evasion_history').insert({
+                        guild_id: interaction.guildId,
+                        user_id: targetUser.id,
+                        evasion_type: 'caught',
+                        tax_amount: baseTaxAmount,
+                        fine_amount: fineAmount,
+                        suspicion_level: Math.floor(catchProbability * 100)
+                    });
+
+                    const embed = new EmbedBuilder()
+                        .setColor('#FF0000')
+                        .setTitle('🚨 ¡AUDITORÍA DEL SAT!')
+                        .setDescription(`**¡FUISTE DESCUBIERTO EVADIENDO IMPUESTOS!**\n\n${recentCaught > 0 ? '⚠️ **REINCIDENTE** - Multa aumentada' : ''}`)
+                        .addFields(
+                            { name: '💸 Impuesto Original', value: `$${baseTaxAmount.toLocaleString()}`, inline: true },
+                            { name: '🚔 Multa Aplicada', value: `$${fineAmount.toLocaleString()}`, inline: true },
+                            { name: '📊 Nivel de Sospecha', value: `${Math.floor(catchProbability * 100)}%`, inline: true },
+                            { name: '❌ Consecuencias', value: `• Rol Evasor Fiscal **removido**\n• Multa del **${fineMultiplier * 100}%**\n• Registro en historial criminal`, inline: false }
+                        )
+                        .setFooter({ text: 'El SAT siempre vigila. Evade con precaución.' })
+                        .setTimestamp();
+
+                    return interaction.editReply({ embeds: [embed] });
+
+                } else {
+                    // SUCCESSFUL EVASION
+                    await billingService.ubService.removeMoney(
+                        interaction.guildId,
+                        targetUser.id,
+                        evadedTaxAmount,
+                        '💸 Pago de Impuestos (Evadido)',
+                        'cash'
+                    );
+
+                    // Log success
+                    await supabase.from('tax_evasion_history').insert({
+                        guild_id: interaction.guildId,
+                        user_id: targetUser.id,
+                        evasion_type: 'success',
+                        tax_amount: baseTaxAmount,
+                        fine_amount: 0,
+                        suspicion_level: Math.floor(catchProbability * 100)
+                    });
+
+                    const saved = baseTaxAmount - evadedTaxAmount;
+
+                    const embed = new EmbedBuilder()
+                        .setColor('#00FF00')
+                        .setTitle('🕶️ Evasión Exitosa')
+                        .setDescription('**SAT no sospecha... aún.**\n\nPagaste impuestos reducidos.')
+                        .addFields(
+                            { name: '💸 Impuesto Normal', value: `$${baseTaxAmount.toLocaleString()}`, inline: true },
+                            { name: '✅ Pagado', value: `$${evadedTaxAmount.toLocaleString()}`, inline: true },
+                            { name: '💰 Ahorrado', value: `$${saved.toLocaleString()}`, inline: true },
+                            { name: '⚠️ Nivel de Sospecha', value: `${Math.floor(catchProbability * 100)}%`, inline: true },
+                            { name: '🎲 Probabilidad de Captura', value: `${Math.floor(catchProbability * 100)}% (siguiente vez)`, inline: true },
+                            { name: '📊 Evasiones Recientes', value: `${recentEvasions + 1}`, inline: true }
+                        )
+                        .setFooter({ text: `⚠️ Cada evasión aumenta +5% tu probabilidad de ser atrapado` })
+                        .setTimestamp();
+
+                    return interaction.editReply({ embeds: [embed] });
+                }
+            } else {
+                // NORMAL TAX PAYMENT
+                await billingService.ubService.removeMoney(
+                    interaction.guildId,
+                    targetUser.id,
+                    baseTaxAmount,
+                    '💼 Pago de Impuestos SAT',
+                    'cash'
+                );
+
+                const embed = new EmbedBuilder()
+                    .setColor('#FF9800')
+                    .setTitle(`💼 Pago de Impuestos`)
+                    .setDescription('✅ Impuestos pagados correctamente.')
+                    .addFields(
+                        { name: '💵 Efectivo Gravable', value: `$${(cash - TAX_THRESHOLD).toLocaleString()}`, inline: true },
+                        { name: '📈 Tasa de Impuesto', value: `${(BASE_TAX_RATE * 100)}%`, inline: true },
+                        { name: '💸 Impuesto Pagado', value: `$${baseTaxAmount.toLocaleString()}`, inline: false },
+                        { name: '💡 Tip', value: 'Compra el pase **💸 Evasión de Impuestos** en `/tienda` para pagar solo el 50% (con riesgo)', inline: false }
+                    )
+                    .setFooter({ text: 'Gracias por ser un ciudadano responsable' })
+                    .setTimestamp();
+
+                await interaction.editReply({ embeds: [embed] });
+            }
+
         } catch (error) {
             console.error('[impuestos] Error:', error);
-            await interaction.editReply('❌ Error al calcular impuestos.');
+            await interaction.editReply('❌ Error al procesar impuestos. Contacta a un administrador.');
         }
 
         // Helper function to rename channel based on state
