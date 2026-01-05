@@ -2863,6 +2863,25 @@ const handleEconomyLegacy = async (interaction, client, supabase) => {
             let { data: citizen } = await supabase.from('citizens').select('id, full_name').eq('discord_id', targetUser.id).limit(1).maybeSingle();
 
             if (!citizen) {
+                // FALLBACK: Check citizen_dni table
+                const { data: dniRecord } = await supabase.from('citizen_dni').select('nombre, apellido, foto_url').eq('user_id', targetUser.id).maybeSingle();
+
+                if (dniRecord) {
+                    // Auto-register in citizens table using data from citizen_dni
+                    const { data: newCit, error: createError } = await supabase.from('citizens').insert([{
+                        discord_id: targetUser.id,
+                        full_name: `${dniRecord.nombre} ${dniRecord.apellido}`,
+                        dni: dniRecord.foto_url,
+                        credit_score: 100
+                    }]).select('id, full_name').single();
+
+                    if (!createError && newCit) {
+                        citizen = newCit;
+                    }
+                }
+            }
+
+            if (!citizen) {
                 return interaction.editReply({
                     content: `❌ **Error:** El usuario <@${targetUser.id}> no está registrado en el censo.\n⚠️ **Acción Requerida:** Usa el comando \`/fichar vincular\` para registrar su Nombre y DNI antes de emitir una tarjeta.`
                 });
@@ -3100,7 +3119,21 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
 
         if (subCmd === 'buro') {
 
-            const { data: citizen } = await supabase.from('citizens').select('id, full_name, credit_score').eq('discord_id', interaction.user.id).order('created_at', { ascending: false }).limit(1).maybeSingle();
+            let { data: citizen } = await supabase.from('citizens').select('id, full_name, credit_score').eq('discord_id', interaction.user.id).order('created_at', { ascending: false }).limit(1).maybeSingle();
+
+            if (!citizen) {
+                // FALLBACK: Check citizen_dni
+                const { data: dniRecord } = await supabase.from('citizen_dni').select('nombre, apellido, foto_url').eq('user_id', interaction.user.id).maybeSingle();
+                if (dniRecord) {
+                    const { data: newCit } = await supabase.from('citizens').insert([{
+                        discord_id: interaction.user.id,
+                        full_name: `${dniRecord.nombre} ${dniRecord.apellido}`,
+                        dni: dniRecord.foto_url,
+                        credit_score: 100
+                    }]).select('id, full_name, credit_score').single();
+                    if (newCit) citizen = newCit;
+                }
+            }
 
             if (!citizen) return interaction.editReply('❌ No tienes un ciudadano vinculado.');
 
@@ -3124,7 +3157,21 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
         // Helper function to rename channel based on state
         else if (subCmd === 'info' && interaction.options.getSubcommandGroup() !== 'admin') {
 
-            const { data: citizen } = await supabase.from('citizens').select('id, full_name, dni').eq('discord_id', interaction.user.id).limit(1).maybeSingle();
+            let { data: citizen } = await supabase.from('citizens').select('id, full_name, dni').eq('discord_id', interaction.user.id).limit(1).maybeSingle();
+
+            if (!citizen) {
+                const { data: dniRecord } = await supabase.from('citizen_dni').select('nombre, apellido, foto_url').eq('user_id', interaction.user.id).maybeSingle();
+                if (dniRecord) {
+                    const { data: newCit } = await supabase.from('citizens').insert([{
+                        discord_id: interaction.user.id,
+                        full_name: `${dniRecord.nombre} ${dniRecord.apellido}`,
+                        dni: dniRecord.foto_url,
+                        credit_score: 100
+                    }]).select('id, full_name, dni').single();
+                    if (newCit) citizen = newCit;
+                }
+            }
+
             if (!citizen) return interaction.editReply('❌ No tienes un ciudadano vinculado.');
 
             const { data: userCard } = await supabase.from('credit_cards').select('*').eq('citizen_id', citizen.id).limit(1).maybeSingle();
@@ -3149,7 +3196,20 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
         else if (subCmd === 'estado') {
 
             // FIX: Query 'citizens' table instead of 'profiles' because credit_cards are linked to citizens.
-            const { data: citizen } = await supabase.from('citizens').select('id').eq('discord_id', interaction.user.id).order('created_at', { ascending: false }).limit(1).maybeSingle();
+            let { data: citizen } = await supabase.from('citizens').select('id').eq('discord_id', interaction.user.id).order('created_at', { ascending: false }).limit(1).maybeSingle();
+
+            if (!citizen) {
+                const { data: dniRecord } = await supabase.from('citizen_dni').select('nombre, apellido, foto_url').eq('user_id', interaction.user.id).maybeSingle();
+                if (dniRecord) {
+                    const { data: newCit } = await supabase.from('citizens').insert([{
+                        discord_id: interaction.user.id,
+                        full_name: `${dniRecord.nombre} ${dniRecord.apellido}`,
+                        dni: dniRecord.foto_url,
+                        credit_score: 100
+                    }]).select('id').single();
+                    if (newCit) citizen = newCit;
+                }
+            }
 
             if (!citizen) {
                 return interaction.editReply('❌ No tienes un ciudadano vinculado a tu Discord. Contacta a un administrador en el Panel.');
@@ -3273,7 +3333,21 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
 
             // Resolve Citizen (Credit Cards are linked to CITIZENS, not Profiles directly)
             // 1. Try to find via Citizens table first
-            const { data: citizen } = await supabase.from('citizens').select('id, full_name, credit_score, discord_id').eq('discord_id', targetUser.id).order('created_at', { ascending: false }).limit(1).maybeSingle();
+            let { data: citizen } = await supabase.from('citizens').select('id, full_name, credit_score, discord_id').eq('discord_id', targetUser.id).order('created_at', { ascending: false }).limit(1).maybeSingle();
+
+            if (!citizen) {
+                // FALLBACK: Check citizen_dni
+                const { data: dniRecord } = await supabase.from('citizen_dni').select('nombre, apellido, foto_url').eq('user_id', targetUser.id).maybeSingle();
+                if (dniRecord) {
+                    const { data: newCit } = await supabase.from('citizens').insert([{
+                        discord_id: targetUser.id,
+                        full_name: `${dniRecord.nombre} ${dniRecord.apellido}`,
+                        dni: dniRecord.foto_url,
+                        credit_score: 100
+                    }]).select('id, full_name, credit_score, discord_id').single();
+                    if (newCit) citizen = newCit;
+                }
+            }
 
             if (!citizen) return interaction.editReply('❌ Este usuario no tiene un ciudadano vinculado (No tiene registro en el sistema financiero).');
 
@@ -3397,9 +3471,22 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
 
             else if (subCmdAdmin === 'puntos') {
                 // Fetch Citizen to get Score (not profile, Score is on citizens now)
-                const { data: citizenData } = await supabase.from('citizens').select('id, full_name, credit_score').eq('discord_id', targetUser.id).order('created_at', { ascending: false }).limit(1).maybeSingle();
+                let { data: citizenData } = await supabase.from('citizens').select('id, full_name, credit_score').eq('discord_id', targetUser.id).order('created_at', { ascending: false }).limit(1).maybeSingle();
 
-                if (!citizenData) return interaction.editReply('❌ No tiene un ciudadano vinculado.');
+                if (!citizenData) {
+                    const { data: dniRecord } = await supabase.from('citizen_dni').select('nombre, apellido, foto_url').eq('user_id', targetUser.id).maybeSingle();
+                    if (dniRecord) {
+                        const { data: newCit } = await supabase.from('citizens').insert([{
+                            discord_id: targetUser.id,
+                            full_name: `${dniRecord.nombre} ${dniRecord.apellido}`,
+                            dni: dniRecord.foto_url,
+                            credit_score: 100
+                        }]).select('id, full_name, credit_score').single();
+                        if (newCit) citizenData = newCit;
+                    }
+                }
+
+                if (!citizenData) return interaction.editReply('❌ El usuario no tiene un registro ciudadano.');
 
                 const amountChange = interaction.options.getInteger('cantidad');
                 const reason = interaction.options.getString('razon');
@@ -3885,11 +3972,19 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 if (existingCitizen && existingCitizen.dni) {
                     finalDniUrl = existingCitizen.dni;
                 }
-                // Try source B: verification_codes table (used by /dni command)
+                // Try source B: verification_codes table (used by old /dni command)
                 else {
                     const { data: vData } = await supabase.from('verification_codes').select('dni_url').eq('discord_id', targetUser.id).limit(1).maybeSingle();
                     if (vData && vData.dni_url) {
                         finalDniUrl = vData.dni_url;
+                    }
+                }
+
+                // Try source C: citizen_dni table (used by new modular /dni command)
+                if (!finalDniUrl) {
+                    const { data: dniData } = await supabase.from('citizen_dni').select('foto_url').eq('user_id', targetUser.id).limit(1).maybeSingle();
+                    if (dniData && dniData.foto_url) {
+                        finalDniUrl = dniData.foto_url;
                     }
                 }
 
@@ -4091,7 +4186,19 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                             }
                             await billingService.ubService.removeMoney(interaction.guildId, dueño.id, totalCost, `Empresa: ${nombre}`, source);
                         } else if (method === 'debit' || method === 'credit') {
-                            const { data: citizen } = await supabase.from('citizens').select('id').eq('discord_id', dueño.id).maybeSingle();
+                            let { data: citizen } = await supabase.from('citizens').select('id').eq('discord_id', dueño.id).maybeSingle();
+                            if (!citizen) {
+                                const { data: dniRecord } = await supabase.from('citizen_dni').select('nombre, apellido, foto_url').eq('user_id', dueño.id).maybeSingle();
+                                if (dniRecord) {
+                                    const { data: newCit } = await supabase.from('citizens').insert([{
+                                        discord_id: dueño.id,
+                                        full_name: `${dniRecord.nombre} ${dniRecord.apellido}`,
+                                        dni: dniRecord.foto_url,
+                                        credit_score: 100
+                                    }]).select('id').single();
+                                    if (newCit) citizen = newCit;
+                                }
+                            }
                             if (!citizen) {
                                 paymentProcessed = false; // Allow retry
                                 return i.editReply({ content: '❌ El dueño no tiene cuenta vinculada.', components: [] });
