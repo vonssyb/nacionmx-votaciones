@@ -65,8 +65,8 @@ module.exports = {
                 `- ❌ Quitar TODO el dinero (cash + banco)\n` +
                 `- ❌ Eliminar tarjetas de crédito/débito\n` +
                 `- ❌ Remover TODOS los roles (excepto ${protectedRoles.length} protegidos)\n` +
-                `- ❌ Eliminar licencias\n` +
-                `- ❌ Resetear DNI\n\n` +
+                `- ❌ Eliminar licencias y **Vehículos**\n` +
+                `- ❌ Resetear DNI y **Roles Temporales**\n\n` +
                 `**Razón:** ${razon}`)
             .setFooter({ text: 'Confirma esta acción usando los botones' })
             .setTimestamp();

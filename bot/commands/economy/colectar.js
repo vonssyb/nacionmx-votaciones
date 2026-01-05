@@ -78,12 +78,17 @@ module.exports = {
                 });
             }
 
-            // Get highest salary
-            const highestSalary = salaries.reduce((max, current) =>
-                current.salary_amount > max.salary_amount ? current : max
-            );
+            // NEW LOGIC: Sum ALL applicable salaries
+            let grossAmount = 0;
+            const roleNames = [];
 
-            const grossAmount = highestSalary.salary_amount;
+            salaries.forEach(job => {
+                grossAmount += job.salary_amount;
+                roleNames.push(job.role_name);
+            });
+
+            const rolesString = roleNames.join(' + ');
+
             const taxRate = 0.14; // 14% tax
             const taxAmount = Math.floor(grossAmount * taxRate);
             const netAmount = grossAmount - taxAmount;
@@ -115,7 +120,7 @@ module.exports = {
                     guild_id: guildId,
                     user_id: userId,
                     collected_at: new Date().toISOString(),
-                    role_used: highestSalary.role_name,
+                    role_used: rolesString,
                     gross_amount: grossAmount,
                     tax_amount: taxAmount,
                     net_amount: netAmount
@@ -136,14 +141,14 @@ module.exports = {
                 .setThumbnail(interaction.user.displayAvatarURL({ dynamic: true }))
                 .addFields(
                     { name: '👤 Ciudadano', value: `<@${userId}>`, inline: false },
-                    { name: '🏷️ Rol', value: highestSalary.role_name, inline: false },
-                    { name: '💵 Salario Bruto', value: `$${grossAmount.toLocaleString()}`, inline: true },
+                    { name: '🏷️ Roles', value: rolesString, inline: false },
+                    { name: '💵 Salario Bruto Total', value: `$${grossAmount.toLocaleString()}`, inline: true },
                     { name: '📉 Impuesto (14%)', value: `-$${taxAmount.toLocaleString()}`, inline: true },
                     { name: '💚 Neto Depositado', value: `**$${netAmount.toLocaleString()}**`, inline: true },
                     { name: '💵 Nuevo Balance en Efectivo', value: `$${newCashBalance.toLocaleString()}`, inline: false },
                     { name: '⏰ Próxima Colecta', value: moment().add(72, 'hours').format('DD/MM/YYYY HH:mm'), inline: false }
                 )
-                .setFooter({ text: 'Nación MX | Sistema de Nómina' })
+                .setFooter({ text: 'Nación MX | Sistema de Nómina (Multiempleo)' })
                 .setTimestamp();
 
             await interaction.editReply({ embeds: [successEmbed] });
@@ -158,9 +163,9 @@ module.exports = {
                 transactionType: 'salary_collection',
                 amount: netAmount,
                 currencyType: 'cash',
-                reason: `Salario colectado: ${highestSalary.role_name}`,
+                reason: `Salario colectado: ${rolesString}`,
                 metadata: {
-                    role: highestSalary.role_name,
+                    roles: rolesString,
                     gross: grossAmount,
                     tax: taxAmount,
                     net: netAmount
