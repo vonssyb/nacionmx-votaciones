@@ -14,7 +14,7 @@ const commands = [
                 options: [
                     { name: 'usuario', description: 'Usuario de Discord a vincular', type: 6, required: true },
                     { name: 'nombre', description: 'Nombre y Apellido RP', type: 3, required: true },
-                    { name: 'dni', description: 'Foto del DNI', type: 11, required: true }
+                    { name: 'dni', description: 'Foto del DNI (Opcional si ya está registrado)', type: 11, required: false }
                 ]
             }
         ]

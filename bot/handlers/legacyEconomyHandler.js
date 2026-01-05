@@ -3870,14 +3870,27 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
 
             const targetUser = interaction.options.getUser('usuario');
             const fullName = interaction.options.getString('nombre');
-            const dniPhoto = interaction.options.getAttachment('dni');
+            let dniPhoto = interaction.options.getAttachment('dni');
 
             // 2. Check if Citizen exists (by Discord ID)
             let { data: existingCitizen } = await supabase.from('citizens').select('*').eq('discord_id', targetUser.id).limit(1).maybeSingle();
 
+            // 3. Handle DNI: Use provided or fetch from existing
+            let finalDniUrl = dniPhoto ? dniPhoto.url : null;
+
+            if (!finalDniUrl) {
+                if (existingCitizen && existingCitizen.dni) {
+                    finalDniUrl = existingCitizen.dni;
+                } else {
+                    return interaction.editReply({
+                        content: `❌ **DNI Requerido:** El usuario <@${targetUser.id}> no tiene un DNI registrado y no has subido una foto.\n⚠️ Sube la foto del DNI para completar el registro.`
+                    });
+                }
+            }
+
             if (existingCitizen) {
                 // Update existing
-                const { error: updateError } = await supabase.from('citizens').update({ full_name: fullName, dni: dniPhoto.url }).eq('id', existingCitizen.id);
+                const { error: updateError } = await supabase.from('citizens').update({ full_name: fullName, dni: finalDniUrl }).eq('id', existingCitizen.id);
                 if (updateError) return interaction.editReply(`❌ Error actualizando ciudadano: ${updateError.message}`);
 
                 const embed = new EmbedBuilder()
@@ -3886,9 +3899,9 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                     .setDescription(`Los datos de <@${targetUser.id}> han sido actualizados.`)
                     .addFields(
                         { name: 'Nombre', value: fullName, inline: true },
-                        { name: 'DNI (Foto)', value: '[Ver Documento](' + dniPhoto.url + ')', inline: true }
+                        { name: 'DNI (Foto)', value: `[Ver Documento](${finalDniUrl})`, inline: true }
                     )
-                    .setThumbnail(dniPhoto.url)
+                    .setThumbnail(finalDniUrl)
                     .setFooter({ text: `Vinculado por ${interaction.user.tag}` });
                 return interaction.editReply({ embeds: [embed] });
             } else {
@@ -3896,7 +3909,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 const { error: createError } = await supabase.from('citizens').insert([{
                     discord_id: targetUser.id,
                     full_name: fullName,
-                    dni: dniPhoto.url, // Store URL
+                    dni: finalDniUrl, // Store URL
                     credit_score: 100 // Default score
                 }]);
 
@@ -3908,9 +3921,9 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                     .setDescription(`Se ha creado un nuevo registro para <@${targetUser.id}>.`)
                     .addFields(
                         { name: 'Nombre', value: fullName, inline: true },
-                        { name: 'DNI (Foto)', value: '[Ver Documento](' + dniPhoto.url + ')', inline: true }
+                        { name: 'DNI (Foto)', value: `[Ver Documento](${finalDniUrl})`, inline: true }
                     )
-                    .setThumbnail(dniPhoto.url)
+                    .setThumbnail(finalDniUrl)
                     .setFooter({ text: `Registrado por ${interaction.user.tag}` });
                 return interaction.editReply({ embeds: [embed] });
             }
