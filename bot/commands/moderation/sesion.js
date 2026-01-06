@@ -1,4 +1,6 @@
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType } = require('discord.js');
+const fs = require('fs');
+const path = require('path');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -34,9 +36,6 @@ module.exports = {
     async execute(interaction) {
         // Use client attached to interaction
         const client = interaction.client;
-        // Access Supabase from client (assuming it's attached as client.supabase)
-        // If not attached in index.js, we might need to require it or passed in context.
-        // Step 4049 showed `client.supabase = supabase;` line 46. So it is attached.
         const supabase = client.supabase;
 
         const subCmd = interaction.options.getSubcommand();
@@ -63,9 +62,25 @@ module.exports = {
             return false;
         }
 
-        if (subCmd === 'crear') {
-            await interaction.deferReply();
+        // Helper: Update ERLC Config
+        function updateErlcLock(isLocked) {
+            try {
+                const configPath = path.join(__dirname, '../../data/erlc_config.json');
+                let config = {};
+                if (fs.existsSync(configPath)) {
+                    config = JSON.parse(fs.readFileSync(configPath));
+                }
+                config.locked = isLocked;
+                fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
+                console.log(`[ERLC] Server Locked state updated to: ${isLocked}`);
+            } catch (e) {
+                console.error('[ERLC] Error updating config:', e.message);
+            }
+        }
 
+        // NOTE: index_moderacion.js auto-defers, so no need to call deferReply() here.
+
+        if (subCmd === 'crear') {
             // Check Permissions
             if (!interaction.member.roles.cache.has(juntaDirectivaRoleId) && !interaction.member.permissions.has('Administrator')) {
                 return interaction.editReply('❌ Solo la Junta Directiva puede crear votaciones.');
@@ -143,16 +158,8 @@ module.exports = {
             await supabase.from('session_votes').update({ message_id: msg.id, channel_id: channelIds.voting }).eq('id', newSession.id);
 
             await interaction.editReply(`✅ Votación creada en <#${channelIds.voting}>`);
-
-            // --- NOTE: Interaction Collector logic for button clicks should be in a global handler or persisting collector --
-            // Because this code finishes execution, a local collector would die if the bot restarts.
-            // The existing `createMessageComponentCollector` in index.js.bak was flawed for persistence.
-            // A global `interactionCreate` for buttons starting with `vote_` is better.
-            // I will assume the global button handler handles `vote_` (I need to verify or implement it).
         }
         else if (subCmd === 'cancelar') {
-            await interaction.deferReply();
-
             const { data: session } = await supabase.from('session_votes').select('*').eq('status', 'active').maybeSingle();
             if (!session) return interaction.editReply('❌ No hay votación activa.');
 
@@ -170,11 +177,10 @@ module.exports = {
                 if (ch && session.message_id) await ch.messages.delete(session.message_id);
             } catch (e) { console.log('Error deleting voting msg:', e.message); }
 
-            await interaction.editReply('✅ Votación cancelada.');
+            updateErlcLock(true); // Close server if vote cancelled
+            await interaction.editReply('✅ Votación cancelada. Servidor Cerrado.');
         }
         else if (subCmd === 'forzar') {
-            await interaction.deferReply();
-
             // Check Permissions
             if (!interaction.member.roles.cache.has(juntaDirectivaRoleId) && !interaction.member.permissions.has('Administrator')) {
                 return interaction.editReply('❌ Solo la Junta Directiva puede forzar la sesión.');
@@ -229,11 +235,10 @@ module.exports = {
                 await targetChannel.send({ content: `<@&${channelIds.pingRole}>`, embeds: [openEmbed], components: [row] });
             }
 
-            await interaction.editReply('✅ **Sesión Forzada Correctamente.** El servidor ha sido abierto.');
+            updateErlcLock(false); // UNLOCK SERVER
+            await interaction.editReply('✅ **Sesión Forzada Correctamente.** El servidor ha sido ABIERTO en ERLC.');
         }
         else if (subCmd === 'cerrar') {
-            await interaction.deferReply();
-
             // Check Permissions
             if (!interaction.member.roles.cache.has(juntaDirectivaRoleId) && !interaction.member.permissions.has('Administrator')) {
                 return interaction.editReply('❌ Solo la Junta Directiva puede cerrar la sesión.');
@@ -269,11 +274,10 @@ module.exports = {
                 await targetChannel.send({ embeds: [embed] });
             }
 
-            await interaction.editReply(`✅ Sesión cerrada: ${razon}`);
+            updateErlcLock(true); // LOCK SERVER
+            await interaction.editReply(`✅ Sesión cerrada: ${razon}. Servidor ERLC Bloqueado.`);
         }
         else if (subCmd === 'mantenimiento') {
-            await interaction.deferReply();
-
             // Check Permissions
             if (!interaction.member.roles.cache.has(juntaDirectivaRoleId) && !interaction.member.permissions.has('Administrator')) {
                 return interaction.editReply('❌ Permiso denegado.');
@@ -296,7 +300,8 @@ module.exports = {
                 await targetChannel.send({ embeds: [embed] });
             }
 
-            await interaction.editReply('✅ Modo mantenimiento activado.');
+            updateErlcLock(true); // LOCK SERVER
+            await interaction.editReply('✅ Modo mantenimiento activado. Servidor ERLC Bloqueado.');
         }
         else {
             await interaction.reply({ content: '❌ Subcomando desconocido.', flags: [64] });
