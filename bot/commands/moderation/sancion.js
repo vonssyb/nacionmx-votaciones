@@ -486,7 +486,7 @@ module.exports = {
                                     actionResult = `\n⚠️ **Error ERLC:** Falló el comando \`:${typeLabel}\` (¿Servidor offline o API error?).`;
                                 }
                             } else {
-                                actionResult = `\n⚠️ **No Ejecutado en ERLC:** El usuario no tiene su Roblox Username vinculado en la base de datos. (Solo guardado en historial)`;
+                                actionResult = `\n⚠️ **No Ejecutado en ERLC:** El usuario no tiene Roblox vinculado en la base de datos.\n💡 **Solución:** Vuelve a usar el comando agregando:\n• \`roblox_user_erlc: Username\` o\n• \`roblox_id_erlc: 123456789\``;
                             }
                         }
                         // 3. TIMEOUT / MUTE LOGIC
