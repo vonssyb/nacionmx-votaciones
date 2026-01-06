@@ -19,6 +19,9 @@ module.exports = async (interaction, supabase, billingService) => {
         return interaction.followUp({ content: '❌ Esta oferta no es para ti.', flags: [64] });
     }
 
+    let moneyDeducted = false;
+    let cost = 0;
+
     try {
         const cardStats = {
             'NMX Start': { limit: 15000, interest: 15, cost: 2000, color: 0x808080 },
@@ -37,6 +40,7 @@ module.exports = async (interaction, supabase, billingService) => {
         if (!stats) {
             throw new Error('Tier de tarjeta inválido');
         }
+        cost = stats.cost;
 
         // Deduct cost from bank
         await billingService.ubService.removeMoney(
@@ -46,6 +50,7 @@ module.exports = async (interaction, supabase, billingService) => {
             `Mejora Tarjeta: ${nextTier}`,
             'bank'
         );
+        moneyDeducted = true;
 
         // Get citizen
         const { data: citizen } = await supabase
@@ -91,6 +96,24 @@ module.exports = async (interaction, supabase, billingService) => {
 
     } catch (error) {
         console.error('[Admin Upgrade Handler] Error:', error);
+
+        // AUTO-REFUND LOGIC
+        if (moneyDeducted) {
+            try {
+                await billingService.ubService.addMoney(
+                    interaction.guildId,
+                    interaction.user.id,
+                    cost,
+                    'Reembolso Auto: Fallo en Mejora Tarjeta',
+                    'bank'
+                );
+                await interaction.followUp({ content: '⚠️ **Error del sistema:** Se te ha reembolsado el dinero automáticamente.', flags: [64] });
+            } catch (refundError) {
+                console.error('CRITICAL: Failed to refund user!', refundError);
+                await interaction.followUp({ content: '⚠️ **CRÍTICO:** Hubo un error y no se pudo procesar tu mejora. Por favor contacta a soporte inmediatamente para tu reembolso.', flags: [64] });
+            }
+        }
+
         await interaction.followUp({
             content: error.message.includes('does not have enough')
                 ? '❌ **Fondos Insuficientes** en tu cuenta bancaria.'
