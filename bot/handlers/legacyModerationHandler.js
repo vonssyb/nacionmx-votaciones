@@ -2329,11 +2329,18 @@ const handleModerationLegacy = async (interaction, client, supabase) => {
                 // Staff Requirement: 1 staff per 8 voters
                 const requiredStaff = Math.floor(counts.yes / 8);
 
+                const staffMet = staffYesCount >= requiredStaff;
+
                 console.log(`[VOTE] Session ${sessionId} | Yes: ${counts.yes} Late: ${counts.late} No: ${counts.no}`);
 
-                // Update the original message
+                // 4. Retrieve message info to update embed
+                const { data: session } = await supabase
+                    .from('session_votes')
+                    .select('message_id, channel_id, minimum_votes, status, image_url')
+                    .eq('id', sessionId)
+                    .single();
 
-                if (session.message_id && session.channel_id) {
+                if (session && session.message_id && session.channel_id) {
                     try {
                         const channel = await client.channels.fetch(session.channel_id);
                         const message = await channel.messages.fetch(session.message_id);
