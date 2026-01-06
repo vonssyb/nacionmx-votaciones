@@ -17,10 +17,6 @@ module.exports = {
                         ))),
 
     async execute(interaction, client) {
-        // Defer the reply to allow for longer processing times before sending the initial response.
-        // This makes subsequent `editReply` calls possible.
-        await interaction.deferReply();
-
         const action = interaction.options.getString('accion');
         const discordId = interaction.user.id;
         const MOD_ROLE_ID = '1457892493310951444'; // Updated ID
