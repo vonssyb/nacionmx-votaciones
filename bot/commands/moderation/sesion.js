@@ -275,6 +275,13 @@ module.exports = {
             }
 
             updateErlcLock(true); // LOCK SERVER
+
+            // Send ERLC Global Message
+            if (client.services && client.services.erlc) {
+                await client.services.erlc.runCommand(`:m 🔴 SERVIDOR CERRADO: ${razon}`);
+                console.log('[ERLC] Sent server close message');
+            }
+
             await interaction.editReply(`✅ Sesión cerrada: ${razon}. Servidor ERLC Bloqueado.`);
         }
         else if (subCmd === 'mantenimiento') {
