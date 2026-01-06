@@ -438,86 +438,88 @@ const handleEconomyButtons = async (interaction, client, supabase, billingServic
             await interaction.editReply({ content: '❌ Error obteniendo estadísticas.' });
         }
         return;
-        // ============================================================
-        // BUTTON: Credit Card Upgrade
-        // ============================================================
-        if (interaction.isButton() && (interaction.customId.startsWith('btn_upgrade_') || interaction.customId.startsWith('btn_cancel_upgrade_'))) {
-            const parts = interaction.customId.split('_');
-            const targetUserId = parts[2];
+    }
 
-            // Security: only target user can click these
-            if (interaction.user.id !== targetUserId) {
-                return interaction.reply({ content: '❌ Este botón no es para ti.', ephemeral: true });
-            }
+    // ============================================================
+    // BUTTON: Credit Card Upgrade
+    // ============================================================
+    if (interaction.isButton() && (interaction.customId.startsWith('btn_upgrade_') || interaction.customId.startsWith('btn_cancel_upgrade_'))) {
+        const parts = interaction.customId.split('_');
+        const targetUserId = parts[2];
 
-            if (interaction.customId.startsWith('btn_cancel_upgrade_')) {
-                return interaction.update({ content: '❌ Mejora de tarjeta cancelada.', embeds: [], components: [] });
-            }
-
-            await interaction.deferUpdate();
-
-            // btn_upgrade_USERID_TIER_NAME (with underscores)
-            const tierNameUnderscore = parts.slice(3).join('_');
-            const nextTier = tierNameUnderscore.replace(/_/g, ' ');
-
-            const cardStats = {
-                'NMX Start': { limit: 15000, interest: 15, cost: 2000, color: 0x34495E },
-                'NMX Básica': { limit: 30000, interest: 12, cost: 4000, color: 0x7F8C8D },
-                'NMX Plus': { limit: 50000, interest: 10, cost: 6000, color: 0x95A5A6 },
-                'NMX Plata': { limit: 100000, interest: 8, cost: 10000, color: 0xC0C0C0 },
-                'NMX Oro': { limit: 250000, interest: 7, cost: 15000, color: 0xFFD700 },
-                'NMX Rubí': { limit: 500000, interest: 6, cost: 25000, color: 0xE74C3C },
-                'NMX Black': { limit: 1000000, interest: 5, cost: 40000, color: 0x2C3E50 },
-                'NMX Diamante': { limit: 2000000, interest: 3, cost: 60000, color: 0x3498DB }
-            };
-
-            const stats = cardStats[nextTier];
-            if (!stats) return interaction.followUp({ content: '❌ Error: Estadísticas de tarjeta no encontradas.', ephemeral: true });
-
-            try {
-                // 1. Check & Deduct Money
-                await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, stats.cost, `Mejora Tarjeta: ${nextTier}`, 'bank');
-
-                // 2. Update DB
-                const { error: updateError } = await supabase
-                    .from('credit_cards')
-                    .update({
-                        card_type: nextTier,
-                        credit_limit: stats.limit,
-                        interest_rate: stats.interest,
-                        updated_at: new Date().toISOString()
-                    })
-                    .eq('guild_id', interaction.guildId)
-                    .is('closed_at', null)
-                    .order('created_at', { ascending: false })
-                    .limit(1)
-                    .maybeSingle();
-
-                if (updateError) throw updateError;
-
-                // 3. Success Embed
-                const successEmbed = new EmbedBuilder()
-                    .setTitle('🎉 ¡Mejora Procesada con Éxito!')
-                    .setColor(stats.color)
-                    .setDescription(`Felicidades <@${interaction.user.id}>, tu tarjeta ha sido mejorada a **${nextTier}**.`)
-                    .addFields(
-                        { name: '📈 Nuevo Límite', value: `$${stats.limit.toLocaleString()}`, inline: true },
-                        { name: '📉 Nueva Tasa', value: `${stats.interest}%`, inline: true },
-                        { name: '💰 Coste Pagado', value: `$${stats.cost.toLocaleString()}`, inline: true }
-                    )
-                    .setThumbnail('https://cdn-icons-png.flaticon.com/512/6124/6124997.png')
-                    .setFooter({ text: 'Banco Nacional - Creciendo contigo' })
-                    .setTimestamp();
-
-                await interaction.editReply({ content: null, embeds: [successEmbed], components: [] });
-
-            } catch (error) {
-                console.error('[Credit Upgrade Error]:', error);
-                const errMsg = error.message?.includes('insufficient funds') ? '❌ No tienes fondos suficientes en el banco.' : `❌ Error al procesar mejora: ${error.message}`;
-                await interaction.followUp({ content: errMsg, ephemeral: true });
-            }
-            return;
+        // Security: only target user can click these
+        if (interaction.user.id !== targetUserId) {
+            return interaction.reply({ content: '❌ Este botón no es para ti.', ephemeral: true });
         }
-    };
 
-    module.exports = { handleEconomyButtons };
+        if (interaction.customId.startsWith('btn_cancel_upgrade_')) {
+            return interaction.update({ content: '❌ Mejora de tarjeta cancelada.', embeds: [], components: [] });
+        }
+
+        await interaction.deferUpdate();
+
+        // btn_upgrade_USERID_TIER_NAME (with underscores)
+        const tierNameUnderscore = parts.slice(3).join('_');
+        const nextTier = tierNameUnderscore.replace(/_/g, ' ');
+
+        const cardStats = {
+            'NMX Start': { limit: 15000, interest: 15, cost: 2000, color: 0x34495E },
+            'NMX Básica': { limit: 30000, interest: 12, cost: 4000, color: 0x7F8C8D },
+            'NMX Plus': { limit: 50000, interest: 10, cost: 6000, color: 0x95A5A6 },
+            'NMX Plata': { limit: 100000, interest: 8, cost: 10000, color: 0xC0C0C0 },
+            'NMX Oro': { limit: 250000, interest: 7, cost: 15000, color: 0xFFD700 },
+            'NMX Rubí': { limit: 500000, interest: 6, cost: 25000, color: 0xE74C3C },
+            'NMX Black': { limit: 1000000, interest: 5, cost: 40000, color: 0x2C3E50 },
+            'NMX Diamante': { limit: 2000000, interest: 3, cost: 60000, color: 0x3498DB }
+        };
+
+        const stats = cardStats[nextTier];
+        if (!stats) return interaction.followUp({ content: '❌ Error: Estadísticas de tarjeta no encontradas.', ephemeral: true });
+
+        try {
+            // 1. Check & Deduct Money
+            await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, stats.cost, `Mejora Tarjeta: ${nextTier}`, 'bank');
+
+            // 2. Update DB
+            const { error: updateError } = await supabase
+                .from('credit_cards')
+                .update({
+                    card_type: nextTier,
+                    credit_limit: stats.limit,
+                    interest_rate: stats.interest,
+                    updated_at: new Date().toISOString()
+                })
+                .eq('guild_id', interaction.guildId)
+                .is('closed_at', null)
+                .order('created_at', { ascending: false })
+                .limit(1)
+                .maybeSingle();
+
+            if (updateError) throw updateError;
+
+            // 3. Success Embed
+            const successEmbed = new EmbedBuilder()
+                .setTitle('🎉 ¡Mejora Procesada con Éxito!')
+                .setColor(stats.color)
+                .setDescription(`Felicidades <@${interaction.user.id}>, tu tarjeta ha sido mejorada a **${nextTier}**.`)
+                .addFields(
+                    { name: '📈 Nuevo Límite', value: `$${stats.limit.toLocaleString()}`, inline: true },
+                    { name: '📉 Nueva Tasa', value: `${stats.interest}%`, inline: true },
+                    { name: '💰 Coste Pagado', value: `$${stats.cost.toLocaleString()}`, inline: true }
+                )
+                .setThumbnail('https://cdn-icons-png.flaticon.com/512/6124/6124997.png')
+                .setFooter({ text: 'Banco Nacional - Creciendo contigo' })
+                .setTimestamp();
+
+            await interaction.editReply({ content: null, embeds: [successEmbed], components: [] });
+
+        } catch (error) {
+            console.error('[Credit Upgrade Error]:', error);
+            const errMsg = error.message?.includes('insufficient funds') ? '❌ No tienes fondos suficientes en el banco.' : `❌ Error al procesar mejora: ${error.message}`;
+            await interaction.followUp({ content: errMsg, ephemeral: true });
+        }
+        return;
+    }
+};
+
+module.exports = { handleEconomyButtons };
