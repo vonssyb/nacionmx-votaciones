@@ -1,0 +1,205 @@
+const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+
+module.exports = {
+    data: new SlashCommandBuilder()
+        .setName('mision')
+        .setDescription('📋 Sistema de Misiones Diarias')
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('diaria')
+                .setDescription('Ver la misión del día'))
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('completar')
+                .setDescription('Marcar misión como completada para un usuario (Staff Only)')
+                .addUserOption(option =>
+                    option.setName('usuario')
+                        .setDescription('Usuario que completó la misión')
+                        .setRequired(true)))
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('reclamar')
+                .setDescription('Reclamar recompensa de una misión completada')),
+
+    async execute(interaction, client, supabase) {
+        await interaction.deferReply({});
+
+        const subcommand = interaction.options.getSubcommand();
+        const STAFF_ROLE_ID = '1450242487422812251';
+
+        try {
+            if (subcommand === 'diaria') {
+                // Get today's mission
+                const { data: mission } = await supabase
+                    .from('daily_missions')
+                    .select('*')
+                    .eq('active_date', new Date().toISOString().split('T')[0])
+                    .maybeSingle();
+
+                if (!mission) {
+                    return interaction.editReply('❌ No hay misión activa para hoy.');
+                }
+
+                // Check if user has completed it
+                const { data: completion } = await supabase
+                    .from('mission_completions')
+                    .select('*')
+                    .eq('mission_id', mission.id)
+                    .eq('discord_id', interaction.user.id)
+                    .maybeSingle();
+
+                const statusText = completion
+                    ? (completion.claimed ? '✅ Completada y Reclamada' : '⏳ Completada - Usa `/mision reclamar`')
+                    : '🔄 Pendiente';
+
+                const difficultyColors = {
+                    'easy': '#2ECC71',
+                    'medium': '#F39C12',
+                    'hard': '#E74C3C'
+                };
+
+                const embed = new EmbedBuilder()
+                    .setTitle(`📋 Misión Diaria - ${new Date().toLocaleDateString('es-MX')}`)
+                    .setDescription(`**${mission.title}**\n\n${mission.description}`)
+                    .setColor(difficultyColors[mission.difficulty] || '#3498DB')
+                    .addFields(
+                        { name: '🎯 Dificultad', value: mission.difficulty.toUpperCase(), inline: true },
+                        { name: '💰 Recompensa', value: `$${mission.reward_money.toLocaleString()}`, inline: true },
+                        { name: '⭐ XP', value: `${mission.reward_xp} XP`, inline: true },
+                        { name: '📊 Estado', value: statusText, inline: false }
+                    )
+                    .setFooter({ text: 'Las misiones cambian diariamente' })
+                    .setTimestamp();
+
+                return interaction.editReply({ embeds: [embed] });
+
+            } else if (subcommand === 'completar') {
+                // Staff only
+                const member = await interaction.guild.members.fetch(interaction.user.id);
+                if (!member.roles.cache.has(STAFF_ROLE_ID) && !member.permissions.has('Administrator')) {
+                    return interaction.editReply('❌ Solo el Staff puede marcar misiones como completadas.');
+                }
+
+                const targetUser = interaction.options.getUser('usuario');
+
+                // Get today's mission
+                const { data: mission } = await supabase
+                    .from('daily_missions')
+                    .select('*')
+                    .eq('active_date', new Date().toISOString().split('T')[0])
+                    .maybeSingle();
+
+                if (!mission) {
+                    return interaction.editReply('❌ No hay misión activa para hoy.');
+                }
+
+                // Check if already completed
+                const { data: existing } = await supabase
+                    .from('mission_completions')
+                    .select('*')
+                    .eq('mission_id', mission.id)
+                    .eq('discord_id', targetUser.id)
+                    .maybeSingle();
+
+                if (existing) {
+                    return interaction.editReply(`❌ ${targetUser.tag} ya completó esta misión.`);
+                }
+
+                // Mark as completed
+                await supabase.from('mission_completions').insert({
+                    mission_id: mission.id,
+                    discord_id: targetUser.id
+                });
+
+                return interaction.editReply(
+                    `✅ Misión marcada como completada para ${targetUser.tag}.\n` +
+                    `El usuario puede reclamar su recompensa con \`/mision reclamar\`.`
+                );
+
+            } else if (subcommand === 'reclamar') {
+                // Get today's mission
+                const { data: mission } = await supabase
+                    .from('daily_missions')
+                    .select('*')
+                    .eq('active_date', new Date().toISOString().split('T')[0])
+                    .maybeSingle();
+
+                if (!mission) {
+                    return interaction.editReply('❌ No hay misión activa para hoy.');
+                }
+
+                // Check if completed
+                const { data: completion } = await supabase
+                    .from('mission_completions')
+                    .select('*')
+                    .eq('mission_id', mission.id)
+                    .eq('discord_id', interaction.user.id)
+                    .maybeSingle();
+
+                if (!completion) {
+                    return interaction.editReply('❌ Aún no has completado esta misión.');
+                }
+
+                if (completion.claimed) {
+                    return interaction.editReply('❌ Ya reclamaste la recompensa de esta misión.');
+                }
+
+                // Give rewards
+                const UnbelievaBoatService = require('../../services/UnbelievaBoatService');
+                const ubToken = process.env.UNBELIEVABOAT_TOKEN;
+
+                if (ubToken && mission.reward_money > 0) {
+                    const ubService = new UnbelievaBoatService(ubToken);
+                    await ubService.addMoney(
+                        interaction.guildId,
+                        interaction.user.id,
+                        mission.reward_money,
+                        0,
+                        `Misión Diaria: ${mission.title}`
+                    );
+                }
+
+                // Update XP if user_stats exists
+                if (mission.reward_xp > 0) {
+                    const { data: stats } = await supabase
+                        .from('user_stats')
+                        .select('*')
+                        .eq('discord_id', interaction.user.id)
+                        .maybeSingle();
+
+                    if (stats) {
+                        await supabase
+                            .from('user_stats')
+                            .update({ xp: (stats.xp || 0) + mission.reward_xp })
+                            .eq('discord_id', interaction.user.id);
+                    }
+                }
+
+                // Mark as claimed
+                await supabase
+                    .from('mission_completions')
+                    .update({
+                        claimed: true,
+                        claimed_at: new Date().toISOString()
+                    })
+                    .eq('id', completion.id);
+
+                const embed = new EmbedBuilder()
+                    .setTitle('🎉 Recompensa Reclamada')
+                    .setColor('#2ECC71')
+                    .setDescription(`¡Has completado la misión **"${mission.title}"**!`)
+                    .addFields(
+                        { name: '💰 Dinero', value: `+$${mission.reward_money.toLocaleString()}`, inline: true },
+                        { name: '⭐ XP', value: `+${mission.reward_xp} XP`, inline: true }
+                    )
+                    .setTimestamp();
+
+                return interaction.editReply({ embeds: [embed] });
+            }
+
+        } catch (error) {
+            console.error('[mision] Error:', error);
+            await interaction.editReply('❌ Error al procesar la acción.');
+        }
+    }
+};
