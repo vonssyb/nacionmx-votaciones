@@ -3381,7 +3381,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
         else if (interaction.options.getSubcommandGroup() === 'admin') {
             // Permission Check
             if (!interaction.member.permissions.has('Administrator')) {
-                return interaction.reply({ content: '⛔ Solo administradores pueden usar esto.', flags: [64] });
+                return interaction.editReply({ content: '⛔ Solo administradores pueden usar esto.', flags: [64] });
             }
 
             const subCmdAdmin = interaction.options.getSubcommand();
@@ -3389,7 +3389,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
 
             // SECURITY: Self-Target Check
             if (targetUser.id === interaction.user.id) {
-                return interaction.reply({ content: '⛔ **Seguridad:** No puedes usar comandos administrativos sobre tu propia cuenta.', flags: [64] });
+                return interaction.editReply({ content: '⛔ **Seguridad:** No puedes usar comandos administrativos sobre tu propia cuenta.', flags: [64] });
             }
 
             // Already deferred globally at command start
