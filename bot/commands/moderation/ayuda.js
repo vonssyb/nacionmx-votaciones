@@ -57,6 +57,9 @@ module.exports = {
                 case 'admin':
                     newEmbed.setTitle('⚙️ Administración')
                         .addFields(
+                            { name: '`/rango`', value: 'Gestión de Staff (Promover/Degradar).' },
+                            { name: '`/sesion`', value: 'Votaciones para abrir servidor.' },
+                            { name: '`/server`', value: 'Bloqueo/Desbloqueo manual del servidor (.lock).' },
                             { name: '`/setup-erlc`', value: 'Vincular servidor ERLC.' },
                             { name: '`/verificar`', value: 'Forzar verificación Roblox.' }
                         );
