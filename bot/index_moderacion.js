@@ -266,6 +266,168 @@ client.on('interactionCreate', async interaction => {
             return;
         }
 
+        // --- APPEAL APPROVE (GENERAL APPEALS) ---
+        if (customId.startsWith('appeal_approve_')) {
+            await interaction.deferUpdate();
+
+            const appealId = customId.split('_')[2];
+            const ENCARGADO_ROLE = '1451703422800625777'; // Encargado de Apelaciones
+
+            // Check permissions
+            if (!interaction.member.roles.cache.has(ENCARGADO_ROLE) && !interaction.member.permissions.has('Administrator')) {
+                return interaction.followUp({ content: '❌ Solo el Encargado de Apelaciones puede gestionar apelaciones.', flags: [64] });
+            }
+
+            try {
+                // 1. Get appeal from DB
+                const { data: appeal } = await supabase
+                    .from('appeals')
+                    .select('*, sanctions(*)')
+                    .eq('id', appealId)
+                    .single();
+
+                if (!appeal) {
+                    return interaction.followUp({ content: '❌ Apelación no encontrada.', flags: [64] });
+                }
+
+                if (appeal.status !== 'pending') {
+                    return interaction.followUp({ content: '❌ Esta apelación ya fue procesada.', flags: [64] });
+                }
+
+                // 2. Update appeal status
+                await supabase
+                    .from('appeals')
+                    .update({
+                        status: 'approved',
+                        reviewed_by: interaction.user.id,
+                        reviewed_at: new Date().toISOString()
+                    })
+                    .eq('id', appealId);
+
+                // 3. Deactivate the original sanction
+                await supabase
+                    .from('sanctions')
+                    .update({ status: 'appealed' })
+                    .eq('id', appeal.sanction_id);
+
+                // 4. Update the message to show it was approved
+                await interaction.editReply({
+                    content: `✅ **Apelación APROBADA** por ${interaction.user.tag}`,
+                    components: [] // Remove buttons
+                });
+
+                // 5. Notify user via DM
+                try {
+                    const user = await client.users.fetch(appeal.user_id);
+                    if (user) {
+                        const dmEmbed = new EmbedBuilder()
+                            .setTitle('✅ Apelación Aprobada')
+                            .setColor('#2ECC71')
+                            .setDescription(`Tu apelación ha sido **APROBADA** por el equipo de moderación.\n\nLa sanción original ha sido retirada de tu historial.`)
+                            .addFields(
+                                { name: '📜 Sanción Original', value: `${appeal.sanctions.type}: ${appeal.sanctions.reason}` },
+                                { name: '📝 Tu Motivo', value: appeal.reason }
+                            )
+                            .setFooter({ text: 'Nación MX - Sistema de Apelaciones' })
+                            .setTimestamp();
+                        await user.send({ embeds: [dmEmbed] }).catch(() => { });
+                    }
+                } catch (e) { }
+
+                // 6. Log to audit
+                await client.logAudit(
+                    'Apelación Aprobada',
+                    `Usuario: <@${appeal.user_id}>\nSanción: ${appeal.sanctions.type}\nMotivo Apelación: ${appeal.reason}`,
+                    interaction.user,
+                    await client.users.fetch(appeal.user_id),
+                    0x2ECC71
+                );
+
+            } catch (error) {
+                console.error('[appeal_approve] Error:', error);
+                await interaction.followUp({ content: '❌ Error al procesar apelación.', flags: [64] });
+            }
+            return;
+        }
+
+        // --- APPEAL REJECT (GENERAL APPEALS) ---
+        if (customId.startsWith('appeal_reject_')) {
+            await interaction.deferUpdate();
+
+            const appealId = customId.split('_')[2];
+            const ENCARGADO_ROLE = '1451703422800625777';
+
+            // Check permissions
+            if (!interaction.member.roles.cache.has(ENCARGADO_ROLE) && !interaction.member.permissions.has('Administrator')) {
+                return interaction.followUp({ content: '❌ Solo el Encargado de Apelaciones puede gestionar apelaciones.', flags: [64] });
+            }
+
+            try {
+                // 1. Get appeal from DB
+                const { data: appeal } = await supabase
+                    .from('appeals')
+                    .select('*, sanctions(*)')
+                    .eq('id', appealId)
+                    .single();
+
+                if (!appeal) {
+                    return interaction.followUp({ content: '❌ Apelación no encontrada.', flags: [64] });
+                }
+
+                if (appeal.status !== 'pending') {
+                    return interaction.followUp({ content: '❌ Esta apelación ya fue procesada.', flags: [64] });
+                }
+
+                // 2. Update appeal status
+                await supabase
+                    .from('appeals')
+                    .update({
+                        status: 'rejected',
+                        reviewed_by: interaction.user.id,
+                        reviewed_at: new Date().toISOString()
+                    })
+                    .eq('id', appealId);
+
+                // 3. Update the message
+                await interaction.editReply({
+                    content: `❌ **Apelación RECHAZADA** por ${interaction.user.tag}`,
+                    components: []
+                });
+
+                // 4. Notify user via DM
+                try {
+                    const user = await client.users.fetch(appeal.user_id);
+                    if (user) {
+                        const dmEmbed = new EmbedBuilder()
+                            .setTitle('❌ Apelación Rechazada')
+                            .setColor('#E74C3C')
+                            .setDescription(`Tu apelación ha sido **RECHAZADA** por el equipo de moderación.\n\nLa sanción original se mantiene activa.`)
+                            .addFields(
+                                { name: '📜 Sanción', value: `${appeal.sanctions.type}: ${appeal.sanctions.reason}` },
+                                { name: '📝 Tu Motivo', value: appeal.reason }
+                            )
+                            .setFooter({ text: 'Nación MX - Sistema de Apelaciones' })
+                            .setTimestamp();
+                        await user.send({ embeds: [dmEmbed] }).catch(() => { });
+                    }
+                } catch (e) { }
+
+                // 5. Log to audit
+                await client.logAudit(
+                    'Apelación Rechazada',
+                    `Usuario: <@${appeal.user_id}>\nSanción: ${appeal.sanctions.type}\nMotivo Apelación: ${appeal.reason}`,
+                    interaction.user,
+                    await client.users.fetch(appeal.user_id),
+                    0xE74C3C
+                );
+
+            } catch (error) {
+                console.error('[appeal_reject] Error:', error);
+                await interaction.followUp({ content: '❌ Error al procesar apelación.', flags: [64] });
+            }
+            return;
+        }
+
         // --- SA APPEAL CANCEL ---
         if (customId === 'cancel_sa_appeal') {
             await interaction.deferUpdate();
