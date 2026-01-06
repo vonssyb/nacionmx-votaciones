@@ -66,6 +66,15 @@ module.exports = {
                 return interaction.reply({ content: '❌ Debes estar en el equipo **Sheriff** para iniciar turno de moderador.', ephemeral: true });
             }
 
+            // Check Badge (Placa) in Discord Nickname
+            const badgeRegex = /\b(ST|JD|AD)-\d{3}\b/;
+            if (!badgeRegex.test(interaction.member.displayName)) {
+                return interaction.reply({
+                    content: '❌ **Placa Inválida:** Tu apodo de Discord debe contener tu placa (Ej: `ST-123`, `JD-001`, `AD-999`).\nActualiza tu nombre en el servidor y vuelve a intentar.',
+                    ephemeral: true
+                });
+            }
+
             // Start Shift
             client.erlcShifts.set(profile.roblox_id, {
                 startTime: Date.now(),

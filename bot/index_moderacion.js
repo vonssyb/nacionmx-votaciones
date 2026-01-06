@@ -709,12 +709,41 @@ setInterval(async () => {
                     const whitelist = config.whitelist || [];
                     const currentPlayers = new Set(info.Players.map(p => p.Player));
 
-                    // --- SHIFT LOGIC: Check Leavers ---
+                    // --- SHIFT LOGIC: Check Leavers & Badge ---
                     for (const [robloxId, shiftData] of client.erlcShifts) {
                         const stillOnline = info.Players.find(p => p.Id.toString() === robloxId);
 
-                        // STRICT CHECK: Must be Online AND Team == Sheriff
-                        const isValid = stillOnline && stillOnline.Team === 'Sheriff';
+                        // 1. Basic Checks: Online & Team
+                        let isValid = stillOnline && stillOnline.Team === 'Sheriff';
+                        let endReason = 'Salió del servidor o del equipo Sheriff.';
+
+                        // 2. Badge Check (Discord Nickname)
+                        if (isValid) {
+                            try {
+                                // Try to find guild
+                                let guild = client.guilds.cache.get(process.env.GUILD_ID);
+                                if (!guild && config.statusChannelId) {
+                                    const ch = client.channels.cache.get(config.statusChannelId);
+                                    if (ch) guild = ch.guild;
+                                }
+                                if (!guild) guild = client.guilds.cache.first(); // Fallback
+
+                                if (guild) {
+                                    const member = await guild.members.fetch(shiftData.discordId).catch(() => null);
+                                    if (member) {
+                                        const badgeRegex = /\b(ST|JD|AD)-\d{3}\b/;
+                                        if (!badgeRegex.test(member.displayName)) {
+                                            isValid = false;
+                                            endReason = 'Placa no encontrada en apodo de Discord (ST/JD/AD-XXX).';
+                                        }
+                                    } else {
+                                        // Member left discord?
+                                        isValid = false;
+                                        endReason = 'Usuario no encontrado en Discord.';
+                                    }
+                                }
+                            } catch (e) { console.error('Error checking badge:', e); }
+                        }
 
                         if (!isValid) {
                             // END SHIFT AUTOMATICALLY
@@ -731,7 +760,7 @@ setInterval(async () => {
                                     const embed = new EmbedBuilder()
                                         .setTitle('🛑 Turno Finalizado (Auto)')
                                         .setColor(0xFF0000)
-                                        .setDescription(`El moderador <@${shiftData.discordId}> ha terminado su turno.\n**Razón:** Salió del servidor o del equipo Sheriff.`)
+                                        .setDescription(`El moderador <@${shiftData.discordId}> ha terminado su turno.\n**Razón:** ${endReason}`)
                                         .addFields(
                                             { name: 'Usuario', value: shiftData.name, inline: true },
                                             { name: 'Duración', value: `${durationMin} minutos`, inline: true }
