@@ -28,8 +28,16 @@ module.exports = {
                 .setRequired(true))
         .addUserOption(option =>
             option.setName('usuario')
-                .setDescription('Usuario a sancionar o notificar')
-                .setRequired(true))
+                .setDescription('Usuario a sancionar (si está en el servidor)')
+                .setRequired(false))
+        .addStringOption(option =>
+            option.setName('discord_id')
+                .setDescription('ID de Discord (si el usuario salió del servidor)')
+                .setRequired(false))
+        .addStringOption(option =>
+            option.setName('roblox_username')
+                .setDescription('Username de Roblox (búsqueda en base de datos)')
+                .setRequired(false))
         .addAttachmentOption(option =>
             option.setName('evidencia')
                 .setDescription('Evidencia obligatoria (Imagen/Video)')
@@ -146,7 +154,50 @@ module.exports = {
         const isEphemeral = (type === 'notificacion');
         await interaction.deferReply({ flags: isEphemeral ? [64] : [] });
 
-        const targetUser = interaction.options.getUser('usuario');
+        // --- GET TARGET USER (Support 3 methods) ---
+        const usuarioMention = interaction.options.getUser('usuario');
+        const discordIdInput = interaction.options.getString('discord_id');
+        const robloxUsernameInput = interaction.options.getString('roblox_username');
+
+        let targetUser = null;
+        let targetDiscordId = null;
+
+        if (usuarioMention) {
+            // Method 1: Direct mention (@usuario)
+            targetUser = usuarioMention;
+            targetDiscordId = usuarioMention.id;
+        } else if (discordIdInput) {
+            // Method 2: Discord ID (for users who left server)
+            targetDiscordId = discordIdInput.trim();
+            try {
+                targetUser = await interaction.client.users.fetch(targetDiscordId);
+            } catch (error) {
+                return interaction.editReply(`❌ No se pudo encontrar el usuario con ID: ${targetDiscordId}`);
+            }
+        } else if (robloxUsernameInput) {
+            // Method 3: Roblox username lookup
+            const { data: citizen } = await interaction.client.supabase
+                .from('citizens')
+                .select('discord_id, roblox_username')
+                .ilike('roblox_username', robloxUsernameInput.trim())
+                .maybeSingle();
+
+            if (!citizen) {
+                return interaction.editReply(`❌ No se encontró ningún ciudadano con username de Roblox: **${robloxUsernameInput}**`);
+            }
+
+            targetDiscordId = citizen.discord_id;
+            try {
+                targetUser = await interaction.client.users.fetch(targetDiscordId);
+            } catch (error) {
+                // User left Discord but we have their ID
+                targetUser = { id: targetDiscordId, tag: `${robloxUsernameInput} (ID: ${targetDiscordId})`, bot: false };
+            }
+        } else {
+            return interaction.editReply('❌ Debes especificar al menos uno: **@usuario**, **discord_id**, o **roblox_username**.');
+        }
+
+        // --- GET OTHER OPTIONS ---
         const motivo = interaction.options.getString('motivo');
         const descripcion = interaction.options.getString('descripcion');
         const tipoBlacklist = interaction.options.getString('tipo_blacklist');
