@@ -924,6 +924,7 @@ setInterval(async () => {
                 if (info.Players) {
                     // 1. Fetch Active Arrests & Discord Links (Optimized)
                     let activeArrestRobloxIds = [];
+                    let activeArrestMap = new Map(); // RobloxID -> Discord ID
                     let playerMap = new Map(); // RobloxID -> DiscordID
 
                     const onlineRobloxIds = info.Players.map(p => p.Id.toString());
@@ -931,29 +932,67 @@ setInterval(async () => {
                         // Get Citizens Link
                         const { data: citizens } = await supabase
                             .from('citizens')
-                            .select('roblox_id, discord_id')
+                            .select('roblox_id, discord_id, roblox_username')
                             .in('roblox_id', onlineRobloxIds);
 
                         if (citizens) {
                             citizens.forEach(c => {
-                                if (c.roblox_id && c.discord_id) playerMap.set(c.roblox_id.toString(), c.discord_id);
+                                if (c.roblox_id && c.discord_id) {
+                                    playerMap.set(c.roblox_id.toString(), c.discord_id);
+                                }
                             });
                         }
 
-                        // Get Arrests
+                        // Get Active Arrests from arrests table (new structure)
                         const { data: arrests } = await supabase
-                            .from('arrest_records')
-                            .select('discord_user_id')
-                            .eq('status', 'active');
+                            .from('arrests')
+                            .select('user_id, release_time')
+                            .gte('release_time', new Date().toISOString())
+                            .in('user_id', Array.from(playerMap.values()));
 
-                        if (arrests) {
-                            const arrestedDiscordIds = arrests.map(a => a.discord_user_id);
+                        if (arrests && arrests.length > 0) {
+                            const arrestedDiscordIds = arrests.map(a => a.user_id);
+
                             // Find which online players are arrested
                             playerMap.forEach((discordId, robloxId) => {
                                 if (arrestedDiscordIds.includes(discordId)) {
                                     activeArrestRobloxIds.push(robloxId);
+                                    activeArrestMap.set(robloxId, discordId);
                                 }
                             });
+
+                            // KICK ARRESTED PLAYERS FROM ERLC
+                            if (activeArrestRobloxIds.length > 0) {
+                                const ErlcService = require('./services/ErlcService');
+                                const erlcKey = process.env.ERLC_API_KEY;
+
+                                if (erlcKey) {
+                                    const erlcService = new ErlcService(erlcKey);
+
+                                    for (const robloxId of activeArrestRobloxIds) {
+                                        const playerInfo = info.Players.find(p => p.Id.toString() === robloxId);
+                                        if (playerInfo) {
+                                            const kickCommand = `:kick ${playerInfo.Player} Estás arrestado - No puedes jugar durante tu arresto`;
+                                            await erlcService.runCommand(kickCommand);
+                                            console.log(`[ERLC Auto-Kick] Kicked arrested player: ${playerInfo.Player} (${robloxId})`);
+
+                                            // Send DM reminder
+                                            const discordId = activeArrestMap.get(robloxId);
+                                            if (discordId) {
+                                                try {
+                                                    const user = await client.users.fetch(discordId);
+                                                    await user.send(
+                                                        '⚠️ **ADVERTENCIA AUTOMÁTICA**\n\n' +
+                                                        'Has sido expulsado del servidor de ERLC porque estás **ARRESTADO**.\n\n' +
+                                                        '🚫 No puedes jugar hasta que tu tiempo de arresto termine.\n' +
+                                                        '📅 Revisa tu DM de arresto para ver cuándo serás liberado.'
+                                                    ).catch(() => { });
+                                                } catch (e) { }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
 
