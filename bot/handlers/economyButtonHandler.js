@@ -481,19 +481,31 @@ const handleEconomyButtons = async (interaction, client, supabase, billingServic
             await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, stats.cost, `Mejora Tarjeta: ${nextTier}`, 'bank');
 
             // 2. Update DB
+            // First find the citizen associated with this discord user
+            const { data: citizen } = await supabase
+                .from('citizens')
+                .select('id')
+                .eq('discord_id', interaction.user.id)
+                .maybeSingle();
+
+            if (!citizen) throw new Error('Citizen profile not found');
+
+            const updateData = {
+                card_type: nextTier,
+                credit_limit: stats.limit,
+                interest_rate: stats.interest
+            };
+
+            // Add updated_at only if it potentially exists or just keep it since we want it
+            updateData.updated_at = new Date().toISOString();
+
             const { error: updateError } = await supabase
                 .from('credit_cards')
-                .update({
-                    card_type: nextTier,
-                    credit_limit: stats.limit,
-                    interest_rate: stats.interest,
-                    updated_at: new Date().toISOString()
-                })
-                .eq('guild_id', interaction.guildId)
+                .update(updateData)
+                .eq('citizen_id', citizen.id)
                 .is('closed_at', null)
                 .order('created_at', { ascending: false })
-                .limit(1)
-                .maybeSingle();
+                .limit(1);
 
             if (updateError) throw updateError;
 
