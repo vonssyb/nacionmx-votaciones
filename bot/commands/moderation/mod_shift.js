@@ -43,23 +43,40 @@ module.exports = {
                 return interaction.editReply({ content: '❌ No se pudo conectar con el servidor para verificar tu presencia.' });
             }
 
-            // Find user in server (Need link)
-            // We need to resolve Discord -> Roblox ID.
-            // Using Supabase
-            const { data: profile } = await client.supabase
-                .from('citizens')
-                .select('roblox_id, roblox_username')
-                .eq('discord_id', discordId)
-                .maybeSingle();
+            // Find user in server via Name Matching (Priority) or DB (Fallback)
+            let player = null;
+            const discordName = interaction.user.username.toLowerCase();
+            const displayName = interaction.member.displayName.toLowerCase();
 
-            if (!profile || !profile.roblox_id) {
-                return interaction.editReply({ content: '❌ No tienes tu cuenta de Roblox vinculada. Usa `/fichar vincular` o `/verificar`.' });
+            // 1. Try to match by Discord Username
+            player = info.Players.find(p => p.Player.toLowerCase() === discordName);
+
+            // 2. Try to match by Display Name (Removing Badges)
+            if (!player) {
+                // Remove ST-XXX, JD-XXX, AD-XXX prefixes and whitespace
+                const cleanNick = displayName.replace(/\b(st|jd|ad)-\d{3}\b/g, '').trim();
+                if (cleanNick.length > 0) {
+                    player = info.Players.find(p => p.Player.toLowerCase() === cleanNick);
+                }
             }
 
-            const player = info.Players.find(p => p.Id.toString() === profile.roblox_id);
+            // 3. Fallback: Check DB (only if configured/needed, but user asked to remove reliance)
+            if (!player) {
+                const { data: profile } = await client.supabase
+                    .from('citizens')
+                    .select('roblox_id')
+                    .eq('discord_id', discordId)
+                    .maybeSingle();
+
+                if (profile && profile.roblox_id) {
+                    player = info.Players.find(p => p.Id.toString() === profile.roblox_id);
+                }
+            }
 
             if (!player) {
-                return interaction.editReply({ content: '❌ No estás conectado al servidor de ERLC.' });
+                return interaction.editReply({
+                    content: '❌ **No te encuentro en el servidor.**\nAsegúrate de que tu usuario de Roblox coincida con tu Discord o tu Apodo (sin placa).\nEntra al servidor y vuelve a intentar.'
+                });
             }
 
             if (player.Team !== 'Sheriff') {
