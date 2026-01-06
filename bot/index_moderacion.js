@@ -843,8 +843,10 @@ setInterval(async () => {
         if (logChannel) {
             // 1. Kill Logs
             const kills = await client.services.erlc.getKillLogs();
+            console.log(`[ERLC-LOGS] Fetched ${kills.length} kill logs from API`);
             let newKills = kills.filter(k => k.Timestamp > client.erlcLogState.lastKill).sort((a, b) => a.Timestamp - b.Timestamp);
             if (newKills.length > 0) {
+                console.log(`[ERLC-LOGS] Processing ${newKills.length} new kill logs`);
                 for (const k of newKills) {
                     const embed = new EmbedBuilder()
                         .setTitle('☠️ Kill Log')
@@ -858,8 +860,10 @@ setInterval(async () => {
 
             // 2. Command Logs
             const cmds = await client.services.erlc.getCommandLogs();
+            console.log(`[ERLC-LOGS] Fetched ${cmds.length} command logs from API`);
             let newCmds = cmds.filter(c => c.Timestamp > client.erlcLogState.lastCommand).sort((a, b) => a.Timestamp - b.Timestamp);
             if (newCmds.length > 0) {
+                console.log(`[ERLC-LOGS] Processing ${newCmds.length} new command logs`);
                 for (const c of newCmds) {
                     const embed = new EmbedBuilder()
                         .setTitle('⌨️ Command Log')
@@ -873,8 +877,10 @@ setInterval(async () => {
 
             // 3. Join/Leave Logs
             const joins = await client.services.erlc.getJoinLogs();
+            console.log(`[ERLC-LOGS] Fetched ${joins.length} join/leave logs from API`);
             let newJoins = joins.filter(j => j.Timestamp > client.erlcLogState.lastJoin).sort((a, b) => a.Timestamp - b.Timestamp);
             if (newJoins.length > 0) {
+                console.log(`[ERLC-LOGS] Processing ${newJoins.length} new join/leave logs`);
                 for (const j of newJoins) {
                     const embed = new EmbedBuilder()
                         .setTitle(j.Join ? '🟢 Entrada al Servidor' : '🔴 Salida del Servidor')
@@ -889,7 +895,10 @@ setInterval(async () => {
             // Save State
             if (newKills.length > 0 || newCmds.length > 0 || newJoins.length > 0) {
                 fs.writeFileSync(path.join(__dirname, 'data/erlc_log_state.json'), JSON.stringify(client.erlcLogState));
+                console.log(`[ERLC-LOGS] Saved state: kills=${client.erlcLogState.lastKill}, cmds=${client.erlcLogState.lastCommand}, joins=${client.erlcLogState.lastJoin}`);
             }
+        } else {
+            console.warn(`[ERLC-LOGS] Could not fetch log channel ${LOG_POLICIA}`);
         }
 
     } catch (err) {
