@@ -597,7 +597,29 @@ const ErlcService = require('./services/ErlcService');
 // Key provided by user
 const ERLC_API_KEY = 'ARuRfmzZGTqbqUCjMERA-dzEeGLbRfisfjKtiCOXLHATXDedYZsQQEethQMZp';
 client.services.erlc = new ErlcService(ERLC_API_KEY);
-client.erlcPendingKicks = new Map(); // Store pending kicks { "PlayerName": timestamp }
+client.erlcPendingKicks = new Map(); // { "PlayerName": { time, reason } }
+client.erlcShifts = new Map(); // { "RobloxID": { startTime, discordId, name } }
+
+// Load active shifts from disk
+const shiftsPath = path.join(__dirname, 'data/erlc_active_shifts.json');
+if (fs.existsSync(shiftsPath)) {
+    try {
+        const savedShifts = JSON.parse(fs.readFileSync(shiftsPath));
+        for (const [key, val] of Object.entries(savedShifts)) {
+            client.erlcShifts.set(key, val);
+        }
+    } catch (e) { console.error('Error loading shifts:', e); }
+}
+
+const saveShifts = () => {
+    try {
+        const obj = Object.fromEntries(client.erlcShifts);
+        fs.writeFileSync(shiftsPath, JSON.stringify(obj, null, 2));
+    } catch (e) { }
+};
+
+const LOG_POLICIA = '1399106787558424629';
+const MOD_ROLE_ID = '1412887167654690908';
 
 setInterval(async () => {
     try {
@@ -645,33 +667,78 @@ setInterval(async () => {
                     }
                 } catch (e) { /* Ignore message edit errors */ }
 
-                // --- ENFORCEMENT LOGIC (LOCK & ARRESTS) ---
                 if (info.Players) {
-                    // 1. Fetch Active Arrests (Optimized: Get robust list)
+                    // 1. Fetch Active Arrests & Discord Links (Optimized)
                     let activeArrestRobloxIds = [];
-                    // Only query DB if there are players to check
-                    if (info.Players.length > 0) {
+                    let playerMap = new Map(); // RobloxID -> DiscordID
+
+                    const onlineRobloxIds = info.Players.map(p => p.Id.toString());
+                    if (onlineRobloxIds.length > 0) {
+                        // Get Citizens Link
+                        const { data: citizens } = await supabase
+                            .from('citizens')
+                            .select('roblox_id, discord_id')
+                            .in('roblox_id', onlineRobloxIds);
+
+                        if (citizens) {
+                            citizens.forEach(c => {
+                                if (c.roblox_id && c.discord_id) playerMap.set(c.roblox_id.toString(), c.discord_id);
+                            });
+                        }
+
+                        // Get Arrests
                         const { data: arrests } = await supabase
                             .from('arrest_records')
-                            .select('discord_user_id') // Check column name in schema
+                            .select('discord_user_id')
                             .eq('status', 'active');
 
-                        if (arrests && arrests.length > 0) {
-                            const discordIds = arrests.map(a => a.discord_user_id);
-                            const { data: citizens } = await supabase
-                                .from('citizens')
-                                .select('roblox_id, roblox_username')
-                                .in('discord_id', discordIds);
-
-                            if (citizens) {
-                                activeArrestRobloxIds = citizens.map(c => c.roblox_id ? c.roblox_id.toString() : '');
-                            }
+                        if (arrests) {
+                            const arrestedDiscordIds = arrests.map(a => a.discord_user_id);
+                            // Find which online players are arrested
+                            playerMap.forEach((discordId, robloxId) => {
+                                if (arrestedDiscordIds.includes(discordId)) {
+                                    activeArrestRobloxIds.push(robloxId);
+                                }
+                            });
                         }
                     }
 
                     const whitelist = config.whitelist || [];
                     const currentPlayers = new Set(info.Players.map(p => p.Player));
 
+                    // --- SHIFT LOGIC: Check Leavers ---
+                    for (const [robloxId, shiftData] of client.erlcShifts) {
+                        const stillOnline = info.Players.find(p => p.Id.toString() === robloxId);
+                        const isDutyTeam = stillOnline ? (stillOnline.Team === 'Police' || stillOnline.Team === 'Sheriff') : false;
+
+                        if (!stillOnline || !isDutyTeam) {
+                            // END SHIFT
+                            client.erlcShifts.delete(robloxId);
+                            saveShifts();
+
+                            const durationMs = Date.now() - shiftData.startTime;
+                            const durationMin = Math.round(durationMs / 60000);
+
+                            // Log to Channel
+                            try {
+                                const logChannel = await client.channels.fetch(LOG_POLICIA);
+                                if (logChannel) {
+                                    const embed = new EmbedBuilder()
+                                        .setTitle('🛑 Turno Finalizado (Auto)')
+                                        .setColor(0xFF0000)
+                                        .setDescription(`El moderador <@${shiftData.discordId}> ha terminado su turno.`)
+                                        .addFields(
+                                            { name: 'Usuario', value: shiftData.name, inline: true },
+                                            { name: 'Duración', value: `${durationMin} minutos`, inline: true }
+                                        )
+                                        .setTimestamp();
+                                    await logChannel.send({ embeds: [embed] });
+                                }
+                            } catch (e) { }
+                        }
+                    }
+
+                    // --- LOOP PLAYERS ---
                     // Cleanup pending kicks for left players
                     for (const [key, val] of client.erlcPendingKicks) {
                         if (!currentPlayers.has(key)) {
@@ -714,18 +781,57 @@ setInterval(async () => {
                                 console.log(`[ENFORCE] Warned ${playerName} for ${violation}`);
 
                             } else {
-                                // PENDING KICK
+                                // PENDING KICK: Execution
                                 const elapsed = Date.now() - pendingData.time;
-
-                                // Remind every 20s? Or just wait
-                                // Kick after 60s
                                 if (elapsed > 60000) {
-                                    // EXECUTE KICK
                                     let kickReason = violation === 'server_closed' ? 'Servidor Cerrado' : 'Arrestado en RP';
                                     await client.services.erlc.runCommand(`:kick ${playerName} ${kickReason}`);
                                     client.erlcPendingKicks.delete(playerName);
                                     console.log(`[ENFORCE] Kicked ${playerName} for ${violation}`);
                                 }
+                            }
+                        }
+
+                        // --- SHIFT LOGIC: Check Joiners (Duty Start) ---
+                        if ((player.Team === 'Police' || player.Team === 'Sheriff') && !client.erlcShifts.has(playerId)) {
+                            // Check if eligible (Has Discord ID and Role)
+                            const discordId = playerMap.get(playerId);
+                            if (discordId) {
+                                try {
+                                    // Need to fetch member to check roles. 
+                                    // Optimization: Cache active guild? 
+                                    // We are in index.js, we can find the guild. "GUILD_ID" might be env var or fetch from channel.
+                                    // Use channel.guild from status channel if available, or fetch.
+                                    let guild = null;
+                                    if (config.statusChannelId) {
+                                        const c = await client.channels.fetch(config.statusChannelId);
+                                        if (c) guild = c.guild;
+                                    }
+
+                                    if (guild) {
+                                        const member = await guild.members.fetch(discordId).catch(() => null);
+                                        if (member && member.roles.cache.has(MOD_ROLE_ID)) {
+                                            // START SHIFT
+                                            client.erlcShifts.set(playerId, { startTime: Date.now(), discordId: discordId, name: playerName });
+                                            saveShifts();
+
+                                            // Log
+                                            const logChannel = await guild.channels.fetch(LOG_POLICIA).catch(() => null);
+                                            if (logChannel) {
+                                                const embed = new EmbedBuilder()
+                                                    .setTitle('👮 Turno Iniciado (Auto)')
+                                                    .setColor(0x00FF00)
+                                                    .setDescription(`El moderador <@${discordId}> ha iniciado turno automáticamente.`)
+                                                    .addFields(
+                                                        { name: 'Usuario', value: playerName, inline: true },
+                                                        { name: 'Equipo', value: player.Team, inline: true }
+                                                    )
+                                                    .setTimestamp();
+                                                await logChannel.send({ embeds: [embed] });
+                                            }
+                                        }
+                                    }
+                                } catch (e) { console.error('Shift start error', e); }
                             }
                         }
                     }
