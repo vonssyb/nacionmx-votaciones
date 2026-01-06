@@ -183,10 +183,4 @@ module.exports = {
             await interaction.editReply('❌ Error al procesar la acción. Contacta a un administrador.');
         }
     }
-
-} catch (error) {
-    console.error('[fianza] Error:', error);
-    await interaction.editReply('❌ Error al procesar la acción. Contacta a un administrador.');
-}
-    }
 };
