@@ -12,8 +12,13 @@ module.exports = {
         await interaction.deferReply();
 
         // Staff role check
-        const STAFF_ROLE_ID = '1450242487422812251';
-        const isStaff = interaction.member.roles.cache.has(STAFF_ROLE_ID) ||
+        const ALLOWED_ROLES = [
+            '1412882248411381872', // Administración
+            '1412887079612059660', // Staff
+            '1412887167654690908'  // Training
+        ];
+
+        const isStaff = interaction.member.roles.cache.some(r => ALLOWED_ROLES.includes(r.id)) ||
             interaction.member.permissions.has(PermissionFlagsBits.Administrator);
 
         if (!isStaff) {
