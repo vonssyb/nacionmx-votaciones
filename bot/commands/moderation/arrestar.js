@@ -102,9 +102,54 @@ module.exports = {
 
             const targetMember = await interaction.guild.members.fetch(targetUser.id);
 
-            // 5. Parse articles & Calculate Sentence
-            const { calculateSentence } = require('../../data/penalCode');
-            const sentence = calculateSentence(articlesInput);
+            // 5. Parse and Validate Articles
+            const { calculateSentence, ARTICLES } = require('../../data/penalCode');
+
+            // Sanitize input: remove extra spaces, letters, etc.
+            const sanitizedInput = articlesInput
+                .replace(/[^0-9,.\s]/g, '') // Only allow numbers, commas, dots, spaces
+                .replace(/\s+/g, '') // Remove all spaces
+                .replace(/,+/g, ',') // Remove multiple commas
+                .replace(/^,|,$/g, ''); // Remove leading/trailing commas
+
+            // Validate articles exist
+            const articleIds = sanitizedInput.split(',').filter(id => id.trim().length > 0);
+            const validArticles = [];
+            const invalidArticles = [];
+
+            for (const id of articleIds) {
+                const trimmedId = id.trim();
+                if (ARTICLES[trimmedId]) {
+                    validArticles.push(trimmedId);
+                } else {
+                    invalidArticles.push(trimmedId);
+                }
+            }
+
+            // If no valid articles, reject
+            if (validArticles.length === 0) {
+                return interaction.editReply({
+                    content: `❌ **Error: Artículos Inválidos**\n\n` +
+                        `No se reconoció ningún artículo válido en: \`${articlesInput}\`\n\n` +
+                        `**Formato correcto:** \`10\` o \`10,30,60\`\n` +
+                        `**Ejemplos:** \`10\`, \`30,60\`, \`111\``,
+                    flags: [64]
+                });
+            }
+
+            // Warning if some articles are invalid
+            if (invalidArticles.length > 0) {
+                await interaction.editReply({
+                    content: `⚠️ **Advertencia:** Los siguientes artículos no existen y serán ignorados:\n` +
+                        `❌ ${invalidArticles.join(', ')}\n\n` +
+                        `✅ Procesando solo: **${validArticles.join(', ')}**\n\n` +
+                        `Continuando en 3 segundos...`
+                });
+                await new Promise(resolve => setTimeout(resolve, 3000));
+            }
+
+            // Calculate sentence with valid articles only
+            const sentence = calculateSentence(validArticles.join(','));
 
             let finalTime = 0;
             let fineAmount = sentence.totalFine || 0; // Base fines from articles
@@ -116,24 +161,18 @@ module.exports = {
                 finalTime = sentence.suggestedTime;
             }
 
-            // Fallback if no time calculated (unknown articles)
+            // Fallback if no time calculated
             if (finalTime === 0 && !tiempoOverride) {
                 finalTime = 30; // 30 mins default (1 day RP)
-                sentence.reason = `Artículos Desconocidos: ${articlesInput}`;
+                sentence.reason = `Artículos: ${validArticles.join(', ')}`;
             }
 
             // Cap time strictly to avoid overflows/bad UX?
             // User requested "Code Penal" times which are huge (15 years = 4500 mins)
             // We will respect the calculation. 
 
-            // Add standard processing fine ($500 per article if no specific fine?)
-            // If the article didn't have a specific fine in the code, we might want to add a processing fee?
-            // Let's stick to the specific fines defined in the code or $500 fallback per article if desired.
-            // Current PenalCode.js has fines for traffic/arms/hurto. Others might not have monetary fines.
-            // Let's add a flat $500 administrative fee per article on top?
-            // User requirement was "$500 per article" in previous session.
-            // Let's keep $500 per article as "Processing Fee" PLUS specific fines.
-            const processingFee = articlesInput.split(',').length * 500;
+            // Add standard processing fine ($500 per valid article)
+            const processingFee = validArticles.length * 500;
             fineAmount += processingFee;
 
             // Apply Premium/UltraPass/Booster 50% Discount on Fine (Bail)
@@ -223,10 +262,10 @@ module.exports = {
                 user_tag: targetUser.tag,
                 arrested_by: interaction.user.id,
                 arrested_by_tag: interaction.user.tag,
-                articles: articlesInput,
+                articles: validArticles.join(','), // Use sanitized valid articles
                 arrest_time: finalTime,
                 release_time: releaseTime.toISOString(),
-                reason: articleText, // Use articles as reason since 'razon' input is gone
+                reason: articleText,
                 evidence_url: evidencia.url,
                 fine_amount: fineAmount
             });
