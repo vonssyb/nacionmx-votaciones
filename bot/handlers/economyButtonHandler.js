@@ -503,7 +503,7 @@ const handleEconomyButtons = async (interaction, client, supabase, billingServic
                 .from('credit_cards')
                 .update(updateData)
                 .eq('citizen_id', citizen.id)
-                .is('closed_at', null)
+                .eq('status', 'active')
                 .order('created_at', { ascending: false })
                 .limit(1);
 
