@@ -59,7 +59,7 @@ client.logAudit = async (action, details, moderator, target, color = 0x00AAFF, f
                 .addFields(
                     { name: '👮 Staff', value: `${moderator.tag} (<@${moderator.id}>)`, inline: true },
                     { name: '👤 Usuario', value: target ? `${target.tag} (<@${target.id}>)` : 'N/A', inline: true },
-                    { name: '📝 Detalles', value: details }
+                    { name: '📝 Detalles', value: details.length > 1020 ? details.substring(0, 1020) + '...' : details }
                 )
                 .setTimestamp();
             await channel.send({ embeds: [embed], files: files });

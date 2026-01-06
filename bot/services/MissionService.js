@@ -5,7 +5,7 @@ class MissionService {
     }
     async initializeDailyMissions(userId) {
         try {
-            logger.info(`Initializing daily missions for user ${userId}`);
+            console.log(`Initializing daily missions for user ${userId}`);
 
             const { data: missions, error: fetchError } = await this.supabase
                 .from('missions')
@@ -16,7 +16,7 @@ class MissionService {
 
             if (fetchError) throw fetchError;
             if (!missions || missions.length === 0) {
-                logger.warn('No daily missions available');
+                console.warn('No daily missions available');
                 return [];
             }
 
@@ -38,10 +38,10 @@ class MissionService {
 
             if (error) throw error;
 
-            logger.info(`Initialized ${data.length} daily missions for user ${userId}`);
+            console.log(`Initialized ${data.length} daily missions for user ${userId}`);
             return data;
         } catch (error) {
-            logger.error('Error initializing daily missions:', { userId, error: error.message });
+            console.error('Error initializing daily missions:', { userId, error: error.message });
             return [];
         }
     }
@@ -84,11 +84,11 @@ class MissionService {
                     .eq('id', um.id);
 
                 if (completed) {
-                    logger.info(`Mission completed: ${um.mission.name} by user ${userId}`);
+                    console.log(`Mission completed: ${um.mission.name} by user ${userId}`);
                 }
             }
         } catch (error) {
-            logger.error('Error updating mission progress:', { userId, action, error: error.message });
+            console.error('Error updating mission progress:', { userId, action, error: error.message });
         }
     }
 
@@ -130,11 +130,11 @@ class MissionService {
                 .update({ status: 'claimed', claimed_at: new Date().toISOString() })
                 .eq('id', userMission.id);
 
-            logger.info(`Mission claimed: ${userMission.mission.name} by ${userId}`);
+            console.log(`Mission claimed: ${userMission.mission.name} by ${userId}`);
 
             return { success: true, rewards, mission: userMission.mission };
         } catch (error) {
-            logger.error('Error claiming rewards:', { userId, missionId, error: error.message });
+            console.error('Error claiming rewards:', { userId, missionId, error: error.message });
             return { success: false, error: error.message };
         }
     }

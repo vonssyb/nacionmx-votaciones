@@ -3289,7 +3289,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 .setColor(0xD4AF37)
                 .addFields(
                     { name: 'Deuda Actual', value: `$${userCard.current_balance.toLocaleString()}`, inline: true },
-                    { name: 'Límite', value: `$${userCard.credit_limit.toLocaleString()}`, inline: true },
+                    { name: 'Límite', value: `$${(userCard.credit_limit || userCard.card_limit || 0).toLocaleString()}`, inline: true },
                     { name: 'Interés Semanal', value: `${userCard.interest_rate}%`, inline: true }
                 )
                 .setFooter({ text: 'El corte es cada domingo a medianoche.' });
@@ -6495,6 +6495,8 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
     // Copy this content to replace the current handlers in index.js
 
     else if (commandName === 'trabajar') {
+        await interaction.deferReply();
+
         // DNI Check
         const { data: jobDni, error: dniError } = await supabase
             .from('citizen_dni')
@@ -6505,7 +6507,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
 
         if (dniError) {
             console.error('[trabajar] DNI query error:', dniError);
-            return interaction.reply({
+            return interaction.editReply({
                 content: '❌ **Error al verificar DNI**\n\nHubo un problema al consultar tu DNI. Contacta a un administrador.',
                 flags: [64]
             });
@@ -6513,7 +6515,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
 
         if (!jobDni) {
             console.log(`[trabajar] No DNI found for user ${interaction.user.id} in guild ${interaction.guildId}`);
-            return interaction.reply({
+            return interaction.editReply({
                 content: '❌ **DNI Requerido**\n\nNecesitas un DNI válido para trabajar.\n\n**Crea uno usando:** `/dni crear`\n**Verifica tu DNI:** `/dni ver`',
                 flags: [64]
             });
