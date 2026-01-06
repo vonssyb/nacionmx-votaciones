@@ -7105,7 +7105,6 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
         if (subCmd === 'comprar') {
             const symbol = interaction.options.getString('empresa').toUpperCase();
             const qty = interaction.options.getNumber('cantidad');
-            const method = interaction.options.getString('metodo') || 'bank';
 
             if (!STOCKS[symbol]) return interaction.editReply('❌ Empresa no cotizada. Usa `/bolsa ver`.');
             if (qty <= 0) return interaction.editReply('❌ Cantidad inválida.');

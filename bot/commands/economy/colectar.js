@@ -157,16 +157,18 @@ module.exports = {
                 .eq('user_id', interaction.user.id);
 
             // Record transaction history
-            await supabase.from('money_history').insert({
+            const { error: historyError } = await supabase.from('money_history').insert({
                 guild_id: guildId,
                 user_id: interaction.user.id,
                 amount: netAmount,
                 commandName: 'colectar',
                 method: 'cash',
                 timestamp: new Date().toISOString(),
-            }).catch(insertError => {
-                console.error('[colectar] Error recording collection:', insertError);
             });
+
+            if (historyError) {
+                console.error('[colectar] Error recording collection:', historyError);
+            }
 
             // 5. Record collection (original table)
             const { error: insertError } = await supabase

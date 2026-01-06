@@ -105,7 +105,10 @@ async function uploadToSupabase(fileUrl, filename) {
 // --- EVENTS ---
 
 client.once('clientReady', async () => {
+    // Generate unique startup ID to detect multiple instances
+    const startupId = Math.random().toString(36).substring(7);
     console.log(`🤖 MODERATION BOT Started as ${client.user.tag}!`);
+    console.log(`🆔 Startup ID: ${startupId} - If you see multiple IDs, you have duplicate bot instances!`);
 
     // Load Commands (MODERATION ONLY - ayuda, ping, info are included in moderation folder)
     const loader = require('./handlers/commandLoader');
@@ -847,7 +850,11 @@ setInterval(async () => {
                     client.erlcLogState.lastKill = saved.lastKill || 0;
                     client.erlcLogState.lastCommand = saved.lastCommand || 0;
                     client.erlcLogState.lastJoin = saved.lastJoin || 0;
-                    // Sets don't persist, will be rebuilt on startup
+                    // Restore Sets from disk
+                    client.erlcLogState.processedKills = new Set(saved.processedKills || []);
+                    client.erlcLogState.processedCommands = new Set(saved.processedCommands || []);
+                    client.erlcLogState.processedJoins = new Set(saved.processedJoins || []);
+                    console.log(`[ERLC-LOGS] Restored ${client.erlcLogState.processedCommands.size} processed commands from disk`);
                 } catch (e) { }
             }
         }
@@ -860,9 +867,9 @@ setInterval(async () => {
             let newKills = kills.filter(k => k.Timestamp > client.erlcLogState.lastKill).sort((a, b) => a.Timestamp - b.Timestamp);
             if (newKills.length > 0) {
                 console.log(`[ERLC-LOGS] Processing ${newKills.length} new kill logs`);
-                for (const k of newKills) {
-                    // Create unique ID to prevent duplicates
-                    const logId = `${k.Timestamp}_${k.Killer}_${k.Killed}`;
+                for (const [index, k] of newKills.entries()) {
+                    // Create unique ID to prevent duplicates (including index for better uniqueness)
+                    const logId = `${k.Timestamp}_${k.Killer}_${k.Killed}_${index}`;
                     if (client.erlcLogState.processedKills.has(logId)) {
                         console.log(`[ERLC-LOGS] Skipping duplicate kill: ${logId}`);
                         continue;
@@ -878,10 +885,10 @@ setInterval(async () => {
                     client.erlcLogState.lastKill = Math.max(client.erlcLogState.lastKill, k.Timestamp);
                 }
 
-                // Clean old entries from Set (keep last 100)
-                if (client.erlcLogState.processedKills.size > 100) {
+                // Clean old entries from Set (keep last 500)
+                if (client.erlcLogState.processedKills.size > 500) {
                     const entries = Array.from(client.erlcLogState.processedKills);
-                    client.erlcLogState.processedKills = new Set(entries.slice(-100));
+                    client.erlcLogState.processedKills = new Set(entries.slice(-500));
                 }
             }
 
@@ -891,8 +898,9 @@ setInterval(async () => {
             let newCmds = cmds.filter(c => c.Timestamp > client.erlcLogState.lastCommand).sort((a, b) => a.Timestamp - b.Timestamp);
             if (newCmds.length > 0) {
                 console.log(`[ERLC-LOGS] Processing ${newCmds.length} new command logs`);
-                for (const c of newCmds) {
-                    const logId = `${c.Timestamp}_${c.Player}_${c.Command}`;
+                for (const [index, c] of newCmds.entries()) {
+                    // Create unique ID with index to handle multiple identical commands in same poll
+                    const logId = `${c.Timestamp}_${c.Player}_${c.Command}_${index}`;
                     if (client.erlcLogState.processedCommands.has(logId)) {
                         console.log(`[ERLC-LOGS] Skipping duplicate command: ${logId}`);
                         continue;
@@ -908,9 +916,9 @@ setInterval(async () => {
                     client.erlcLogState.lastCommand = Math.max(client.erlcLogState.lastCommand, c.Timestamp);
                 }
 
-                if (client.erlcLogState.processedCommands.size > 100) {
+                if (client.erlcLogState.processedCommands.size > 500) {
                     const entries = Array.from(client.erlcLogState.processedCommands);
-                    client.erlcLogState.processedCommands = new Set(entries.slice(-100));
+                    client.erlcLogState.processedCommands = new Set(entries.slice(-500));
                 }
             }
 
@@ -920,8 +928,9 @@ setInterval(async () => {
             let newJoins = joins.filter(j => j.Timestamp > client.erlcLogState.lastJoin).sort((a, b) => a.Timestamp - b.Timestamp);
             if (newJoins.length > 0) {
                 console.log(`[ERLC-LOGS] Processing ${newJoins.length} new join/leave logs`);
-                for (const j of newJoins) {
-                    const logId = `${j.Timestamp}_${j.Player}_${j.Join ? 'join' : 'leave'}`;
+                for (const [index, j] of newJoins.entries()) {
+                    // Create unique ID with index
+                    const logId = `${j.Timestamp}_${j.Player}_${j.Join ? 'join' : 'leave'}_${index}`;
                     if (client.erlcLogState.processedJoins.has(logId)) {
                         console.log(`[ERLC-LOGS] Skipping duplicate join/leave: ${logId}`);
                         continue;
@@ -937,18 +946,21 @@ setInterval(async () => {
                     client.erlcLogState.lastJoin = Math.max(client.erlcLogState.lastJoin, j.Timestamp);
                 }
 
-                if (client.erlcLogState.processedJoins.size > 100) {
+                if (client.erlcLogState.processedJoins.size > 500) {
                     const entries = Array.from(client.erlcLogState.processedJoins);
-                    client.erlcLogState.processedJoins = new Set(entries.slice(-100));
+                    client.erlcLogState.processedJoins = new Set(entries.slice(-500));
                 }
             }
 
-            // Save State (only timestamps, Sets are memory-only)
+            // Save State (including Sets for persistence)
             if (newKills.length > 0 || newCmds.length > 0 || newJoins.length > 0) {
                 fs.writeFileSync(path.join(__dirname, 'data/erlc_log_state.json'), JSON.stringify({
                     lastKill: client.erlcLogState.lastKill,
                     lastCommand: client.erlcLogState.lastCommand,
-                    lastJoin: client.erlcLogState.lastJoin
+                    lastJoin: client.erlcLogState.lastJoin,
+                    processedKills: Array.from(client.erlcLogState.processedKills),
+                    processedCommands: Array.from(client.erlcLogState.processedCommands),
+                    processedJoins: Array.from(client.erlcLogState.processedJoins)
                 }));
                 console.log(`[ERLC-LOGS] Saved state: kills=${client.erlcLogState.lastKill}, cmds=${client.erlcLogState.lastCommand}, joins=${client.erlcLogState.lastJoin}`);
             }

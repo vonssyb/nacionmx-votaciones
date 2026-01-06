@@ -573,17 +573,7 @@ const commands = [
                 type: 1,
                 options: [
                     { name: 'empresa', description: 'Ticker (ej. NMX)', type: 3, required: true },
-                    { name: 'cantidad', description: 'Número de acciones', type: 10, required: true },
-                    {
-                        name: 'metodo',
-                        description: 'Método de pago',
-                        type: 3,
-                        required: false,
-                        choices: [
-                            { name: '💵 Efectivo', value: 'cash' },
-                            { name: '💳 Débito/Banco', value: 'bank' }
-                        ]
-                    }
+                    { name: 'cantidad', description: 'Número de acciones', type: 10, required: true }
                 ]
             },
             {
