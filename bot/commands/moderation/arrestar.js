@@ -25,6 +25,7 @@ module.exports = {
                 .setMaxValue(10080)), // 1 week max manually
 
     async execute(interaction, client, supabase) {
+        // DEFER IMMEDIATELY to prevent timeout
         await interaction.deferReply({});
 
         const ARREST_CHANNEL_ID = '1398888960519835688';
