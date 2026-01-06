@@ -4,14 +4,14 @@ const axios = require('axios');
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('verificar')
-        .setDescription('Vincular tu cuenta de Discord con Roblox')
+        .setDescription('Vincular tu cuenta con Nacion MX Portal')
         .addStringOption(option =>
             option.setName('usuario')
                 .setDescription('Tu nombre de usuario de Roblox')
                 .setRequired(true)),
 
     async execute(interaction, client, supabase) {
-        await interaction.deferReply({  });
+        await interaction.deferReply({});
 
         const robloxUsername = interaction.options.getString('usuario');
         const discordUserId = interaction.user.id;
@@ -54,9 +54,9 @@ module.exports = {
             const verifCode = `NMX-${Math.floor(1000 + Math.random() * 9000)}`;
 
             const instructionEmbed = new EmbedBuilder()
-                .setTitle('🛡️ Verificación de Cuenta')
+                .setTitle('🛡️ Nacion MX Portal')
                 .setColor(0x3498DB)
-                .setDescription(`Para verificar que eres el dueño de **${realUsername}**, sigue estos pasos:\n\n1️⃣ Copia este código: \`${verifCode}\`\n2️⃣ Pégalo en tu **Bio/Descripción** de tu perfil de Roblox.\n3️⃣ Haz clic en el botón de abajo para confirmar.`)
+                .setDescription(`Para vincular tu cuenta, sigue estos pasos:\n\n1️⃣ Copia este código: \`${verifCode}\`\n2️⃣ Pégalo en la **Bio** de tu perfil de Roblox (**${realUsername}**).\n3️⃣ Haz clic en el botón de abajo para confirmar.`)
                 .setThumbnail(`https://www.roblox.com/headshot-thumbnail/image?userId=${robloxId}&width=150&height=150&format=png`)
                 .setFooter({ text: 'Tienes 10 minutos para completar esto.' });
 
@@ -105,9 +105,9 @@ module.exports = {
                         }
 
                         const successEmbed = new EmbedBuilder()
-                            .setTitle('✅ Verificación Exitosa')
+                            .setTitle('✅ Vinculación Exitosa')
                             .setColor(0x00FF00)
-                            .setDescription(`¡Felicidades! <@${discordUserId}> ha vinculado su cuenta con **${realUsername}**.\n${nickChange}`)
+                            .setDescription(`¡Felicidades! <@${discordUserId}> se ha registrado correctamente en el **Portal Nacion MX** con la cuenta **${realUsername}**.\n${nickChange}`)
                             .setThumbnail(`https://www.roblox.com/headshot-thumbnail/image?userId=${robloxId}&width=150&height=150&format=png`);
 
                         // Send public message in channel

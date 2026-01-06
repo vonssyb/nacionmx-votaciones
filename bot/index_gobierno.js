@@ -15,6 +15,15 @@ const GUILD_ID = process.env.GUILD_ID ? process.env.GUILD_ID.trim() : null;
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY);
 log('Supabase Initialized');
 
+// --- CLIENT SETUP ---
+const client = new Client({
+    intents: [
+        GatewayIntentBits.Guilds,
+        GatewayIntentBits.GuildMessages,
+        GatewayIntentBits.MessageContent
+    ]
+});
+
 const LevelService = require('./services/LevelService');
 const MissionService = require('./services/MissionService');
 const AchievementService = require('./services/AchievementService');
@@ -26,15 +35,6 @@ const missionService = new MissionService(supabase, levelService);
 const achievementService = new AchievementService(supabase, levelService);
 const billingService = new BillingService(client, supabase);
 const exchangeService = new ExchangeService(supabase, billingService.ubService);
-
-// --- CLIENT SETUP ---
-const client = new Client({
-    intents: [
-        GatewayIntentBits.Guilds,
-        GatewayIntentBits.GuildMessages,
-        GatewayIntentBits.MessageContent
-    ]
-});
 
 client.services = {
     levels: levelService,

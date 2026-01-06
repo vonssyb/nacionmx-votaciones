@@ -22,7 +22,7 @@ module.exports = {
         // Better: Find a specific channel for tickets or alerts. 
         // Using "security alerts" channel for now as fallback or user general channel if not defined.
         // Let's assume there is a staff logs channel.
-        const ALERT_CHANNEL = '1457583225085100283'; // Same as logs for visibility
+        const ALERT_CHANNEL = '1398891838890311732'; // Same as logs for visibility
 
         const alertEmbed = new EmbedBuilder()
             .setTitle('🆘 Solicitud de Ayuda')

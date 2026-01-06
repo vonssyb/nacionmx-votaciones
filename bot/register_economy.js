@@ -40,7 +40,16 @@ async function registerEconomyCommands() {
     const allLegacyCommands = require('./commands.js');
 
     // Exclude moderation commands AND modular command names (to avoid duplicates)
-    const excludedCommands = ['rol', 'multa_legacy', 'licencia', 'sesion', 'verificar', 'sancion'];
+    // Exclude moderation commands AND modular command names (to avoid duplicates)
+    // ADDED: verificar (Moved to Portal Bot)
+    const excludedCommands = ['rol', 'multa_legacy', 'sesion', 'verificar', 'sancion'];
+
+    // Explicitly remove `verificar` from modular commands if it was loaded from utils
+    if (client.commands.has('verificar')) {
+        client.commands.delete('verificar');
+        console.log('⚠️ [ECO] Excluyendo comando modular: /verificar (Mito a Portal)');
+    }
+
     const modularCommandNames = Array.from(client.commands.keys()); // Get names of modular commands
 
     const legacyEconomyCommands = allLegacyCommands.filter(cmd =>

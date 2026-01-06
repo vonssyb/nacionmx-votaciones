@@ -224,7 +224,7 @@ module.exports = {
                     await i.editReply({ content: '', embeds: [resultEmbed] });
 
                     // 9. Send detailed CK log to logs channel
-                    const CK_LOGS_CHANNEL_ID = '1457576874602659921';
+                    const CK_LOGS_CHANNEL_ID = '1456035521141670066';
                     const ckLogsChannel = await client.channels.fetch(CK_LOGS_CHANNEL_ID);
                     if (ckLogsChannel) {
                         // Create detailed log embed
