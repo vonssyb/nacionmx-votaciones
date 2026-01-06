@@ -168,17 +168,33 @@ module.exports = {
                     .eq('discord_id', targetUser.id)
                     .maybeSingle();
 
-                if (citizen && citizen.roblox_id) {
-                    // Initialize ERLC service if available
+                console.log('[arrestar] Citizen lookup:', citizen);
+
+                if (citizen && (citizen.roblox_username || citizen.roblox_id)) {
+                    // Initialize ERLC service - Use hardcoded key from index_moderacion.js
                     const ErlcService = require('../../services/ErlcService');
-                    const erlcKey = process.env.ERLC_API_KEY;
+                    const erlcKey = process.env.ERLC_API_KEY || 'ARuRfmzZGTqbqUCjMERA-dzEeGLbRfisfjKtiCOXLHATXDedYZsQQEethQMZp';
 
                     if (erlcKey) {
                         const erlcService = new ErlcService(erlcKey);
-                        const kickCommand = `:kick ${citizen.roblox_username} Arrestado - No puedes estar en el servidor durante tu arresto`;
-                        await erlcService.runCommand(kickCommand);
-                        console.log(`[arrestar] Kicked ${citizen.roblox_username} from ERLC`);
+
+                        // Use username if available, otherwise ID
+                        const playerIdentifier = citizen.roblox_username || citizen.roblox_id;
+                        const kickCommand = `:kick ${playerIdentifier} Arrestado`;
+
+                        console.log(`[arrestar] Sending ERLC kick command: ${kickCommand}`);
+                        const result = await erlcService.runCommand(kickCommand);
+
+                        if (result) {
+                            console.log(`[arrestar] ✅ Successfully kicked ${playerIdentifier} from ERLC`);
+                        } else {
+                            console.log(`[arrestar] ⚠️ ERLC kick command sent but no confirmation`);
+                        }
+                    } else {
+                        console.error('[arrestar] ERLC_API_KEY not configured');
                     }
+                } else {
+                    console.log(`[arrestar] User ${targetUser.tag} not linked to Roblox account`);
                 }
             } catch (erlcError) {
                 console.error('[arrestar] ERLC kick error:', erlcError);
