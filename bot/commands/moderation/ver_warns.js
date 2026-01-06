@@ -53,38 +53,55 @@ module.exports = {
                 .setTimestamp();
 
             if (sanctions && sanctions.length > 0) {
-                // Show up to 10
-                const list = sanctions.slice(0, 10).map(s => {
-                    let icon = '📜';
-                    let displayType = s.action_type || (s.type === 'general' ? 'Sanción General' : 'Notificación');
+                // Use PaginationHelper to handle long lists
+                const PaginationHelper = require('../../utils/PaginationHelper');
 
-                    if (s.type === 'sa') { icon = '🚨'; displayType = 'Sanción Administrativa'; }
-                    else if (s.type === 'notificacion') { icon = '📢'; displayType = 'Notificación'; }
+                await PaginationHelper.paginate(interaction, sanctions, {
+                    itemsPerPage: 5, // Show 5 sanctions per page to avoid length limit
+                    formatPage: (pageSanctions, pageNum, totalPages) => {
+                        const list = pageSanctions.map(s => {
+                            let icon = '📜';
+                            let displayType = s.action_type || (s.type === 'general' ? 'Sanción General' : 'Notificación');
 
-                    if (displayType.toLowerCase().includes('blacklist')) icon = '⛔';
-                    if (displayType.toLowerCase().includes('ban')) icon = '🔨';
+                            if (s.type === 'sa') { icon = '🚨'; displayType = 'Sanción Administrativa'; }
+                            else if (s.type === 'notificacion') { icon = '📢'; displayType = 'Notificación'; }
 
-                    const date = new Date(s.created_at).toLocaleDateString('es-MX');
-                    const evidenceLink = s.evidence_url ? ` | [📸 Evidencia](${s.evidence_url})` : '';
-                    const expiration = s.expires_at ? `\n⏳ Expira: ${new Date(s.expires_at).toLocaleDateString('es-MX')} ${new Date(s.expires_at).toLocaleTimeString('es-MX')}` : '';
+                            if (displayType.toLowerCase().includes('blacklist')) icon = '⛔';
+                            if (displayType.toLowerCase().includes('ban')) icon = '🔨';
 
-                    const descriptionText = s.description ? `\n> *${s.description}*` : '';
-                    let entry = `🆔 \`${s.id}\`\n**${icon} ${displayType}** | <@${s.moderator_id}> | [${date}]${evidenceLink}\n**Motivo:** ${s.reason}${descriptionText}${expiration}`;
+                            const date = new Date(s.created_at).toLocaleDateString('es-MX');
+                            const evidenceLink = s.evidence_url ? ` | [📸 Evidencia](${s.evidence_url})` : '';
+                            const expiration = s.expires_at ? `\n⏳ Expira: ${new Date(s.expires_at).toLocaleDateString('es-MX')} ${new Date(s.expires_at).toLocaleTimeString('es-MX')}` : '';
 
-                    if (s.status === 'appealed') {
-                        // Cleaner style: Prefix + Normal text (No strikethrough)
-                        entry = `✨ **[APELADA]** ${entry}`;
+                            const descriptionText = s.description ? `\n> *${s.description.substring(0, 200)}*` : ''; // Truncate long descriptions
+                            let entry = `🆔 \`${s.id}\`\n**${icon} ${displayType}** | <@${s.moderator_id}> | [${date}]${evidenceLink}\n**Motivo:** ${s.reason.substring(0, 150)}${descriptionText}${expiration}`;
+
+                            if (s.status === 'appealed') {
+                                entry = `✨ **[APELADA]** ${entry}`;
+                            }
+                            return entry;
+                        }).join('\n-------------------\n');
+
+                        const embed = new EmbedBuilder()
+                            .setColor('#FF4500')
+                            .setTitle(`📂 Historial de: ${targetUser.tag}`)
+                            .setThumbnail(targetUser.displayAvatarURL())
+                            .addFields(
+                                { name: '📊 Resumen Total', value: `Warns: **${counts.general}**\nSAs: **${counts.sa}**\nNotif: **${counts.notificacion}**`, inline: false }
+                            )
+                            .setDescription(list)
+                            .setFooter({ text: `Página ${pageNum + 1}/${totalPages} • Total: ${sanctions.length} sanciones` })
+                            .setTimestamp();
+
+                        return embed;
                     }
-                    return entry;
-                }).join('\n-------------------\n');
+                });
 
-                embed.setDescription(list);
             } else {
                 embed.setDescription('✅ El usuario no tiene sanciones activas.');
                 embed.setColor('#00FF00');
+                await interaction.editReply({ embeds: [embed] });
             }
-
-            await interaction.editReply({ embeds: [embed] });
 
         } catch (error) {
             console.error(error);
