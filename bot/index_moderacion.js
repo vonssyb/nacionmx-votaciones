@@ -617,7 +617,7 @@ const saveShifts = () => {
     } catch (e) { }
 };
 
-const LOG_POLICIA = '1399106787558424629';
+const LOG_POLICIA = '1457892493310951444';
 const MOD_ROLE_ID = '1457892493310951444'; // Updated Mod Role
 
 setInterval(async () => {
