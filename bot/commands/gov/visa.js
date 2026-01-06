@@ -68,7 +68,9 @@ module.exports = {
 
         if (['otorgar', 'revocar', 'listar'].includes(subCmd) && !isUSCIS) {
             return interaction.editReply({
-                content: '❌ **Access Denied**\\n\\nOnly USCIS staff can use this command.',
+                content: `❌ **Access Denied**
+
+Only USCIS staff can use this command.`,
                 flags: [64]
             });
         }
@@ -83,7 +85,10 @@ module.exports = {
             // Check if user already has American role
             if (targetMember.roles.cache.has(AMERICAN_ROLE_ID)) {
                 return interaction.editReply({
-                    content: `❌ **Already American**\\n\\n${targetUser.tag} already has the American role.\\nUse \`/visa ver\` to check their visa status.`,
+                    content: `❌ **Already American**
+
+${targetUser.tag} already has the American role.
+Use \`/visa ver\` to check their visa status.`,
                     flags: [64]
                 });
             }
@@ -98,7 +103,10 @@ module.exports = {
 
             if (!dni) {
                 return interaction.editReply({
-                    content: `❌ **DNI Required**\\n\\n${targetUser.tag} needs a Mexican DNI first.\\nThey must create one with \`/dni crear\``,
+                    content: `❌ **DNI Required**
+
+${targetUser.tag} needs a Mexican DNI first.
+They must create one with \`/dni crear\``,
                     flags: [64]
                 });
             }
@@ -109,7 +117,14 @@ module.exports = {
 
             if (availableFunds < cost) {
                 return interaction.editReply({
-                    content: `❌ **Insufficient Funds**\\n\\n${targetUser.tag} doesn't have enough money for this visa.\\n\\n**Required:** $${cost.toLocaleString()}\\n**Available:** $${availableFunds.toLocaleString()} (Bank + Cash)\\n\\nThey need $${(cost - availableFunds).toLocaleString()} more.`,
+                    content: `❌ **Insufficient Funds**
+
+${targetUser.tag} doesn't have enough money for this visa.
+
+**Required:** $${cost.toLocaleString()}
+**Available:** $${availableFunds.toLocaleString()} (Bank + Cash)
+
+They need $${(cost - availableFunds).toLocaleString()} more.`,
                     flags: [64]
                 });
             }
@@ -241,7 +256,11 @@ module.exports = {
 
             if (!visa) {
                 return interaction.editReply({
-                    content: '❌ **No Active Visa**\\n\\nYou don\\'t have an active US visa.\\n\\nContact USCIS to request one via ticket.',
+                    content: `❌ **No Active Visa**
+
+You don't have an active US visa.
+
+Contact USCIS to request one via ticket.`,
                     flags: [64]
                 });
             }
@@ -275,7 +294,9 @@ module.exports = {
 
             if (!visas || visas.length === 0) {
                 return interaction.editReply({
-                    content: '📭 **No Active Visas**\\n\\nThere are no active US visas.',
+                    content: `📭 **No Active Visas**
+
+There are no active US visas.`,
                     flags: [64]
                 });
             }
@@ -290,7 +311,9 @@ module.exports = {
                 const expires = visa.expiration_date ? new Date(visa.expiration_date).toLocaleDateString() : 'Permanent';
                 embed.addFields({
                     name: `${visa.nombre} ${visa.apellido} - ${visa.visa_type}`,
-                    value: `Visa: \`${visa.visa_number}\`\\nExpires: ${expires}\\nUser: <@${visa.user_id}>`,
+                    value: `Visa: \`${visa.visa_number}\`
+Expires: ${expires}
+User: <@${visa.user_id}>`,
                     inline: false
                 });
             });
@@ -314,7 +337,9 @@ module.exports = {
 
             if (!visa) {
                 return interaction.editReply({
-                    content: `❌ **No Active Visa**\\n\\n${targetUser.tag} doesn't have an active visa to revoke.`,
+                    content: `❌ **No Active Visa**
+
+${targetUser.tag} doesn't have an active visa to revoke.`,
                     flags: [64]
                 });
             }

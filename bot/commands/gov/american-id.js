@@ -74,7 +74,12 @@ module.exports = {
             const hasAmericanRole = interaction.member.roles.cache.has(AMERICAN_ROLE_ID);
             if (!hasAmericanRole) {
                 return interaction.editReply({
-                    content: '❌ **American Role Required**\\n\\nYou need the American role to use this command.\\n\\n**Are you Mexican?** Use `/dni crear` instead.\\n**Want to become American?** Request a US visa with `/visa solicitar`',
+                    content: `❌ **American Role Required**
+
+You need the American role to use this command.
+
+**Are you Mexican?** Use \`/dni crear\` instead.
+**Want to become American?** Request a US visa with \`/visa solicitar\``,
                     flags: [64]
                 });
             }
@@ -91,7 +96,10 @@ module.exports = {
 
             if (existing) {
                 return interaction.editReply({
-                    content: '❌ **ID Already Exists**\\n\\nYou already have an American ID.\\nUse `/american-id view` to see it.',
+                    content: `❌ **ID Already Exists**
+
+You already have an American ID.
+Use \`/american-id view\` to see it.`,
                     flags: [64]
                 });
             }
@@ -104,9 +112,11 @@ module.exports = {
             const ssnLast4 = interaction.options.getString('ssn_last4');
 
             // Validate SSN if provided
-            if (ssnLast4 && !/^\\d{4}$/.test(ssnLast4)) {
+            if (ssnLast4 && !/^\d{4}$/.test(ssnLast4)) {
                 return interaction.editReply({
-                    content: '❌ **Invalid SSN**\\n\\nSSN must be exactly 4 digits.',
+                    content: `❌ **Invalid SSN**
+
+SSN must be exactly 4 digits.`,
                     flags: [64]
                 });
             }
@@ -167,7 +177,10 @@ module.exports = {
 
             if (!americanId) {
                 return interaction.editReply({
-                    content: '❌ **No American ID Found**\\n\\nYou don\\'t have an American ID yet.\\nCreate one with `/american-id create`',
+                    content: `❌ **No American ID Found**
+
+You don't have an American ID yet.
+Create one with \`/american-id create\``,
                     flags: [64]
                 });
             }
@@ -198,13 +211,17 @@ module.exports = {
             const isStaff = interaction.member.permissions.has('ManageRoles');
             if (!isStaff) {
                 return interaction.editReply({
-                    content: '❌ **Permission Denied**\\n\\nOnly staff can use this command.',
+                    content: `❌ **Permission Denied**
+
+Only staff can use this command.`,
                     flags: [64]
                 });
             }
 
             return interaction.editReply({
-                content: '⚠️ **Coming Soon**\\n\\nThis command is under development.',
+                content: `⚠️ **Coming Soon**
+
+This command is under development.`,
                 flags: [64]
             });
         }

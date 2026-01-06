@@ -19,10 +19,13 @@ const LevelService = require('./services/LevelService');
 const MissionService = require('./services/MissionService');
 const AchievementService = require('./services/AchievementService');
 const BillingService = require('./services/BillingService');
+const ExchangeService = require('./services/ExchangeService');
 
 const levelService = new LevelService(supabase);
 const missionService = new MissionService(supabase, levelService);
 const achievementService = new AchievementService(supabase, levelService);
+const billingService = new BillingService(client, supabase);
+const exchangeService = new ExchangeService(supabase, billingService.ubService);
 
 // --- CLIENT SETUP ---
 const client = new Client({
@@ -37,7 +40,8 @@ client.services = {
     levels: levelService,
     missions: missionService,
     achievements: achievementService,
-    billing: new BillingService(client, supabase)
+    billing: billingService,
+    exchange: exchangeService
 };
 
 // --- EVENTS ---
