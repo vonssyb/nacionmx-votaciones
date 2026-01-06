@@ -9,6 +9,7 @@ module.exports = {
         .setName('sancion')
         .setDescription('Sistema de Sanciones Profesional Nación MX')
         .setDescription('Sistema de Sanciones Profesional Nación MX')
+        // REQUIRED OPTIONS FIRST
         .addStringOption(option =>
             option.setName('tipo')
                 .setDescription('Tipo de sanción/documento')
@@ -26,6 +27,11 @@ module.exports = {
             option.setName('descripcion')
                 .setDescription('Descripción de los hechos o cuerpo del mensaje')
                 .setRequired(true))
+        .addAttachmentOption(option =>
+            option.setName('evidencia')
+                .setDescription('Evidencia obligatoria (Imagen/Video)')
+                .setRequired(true))
+        // OPTIONAL OPTIONS AFTER
         .addUserOption(option =>
             option.setName('usuario')
                 .setDescription('Usuario a sancionar (si está en el servidor)')
@@ -38,10 +44,6 @@ module.exports = {
             option.setName('roblox_username')
                 .setDescription('Username de Roblox (búsqueda en base de datos)')
                 .setRequired(false))
-        .addAttachmentOption(option =>
-            option.setName('evidencia')
-                .setDescription('Evidencia obligatoria (Imagen/Video)')
-                .setRequired(true))
         .addStringOption(option =>
             option.setName('accion')
                 .setDescription('Solo para Sanción General: Tipo de castigo')
