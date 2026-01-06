@@ -25,7 +25,7 @@ module.exports = {
             subcommand
                 .setName('cerrar')
                 .setDescription('🔒 Cerrar servidor (Staff)')
-                .addStringOption(option => option.setName('razon').setDescription('Razón del cierre')))
+                .addStringOption(option => option.setName('razon').setDescription('Razón del cierre').setRequired(true)))
         .addSubcommand(subcommand =>
             subcommand
                 .setName('mantenimiento')
@@ -251,7 +251,7 @@ module.exports = {
                 await supabase.from('session_votes').update({ status: 'closed', ended_at: new Date().toISOString() }).eq('id', session.id);
             }
 
-            const razon = interaction.options.getString('razon') || 'Sesión finalizada.';
+            const razon = interaction.options.getString('razon');
             const targetChannel = await client.channels.fetch(channelIds.voting);
 
             if (targetChannel) {
