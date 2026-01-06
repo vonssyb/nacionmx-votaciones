@@ -938,6 +938,81 @@ client.on('messageCreate', async (message) => {
     }
 });
 
+// =============================
+// AUTO-UNBAN SYSTEM
+// =============================
+// Runs every 60 seconds to check for expired temporary bans
+setInterval(async () => {
+    try {
+        const now = new Date().toISOString();
+
+        // Get all expired bans that haven't been unbanned yet
+        const { data: expiredBans, error } = await supabase
+            .from('temporary_bans')
+            .select('*')
+            .eq('unbanned', false)
+            .lte('expires_at', now);
+
+        if (error) {
+            console.error('[AUTO-UNBAN] Error fetching expired bans:', error);
+            return;
+        }
+
+        if (expiredBans && expiredBans.length > 0) {
+            console.log(`[AUTO-UNBAN] Found ${expiredBans.length} expired bans to process`);
+
+            for (const ban of expiredBans) {
+                try {
+                    if (ban.ban_type === 'discord') {
+                        // Discord unban
+                        const guild = client.guilds.cache.get(ban.guild_id);
+                        if (guild) {
+                            await guild.bans.remove(ban.user_id, 'Ban temporal expirado - Auto-unban');
+                            console.log(`[AUTO-UNBAN] Discord unbanned: ${ban.user_tag} (${ban.user_id})`);
+
+                            // Try to notify user
+                            try {
+                                const user = await client.users.fetch(ban.user_id);
+                                await user.send(
+                                    `✅ **Ban Temporal Expirado**\n\n` +
+                                    `Has sido desbaneado automáticamente del servidor **${guild.name}**.\n` +
+                                    `Ya puedes volver a unirte.`
+                                );
+                            } catch (dmError) { /* User might have DMs off */ }
+                        }
+                    } else if (ban.ban_type === 'erlc') {
+                        // ERLC unban
+                        const robloxIdentifier = ban.roblox_username || ban.roblox_id;
+                        if (robloxIdentifier && client.services.erlc) {
+                            const unbanCommand = `:unban ${robloxIdentifier}`;
+                            const result = await client.services.erlc.runCommand(unbanCommand);
+                            if (result) {
+                                console.log(`[AUTO-UNBAN] ERLC unbanned: ${robloxIdentifier}`);
+                            } else {
+                                console.warn(`[AUTO-UNBAN] Failed to unban from ERLC: ${robloxIdentifier}`);
+                            }
+                        }
+                    }
+
+                    // Mark as unbanned in DB
+                    await supabase
+                        .from('temporary_bans')
+                        .update({
+                            unbanned: true,
+                            unbanned_at: new Date().toISOString()
+                        })
+                        .eq('id', ban.id);
+
+                } catch (unbanError) {
+                    console.error(`[AUTO-UNBAN] Error processing ban ID ${ban.id}:`, unbanError);
+                }
+            }
+        }
+    } catch (error) {
+        console.error('[AUTO-UNBAN] System error:', error);
+    }
+}, 60000); // Every 60 seconds
+
 setInterval(async () => {
     try {
         // Save shifts periodically (in case of manual changes via command)
