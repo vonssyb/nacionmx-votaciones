@@ -12,7 +12,6 @@
     edad INTEGER NOT NULL CHECK (edad >= 18 AND edad <= 99),
     fecha_nacimiento DATE,
     genero TEXT CHECK (genero IN ('Masculino', 'Femenino', 'Otro')),
-    nacionalidad TEXT DEFAULT 'Mexicana',
     
     -- Optional
     foto_url TEXT, -- Profile photo for DNI

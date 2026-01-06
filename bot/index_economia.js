@@ -151,6 +151,15 @@ client.on('interactionCreate', async interaction => {
             };
         }
 
+        if (interaction.reply) {
+            const originalReply = interaction.reply.bind(interaction);
+            interaction.reply = async (opts) => {
+                if (interaction.replied) return interaction.followUp(opts).catch(e => console.error("FollowUp error:", e));
+                if (interaction.deferred) return interaction.editReply(opts).catch(e => console.error("EditReply error:", e));
+                return originalReply(opts).catch(e => console.error("Reply error:", e));
+            };
+        }
+
         await interaction.deferReply({}).catch(() => { });
 
         const commandName = interaction.commandName;

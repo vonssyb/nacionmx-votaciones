@@ -16,8 +16,7 @@ module.exports = {
                         { name: 'Masculino', value: 'Masculino' },
                         { name: 'Femenino', value: 'Femenino' },
                         { name: 'Otro', value: 'Otro' }
-                    ))
-                .addStringOption(option => option.setName('nacionalidad').setDescription('Nacionalidad').setRequired(true)))
+                    )))
         .addSubcommand(subcommand =>
             subcommand
                 .setName('editar')
@@ -31,8 +30,7 @@ module.exports = {
                         { name: 'Masculino', value: 'Masculino' },
                         { name: 'Femenino', value: 'Femenino' },
                         { name: 'Otro', value: 'Otro' }
-                    ))
-                .addStringOption(option => option.setName('nacionalidad').setDescription('Nacionalidad').setRequired(false)))
+                    )))
         .addSubcommand(subcommand =>
             subcommand
                 .setName('ver')
@@ -40,7 +38,7 @@ module.exports = {
                 .addUserOption(option => option.setName('usuario').setDescription('Usuario (opcional - por defecto tú)').setRequired(false))),
 
     async execute(interaction, client, supabase) {
-        await interaction.deferReply({  }); // All DNI commands are public
+        await interaction.deferReply({}); // All DNI commands are public
 
         const subCmd = interaction.options.getSubcommand();
         const administradorRoleId = '1412882248411381872';
@@ -59,7 +57,6 @@ module.exports = {
             const apellido = interaction.options.getString('apellido');
             const edad = interaction.options.getInteger('edad');
             const genero = interaction.options.getString('genero');
-            const nacionalidad = interaction.options.getString('nacionalidad');
 
             // Check if DNI already exists
             const { data: existing } = await supabase
@@ -92,7 +89,6 @@ module.exports = {
                     edad,
                     fecha_nacimiento: fechaNacimiento,
                     genero,
-                    nacionalidad,
                     foto_url: fotoUrl, // Discord avatar
                     created_by: interaction.user.id
                 });
@@ -110,7 +106,7 @@ module.exports = {
                     { name: '📝 Nombre Completo', value: `${nombre} ${apellido}`, inline: true },
                     { name: '🎂 Edad', value: `${edad} años`, inline: true },
                     { name: '⚧️ Género', value: genero, inline: true },
-                    { name: '🌍 Nacionalidad', value: nacionalidad, inline: true }
+                    { name: '🌍 Nacionalidad', value: 'Mexicana 🇲🇽', inline: true }
                 )
                 .setThumbnail(targetUser.displayAvatarURL({ dynamic: true, size: 256 }))
                 .setTimestamp();
@@ -131,7 +127,7 @@ module.exports = {
                 updates.fecha_nacimiento = `${birthYear}-01-01`;
             }
             if (interaction.options.getString('genero')) updates.genero = interaction.options.getString('genero');
-            if (interaction.options.getString('nacionalidad')) updates.nacionalidad = interaction.options.getString('nacionalidad');
+            if (interaction.options.getString('genero')) updates.genero = interaction.options.getString('genero');
 
             if (Object.keys(updates).length === 0) {
                 return interaction.editReply('❌ Debes especificar al menos un campo para editar.');
@@ -175,7 +171,7 @@ module.exports = {
                     { name: '🎂 Edad', value: `${dni.edad} años`, inline: true },
                     { name: '📅 Fecha de Nacimiento', value: new Date(dni.fecha_nacimiento).toLocaleDateString('es-MX'), inline: true },
                     { name: '⚧️ Género', value: dni.genero, inline: true },
-                    { name: '🌍 Nacionalidad', value: dni.nacionalidad, inline: true }
+                    { name: '🌍 Nacionalidad', value: 'Mexicana 🇲🇽', inline: true }
                 )
                 .setFooter({ text: `Registrado: ${new Date(dni.created_at).toLocaleDateString('es-MX')}` })
                 .setTimestamp();
