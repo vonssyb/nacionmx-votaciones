@@ -17,13 +17,17 @@ module.exports = {
                         ))),
 
     async execute(interaction, client) {
+        // Defer the reply to allow for longer processing times before sending the initial response.
+        // This makes subsequent `editReply` calls possible.
+        await interaction.deferReply();
+
         const action = interaction.options.getString('accion');
         const discordId = interaction.user.id;
         const MOD_ROLE_ID = '1457892493310951444'; // Updated ID
 
         // Check Role
         if (!interaction.member.roles.cache.has(MOD_ROLE_ID) && !interaction.member.permissions.has('Administrator')) {
-            return interaction.reply({ content: '⛔ No tienes el rol de Moderador ERLC.', ephemeral: true });
+            return interaction.editReply({ content: '⛔ No tienes el rol de Moderador ERLC.' });
         }
 
         // Get stored shifts
@@ -33,14 +37,14 @@ module.exports = {
             // Check if already active
             for (const [robloxId, data] of shifts) {
                 if (data.discordId === discordId) {
-                    return interaction.reply({ content: '❌ Ya tienes un turno activo.', ephemeral: true });
+                    return interaction.editReply({ content: '❌ Ya tienes un turno activo.' });
                 }
             }
 
             // Verify ERLC Presence
             const info = await client.services.erlc.getServerInfo();
             if (!info || !info.Players) {
-                return interaction.reply({ content: '❌ No se pudo conectar con el servidor para verificar tu presencia.', ephemeral: true });
+                return interaction.editReply({ content: '❌ No se pudo conectar con el servidor para verificar tu presencia.' });
             }
 
             // Find user in server (Need link)
@@ -53,25 +57,24 @@ module.exports = {
                 .maybeSingle();
 
             if (!profile || !profile.roblox_id) {
-                return interaction.reply({ content: '❌ No tienes tu cuenta de Roblox vinculada. Usa `/fichar vincular` o `/verificar`.', ephemeral: true });
+                return interaction.editReply({ content: '❌ No tienes tu cuenta de Roblox vinculada. Usa `/fichar vincular` o `/verificar`.' });
             }
 
             const player = info.Players.find(p => p.Id.toString() === profile.roblox_id);
 
             if (!player) {
-                return interaction.reply({ content: '❌ No estás conectado al servidor de ERLC.', ephemeral: true });
+                return interaction.editReply({ content: '❌ No estás conectado al servidor de ERLC.' });
             }
 
             if (player.Team !== 'Sheriff') {
-                return interaction.reply({ content: '❌ Debes estar en el equipo **Sheriff** para iniciar turno de moderador.', ephemeral: true });
+                return interaction.editReply({ content: '❌ Debes estar en el equipo **Sheriff** para iniciar turno de moderador.' });
             }
 
             // Check Badge (Placa) in Discord Nickname
             const badgeRegex = /\b(ST|JD|AD)-\d{3}\b/;
             if (!badgeRegex.test(interaction.member.displayName)) {
-                return interaction.reply({
-                    content: '❌ **Placa Inválida:** Tu apodo de Discord debe contener tu placa (Ej: `ST-123`, `JD-001`, `AD-999`).\nActualiza tu nombre en el servidor y vuelve a intentar.',
-                    ephemeral: true
+                return interaction.editReply({
+                    content: '❌ **Placa Inválida:** Tu apodo de Discord debe contener tu placa (Ej: `ST-123`, `JD-001`, `AD-999`).\nActualiza tu nombre en el servidor y vuelve a intentar.'
                 });
             }
 
@@ -83,7 +86,7 @@ module.exports = {
             });
 
             // Save (index.js loop handles saving periodically but we can trigger it if exposed, or just rely on memory for now/index loop updates it)
-            // We should ensure persistence. index_moderacion.js loads/saves from `client.erlcShifts` on loop? 
+            // We should ensure persistence. index_moderacion.js loads/saves from `client.erlcShifts` on loop?
             // The loop in index saves on modification. I should duplicate save logic or expose it.
             // I'll assume index loop will save it eventually (every 30s). Ideally I should save immediately.
             // I'll add a quick save helper import if I can, or just trust the process.
@@ -96,7 +99,7 @@ module.exports = {
                 .setDescription(`Has iniciado turno como **${player.Player}** (Sheriff).\n\n⚠️ **Recuerda:** Si sales del equipo Sheriff, tu turno terminará automáticamente.`)
                 .setTimestamp();
 
-            await interaction.reply({ embeds: [embed] });
+            await interaction.editReply({ embeds: [embed] });
 
             // Log to channel
             const LOG_CHANNEL = '1399106787558424629';
@@ -116,7 +119,7 @@ module.exports = {
             }
 
             if (!activeRobloxId) {
-                return interaction.reply({ content: '❌ No tienes un turno activo.', ephemeral: true });
+                return interaction.editReply({ content: '❌ No tienes un turno activo.' });
             }
 
             const shift = shifts.get(activeRobloxId);
@@ -132,7 +135,8 @@ module.exports = {
                 )
                 .setTimestamp();
 
-            await interaction.reply({ embeds: [embed] });
+            await interaction.editReply({ embeds: [embed] });
         }
     }
 };
+
