@@ -21,6 +21,7 @@ module.exports = {
                 new StringSelectMenuOptionBuilder().setLabel('Empresas').setDescription('Gestión de Negocios, Empleados, POS').setValue('business').setEmoji('🏢'),
                 new StringSelectMenuOptionBuilder().setLabel('Inversiones').setDescription('Bolsa de Valores, Plazos Fijos').setValue('invest').setEmoji('📈'),
                 new StringSelectMenuOptionBuilder().setLabel('Casino & Juegos').setDescription('Ruleta, Slots, Crimen').setValue('casino').setEmoji('🎰'),
+                new StringSelectMenuOptionBuilder().setLabel('Seguridad & Privacidad').setDescription('Bóveda, Privacidad, Protección').setValue('privacy').setEmoji('🔐'),
                 new StringSelectMenuOptionBuilder().setLabel('Social & Progreso').setDescription('Nivel, Logros, Top').setValue('social').setEmoji('⭐'),
             );
 
@@ -50,6 +51,25 @@ module.exports = {
                         );
                     break;
                 case 'credit':
+                    newEmbed.setTitle('💳 Crédito')
+                        .addFields(
+                            { name: '`/credito estado`', value: 'Ver deuda y límite.' },
+                            { name: '`/credito pagar`', value: 'Abonar a la tarjeta.' },
+                            { name: '`/credito info`', value: 'Detalles de tu tarjeta.' },
+                            { name: '`/credito buro`', value: 'Score crediticio.' },
+                            { name: '`/credito upgrade`', value: 'Mejorar nivel de tarjeta.' },
+                            { name: '`/top-morosos`', value: 'Ranking de deudores.' }
+                        );
+                    break;
+                case 'privacy':
+                    newEmbed.setTitle('🔐 Seguridad & Privacidad')
+                        .addFields(
+                            { name: '`/privacidad info`', value: 'Ver nivel de protección actual.' },
+                            { name: '`/privacidad comprar`', value: 'Adquirir protección de datos.' },
+                            { name: '`/privacidad familia`', value: 'Gestionar acceso familiar.' },
+                            { name: '`/boveda`', value: 'Almacenamiento seguro de dinero (anti-robo).' }
+                        );
+                    break;
                     newEmbed.setTitle('💳 Crédito')
                         .addFields(
                             { name: '`/credito estado`', value: 'Ver deuda y límite.' },
