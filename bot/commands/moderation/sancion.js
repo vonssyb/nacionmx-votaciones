@@ -108,24 +108,26 @@ module.exports = {
         const isStaff = hasRole(ROLES_CONFIG.LEVEL_2_STAFF) || isAdmin;
         const isTraining = hasRole(ROLES_CONFIG.LEVEL_1_TRAINING) || isStaff;
 
-        // 1. Critical Actions Check (Blacklist, SA, Ban Perm) -> Requires Admin/Board
+        // 1. Critical Actions Check (Blacklist, SA, Ban Perm ERLC) -> Requires Admin/Board
         const isCriticalAction = (type === 'sa') ||
             (accion === 'Blacklist') ||
-            (accion === 'Ban Permanente ERLC');
+            (accion === 'Ban Permanente ERLC') ||
+            (accion === 'Ban Temporal ERLC'); // Ban Temporal also requires Admin
 
         if (isCriticalAction && !isAdmin) {
             return interaction.reply({
-                content: '🛑 **Acceso Denegado (Nivel 3 Requerido)**\nSolo la **Administración y Junta Directiva** pueden aplicar Blacklists, SAs o Baneos Permanentes.',
+                content: '🛑 **Acceso Denegado (Nivel 3 Requerido)**\nSolo la **Administración y Junta Directiva** pueden aplicar Blacklists, SAs o Baneos (ERLC).',
                 flags: [64]
             });
         }
 
-        // 2. High Actions Check (Kick, Ban Temp) -> Requires Staff
-        const isHighAction = (accion === 'Kick ERLC') || (accion === 'Kick Discord') || (accion === 'Ban Temporal ERLC');
+        // 2. High Actions Check (Kick Discord ONLY) -> Requires Staff
+        // Kick ERLC is now allowed for Training (Level 1)
+        const isHighAction = (accion === 'Kick Discord');
 
         if (isHighAction && !isStaff) {
             return interaction.reply({
-                content: '🛑 **Acceso Denegado (Nivel 2 Requerido)**\nComo Staff en Entrenamiento, no puedes aplicar Kicks ni Baneos Temporales. Solicita ayuda a un Staff superior.',
+                content: '🛑 **Acceso Denegado (Nivel 2 Requerido)**\nComo Staff en Entrenamiento, no puedes aplicar Kicks de Discord. Solicita ayuda a un Staff superior.',
                 flags: [64]
             });
         }
