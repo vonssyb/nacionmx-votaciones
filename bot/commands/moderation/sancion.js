@@ -502,7 +502,23 @@ module.exports = {
                                 });
 
                                 if (accion === 'Ban Temporal Discord') {
-                                    actionResult = `\n🔨 **Usuario Baneado TEMPORALMENTE** del Discord por **${durationText}**.\n⚠️ **IMPORTANTE:** Debes desbanear manualmente cuando expire el tiempo.`;
+                                    // Save to DB for auto-unban
+                                    const expiresAt = new Date(Date.now() + durationMs);
+                                    await interaction.client.supabase
+                                        .from('temporary_bans')
+                                        .insert({
+                                            guild_id: interaction.guildId,
+                                            user_id: targetUser.id,
+                                            user_tag: targetUser.tag,
+                                            banned_by: interaction.user.id,
+                                            banned_by_tag: interaction.user.tag,
+                                            ban_type: 'discord',
+                                            reason: motivo,
+                                            duration_minutes: Math.ceil(durationMs / 60000),
+                                            expires_at: expiresAt.toISOString()
+                                        });
+
+                                    actionResult = `\n🔨 **Usuario Baneado TEMPORALMENTE** del Discord por **${durationText}**.\n✅ **Auto-Unban:** Se desbaneará automáticamente ${expiresAt.toLocaleString('es-MX', { timeZone: 'America/Mexico_City' })}`;
                                 } else {
                                     actionResult = '\n🔨 **Usuario Baneado PERMANENTEMENTE** del Discord.';
                                 }
