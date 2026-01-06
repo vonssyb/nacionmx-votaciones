@@ -1218,7 +1218,36 @@ setInterval(async () => {
 
                         // Check 1: Server Lock
                         if (config.locked && !whitelist.includes(playerName)) {
-                            violation = 'server_closed';
+                            // AUTO-WHITELIST CHECK FOR STAFF
+                            // Check if this Roblox ID is linked to a Discord Staff
+                            let isStaffBypass = false;
+                            try {
+                                const { data: citizen } = await supabase
+                                    .from('citizens')
+                                    .select('discord_id')
+                                    .eq('roblox_id', playerId) // Efficient lookup by ID
+                                    .maybeSingle();
+
+                                if (citizen && citizen.discord_id) {
+                                    // Check Discord Roles
+                                    const guild = client.guilds.cache.get(process.env.GUILD_ID);
+                                    if (guild) {
+                                        const member = await guild.members.fetch(citizen.discord_id).catch(() => null);
+                                        if (member) {
+                                            // IDs from sancion.js / rango.js
+                                            const STAFF_ROLES = ['1412887167654690908', '1412887079612059660', '1412882248411381872', '1412882245735420006'];
+                                            if (member.roles.cache.some(r => STAFF_ROLES.includes(r.id))) {
+                                                isStaffBypass = true;
+                                                // verify badge just in case? no, let's trust role.
+                                            }
+                                        }
+                                    }
+                                }
+                            } catch (err) { }
+
+                            if (!isStaffBypass) {
+                                violation = 'server_closed';
+                            }
                         }
 
                         // Check 2: Active Arrest (Anti-RP)
