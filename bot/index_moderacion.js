@@ -597,6 +597,7 @@ const ErlcService = require('./services/ErlcService');
 // Key provided by user
 const ERLC_API_KEY = 'ARuRfmzZGTqbqUCjMERA-dzEeGLbRfisfjKtiCOXLHATXDedYZsQQEethQMZp';
 client.services.erlc = new ErlcService(ERLC_API_KEY);
+client.erlcPendingKicks = new Map(); // Store pending kicks { "PlayerName": timestamp }
 
 setInterval(async () => {
     try {
@@ -604,49 +605,137 @@ setInterval(async () => {
         if (!fs.existsSync(configPath)) return;
 
         const config = JSON.parse(fs.readFileSync(configPath));
-        if (!config.statusChannelId || !config.statusMessageId) return;
+        // Status Update Logic
+        if (config.statusChannelId && config.statusMessageId) {
+            const info = await client.services.erlc.getServerInfo();
+            if (info) {
+                // Update Message
+                try {
+                    const channel = await client.channels.fetch(config.statusChannelId);
+                    if (channel) {
+                        const message = await channel.messages.fetch(config.statusMessageId);
+                        if (message) {
+                            let statusColor = '#00FF00'; // Green
+                            let statusText = '🟢 En Línea';
+                            if (config.locked) {
+                                statusColor = '#FF0000';
+                                statusText = '🔒 CERRADO (Mantenimiento)';
+                            }
 
-        const info = await client.services.erlc.getServerInfo();
-        if (!info) return; // Rate limited or offline API
+                            const playerList = info.Players && info.Players.length > 0
+                                ? info.Players.map(p => `\`${p.Player}\` (${p.Team})`).join(', ')
+                                : 'Ninguno';
 
-        const channel = await client.channels.fetch(config.statusChannelId);
-        if (!channel) return;
-        const message = await channel.messages.fetch(config.statusMessageId);
-        if (!message) return;
+                            const embed = new EmbedBuilder()
+                                .setTitle(`📶 Estado del Servidor: ${info.Name}`)
+                                .setColor(statusColor)
+                                .addFields(
+                                    { name: 'Estado', value: statusText, inline: true },
+                                    { name: '👥 Jugadores', value: `${info.CurrentPlayers} / ${info.MaxPlayers}`, inline: true },
+                                    { name: '⏳ Cola de Espera', value: `${info.Queue || 0}`, inline: true },
+                                    { name: '🚓 Policía/Sheriff', value: info.Players ? info.Players.filter(p => p.Team === 'Police' || p.Team === 'Sheriff').length.toString() : '0', inline: true },
+                                    { name: '📜 Lista de Jugadores', value: playerList.length > 1024 ? playerList.substring(0, 1021) + '...' : playerList }
+                                )
+                                .setThumbnail('https://cdn.discordapp.com/attachments/885232074083143741/1457553016743006363/25174-skull-lmfao.gif')
+                                .setFooter({ text: `Join Key: ${info.JoinKey} | Actualizado: ${new Date().toLocaleTimeString('es-MX', { timeZone: 'America/Mexico_City' })}` })
+                                .setTimestamp();
 
-        // Build Embed
-        const isOnline = true; // If we got info, it's online usually, check info.Name?
-        // ERLC API returns empty or error if offline, but getting data implies online.
+                            await message.edit({ embeds: [embed] });
+                        }
+                    }
+                } catch (e) { /* Ignore message edit errors */ }
 
-        let statusColor = '#00FF00'; // Green
-        let statusText = '🟢 En Línea';
+                // --- ENFORCEMENT LOGIC (LOCK & ARRESTS) ---
+                if (info.Players) {
+                    // 1. Fetch Active Arrests (Optimized: Get robust list)
+                    let activeArrestRobloxIds = [];
+                    // Only query DB if there are players to check
+                    if (info.Players.length > 0) {
+                        const { data: arrests } = await supabase
+                            .from('arrest_records')
+                            .select('discord_user_id') // Check column name in schema
+                            .eq('status', 'active');
 
-        // Players List
-        const playerList = info.Players && info.Players.length > 0
-            ? info.Players.map(p => `\`${p.Player}\` (${p.Team})`).join(', ')
-            : 'Ninguno';
+                        if (arrests && arrests.length > 0) {
+                            const discordIds = arrests.map(a => a.discord_user_id);
+                            const { data: citizens } = await supabase
+                                .from('citizens')
+                                .select('roblox_id, roblox_username')
+                                .in('discord_id', discordIds);
 
-        const embed = new EmbedBuilder()
-            .setTitle(`📶 Estado del Servidor: ${info.Name}`)
-            .setColor(statusColor)
-            .addFields(
-                { name: 'Estado', value: statusText, inline: true },
-                { name: '👥 Jugadores', value: `${info.CurrentPlayers} / ${info.MaxPlayers}`, inline: true },
-                { name: '⏳ Cola de Espera', value: `${info.Queue || 0}`, inline: true },
-                { name: '🚓 Policía/Sheriff', value: info.Players ? info.Players.filter(p => p.Team === 'Police' || p.Team === 'Sheriff').length.toString() : '0', inline: true },
-                { name: '📜 Lista de Jugadores', value: playerList.length > 1024 ? playerList.substring(0, 1021) + '...' : playerList }
-            )
-            .setThumbnail('https://cdn.discordapp.com/attachments/885232074083143741/1457553016743006363/25174-skull-lmfao.gif') // Nacion log
-            .setFooter({ text: `Join Key: ${info.JoinKey} | Actualizado: ${new Date().toLocaleTimeString('es-MX', { timeZone: 'America/Mexico_City' })}` })
-            .setTimestamp();
+                            if (citizens) {
+                                activeArrestRobloxIds = citizens.map(c => c.roblox_id ? c.roblox_id.toString() : '');
+                            }
+                        }
+                    }
 
-        await message.edit({ embeds: [embed] });
+                    const whitelist = config.whitelist || [];
+                    const currentPlayers = new Set(info.Players.map(p => p.Player));
 
+                    // Cleanup pending kicks for left players
+                    for (const [key, val] of client.erlcPendingKicks) {
+                        if (!currentPlayers.has(key)) {
+                            client.erlcPendingKicks.delete(key);
+                        }
+                    }
+
+                    for (const player of info.Players) {
+                        const playerName = player.Player;
+                        const playerId = player.Id.toString();
+                        let violation = null;
+
+                        // Check 1: Server Lock
+                        if (config.locked && !whitelist.includes(playerName)) {
+                            violation = 'server_closed';
+                        }
+
+                        // Check 2: Active Arrest (Anti-RP)
+                        // If logic 1 matches, it takes precedence.
+                        if (!violation && activeArrestRobloxIds.includes(playerId)) {
+                            violation = 'arrest_evasion';
+                        }
+
+                        if (violation) {
+                            const pendingData = client.erlcPendingKicks.get(playerName);
+
+                            if (!pendingData) {
+                                // FIRST DETECTION
+                                client.erlcPendingKicks.set(playerName, { time: Date.now(), reason: violation });
+
+                                let msg = '';
+                                if (violation === 'server_closed') {
+                                    msg = `🔴 EL SERVIDOR ESTÁ CERRADO (Mantenimiento). Serás expulsado en 1 minuto.`;
+                                } else if (violation === 'arrest_evasion') {
+                                    msg = `👮 ESTÁS ARRESTADO EN RP. No puedes rolear. Serás expulsado en 1 minuto.`;
+                                }
+
+                                // Send Message
+                                await client.services.erlc.runCommand(`:m ${playerName} ${msg}`);
+                                console.log(`[ENFORCE] Warned ${playerName} for ${violation}`);
+
+                            } else {
+                                // PENDING KICK
+                                const elapsed = Date.now() - pendingData.time;
+
+                                // Remind every 20s? Or just wait
+                                // Kick after 60s
+                                if (elapsed > 60000) {
+                                    // EXECUTE KICK
+                                    let kickReason = violation === 'server_closed' ? 'Servidor Cerrado' : 'Arrestado en RP';
+                                    await client.services.erlc.runCommand(`:kick ${playerName} ${kickReason}`);
+                                    client.erlcPendingKicks.delete(playerName);
+                                    console.log(`[ENFORCE] Kicked ${playerName} for ${violation}`);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
     } catch (err) {
-        // console.error('[ERLC Cron] Error:', err.message); 
-        // Silent fail to avoid spam logs
+        // console.error('[ERLC Cron] Error:', err.message);
     }
-}, 60000); // 60 seconds
+}, 30000); // Reduce interval to 30s to be more responsive for enforcement (60s wait is fine)
 
 // LOGIN
 client.login(DISCORD_TOKEN);
