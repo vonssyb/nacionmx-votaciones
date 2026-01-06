@@ -34,11 +34,13 @@ async function registerModerationCommands() {
     // 1. Load modular commands from /commands/moderation (includes new moderation-specific ayuda.js)
     const client = { commands: new Map() };
     const commandsPath = path.join(__dirname, 'commands');
-    await loadCommands(client, commandsPath, ['moderation']);
+    // Added 'utils' to get ping, status, etc.
+    await loadCommands(client, commandsPath, ['moderation', 'utils']);
 
     // 2. Load legacy moderation commands from commands.js
     const allLegacyCommands = require('./commands.js');
-    const legacyModerationNames = ['multa', 'licencia', 'rol', 'ping', 'info'];
+    // Removed 'rol', 'ping', 'info' as they are now modular (in moderation/ or utils/)
+    const legacyModerationNames = ['multa', 'licencia', 'fichar'];
     // Exclude 'ayuda' because we have moderation-specific ayuda in /commands/moderation/
     const legacyCommands = allLegacyCommands.filter(cmd => legacyModerationNames.includes(cmd.name));
 

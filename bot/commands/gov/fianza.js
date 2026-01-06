@@ -90,6 +90,8 @@ module.exports = {
 
                 const ubService = new UnbelievaBoatService(ubToken);
 
+                let moneyDeducted = false;
+
                 try {
                     // Try to remove money
                     await ubService.removeMoney(
@@ -98,64 +100,93 @@ module.exports = {
                         bailAmount,
                         `Fianza pagada - Arresto: ${arrest.articles}`
                     );
-                } catch (ubError) {
-                    return interaction.editReply(
-                        `❌ **Fondos Insuficientes**\n\n` +
-                        `Necesitas **$${bailAmount.toLocaleString()}** para pagar la fianza.\n` +
-                        `💡 Puedes pedirle a alguien que te transfiera el dinero.`
-                    );
-                }
+                    moneyDeducted = true;
 
-                // Remove arrested role
-                await member.roles.remove(ARRESTED_ROLE_ID);
+                    // Remove arrested role
+                    await member.roles.remove(ARRESTED_ROLE_ID);
 
-                // Update arrest record
-                await supabase
-                    .from('arrests')
-                    .update({
-                        bail_paid: true,
-                        bail_paid_at: new Date().toISOString(),
-                        bail_amount: bailAmount
-                    })
-                    .eq('id', arrest.id);
+                    // Update arrest record
+                    const { error: dbError } = await supabase
+                        .from('arrests')
+                        .update({
+                            bail_paid: true,
+                            bail_paid_at: new Date().toISOString(),
+                            bail_amount: bailAmount
+                        })
+                        .eq('id', arrest.id);
 
-                // Success embed
-                const successEmbed = new EmbedBuilder()
-                    .setTitle('✅ Fianza Pagada - LIBERADO')
-                    .setColor('#2ECC71')
-                    .setDescription('Has pagado tu fianza y has sido liberado del arresto.')
-                    .addFields(
-                        { name: '💵 Monto Pagado', value: `$${bailAmount.toLocaleString()}`, inline: true },
-                        { name: '📜 Artículos', value: arrest.reason || arrest.articles, inline: false }
-                    )
-                    .setTimestamp();
+                    if (dbError) throw dbError;
 
-                await interaction.editReply({ embeds: [successEmbed] });
-
-                // Log to audit
-                await client.logAudit(
-                    'Fianza Pagada',
-                    `Usuario: <@${interaction.user.id}>\nMonto: $${bailAmount.toLocaleString()}\nArtículos: ${arrest.articles}`,
-                    interaction.user,
-                    interaction.user,
-                    0x2ECC71
-                );
-
-                // Send DM
-                try {
-                    const dmEmbed = new EmbedBuilder()
-                        .setTitle('✅ Fianza Procesada')
+                    // Success embed
+                    const successEmbed = new EmbedBuilder()
+                        .setTitle('✅ Fianza Pagada - LIBERADO')
                         .setColor('#2ECC71')
-                        .setDescription(`Has sido liberado del arresto tras pagar la fianza de **$${bailAmount.toLocaleString()}**.`)
-                        .setFooter({ text: 'Ya puedes hacer roleplay normalmente' })
+                        .setDescription('Has pagado tu fianza y has sido liberado del arresto.')
+                        .addFields(
+                            { name: '💵 Monto Pagado', value: `$${bailAmount.toLocaleString()}`, inline: true },
+                            { name: '📜 Artículos', value: arrest.reason || arrest.articles, inline: false }
+                        )
                         .setTimestamp();
-                    await interaction.user.send({ embeds: [dmEmbed] });
-                } catch (e) { }
+
+                    await interaction.editReply({ embeds: [successEmbed] });
+
+                    // Log to audit
+                    await client.logAudit(
+                        'Fianza Pagada',
+                        `Usuario: <@${interaction.user.id}>\nMonto: $${bailAmount.toLocaleString()}\nArtículos: ${arrest.articles}`,
+                        interaction.user,
+                        interaction.user,
+                        0x2ECC71
+                    );
+
+                    // Send DM
+                    try {
+                        const dmEmbed = new EmbedBuilder()
+                            .setTitle('✅ Fianza Procesada')
+                            .setColor('#2ECC71')
+                            .setDescription(`Has sido liberado del arresto tras pagar la fianza de **$${bailAmount.toLocaleString()}**.`)
+                            .setFooter({ text: 'Ya puedes hacer roleplay normalmente' })
+                            .setTimestamp();
+                        await interaction.user.send({ embeds: [dmEmbed] });
+                    } catch (e) { }
+
+                } catch (failError) {
+                    console.error('[Fianza Payment] Error:', failError);
+
+                    if (moneyDeducted && !failError.message.includes('Fondos Insuficientes')) {
+                        // Refund logic
+                        try {
+                            await ubService.addMoney(
+                                interaction.guildId,
+                                interaction.user.id,
+                                bailAmount,
+                                'Reembolso Auto: Fallo en Fianza'
+                            );
+                            return interaction.editReply('❌ **Error Crítico:** Ocurrió un fallo al liberarte. Se te ha reembolsado el dinero.');
+                        } catch (refundErr) {
+                            console.error('CRITICAL FAULT: FAILED TO REFUND', refundErr);
+                            return interaction.editReply('❌ **ERROR CRÍTICO:** Contacta a administración, hubo un fallo en el cobro.');
+                        }
+                    }
+
+                    if (!moneyDeducted) {
+                        return interaction.editReply(
+                            `❌ **Fondos Insuficientes**\n\n` +
+                            `Necesitas **$${bailAmount.toLocaleString()}** para pagar la fianza.`
+                        );
+                    }
+                }
             }
 
         } catch (error) {
             console.error('[fianza] Error:', error);
             await interaction.editReply('❌ Error al procesar la acción. Contacta a un administrador.');
         }
+    }
+
+} catch (error) {
+    console.error('[fianza] Error:', error);
+    await interaction.editReply('❌ Error al procesar la acción. Contacta a un administrador.');
+}
     }
 };
