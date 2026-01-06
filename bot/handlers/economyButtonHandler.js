@@ -470,7 +470,9 @@ const handleEconomyButtons = async (interaction, client, supabase, billingServic
             'NMX Oro': { limit: 250000, interest: 7, cost: 15000, color: 0xFFD700 },
             'NMX Rubí': { limit: 500000, interest: 6, cost: 25000, color: 0xE74C3C },
             'NMX Black': { limit: 1000000, interest: 5, cost: 40000, color: 0x2C3E50 },
-            'NMX Diamante': { limit: 2000000, interest: 3, cost: 60000, color: 0x3498DB }
+            'NMX Diamante': { limit: 2000000, interest: 3, cost: 60000, color: 0x3498DB },
+            'NMX Zafiro': { limit: 5000000, interest: 2.5, cost: 100000, color: 0x0F52BA },
+            'NMX Platino Elite': { limit: 10000000, interest: 2, cost: 150000, color: 0xE5E4E2 }
         };
 
         const stats = cardStats[nextTier];
