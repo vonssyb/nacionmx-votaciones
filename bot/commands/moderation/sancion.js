@@ -158,18 +158,15 @@ module.exports = {
             });
         }
 
-        // 4. High Actions Check (Kick Discord) -> Requires Staff
-        // Kick ERLC is now allowed for Training (Level 1)
-        const isHighAction = (accion === 'Kick Discord');
-
-        if (isHighAction && !isStaff) {
+        // 4. Kick Discord Check -> Requires Board ONLY
+        if (accion === 'Kick Discord' && !isBoard) {
             return interaction.reply({
-                content: '🛑 **Acceso Denegado (Nivel 2 Requerido)**\n\nComo Staff en Entrenamiento, no puedes aplicar Kicks de Discord. Solicita ayuda a un Staff superior.',
+                content: '🛑 **Acceso Denegado (Nivel 4 Requerido)**\n\nSolo la **Junta Directiva y Encargados** pueden aplicar Kicks de Discord.',
                 flags: [64]
             });
         }
 
-        // 5. Basic Actions Check (Warns, Notif) -> Requires Training
+        // 5. Basic Actions Check (Warns, Notif, Kick ERLC, Timeout) -> Requires Training
         if (!isTraining) {
             return interaction.reply({
                 content: '🛑 **Acceso Denegado**\nNo tienes el rol de Staff necesario para usar este comando.',
