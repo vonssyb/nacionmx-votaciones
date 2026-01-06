@@ -202,6 +202,17 @@ client.on('interactionCreate', async interaction => {
     if (interaction.isButton() || interaction.isStringSelectMenu()) {
         const customId = interaction.customId;
 
+        // --- NEW: ADMIN CREDIT UPGRADE ---
+        if (customId.startsWith('btn_upgrade_')) {
+            const creditUpgradeHandler = require('./handlers/creditUpgradeButton');
+            await creditUpgradeHandler(interaction, supabase, client.services.billing);
+            return;
+        }
+        if (customId.startsWith('btn_cancel_upgrade_')) {
+            await interaction.update({ content: '❌ Oferta rechazada.', embeds: [], components: [] });
+            return;
+        }
+
         // -- STORE --
         if (customId.startsWith('buy_item_')) {
             await client.services.store.handleBuyButton(interaction);
