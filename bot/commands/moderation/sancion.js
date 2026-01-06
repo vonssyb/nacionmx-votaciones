@@ -55,6 +55,8 @@ module.exports = {
                     { name: 'Ban Permanente ERLC', value: 'Ban Permanente ERLC' },
                     { name: 'Kick ERLC', value: 'Kick ERLC' },
                     { name: 'Kick Discord', value: 'Kick Discord' },
+                    { name: 'Ban Temporal Discord', value: 'Ban Temporal Discord' },
+                    { name: 'Ban Permanente Discord', value: 'Ban Permanente Discord' },
                     { name: 'Timeout / Mute', value: 'Timeout' }, // Added Timeout
                     { name: 'Blacklist', value: 'Blacklist' }
                 ))
@@ -146,18 +148,28 @@ module.exports = {
             });
         }
 
-        // 3. High Actions Check (Kick Discord) -> Requires Staff
+        // 3. Discord Ban Actions Check (Ban Discord, Ban Temporal Discord) -> Requires Board ONLY
+        const isDiscordBanAction = (accion === 'Ban Permanente Discord') || (accion === 'Ban Temporal Discord');
+
+        if (isDiscordBanAction && !isBoard) {
+            return interaction.reply({
+                content: '🛑 **Acceso Denegado (Nivel 4 Requerido)**\n\nSolo la **Junta Directiva y Encargados** pueden aplicar Baneos de Discord.',
+                flags: [64]
+            });
+        }
+
+        // 4. High Actions Check (Kick Discord) -> Requires Staff
         // Kick ERLC is now allowed for Training (Level 1)
         const isHighAction = (accion === 'Kick Discord');
 
         if (isHighAction && !isStaff) {
             return interaction.reply({
-                content: '🛑 **Acceso Denegado (Nivel 2 Requerido)**\nComo Staff en Entrenamiento, no puedes aplicar Kicks de Discord. Solicita ayuda a un Staff superior.',
+                content: '🛑 **Acceso Denegado (Nivel 2 Requerido)**\n\nComo Staff en Entrenamiento, no puedes aplicar Kicks de Discord. Solicita ayuda a un Staff superior.',
                 flags: [64]
             });
         }
 
-        // 3. Basic Actions Check (Warns, Notif) -> Requires Training
+        // 5. Basic Actions Check (Warns, Notif) -> Requires Training
         if (!isTraining) {
             return interaction.reply({
                 content: '🛑 **Acceso Denegado**\nNo tienes el rol de Staff necesario para usar este comando.',
@@ -481,7 +493,27 @@ module.exports = {
                                 actionResult = '\n⚠️ No puedo expulsar a este usuario (Jerarquía de Roles).';
                             }
                         }
-                        // 5. ERLC BAN/KICK LOGIC
+                        // 5. BAN DISCORD LOGIC (Temporary & Permanent)
+                        else if (accion === 'Ban Temporal Discord' || accion === 'Ban Permanente Discord') {
+                            if (member.bannable) {
+                                const deleteMessageDays = 1; // Delete 1 day of messages
+                                let banReason = `${accion} - ${motivo} - Por ${interaction.user.tag}`;
+
+                                await member.ban({
+                                    deleteMessageDays,
+                                    reason: banReason
+                                });
+
+                                if (accion === 'Ban Temporal Discord') {
+                                    actionResult = `\n🔨 **Usuario Baneado TEMPORALMENTE** del Discord por **${durationText}**.\n⚠️ **IMPORTANTE:** Debes desbanear manualmente cuando expire el tiempo.`;
+                                } else {
+                                    actionResult = '\n🔨 **Usuario Baneado PERMANENTEMENTE** del Discord.';
+                                }
+                            } else {
+                                actionResult = '\n⚠️ No puedo banear a este usuario (Jerarquía de Roles).';
+                            }
+                        }
+                        // 6. ERLC BAN/KICK LOGIC
                         else if (accion === 'Ban Temporal ERLC' || accion === 'Ban Permanente ERLC' || accion === 'Kick ERLC') {
                             const robloxIdManual = interaction.options.getString('roblox_id_erlc');
                             const robloxUserManual = interaction.options.getString('roblox_user_erlc');
