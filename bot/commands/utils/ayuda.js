@@ -28,7 +28,8 @@ module.exports = {
 
         const row = new ActionRowBuilder().addComponents(selectMenu);
 
-        const response = await interaction.reply({ embeds: [initialEmbed], components: [row] });
+        // Use editReply because main bot handlers auto-defer
+        const response = await interaction.editReply({ embeds: [initialEmbed], components: [row] });
 
         const collector = response.createMessageComponentCollector({ componentType: ComponentType.StringSelect, time: 300000 }); // 5 mins
 

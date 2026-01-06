@@ -15,7 +15,7 @@ const commands = [];
 const commandsPath = path.join(__dirname, 'commands');
 
 // ALLOWED CATEGORIES FOR MODERATION BOT (Strict)
-const ALLOWED_CATEGORIES = ['moderation'];
+const ALLOWED_CATEGORIES = ['moderation', 'utils'];
 
 // 1. DYNAMIC LOADING
 if (fs.existsSync(commandsPath)) {
@@ -29,8 +29,9 @@ if (fs.existsSync(commandsPath)) {
 
         const commandFiles = fs.readdirSync(folderPath).filter(file => file.endsWith('.js'));
         for (const file of commandFiles) {
-            // CONFLICT FIX: Skip ayuda.js from utils because moderation has its own ayuda.js
-            if (folder === 'utils' && file === 'ayuda.js') continue;
+            // CONFLICT FIX: Skip ayuda.js from utils because we want to use it? 
+            // NO, we WANT to use utils/ayuda.js instead of legacy.
+            // So we DO NOT skip it.
 
             const filePath = path.join(folderPath, file);
             try {
@@ -47,7 +48,7 @@ if (fs.existsSync(commandsPath)) {
 try {
     const legacyCommands = require('./commands.js');
     const MOD_LEGACY = [
-        'ping', 'info', 'sesion', 'ayuda'
+        'ping', 'info', 'sesion' // Removed 'ayuda' to use modular one
     ];
 
     legacyCommands.forEach(cmd => {

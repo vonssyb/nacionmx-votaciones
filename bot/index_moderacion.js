@@ -48,9 +48,9 @@ client.services = {
 client.supabase = supabase;
 
 // --- AUDIT LOG ---
-client.logAudit = async (action, details, moderator, target, color = 0x00AAFF, files = []) => {
+client.logAudit = async (action, details, moderator, target, color = 0x00AAFF, files = [], channelId = null) => {
     try {
-        const AUDIT_CHANNEL_ID = '1457457209268109516';
+        const AUDIT_CHANNEL_ID = channelId || '1456035521141670066'; // Security/Sanctions (Default)
         const channel = await client.channels.fetch(AUDIT_CHANNEL_ID);
         if (channel) {
             const embed = new EmbedBuilder()
@@ -211,8 +211,8 @@ client.on('interactionCreate', async interaction => {
                 return interaction.followUp({ content: '❌ Este botón no es para ti.', flags: [64] });
             }
 
-            const encargadoApelacionesRoleId = '1412913086598299738'; // Encargado de Apelaciones
-            const apelacionesChannelId = '1398889153919189042'; // Canal de apelaciones
+            const encargadoApelacionesRoleId = '1451703422800625777'; // Encargado de Apelaciones
+            const apelacionesChannelId = '1398891368398585886'; // Canal de apelaciones
 
             try {
                 const apelacionesChannel = await client.channels.fetch(apelacionesChannelId);
@@ -475,33 +475,33 @@ client.on('messageDelete', async message => {
         await Promise.all(uploadPromises);
     }
 
-    // Construct text with permanent links
-    let attachmentsText = '';
-    if (uploadedUrls.length > 0) {
-        attachmentsText = `\n\n📂 **Evidencia Persistente (Supabase):**\n` + uploadedUrls.map(url => `[Ver Imagen](${url})`).join('\n');
-    } else if (message.attachments.size > 0) {
-        attachmentsText = `\n📂 Adjuntos: ${message.attachments.size} (No se pudieron subir a Supabase, ver originales abajo si aún existen)`;
-    }
+    if (message.partial) return;
+    if (message.author?.bot) return;
 
     await client.logAudit(
         'Mensaje Eliminado',
-        `**Canal:** <#${message.channel.id}>\n**Autor:** <@${message.author.id}>\n**Contenido:**\n\`\`\`${content.substring(0, 1000)}\`\`\`${attachmentsText}`,
-        client.user, // "Moderator" is system/bot for auto-logs
+        `**Canal:** <#${message.channel.id}>\n**Contenido:**\n\`\`\`${message.content ? message.content.substring(0, 900) : '[Sin texto]'}\`\`\``,
+        client.user,
         message.author,
-        0xFF0000, // Red
-        fileArray // Still attach originals as fallback/preview in Discord
+        0xFF0000,
+        [],
+        MSG_LOGS_CHANNEL
     );
 });
 
 // 2. Bulk Delete
 client.on('messageDeleteBulk', async messages => {
-    const channel = messages.first().channel;
+    const firstMsg = messages.first();
+    const channel = firstMsg.channel;
+
     await client.logAudit(
         'Mensajes Eliminados en Masa',
         `**Canal:** <#${channel.id}>\n**Cantidad:** ${messages.size} mensajes`,
         client.user,
         null,
-        0xFF0000
+        0xFF0000,
+        [],
+        MSG_LOGS_CHANNEL
     );
 });
 
@@ -512,7 +512,9 @@ client.on('channelDelete', async channel => {
         `**Nombre:** ${channel.name}\n**Tipo:** ${channel.type}`,
         client.user,
         null,
-        0x8B0000 // Dark Red
+        0x8B0000, // Dark Red
+        [],
+        MSG_LOGS_CHANNEL
     );
 });
 
@@ -523,7 +525,9 @@ client.on('roleDelete', async role => {
         `**Nombre:** ${role.name}\n**ID:** ${role.id}`,
         client.user,
         null,
-        0x8B0000 // Dark Red
+        0x8B0000, // Dark Red
+        [],
+        MSG_LOGS_CHANNEL
     );
 });
 
@@ -542,7 +546,9 @@ client.on('messageUpdate', async (oldMessage, newMessage) => {
         `**Canal:** <#${newMessage.channel.id}>\n**Antes:**\n\`\`\`${oldMessage.content ? oldMessage.content.substring(0, 900) : '[Sin texto]'}\`\`\`\n**Después:**\n\`\`\`${newMessage.content ? newMessage.content.substring(0, 900) : '[Sin texto]'}\`\`\``,
         client.user,
         newMessage.author,
-        0xFFFF00 // Yellow
+        0xFFFF00, // Yellow
+        [],
+        MSG_LOGS_CHANNEL
     );
 });
 
