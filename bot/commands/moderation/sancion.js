@@ -71,6 +71,14 @@ module.exports = {
         .addStringOption(option =>
             option.setName('duracion')
                 .setDescription('Tiempo (ej: 10m, 2h, 1d, 1s=semana, 1w=mes)')
+                .setRequired(false))
+        .addStringOption(option =>
+            option.setName('roblox_id_erlc')
+                .setDescription('ID de Roblox (para Ban/Kick ERLC si está offline)')
+                .setRequired(false))
+        .addStringOption(option =>
+            option.setName('roblox_user_erlc')
+                .setDescription('Username de Roblox (para Ban/Kick ERLC si está offline)')
                 .setRequired(false)),
 
     async execute(interaction) {
@@ -499,6 +507,63 @@ module.exports = {
                                 actionResult = '\n👢 **Usuario Expulsado (Kick) del Discord.**';
                             } else {
                                 actionResult = '\n⚠️ No puedo expulsar a este usuario (Jerarquía de Roles).';
+                            }
+                        }
+                        // 5. ERLC BAN/KICK LOGIC
+                        else if (accion === 'Ban Temporal ERLC' || accion === 'Ban Permanente ERLC' || accion === 'Kick ERLC') {
+                            const robloxIdManual = interaction.options.getString('roblox_id_erlc');
+                            const robloxUserManual = interaction.options.getString('roblox_user_erlc');
+
+                            let robloxIdentifier = null;
+
+                            // Priority: Manual fields > DB lookup
+                            if (robloxIdManual) {
+                                robloxIdentifier = robloxIdManual.trim();
+                            } else if (robloxUserManual) {
+                                robloxIdentifier = robloxUserManual.trim();
+                            } else {
+                                // Try to get from DB
+                                const { data: citizen } = await interaction.client.supabase
+                                    .from('citizens')
+                                    .select('roblox_id, roblox_username')
+                                    .eq('discord_id', targetUser.id)
+                                    .maybeSingle();
+
+                                if (citizen && (citizen.roblox_username || citizen.roblox_id)) {
+                                    robloxIdentifier = citizen.roblox_username || citizen.roblox_id;
+                                }
+                            }
+
+                            if (robloxIdentifier) {
+                                const ErlcService = require('../../services/ErlcService');
+                                const erlcKey = process.env.ERLC_API_KEY || 'ARuRfmzZGTqbqUCjMERA-dzEeGLbRfisfjKtiCOXLHATXDedYZsQQEethQMZp';
+
+                                if (erlcKey) {
+                                    const erlcService = new ErlcService(erlcKey);
+                                    let erlcCommand = '';
+
+                                    if (accion === 'Kick ERLC') {
+                                        erlcCommand = `:kick ${robloxIdentifier} ${motivo.substring(0, 50)}`;
+                                    } else if (accion === 'Ban Temporal ERLC') {
+                                        const hours = durationMs ? Math.ceil(durationMs / (1000 * 60 * 60)) : 24;
+                                        erlcCommand = `:ban ${robloxIdentifier} ${hours} ${motivo.substring(0, 50)}`;
+                                    } else if (accion === 'Ban Permanente ERLC') {
+                                        erlcCommand = `:ban ${robloxIdentifier} 999999 ${motivo.substring(0, 50)}`;
+                                    }
+
+                                    console.log(`[Sancion] Sending ERLC command: ${erlcCommand}`);
+                                    const result = await erlcService.runCommand(erlcCommand);
+
+                                    if (result) {
+                                        actionResult = `\n🎮 **Acción ejecutada en ERLC** (${robloxIdentifier})`;
+                                    } else {
+                                        actionResult = `\n⚠️ Error al ejecutar comando ERLC`;
+                                    }
+                                } else {
+                                    actionResult = '\n⚠️ ERLC API Key no configurada';
+                                }
+                            } else {
+                                actionResult = '\n⚠️ No se encontró ID/Username de Roblox. Usa los campos `roblox_id_erlc` o `roblox_user_erlc`.';
                             }
                         }
 
