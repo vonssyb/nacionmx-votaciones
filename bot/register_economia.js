@@ -45,8 +45,7 @@ try {
         'giro', 'movimientos', 'notificaciones', 'top-morosos', 'top-ricos',
         'tienda', 'inversion', 'impuestos', 'empresa', 'robar', 'trabajar',
         'bolsa', 'crimen', 'casino', 'nomina', 'dar-robo', 'stake', 'slots',
-        'fondos', 'balanza', 'saldo', 'jugar',
-        'nivel', 'logros', 'misiones' // Ensure these are included if present in legacy
+        'fondos', 'balanza', 'saldo', 'jugar'
     ];
 
     legacyCommands.forEach(cmd => {
