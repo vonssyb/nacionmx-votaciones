@@ -619,10 +619,13 @@ const saveShifts = () => {
 };
 
 const LOG_POLICIA = '1399106787558424629';
-const MOD_ROLE_ID = '1412887167654690908';
+const MOD_ROLE_ID = '1457892493310951444'; // Updated Mod Role
 
 setInterval(async () => {
     try {
+        // Save shifts periodically (in case of manual changes via command)
+        saveShifts();
+
         const configPath = path.join(__dirname, 'data/erlc_config.json');
         if (!fs.existsSync(configPath)) return;
 
@@ -709,10 +712,12 @@ setInterval(async () => {
                     // --- SHIFT LOGIC: Check Leavers ---
                     for (const [robloxId, shiftData] of client.erlcShifts) {
                         const stillOnline = info.Players.find(p => p.Id.toString() === robloxId);
-                        const isDutyTeam = stillOnline ? (stillOnline.Team === 'Police' || stillOnline.Team === 'Sheriff') : false;
 
-                        if (!stillOnline || !isDutyTeam) {
-                            // END SHIFT
+                        // STRICT CHECK: Must be Online AND Team == Sheriff
+                        const isValid = stillOnline && stillOnline.Team === 'Sheriff';
+
+                        if (!isValid) {
+                            // END SHIFT AUTOMATICALLY
                             client.erlcShifts.delete(robloxId);
                             saveShifts();
 
@@ -726,7 +731,7 @@ setInterval(async () => {
                                     const embed = new EmbedBuilder()
                                         .setTitle('🛑 Turno Finalizado (Auto)')
                                         .setColor(0xFF0000)
-                                        .setDescription(`El moderador <@${shiftData.discordId}> ha terminado su turno.`)
+                                        .setDescription(`El moderador <@${shiftData.discordId}> ha terminado su turno.\n**Razón:** Salió del servidor o del equipo Sheriff.`)
                                         .addFields(
                                             { name: 'Usuario', value: shiftData.name, inline: true },
                                             { name: 'Duración', value: `${durationMin} minutos`, inline: true }
@@ -738,7 +743,7 @@ setInterval(async () => {
                         }
                     }
 
-                    // --- LOOP PLAYERS ---
+                    // --- LOOP PLAYERS (Enforcement) ---
                     // Cleanup pending kicks for left players
                     for (const [key, val] of client.erlcPendingKicks) {
                         if (!currentPlayers.has(key)) {
@@ -792,48 +797,7 @@ setInterval(async () => {
                             }
                         }
 
-                        // --- SHIFT LOGIC: Check Joiners (Duty Start) ---
-                        if ((player.Team === 'Police' || player.Team === 'Sheriff') && !client.erlcShifts.has(playerId)) {
-                            // Check if eligible (Has Discord ID and Role)
-                            const discordId = playerMap.get(playerId);
-                            if (discordId) {
-                                try {
-                                    // Need to fetch member to check roles. 
-                                    // Optimization: Cache active guild? 
-                                    // We are in index.js, we can find the guild. "GUILD_ID" might be env var or fetch from channel.
-                                    // Use channel.guild from status channel if available, or fetch.
-                                    let guild = null;
-                                    if (config.statusChannelId) {
-                                        const c = await client.channels.fetch(config.statusChannelId);
-                                        if (c) guild = c.guild;
-                                    }
-
-                                    if (guild) {
-                                        const member = await guild.members.fetch(discordId).catch(() => null);
-                                        if (member && member.roles.cache.has(MOD_ROLE_ID)) {
-                                            // START SHIFT
-                                            client.erlcShifts.set(playerId, { startTime: Date.now(), discordId: discordId, name: playerName });
-                                            saveShifts();
-
-                                            // Log
-                                            const logChannel = await guild.channels.fetch(LOG_POLICIA).catch(() => null);
-                                            if (logChannel) {
-                                                const embed = new EmbedBuilder()
-                                                    .setTitle('👮 Turno Iniciado (Auto)')
-                                                    .setColor(0x00FF00)
-                                                    .setDescription(`El moderador <@${discordId}> ha iniciado turno automáticamente.`)
-                                                    .addFields(
-                                                        { name: 'Usuario', value: playerName, inline: true },
-                                                        { name: 'Equipo', value: player.Team, inline: true }
-                                                    )
-                                                    .setTimestamp();
-                                                await logChannel.send({ embeds: [embed] });
-                                            }
-                                        }
-                                    }
-                                } catch (e) { console.error('Shift start error', e); }
-                            }
-                        }
+                        // --- AUTO-START REMOVED (Manual Start Required via /mod turno) ---
                     }
                 }
             }
