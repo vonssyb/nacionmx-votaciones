@@ -53,75 +53,73 @@ module.exports = {
                 case 'economy':
                     newEmbed.setTitle('🏦 Banco & Economía')
                         .addFields(
-                            { name: '`/debito estado`', value: 'Ver tu saldo bancario y número de tarjeta.' },
-                            { name: '`/debito depositar`', value: 'Depositar efectivo a tu cuenta (Inmediato).' },
-                            { name: '`/debito retirar`', value: 'Retirar dinero del banco (Inmediato).' },
-                            { name: '`/debito transferir`', value: 'Transferir a otro usuario (Banco a Banco, 5 min).' },
-                            { name: '`/transferir`', value: 'Transferencia SPEI inmediata (Solo Banco).' },
-                            { name: '`/depositar`', value: 'Depósito en efectivo a terceros (OXXO, 4 horas).' },
-                            { name: '`/giro`', value: 'Envío de efectivo por paquetería (24 horas).' }
+                            { name: '`/perfil`', value: 'Ver tu saldo, DNI, licencias y patrimonio total.' },
+                            { name: '`/debito`', value: 'Panel de cajero: depositar, retirar y ver tarjeta.' },
+                            { name: '`/transferir`', value: 'Transferir dinero a otro ciudadano del banco.' },
+                            { name: '`/depositar`', value: 'Enviar efectivo a terceros (OXXO).' },
+                            { name: '`/colectar`', value: 'Reclamar tus salarios y beneficios acumulados.' },
+                            { name: '`/fichar`', value: 'Iniciar o terminar tu turno de trabajo oficial.' }
                         );
                     break;
                 case 'credit':
                     newEmbed.setTitle('💳 Crédito & Deudas')
                         .addFields(
-                            { name: '`/credito info`', value: 'Ver estado de cuenta, límite y corte.' },
-                            { name: '`/credito pagar`', value: 'Pagar deuda de tarjeta.' },
-                            { name: '`/credito buro`', value: 'Ver tu historial crediticio.' },
-                            { name: '`/top-morosos`', value: 'Ver quién debe más en el servidor.' },
-                            { name: '`/top-ricos`', value: 'Ver quién tiene mejor Score Crediticio.' }
+                            { name: '`/credito estado`', value: 'Ver tu deuda actual y límite disponible.' },
+                            { name: '`/credito pagar`', value: 'Abonar dinero a tu tarjeta de crédito.' },
+                            { name: '`/credito buro`', value: 'Consultar tu score financiero y nivel.' },
+                            { name: '`/top-morosos`', value: 'Ranking de ciudadanos con mayor deuda.' },
+                            { name: '`/tarjeta info`', value: 'Catálogo de tarjetas y beneficios disponibles.' }
                         );
                     break;
                 case 'business':
                     newEmbed.setTitle('🏢 Empresas & Negocios')
                         .addFields(
-                            { name: '`/empresa crear`', value: 'Registrar una nueva empresa ($50k).' },
-                            { name: '`/empresa menu`', value: 'Panel de gestión (pagar nómina, ver saldo).' },
-                            { name: '`/empresa cobrar`', value: 'Generar cobro para clientes (Terminal POS).' },
-                            { name: '`/empresa credito`', value: 'Solicitar crédito empresarial.' }
+                            { name: '`/empresa crear`', value: 'Abrir un negocio propio ($250k trámite).' },
+                            { name: '`/empresa menu`', value: 'Panel de control: nóminas, saldo y gestión.' },
+                            { name: '`/empresa cobrar`', value: 'Terminal de cobro para clientes (POS).' },
+                            { name: '`/nomina`', value: 'Gestionar grupos de pago y sueldos.' },
+                            { name: '`/gestionar-coche`', value: 'Vender o transferir tus vehículos.' }
                         );
                     break;
                 case 'invest':
                     newEmbed.setTitle('📈 Inversiones & Bolsa')
                         .addFields(
-                            { name: '`/bolsa precios`', value: 'Ver precios de acciones/crypto.' },
-                            { name: '`/bolsa comprar`', value: 'Invertir en activos.' },
-                            { name: '`/bolsa vender`', value: 'Vender activos.' },
-                            { name: '`/bolsa portafolio`', value: 'Ver tus rendimientos.' },
-                            { name: '`/inversion nueva`', value: 'Abrir plazo fijo (CDT).' }
+                            { name: '`/bolsa ver`', value: 'Ver precios actuales de acciones.' },
+                            { name: '`/bolsa comprar/vender`', value: 'Operar en el mercado de valores.' },
+                            { name: '`/inversion`', value: 'Plazos fijos con rendimiento garantizado.' },
+                            { name: '`/stake`', value: 'Bloquear ahorros para ganar intereses pasivos.' },
+                            { name: '`/divisa`', value: 'Cambio de moneda (USD/MXN).' }
                         );
                     break;
                 case 'casino':
-                    newEmbed.setTitle('🎰 Casino Nación MX')
-                        .setDescription('¡Apuesta y gana! La casa (casi) nunca pierde.')
+                    newEmbed.setTitle('🎰 Casino & Diversión')
                         .addFields(
-                            { name: '`/casino fichas comprar`', value: 'Comprar fichas (1 ficha = $1).' },
-                            { name: '`/casino fichas retirar`', value: 'Cambiar fichas por dinero.' },
-                            { name: '`/jugar slots`', value: 'Tragamonedas clásica.' },
-                            { name: '`/jugar dados`', value: 'Adivina suma (Mayor/Menor).' },
-                            { name: '`/jugar ruleta`', value: 'Ruleta (Rojo/Negro/Número).' },
-                            { name: '`/jugar crash`', value: '¡Sal antes de que explote!' },
-                            { name: '`/jugar caballos`', value: 'Carreras.' },
-                            { name: '`/jugar gallos`', value: 'Pelea de gallos.' },
-                            { name: '`/jugar rusa`', value: 'Ruleta Rusa (Peligroso).' }
+                            { name: '`/casino ruleta/blackjack`', value: 'Juegos de mesa clásicos.' },
+                            { name: '`/slots`', value: 'Máquina tragamonedas con jackpot.' },
+                            { name: '`/crimen`', value: 'Actividades de alto riesgo por dinero.' },
+                            { name: '`/trabajar`', value: 'Realizar mini-trabajos legales rápidos.' },
+                            { name: '`/robar`', value: 'Intentar sustraer dinero de otro ciudadano.' }
                         );
                     break;
                 case 'police':
-                    newEmbed.setTitle('👮 Legal & Policial')
+                    newEmbed.setTitle('👮 Legal & Ciudadanía')
                         .addFields(
-                            { name: '`/fichar`', value: 'Buscar antecedentes penales (Policía).' },
-                            { name: '`/multa`', value: 'Imponer multa (Policía/Juez).' },
-                            { name: '`/impuestos pagar`', value: 'Pagar impuestos pendientes.' },
-                            { name: '`/licencia registrar`', value: 'Registrar licencia de conducir.' }
+                            { name: '`/dni`', value: 'Ver o crear tu Documento de Identidad.' },
+                            { name: '`/visa solicitar`', value: 'Pedir permiso de residencia en EE.UU.' },
+                            { name: '`/american-id`', value: 'Identificación si ya tienes el rol americano.' },
+                            { name: '`/multar`', value: 'Sancionas viales y legales (Solo Policía).' },
+                            { name: '`/arrestar`', value: 'Proceso de detención oficial (Solo Policía).' },
+                            { name: '`/registrar-coche`', value: 'Dar de alta un vehículo en el censo.' }
                         );
                     break;
                 case 'utils':
-                    newEmbed.setTitle('⚙️ Utilidades')
+                    newEmbed.setTitle('⚙️ Progreso & Social')
                         .addFields(
-                            { name: '`/balanza`', value: 'Resumen financiero total (Net Worth).' },
-                            { name: '`/notificaciones`', value: 'Activar/desactivar DMs del banco.' },
-                            { name: '`/ping`', value: 'Ver latencia del bot.' },
-                            { name: '`/rol`', value: 'Asignarse roles de trabajo.' }
+                            { name: '`/nivel` / `/logros`', value: 'Ver tu rango y retos completados.' },
+                            { name: '`/misiones`', value: 'Tareas diarias con recompensas.' },
+                            { name: '`/verificar`', value: 'Vincular cuenta con Roblox.' },
+                            { name: '`/apelacion`', value: 'Solicitar revisión de una sanción activa.' },
+                            { name: '`/status` / `/ping`', value: 'Estado del sistema.' }
                         );
                     break;
             }

@@ -50,7 +50,7 @@ module.exports = {
             const member = await interaction.guild.members.fetch(targetUser.id);
 
             // **PARALLEL DATA FETCHING** - All queries run simultaneously
-            const [creditCard, licenses, sanctions, passes, dni, vehicleCount, activeArrest] = await Promise.all([
+            const [creditCard, licenses, sanctions, passes, dni, vehicleCount, activeArrest, americanId] = await Promise.all([
                 // Fetch Credit Card
                 (async () => {
                     try {
@@ -261,6 +261,21 @@ module.exports = {
                         console.error('[perfil] Failed to fetch arrests:', e.message);
                         return null;
                     }
+                })(),
+
+                // Fetch American ID
+                (async () => {
+                    try {
+                        const { data } = await supabase
+                            .from('american_id')
+                            .select('*')
+                            .eq('guild_id', interaction.guildId)
+                            .eq('user_id', targetUser.id)
+                            .maybeSingle();
+                        return data;
+                    } catch (e) {
+                        return null;
+                    }
                 })()
             ]);
 
@@ -287,10 +302,18 @@ module.exports = {
                 : '✅ Libre';
 
             embed.addFields({
-                name: '🆔 Identidad',
+                name: '🆔 Identidad (México)',
                 value: `**Nombre:** ${fullName}\n**Nacimiento:** ${birthDate}\n**Estado Legal:** ${arrestStatus}`,
                 inline: false
             });
+
+            if (americanId) {
+                embed.addFields({
+                    name: '🇺🇸 Identidad (USA)',
+                    value: `**Nombre:** ${americanId.first_name} ${americanId.last_name}\n**Nivel:** ${americanId.gender} (${americanId.age} años)\n**Estado:** ${americanId.state || 'N/A'}`,
+                    inline: false
+                });
+            }
 
             // 2. Assets Section
             embed.addFields({

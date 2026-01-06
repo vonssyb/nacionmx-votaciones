@@ -92,7 +92,7 @@ module.exports = {
             }
 
             // Start Shift
-            client.erlcShifts.set(profile.roblox_id, {
+            client.erlcShifts.set(player.Id.toString(), {
                 startTime: Date.now(),
                 discordId: discordId,
                 name: player.Player
