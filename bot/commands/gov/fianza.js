@@ -25,9 +25,7 @@ module.exports = {
             const isArrested = member.roles.cache.has(ARRESTED_ROLE_ID);
 
             if (!isArrested) {
-                return interaction.editReply('✅ No estás
-
- arrestado actualmente.');
+                return interaction.editReply('✅ No estás arrestado actualmente.');
             }
 
             // Get active arrest
