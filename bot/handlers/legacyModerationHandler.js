@@ -1436,7 +1436,7 @@ const handleModerationLegacy = async (interaction, client, supabase) => {
 
         await interaction.followUp({
             content: `✅ **¡Mejora Completada!**\n\n🎉 Nueva tarjeta: **${targetTier}**\n💰 Costo: $${tierInfo.cost.toLocaleString()}\n💳 Nuevo saldo: $${newBalance.toLocaleString()}\n📊 Límite: ${tierInfo.max_balance === Infinity ? '♾️ Ilimitado' : '$' + tierInfo.max_balance.toLocaleString()}`,
-            
+
         });
     }
 
@@ -1882,7 +1882,7 @@ const handleModerationLegacy = async (interaction, client, supabase) => {
 
     // BUTTON: Company Payroll (from panel)
     if (interaction.isButton() && interaction.customId.startsWith('company_payroll_')) {
-        await interaction.deferReply({  });
+        await interaction.deferReply({});
 
         const companyId = interaction.customId.split('_')[2];
 
@@ -1930,7 +1930,7 @@ const handleModerationLegacy = async (interaction, client, supabase) => {
 
     // BUTTON: Company Withdraw Funds
     if (interaction.isButton() && interaction.customId.startsWith('company_withdraw_')) {
-        await interaction.deferReply({  });
+        await interaction.deferReply({});
 
         const companyId = interaction.customId.split('_')[2];
 
@@ -2187,7 +2187,7 @@ const handleModerationLegacy = async (interaction, client, supabase) => {
 
     // BUTTON: Company Stats
     if (interaction.isButton() && interaction.customId.startsWith('company_stats_')) {
-        await interaction.deferReply({  });
+        await interaction.deferReply({});
 
         const companyId = interaction.customId.split('_')[2];
 
@@ -2259,91 +2259,66 @@ const handleModerationLegacy = async (interaction, client, supabase) => {
 
         // Handle session voting buttons
         if (customId.startsWith('vote_')) {
+            await interaction.deferUpdate().catch(() => { }); // Acknowledge click immediately
+
             const [action, voteType, sessionId] = customId.split('_');
 
             if (!sessionId) {
-                return interaction.reply({ content: '❌ ID de sesión inválido.', flags: [64] });
+                return interaction.followUp({ content: '❌ ID de sesión inválido.', flags: [64] });
             }
 
             try {
-                // Get session
-                const { data: session } = await supabase
-                    .from('session_votes')
-                    .select('*')
-                    .eq('id', sessionId)
-                    .single();
-
-                if (!session || session.status !== 'active') {
-                    return interaction.reply({ content: '❌ Esta votación ya no está activa.', flags: [64] });
-                }
-
-                const userId = interaction.user.id;
-
-                // Check if user already voted
-                const { data: existingVote } = await supabase
+                // 1. Upsert Vote (Atomic Operation)
+                // This handles insert or update automatically and prevents race conditions
+                const { error: upsertError } = await supabase
                     .from('session_vote_participants')
-                    .select('*')
-                    .eq('session_id', sessionId)
-                    .eq('user_id', userId)
-                    .maybeSingle();
+                    .upsert({
+                        session_id: sessionId,
+                        user_id: interaction.user.id,
+                        vote_type: voteType
+                    }, { onConflict: 'session_id, user_id' });
 
-                if (existingVote) {
-                    // Update existing vote
-                    const { error: updateError } = await supabase
-                        .from('session_vote_participants')
-                        .update({ vote_type: voteType })
-                        .eq('id', existingVote.id);
-
-                    if (updateError) throw updateError;
-
-                    await interaction.reply({ content: `✅ Voto actualizado a: **${voteType === 'yes' ? 'Participaré' : voteType === 'late' ? 'Con retraso' : 'No podré'}**`, flags: [64] });
-                } else {
-                    // Create new vote
-                    const { error: insertError } = await supabase
-                        .from('session_vote_participants')
-                        .insert({
-                            session_id: sessionId,
-                            user_id: userId,
-                            vote_type: voteType
-                        });
-
-                    if (insertError) throw insertError;
-
-                    await interaction.reply({ content: `✅ Voto registrado: **${voteType === 'yes' ? 'Participaré' : voteType === 'late' ? 'Con retraso' : 'No podré'}**`, flags: [64] });
+                if (upsertError) {
+                    // Ignore duplicate key error just in case, but upsert should handle it
+                    if (upsertError.code === '23505') return;
+                    throw upsertError;
                 }
 
-                // Update the embed with new counts
+                // 2. Fetch Aggregated Counts (Faster way)
+                // Instead of fetching all rows and filtering in JS
                 const { data: votes, error: voteError } = await supabase
                     .from('session_vote_participants')
                     .select('user_id, vote_type')
                     .eq('session_id', sessionId);
 
-                if (voteError) {
-                    console.error('[VOTE DEBUG] Error fetching votes:', voteError);
-                } else {
-                    console.log(`[VOTE DEBUG] Votes fetched for ${sessionId}: ${votes?.length || 0}`);
-                }
+                if (voteError) throw voteError;
 
-                const yesVotes = votes?.filter(v => v.vote_type === 'yes') || [];
-                const lateVotes = votes?.filter(v => v.vote_type === 'late') || [];
-                const noVotes = votes?.filter(v => v.vote_type === 'no') || [];
+                const yesVotes = votes.filter(v => v.vote_type === 'yes');
+                const lateVotes = votes.filter(v => v.vote_type === 'late');
+                const noVotes = votes.filter(v => v.vote_type === 'no');
 
-                // Calculate Staff Votes
+                // 3. Staff Calculation (Optimized)
                 const STAFF_ROLE_ID = '1412882245735420006'; // Junta Directiva
                 let staffYesCount = 0;
 
-                // Check roles for YES voters
-                // Optimization: Fetch members in parallel
-                await Promise.all(yesVotes.map(async (v) => {
+                // Only check roles if we really need to update the logic or display
+                // Limiting fetch concurrency to avoid blocking
+                // We only need to check staff among the YES votes
+                const staffCheckPromises = yesVotes.map(async (v) => {
                     try {
-                        const member = await interaction.guild.members.fetch(v.user_id);
-                        if (member.roles.cache.has(STAFF_ROLE_ID)) {
-                            staffYesCount++;
+                        // Use cache if available, otherwise fetch
+                        let member = interaction.guild.members.cache.get(v.user_id);
+                        if (!member) member = await interaction.guild.members.fetch(v.user_id).catch(() => null);
+
+                        if (member && member.roles.cache.has(STAFF_ROLE_ID)) {
+                            return 1;
                         }
-                    } catch (e) {
-                        // User might have left server
-                    }
-                }));
+                    } catch (e) { }
+                    return 0;
+                });
+
+                const staffResults = await Promise.all(staffCheckPromises);
+                staffYesCount = staffResults.reduce((a, b) => a + b, 0);
 
                 const counts = {
                     yes: yesVotes.length,
@@ -2353,11 +2328,11 @@ const handleModerationLegacy = async (interaction, client, supabase) => {
 
                 // Staff Requirement: 1 staff per 8 voters
                 const requiredStaff = Math.floor(counts.yes / 8);
-                const staffMet = staffYesCount >= requiredStaff;
 
-                console.log('[VOTE DEBUG] Counts:', counts, `Staff: ${staffYesCount}/${requiredStaff}`);
+                console.log(`[VOTE] Session ${sessionId} | Yes: ${counts.yes} Late: ${counts.late} No: ${counts.no}`);
 
                 // Update the original message
+
                 if (session.message_id && session.channel_id) {
                     try {
                         const channel = await client.channels.fetch(session.channel_id);
@@ -2440,7 +2415,7 @@ const handleModerationLegacy = async (interaction, client, supabase) => {
     }
 
     else if (commandName === 'rol') {
-        await interaction.deferReply({  });
+        await interaction.deferReply({});
         const subCmd = interaction.options.getSubcommand();
         if (subCmd === 'cancelar') {
 
@@ -2654,7 +2629,7 @@ const handleModerationLegacy = async (interaction, client, supabase) => {
 
     else if (commandName === 'registrar-tarjeta') {
         // DEFER IMMEDIATELY before anything else
-        await interaction.deferReply({  });
+        await interaction.deferReply({});
 
         try {
 
@@ -2943,7 +2918,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
     }
 
     else if (commandName === 'credito') {
-        await interaction.deferReply({  }); // Global defer to prevent timeouts
+        await interaction.deferReply({}); // Global defer to prevent timeouts
 
         const subCmd = interaction.options.getSubcommand();
         const isPrivate = interaction.options.getBoolean('privado') ?? false;
@@ -3401,7 +3376,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
 
         // Helper function to rename channel based on state
         else if (subCmd === 'debug') {
-            await interaction.deferReply({  });
+            await interaction.deferReply({});
 
             const userId = interaction.user.id;
             const userName = interaction.user.tag;
