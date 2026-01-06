@@ -159,6 +159,32 @@ module.exports = {
                 console.error('[arrestar] Error adding role:', error);
             }
 
+            // 7.5. Kick from ERLC if online
+            try {
+                // Get citizen/roblox ID
+                const { data: citizen } = await supabase
+                    .from('citizens')
+                    .select('roblox_id, roblox_username')
+                    .eq('discord_id', targetUser.id)
+                    .maybeSingle();
+
+                if (citizen && citizen.roblox_id) {
+                    // Initialize ERLC service if available
+                    const ErlcService = require('../../services/ErlcService');
+                    const erlcKey = process.env.ERLC_API_KEY;
+
+                    if (erlcKey) {
+                        const erlcService = new ErlcService(erlcKey);
+                        const kickCommand = `:kick ${citizen.roblox_username} Arrestado - No puedes estar en el servidor durante tu arresto`;
+                        await erlcService.runCommand(kickCommand);
+                        console.log(`[arrestar] Kicked ${citizen.roblox_username} from ERLC`);
+                    }
+                }
+            } catch (erlcError) {
+                console.error('[arrestar] ERLC kick error:', erlcError);
+                // Don't fail arrest if ERLC kick fails
+            }
+
             // 8. Calculate release time
             const releaseTime = moment().add(finalTime, 'minutes');
 
