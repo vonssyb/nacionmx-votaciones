@@ -777,6 +777,72 @@ const ErlcService = require('./services/ErlcService');
 const ERLC_API_KEY = 'ARuRfmzZGTqbqUCjMERA-dzEeGLbRfisfjKtiCOXLHATXDedYZsQQEethQMZp';
 client.services.erlc = new ErlcService(ERLC_API_KEY);
 client.erlcPendingKicks = new Map(); // { "PlayerName": { time, reason } }
+
+// --- GUILD MEMBER ADD: Kick Arrested Users ---
+client.on('guildMemberAdd', async (member) => {
+    const ARRESTED_ROLE_ID = '1413540729623679056';
+
+    try {
+        // Check if user has active arrest in database
+        const { data: arrest } = await supabase
+            .from('arrests')
+            .select('*')
+            .eq('user_id', member.id)
+            .gte('release_time', new Date().toISOString())
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+        if (arrest) {
+            // User has active arrest
+            const remainingTime = Math.round((new Date(arrest.release_time) - new Date()) / 60000);
+
+            // Send DM first
+            try {
+                const dmEmbed = new EmbedBuilder()
+                    .setTitle('🚫 ACCESO DENEGADO')
+                    .setColor('#E74C3C')
+                    .setDescription(
+                        '**No puedes unirte al servidor mientras estás arrestado.**\n\n' +
+                        `⏰ **Tiempo restante:** ${remainingTime} minutos\n` +
+                        `📜 **Artículos:** ${arrest.articles}\n` +
+                        `📅 **Liberación:** ${new Date(arrest.release_time).toLocaleString('es-MX')}\n\n` +
+                        '💡 **Opciones:**\n' +
+                        `• Pagar fianza: Usa \`/fianza calcular\` cuando vuelvas\n` +
+                        `• Esperar tu liberación automática`
+                    )
+                    .setFooter({ text: 'Serás expulsado automáticamente del servidor' })
+                    .setTimestamp();
+
+                await member.send({ embeds: [dmEmbed] });
+            } catch (dmError) {
+                console.log('[Arrested Join] Could not DM user:', dmError.message);
+            }
+
+            // Wait 3 seconds to ensure DM is sent
+            await new Promise(resolve => setTimeout(resolve, 3000));
+
+            // Kick from Discord
+            await member.kick('Arrestado - No puede estar en el servidor durante su arresto');
+            console.log(`[Arrested Join] Kicked ${member.user.tag} (${member.id}) - Active arrest`);
+
+            // Log to audit
+            await client.logAudit(
+                'Usuario Arrestado Expulsado',
+                `Usuario: <@${member.id}> intentó unirse al servidor mientras está arrestado.\n` +
+                `Tiempo restante: ${remainingTime} minutos\n` +
+                `Artículos: ${arrest.articles}`,
+                client.user,
+                member.user,
+                0xFF0000
+            );
+        }
+    } catch (error) {
+        console.error('[Arrested Join Check] Error:', error);
+    }
+});
+
+// --- ERLC SHIFTS MANAGEMENT ---
 client.erlcShifts = new Map(); // { "RobloxID": { startTime, discordId, name } }
 
 // Load active shifts from disk
