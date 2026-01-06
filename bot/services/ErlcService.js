@@ -13,6 +13,7 @@ class ErlcService {
      */
     async getServerInfo() {
         try {
+            // 1. Get Server Status
             const response = await fetch(`${this.apiUrl}/server`, {
                 headers: { 'Server-Key': this.apiKey }
             });
@@ -25,7 +26,38 @@ class ErlcService {
                 throw new Error(`API Error: ${response.status} ${response.statusText}`);
             }
 
-            return await response.json();
+            const data = await response.json();
+
+            // 2. Get Players
+            const pResponse = await fetch(`${this.apiUrl}/server/players`, {
+                headers: { 'Server-Key': this.apiKey }
+            });
+
+            if (pResponse.ok) {
+                const playersRaw = await pResponse.json();
+
+                // Parse "Player: Name:ID" format
+                data.Players = playersRaw.map(p => {
+                    let name = p.Player;
+                    let id = 0;
+
+                    if (p.Player && p.Player.includes(':')) {
+                        const parts = p.Player.split(':');
+                        id = parts.pop(); // Last part is ID
+                        name = parts.join(':'); // Rest is Name
+                    }
+
+                    return {
+                        ...p,
+                        Player: name,
+                        Id: id
+                    };
+                });
+            } else {
+                data.Players = [];
+            }
+
+            return data;
         } catch (error) {
             console.error('[ErlcService] Error fetching server info:', error.message);
             return null;
