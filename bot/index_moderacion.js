@@ -800,6 +800,78 @@ const saveShifts = () => {
 const LOG_POLICIA = '1457892493310951444';
 const MOD_ROLE_ID = '1457892493310951444'; // Updated Mod Role
 
+// --- MESSAGE LISTENER: Auto-Kick Arrested Users ---
+client.on('messageCreate', async (message) => {
+    // Ignore bots and DMs
+    if (message.author.bot || !message.guild) return;
+
+    const ARRESTED_ROLE_ID = '1413540729623679056';
+    const RP_CHANNELS = [
+        '1398888778064978012', // canal-rp-1
+        '1398888817466675220', // canal-rp-2  
+        '1398888822755799182', // canal-rp-3
+        '1398888832498556998'  // canal-rp-4
+        // Agrega más IDs de canales RP según necesites
+    ];
+
+    // Check if user has arrested role
+    const member = message.member;
+    if (!member || !member.roles.cache.has(ARRESTED_ROLE_ID)) return;
+
+    // Check if message is in RP channel
+    if (!RP_CHANNELS.includes(message.channel.id)) return;
+
+    try {
+        // Delete the message
+        await message.delete().catch(() => { });
+
+        // Send warning
+        const warningMsg = await message.channel.send(
+            `⚠️ <@${message.author.id}> **ADVERTENCIA:** Estás arrestado y NO puedes hacer roleplay.\n\n` +
+            `Si continúas intentando rolear, serás expulsado del servidor automáticamente.`
+        );
+
+        // Delete warning after 10 seconds
+        setTimeout(() => warningMsg.delete().catch(() => { }), 10000);
+
+        // Check if user has been warned before (using a Map in memory)
+        if (!client.arrestWarnings) client.arrestWarnings = new Map();
+
+        const warnings = client.arrestWarnings.get(message.author.id) || 0;
+
+        if (warnings >= 2) {
+            // Third strike: KICK
+            await member.kick('Intento de roleplay durante arresto (3 advertencias)');
+
+            // Log to audit channel
+            await client.logAudit(
+                'Usuario Expulsado - Arresto',
+                `Usuario: <@${message.author.id}> fue expulsado por intentar hacer roleplay mientras estaba arrestado (3 advertencias).`,
+                client.user,
+                message.author,
+                0xFF0000
+            );
+
+            // Clear warnings
+            client.arrestWarnings.delete(message.author.id);
+        } else {
+            // Increment warnings
+            client.arrestWarnings.set(message.author.id, warnings + 1);
+
+            // Clear warning counter after 10 minutes
+            setTimeout(() => {
+                const current = client.arrestWarnings.get(message.author.id);
+                if (current && current > 0) {
+                    client.arrestWarnings.set(message.author.id, current - 1);
+                }
+            }, 600000); // 10 min
+        }
+
+    } catch (error) {
+        console.error('[Arrested RP Check] Error:', error);
+    }
+});
+
 setInterval(async () => {
     try {
         // Save shifts periodically (in case of manual changes via command)
