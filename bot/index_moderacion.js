@@ -1325,7 +1325,7 @@ setInterval(async () => {
     } catch (err) {
         // console.error('[ERLC Cron] Error:', err.message);
     }
-}, 30000); // Reduce interval to 30s to be more responsive for enforcement (60s wait is fine)
+}, 10000); // 10 seconds - Near real-time ERLC logs
 
 // LOGIN
 client.login(DISCORD_TOKEN);
