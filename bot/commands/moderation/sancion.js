@@ -548,6 +548,24 @@ module.exports = {
                                     } else if (accion === 'Ban Temporal ERLC') {
                                         const hours = durationMs ? Math.ceil(durationMs / (1000 * 60 * 60)) : 24;
                                         erlcCommand = `:ban ${robloxIdentifier} ${hours} ${motivo.substring(0, 50)}`;
+
+                                        // Save to DB for auto-unban
+                                        const expiresAt = new Date(Date.now() + durationMs);
+                                        await interaction.client.supabase
+                                            .from('temporary_bans')
+                                            .insert({
+                                                guild_id: interaction.guildId,
+                                                user_id: targetUser.id,
+                                                user_tag: targetUser.tag,
+                                                banned_by: interaction.user.id,
+                                                banned_by_tag: interaction.user.tag,
+                                                ban_type: 'erlc',
+                                                reason: motivo,
+                                                duration_minutes: Math.ceil(durationMs / 60000),
+                                                expires_at: expiresAt.toISOString(),
+                                                roblox_id: robloxIdentifier.match(/^\d+$/) ? robloxIdentifier : null,
+                                                roblox_username: !robloxIdentifier.match(/^\d+$/) ? robloxIdentifier : null
+                                            });
                                     } else if (accion === 'Ban Permanente ERLC') {
                                         erlcCommand = `:ban ${robloxIdentifier} 999999 ${motivo.substring(0, 50)}`;
                                     }
@@ -556,7 +574,12 @@ module.exports = {
                                     const result = await erlcService.runCommand(erlcCommand);
 
                                     if (result) {
-                                        actionResult = `\n🎮 **Acción ejecutada en ERLC** (${robloxIdentifier})`;
+                                        if (accion === 'Ban Temporal ERLC') {
+                                            const expiresAt = new Date(Date.now() + durationMs);
+                                            actionResult = `\n🎮 **Ban Temporal ejecutado en ERLC** (${robloxIdentifier} por ${durationText})\n✅ **Auto-Unban:** Se desbaneará automáticamente ${expiresAt.toLocaleString('es-MX', { timeZone: 'America/Mexico_City' })}`;
+                                        } else {
+                                            actionResult = `\n🎮 **Acción ejecutada en ERLC** (${robloxIdentifier})`;
+                                        }
                                     } else {
                                         actionResult = `\n⚠️ Error al ejecutar comando ERLC`;
                                     }
