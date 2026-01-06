@@ -127,7 +127,6 @@ module.exports = {
                 updates.fecha_nacimiento = `${birthYear}-01-01`;
             }
             if (interaction.options.getString('genero')) updates.genero = interaction.options.getString('genero');
-            if (interaction.options.getString('genero')) updates.genero = interaction.options.getString('genero');
 
             if (Object.keys(updates).length === 0) {
                 return interaction.editReply('❌ Debes especificar al menos un campo para editar.');
