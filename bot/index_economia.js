@@ -79,7 +79,7 @@ client.services = {
 
 // --- EVENTS ---
 
-client.once('clientReady', async () => {
+client.once('ready', async () => {
     console.log(`🤖 ECONOMY BOT Started as ${client.user.tag}!`);
     console.log('💰 Economy Systems Online.');
 

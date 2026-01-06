@@ -104,7 +104,7 @@ async function uploadToSupabase(fileUrl, filename) {
 
 // --- EVENTS ---
 
-client.once('clientReady', async () => {
+client.once('ready', async () => {
     // Generate unique startup ID to detect multiple instances
     const startupId = Math.random().toString(36).substring(7);
     console.log(`🤖 MODERATION BOT Started as ${client.user.tag}!`);
