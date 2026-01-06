@@ -7144,6 +7144,12 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
 
                 collector.on('collect', async i => {
                     try {
+                        // Prevent double-click processing
+                        if (i.replied || i.deferred) {
+                            console.log('[bolsa comprar] Interaction already processed, skipping');
+                            return;
+                        }
+
                         await i.deferUpdate();
                         const method = i.customId.replace('stock_buy_', '');
 
