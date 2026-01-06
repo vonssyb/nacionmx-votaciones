@@ -452,43 +452,6 @@ module.exports = {
                                 }
                             }
                         }
-
-                        // 2. ERLC GAME SANCTIONS (Real Execution)
-                        else if (accion === 'Kick ERLC' || accion === 'Ban Permanente ERLC' || accion === 'Ban Temporal ERLC') {
-                            // 1. Resolve Roblox User
-                            const { data: erlcProfile } = await interaction.client.supabase
-                                .from('citizens')
-                                .select('roblox_username')
-                                .eq('discord_id', targetUser.id)
-                                .maybeSingle();
-
-                            if (erlcProfile && erlcProfile.roblox_username) {
-                                const targetName = erlcProfile.roblox_username;
-                                let cmd = '';
-                                let typeLabel = '';
-
-                                if (accion === 'Kick ERLC') {
-                                    cmd = `:kick ${targetName} ${motivo}`;
-                                    typeLabel = 'Kick';
-                                } else if (accion === 'Ban Permanente ERLC') {
-                                    cmd = `:ban ${targetName} ${motivo}`;
-                                    typeLabel = 'Ban Permanente';
-                                } else if (accion === 'Ban Temporal ERLC') {
-                                    // Note: API only supports :ban usually. We use :ban and logs indicate duration.
-                                    cmd = `:ban ${targetName} ${motivo} (${durationText})`;
-                                    typeLabel = `Ban Temporal (${durationText})`;
-                                }
-
-                                const success = await interaction.client.services.erlc.runCommand(cmd);
-                                if (success) {
-                                    actionResult = `\n✅ **Sanción ERLC Ejecutada:** Se envió \`:${typeLabel}\` para **${targetName}**.`;
-                                } else {
-                                    actionResult = `\n⚠️ **Error ERLC:** Falló el comando \`:${typeLabel}\` (¿Servidor offline o API error?).`;
-                                }
-                            } else {
-                                actionResult = `\n⚠️ **No Ejecutado en ERLC:** El usuario no tiene Roblox vinculado en la base de datos.\n💡 **Solución:** Vuelve a usar el comando agregando:\n• \`roblox_user_erlc: Username\` o\n• \`roblox_id_erlc: 123456789\``;
-                            }
-                        }
                         // 3. TIMEOUT / MUTE LOGIC
                         else if (accion === 'Timeout') {
                             if (member.moderatable) {
