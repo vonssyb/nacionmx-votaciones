@@ -44,7 +44,7 @@ client.services = {
 };
 
 // --- EVENTS ---
-client.once('clientReady', async () => {
+client.once('ready', async () => {
     console.log(`🤖 GOVERNMENT BOT Started as ${client.user.tag}!`);
     console.log('🏛️ Government & Citizenship Systems Online.');
 
