@@ -832,10 +832,23 @@ setInterval(async () => {
         }
         // --- AUTOMATED LOGS POLLING ---
         if (!client.erlcLogState) {
-            client.erlcLogState = { lastKill: 0, lastCommand: 0, lastJoin: 0 };
+            client.erlcLogState = {
+                lastKill: 0,
+                lastCommand: 0,
+                lastJoin: 0,
+                processedKills: new Set(),
+                processedCommands: new Set(),
+                processedJoins: new Set()
+            };
             const logStatePath = path.join(__dirname, 'data/erlc_log_state.json');
             if (fs.existsSync(logStatePath)) {
-                try { client.erlcLogState = JSON.parse(fs.readFileSync(logStatePath)); } catch (e) { }
+                try {
+                    const saved = JSON.parse(fs.readFileSync(logStatePath));
+                    client.erlcLogState.lastKill = saved.lastKill || 0;
+                    client.erlcLogState.lastCommand = saved.lastCommand || 0;
+                    client.erlcLogState.lastJoin = saved.lastJoin || 0;
+                    // Sets don't persist, will be rebuilt on startup
+                } catch (e) { }
             }
         }
 
@@ -848,13 +861,27 @@ setInterval(async () => {
             if (newKills.length > 0) {
                 console.log(`[ERLC-LOGS] Processing ${newKills.length} new kill logs`);
                 for (const k of newKills) {
+                    // Create unique ID to prevent duplicates
+                    const logId = `${k.Timestamp}_${k.Killer}_${k.Killed}`;
+                    if (client.erlcLogState.processedKills.has(logId)) {
+                        console.log(`[ERLC-LOGS] Skipping duplicate kill: ${logId}`);
+                        continue;
+                    }
+
                     const embed = new EmbedBuilder()
                         .setTitle('☠️ Kill Log')
                         .setColor(0x8B0000)
                         .setDescription(`**${k.Killer}** mató a **${k.Killed}**`)
                         .setTimestamp(k.Timestamp * 1000);
                     await logChannel.send({ embeds: [embed] });
+                    client.erlcLogState.processedKills.add(logId);
                     client.erlcLogState.lastKill = Math.max(client.erlcLogState.lastKill, k.Timestamp);
+                }
+
+                // Clean old entries from Set (keep last 100)
+                if (client.erlcLogState.processedKills.size > 100) {
+                    const entries = Array.from(client.erlcLogState.processedKills);
+                    client.erlcLogState.processedKills = new Set(entries.slice(-100));
                 }
             }
 
@@ -865,13 +892,25 @@ setInterval(async () => {
             if (newCmds.length > 0) {
                 console.log(`[ERLC-LOGS] Processing ${newCmds.length} new command logs`);
                 for (const c of newCmds) {
+                    const logId = `${c.Timestamp}_${c.Player}_${c.Command}`;
+                    if (client.erlcLogState.processedCommands.has(logId)) {
+                        console.log(`[ERLC-LOGS] Skipping duplicate command: ${logId}`);
+                        continue;
+                    }
+
                     const embed = new EmbedBuilder()
                         .setTitle('⌨️ Command Log')
                         .setColor(0x00AAFF)
                         .setDescription(`**${c.Player}** usó \`${c.Command}\``)
                         .setTimestamp(c.Timestamp * 1000);
                     await logChannel.send({ embeds: [embed] });
+                    client.erlcLogState.processedCommands.add(logId);
                     client.erlcLogState.lastCommand = Math.max(client.erlcLogState.lastCommand, c.Timestamp);
+                }
+
+                if (client.erlcLogState.processedCommands.size > 100) {
+                    const entries = Array.from(client.erlcLogState.processedCommands);
+                    client.erlcLogState.processedCommands = new Set(entries.slice(-100));
                 }
             }
 
@@ -882,19 +921,35 @@ setInterval(async () => {
             if (newJoins.length > 0) {
                 console.log(`[ERLC-LOGS] Processing ${newJoins.length} new join/leave logs`);
                 for (const j of newJoins) {
+                    const logId = `${j.Timestamp}_${j.Player}_${j.Join ? 'join' : 'leave'}`;
+                    if (client.erlcLogState.processedJoins.has(logId)) {
+                        console.log(`[ERLC-LOGS] Skipping duplicate join/leave: ${logId}`);
+                        continue;
+                    }
+
                     const embed = new EmbedBuilder()
                         .setTitle(j.Join ? '🟢 Entrada al Servidor' : '🔴 Salida del Servidor')
                         .setColor(j.Join ? 0x00FF00 : 0xFF0000)
                         .setDescription(`**${j.Player}**`)
                         .setTimestamp(j.Timestamp * 1000);
                     await logChannel.send({ embeds: [embed] });
+                    client.erlcLogState.processedJoins.add(logId);
                     client.erlcLogState.lastJoin = Math.max(client.erlcLogState.lastJoin, j.Timestamp);
+                }
+
+                if (client.erlcLogState.processedJoins.size > 100) {
+                    const entries = Array.from(client.erlcLogState.processedJoins);
+                    client.erlcLogState.processedJoins = new Set(entries.slice(-100));
                 }
             }
 
-            // Save State
+            // Save State (only timestamps, Sets are memory-only)
             if (newKills.length > 0 || newCmds.length > 0 || newJoins.length > 0) {
-                fs.writeFileSync(path.join(__dirname, 'data/erlc_log_state.json'), JSON.stringify(client.erlcLogState));
+                fs.writeFileSync(path.join(__dirname, 'data/erlc_log_state.json'), JSON.stringify({
+                    lastKill: client.erlcLogState.lastKill,
+                    lastCommand: client.erlcLogState.lastCommand,
+                    lastJoin: client.erlcLogState.lastJoin
+                }));
                 console.log(`[ERLC-LOGS] Saved state: kills=${client.erlcLogState.lastKill}, cmds=${client.erlcLogState.lastCommand}, joins=${client.erlcLogState.lastJoin}`);
             }
         } else {
