@@ -126,20 +126,27 @@ module.exports = {
         const isStaff = hasRole(ROLES_CONFIG.LEVEL_2_STAFF) || isAdmin;
         const isTraining = hasRole(ROLES_CONFIG.LEVEL_1_TRAINING) || isStaff;
 
-        // 1. Critical Actions Check (Blacklist, SA, Ban Perm ERLC) -> Requires Admin/Board
-        const isCriticalAction = (type === 'sa') ||
-            (accion === 'Blacklist') ||
-            (accion === 'Ban Permanente ERLC') ||
-            (accion === 'Ban Temporal ERLC'); // Ban Temporal also requires Admin
-
-        if (isCriticalAction && !isAdmin) {
+        // 1. BLACKLIST Check - Requires Board ONLY
+        if (accion === 'Blacklist' && !isBoard) {
             return interaction.reply({
-                content: '🛑 **Acceso Denegado (Nivel 3 Requerido)**\nSolo la **Administración y Junta Directiva** pueden aplicar Blacklists, SAs o Baneos (ERLC).',
+                content: '🛑 **Acceso Denegado (Nivel 4 Requerido)**\n\nSolo la **Junta Directiva y Encargados** pueden aplicar Blacklists.',
                 flags: [64]
             });
         }
 
-        // 2. High Actions Check (Kick Discord ONLY) -> Requires Staff
+        // 2. Other Critical Actions Check (SA, Ban ERLC) -> Requires Admin
+        const isCriticalAction = (type === 'sa') ||
+            (accion === 'Ban Permanente ERLC') ||
+            (accion === 'Ban Temporal ERLC');
+
+        if (isCriticalAction && !isAdmin) {
+            return interaction.reply({
+                content: '🛑 **Acceso Denegado (Nivel 3 Requerido)**\n\nSolo la **Administración y Junta Directiva** pueden aplicar SAs o Baneos (ERLC).',
+                flags: [64]
+            });
+        }
+
+        // 3. High Actions Check (Kick Discord) -> Requires Staff
         // Kick ERLC is now allowed for Training (Level 1)
         const isHighAction = (accion === 'Kick Discord');
 
