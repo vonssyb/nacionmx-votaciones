@@ -1,24 +1,55 @@
 services:
+  # 💰 Bot de Economía
   - type: web
-    name: nacionmx-bot
+    name: nacionmx-economia
     runtime: node
     plan: free
     buildCommand: cd bot && npm install
-    startCommand: node index.cjs
+    startCommand: node bot/index_economia.js
     envVars:
-      - key: NODE_ENV
-        value: production
-      - key: DISCORD_TOKEN
-        value: MTQ1MDcwMTYxNzY4NTk5MTYyMQ.GucYMS.3RnMws3Z-BXFdTx5MQvkTvD7bpTzXbd6Kf0W9A
+      - key: DISCORD_TOKEN_ECO
+        sync: false
       - key: GUILD_ID
-        value: "1398525215134318713"
-      - key: NOTIFICATION_CHANNEL_ID
-        value: "1450343644652507136"
-      - key: SUPABASE_SERVICE_ROLE_KEY
-        value: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlnamVkd2R4cXdrcGJncm10cnJxIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2NTczNDEyNCwiZXhwIjoyMDgxMzEwMTI0fQ.DI4Sp6dQu4KVrK525a-VWcdmWx0KQg_MfMrTnjP8pLA
+        sync: true
       - key: SUPABASE_URL
-        value: https://igjedwdxqwkpbgrmtrrq.supabase.co
+        sync: true
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: true
       - key: UNBELIEVABOAT_TOKEN
-        value: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhcHBfaWQiOiIxNDUwNzAyNjY0OTI0MDA2MjE4IiwiaWF0IjoxNzY1OTQ0ODY4fQ.XqHP2mRU_eVVQeVfA-uajBOakYGYFr_vFNYr4-WrJOg
-      - key: VITE_DISCORD_CLIENT_ID
-        value: "1450701617685991621"
+        sync: true
+
+  # 🏛️ Bot de Gobierno (Nuevo)
+  - type: web
+    name: nacionmx-gobierno
+    runtime: node
+    plan: free
+    buildCommand: cd bot && npm install
+    startCommand: node bot/index_gobierno.js
+    envVars:
+      - key: DISCORD_TOKEN_GOV
+        sync: false
+      - key: GUILD_ID
+        sync: true
+      - key: SUPABASE_URL
+        sync: true
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: true
+
+  # 🛡️ Bot de Moderación
+  - type: web
+    name: nacionmx-moderacion
+    runtime: node
+    plan: free
+    buildCommand: cd bot && npm install
+    startCommand: node bot/index_moderacion.js
+    envVars:
+      - key: DISCORD_TOKEN
+        sync: false
+      - key: GUILD_ID
+        sync: true
+      - key: NOTIFICATION_CHANNEL_ID
+        sync: true
+      - key: SUPABASE_URL
+        sync: true
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: true
