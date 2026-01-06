@@ -105,6 +105,26 @@ class ErlcService {
             return false;
         }
     }
+
+    /**
+     * Get Log Data (Generic)
+     */
+    async _getLogs(endpoint) {
+        try {
+            const response = await fetch(`${this.apiUrl}/server/${endpoint}`, {
+                headers: { 'Server-Key': this.apiKey }
+            });
+            if (!response.ok) return [];
+            return await response.json();
+        } catch (error) {
+            console.error(`[ErlcService] Error fetching ${endpoint}:`, error.message);
+            return [];
+        }
+    }
+
+    async getKillLogs() { return this._getLogs('killlogs'); }
+    async getCommandLogs() { return this._getLogs('commandlogs'); }
+    async getJoinLogs() { return this._getLogs('joinlogs'); }
 }
 
 module.exports = ErlcService;

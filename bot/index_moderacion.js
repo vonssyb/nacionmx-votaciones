@@ -582,7 +582,6 @@ setInterval(async () => {
                         }]
                     });
                 } catch (e) { /* DM Failed */ }
-
                 // 3. Mark as Expired in DB
                 await client.services.sanctions.expireSanction(leg.id);
             }
@@ -831,6 +830,68 @@ setInterval(async () => {
                 }
             }
         }
+        // --- AUTOMATED LOGS POLLING ---
+        if (!client.erlcLogState) {
+            client.erlcLogState = { lastKill: 0, lastCommand: 0, lastJoin: 0 };
+            const logStatePath = path.join(__dirname, 'data/erlc_log_state.json');
+            if (fs.existsSync(logStatePath)) {
+                try { client.erlcLogState = JSON.parse(fs.readFileSync(logStatePath)); } catch (e) { }
+            }
+        }
+
+        const logChannel = await client.channels.fetch(LOG_POLICIA).catch(() => null);
+        if (logChannel) {
+            // 1. Kill Logs
+            const kills = await client.services.erlc.getKillLogs();
+            let newKills = kills.filter(k => k.Timestamp > client.erlcLogState.lastKill).sort((a, b) => a.Timestamp - b.Timestamp);
+            if (newKills.length > 0) {
+                for (const k of newKills) {
+                    const embed = new EmbedBuilder()
+                        .setTitle('☠️ Kill Log')
+                        .setColor(0x8B0000)
+                        .setDescription(`**${k.Killer}** mató a **${k.Killed}**`)
+                        .setTimestamp(k.Timestamp * 1000);
+                    await logChannel.send({ embeds: [embed] });
+                    client.erlcLogState.lastKill = Math.max(client.erlcLogState.lastKill, k.Timestamp);
+                }
+            }
+
+            // 2. Command Logs
+            const cmds = await client.services.erlc.getCommandLogs();
+            let newCmds = cmds.filter(c => c.Timestamp > client.erlcLogState.lastCommand).sort((a, b) => a.Timestamp - b.Timestamp);
+            if (newCmds.length > 0) {
+                for (const c of newCmds) {
+                    const embed = new EmbedBuilder()
+                        .setTitle('⌨️ Command Log')
+                        .setColor(0x00AAFF)
+                        .setDescription(`**${c.Player}** usó \`${c.Command}\``)
+                        .setTimestamp(c.Timestamp * 1000);
+                    await logChannel.send({ embeds: [embed] });
+                    client.erlcLogState.lastCommand = Math.max(client.erlcLogState.lastCommand, c.Timestamp);
+                }
+            }
+
+            // 3. Join/Leave Logs
+            const joins = await client.services.erlc.getJoinLogs();
+            let newJoins = joins.filter(j => j.Timestamp > client.erlcLogState.lastJoin).sort((a, b) => a.Timestamp - b.Timestamp);
+            if (newJoins.length > 0) {
+                for (const j of newJoins) {
+                    const embed = new EmbedBuilder()
+                        .setTitle(j.Join ? '🟢 Entrada al Servidor' : '🔴 Salida del Servidor')
+                        .setColor(j.Join ? 0x00FF00 : 0xFF0000)
+                        .setDescription(`**${j.Player}**`)
+                        .setTimestamp(j.Timestamp * 1000);
+                    await logChannel.send({ embeds: [embed] });
+                    client.erlcLogState.lastJoin = Math.max(client.erlcLogState.lastJoin, j.Timestamp);
+                }
+            }
+
+            // Save State
+            if (newKills.length > 0 || newCmds.length > 0 || newJoins.length > 0) {
+                fs.writeFileSync(path.join(__dirname, 'data/erlc_log_state.json'), JSON.stringify(client.erlcLogState));
+            }
+        }
+
     } catch (err) {
         // console.error('[ERLC Cron] Error:', err.message);
     }
