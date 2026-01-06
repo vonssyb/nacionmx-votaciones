@@ -15,7 +15,7 @@ const commandsPath = path.join(__dirname, 'commands');
 // ALLOWED CATEGORIES FOR ECONOMY BOT
 // Corrected based on 'ls bot/commands': economy, business, games, utils
 // We keep this if you move to modules later.
-const ALLOWED_CATEGORIES = ['economy', 'business', 'games', 'utils'];
+const ALLOWED_CATEGORIES = ['economy', 'business', 'games'];
 
 // 1. DYNAMIC LOADING (Modular)
 if (fs.existsSync(commandsPath)) {

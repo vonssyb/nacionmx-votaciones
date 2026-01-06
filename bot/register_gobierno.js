@@ -14,16 +14,12 @@ if (!DISCORD_TOKEN || !GUILD_ID) {
 }
 
 const commands = [];
-const govPath = path.join(process.cwd(), 'commands/gov');
-const utilsPath = path.join(process.cwd(), 'commands/utils');
+const govPath = path.join(__dirname, 'commands/gov');
 
-const folders = [govPath, utilsPath];
-
-for (const folder of folders) {
-    if (!fs.existsSync(folder)) continue;
-    const commandFiles = fs.readdirSync(folder).filter(file => file.endsWith('.js'));
+if (fs.existsSync(govPath)) {
+    const commandFiles = fs.readdirSync(govPath).filter(file => file.endsWith('.js'));
     for (const file of commandFiles) {
-        const command = require(path.join(folder, file));
+        const command = require(path.join(govPath, file));
         if ('data' in command && 'execute' in command) {
             commands.push(command.data.toJSON());
             console.log(`✅ Loaded command: ${command.data.name}`);
