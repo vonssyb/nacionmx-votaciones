@@ -816,7 +816,7 @@ setInterval(async () => {
                             } else {
                                 // PENDING KICK: Execution
                                 const elapsed = Date.now() - pendingData.time;
-                                if (elapsed > 60000) {
+                                if (elapsed >= 60000) { // Changed from > to >= for exact 60s
                                     let kickReason = violation === 'server_closed' ? 'Servidor Cerrado' : 'Arrestado en RP';
                                     await client.services.erlc.runCommand(`:kick ${playerName} ${kickReason}`);
                                     client.erlcPendingKicks.delete(playerName);
