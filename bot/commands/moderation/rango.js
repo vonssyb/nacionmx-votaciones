@@ -375,9 +375,20 @@ module.exports = {
                         const erlcService = new ErlcService(erlcKey);
                         let cmd = '';
 
-                        if (newRankIndex === 3) cmd = `:admin ${robloxName}`; // Level 4 JD
-                        else if (newRankIndex >= 0) cmd = `:mod ${robloxName}`; // Level 1, 2, 3
-                        else cmd = `:removemod ${robloxName}`;
+                        if (newRankIndex === 3) {
+                            cmd = `:admin ${robloxName}`; // Level 4 JD
+                        } else if (newRankIndex >= 0) {
+                            cmd = `:mod ${robloxName}`; // Level 1, 2, 3
+                        } else {
+                            // Removing Staff
+                            // Check previous rank to decide removeadmin vs removemod
+                            // If they were Level 4 (Index 3), use removeadmin. Otherwise removemod.
+                            if (currentRankIndex === 3) {
+                                cmd = `:removeadmin ${robloxName}`;
+                            } else {
+                                cmd = `:removemod ${robloxName}`;
+                            }
+                        }
 
                         // Try to execute
                         try {
