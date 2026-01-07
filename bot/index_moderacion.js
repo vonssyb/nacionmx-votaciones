@@ -1511,4 +1511,29 @@ setInterval(async () => {
 }, 10000); // 10 seconds - Near real-time ERLC logs
 
 // LOGIN
-client.login(DISCORD_TOKEN);
+// --- LOGIN WITH AUTO-RECONNECT ---
+const crypto = require('crypto');
+
+async function startBot() {
+    try {
+        log('🔐 Attempting Discord login...');
+
+        // Debug Token (Safe - only first/last chars)
+        if (DISCORD_TOKEN) {
+            const part1 = DISCORD_TOKEN.substring(0, 5);
+            const part2 = DISCORD_TOKEN.substring(DISCORD_TOKEN.length - 5);
+            log(`Token Preview: ${part1}...${part2}`);
+        } else {
+            log('❌ ERROR: No DISCORD_TOKEN found!');
+        }
+
+        await client.login(DISCORD_TOKEN);
+        log('✅ Discord login successful!');
+    } catch (error) {
+        console.error('❌ CRITICAL: Discord login failed!', error);
+        log('🔄 Retrying login in 10 seconds...');
+        setTimeout(startBot, 10000);
+    }
+}
+
+startBot();
