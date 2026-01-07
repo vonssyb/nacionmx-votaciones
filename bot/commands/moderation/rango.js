@@ -286,9 +286,20 @@ module.exports = {
             // --- ERLC SYNC ---
             let erlcSyncMsg = '';
             try {
-                const { data: citizen } = await supabase.from('citizens').select('roblox_username').eq('discord_id', targetUser.id).maybeSingle();
+                let robloxName = null;
+                let source = 'db';
 
+                // 1. Try DB Link
+                const { data: citizen } = await supabase.from('citizens').select('roblox_username').eq('discord_id', targetUser.id).maybeSingle();
                 if (citizen && citizen.roblox_username) {
+                    robloxName = citizen.roblox_username;
+                } else {
+                    // 2. Fallback: Use Discord Name (Cleaned)
+                    robloxName = cleanName.replace(/[^a-zA-Z0-9_]/g, ''); // Basic sanitization for Roblox
+                    source = 'discord';
+                }
+
+                if (robloxName) {
                     const ErlcService = require('../../services/ErlcService');
                     const erlcKey = process.env.ERLC_API_KEY;
 
@@ -296,9 +307,9 @@ module.exports = {
                         const erlcService = new ErlcService(erlcKey);
                         let cmd = '';
 
-                        if (newRankIndex === 3) cmd = `:admin ${citizen.roblox_username}`; // Level 4 JD
-                        else if (newRankIndex >= 0) cmd = `:mod ${citizen.roblox_username}`; // Level 1, 2, 3
-                        else cmd = `:removemod ${citizen.roblox_username}`; // Removed or Demoted below 0
+                        if (newRankIndex === 3) cmd = `:admin ${robloxName}`; // Level 4 JD
+                        else if (newRankIndex >= 0) cmd = `:mod ${robloxName}`; // Level 1, 2, 3
+                        else cmd = `:removemod ${robloxName}`;
 
                         // Try to execute
                         try {
@@ -306,24 +317,24 @@ module.exports = {
                             if (result && result.success === false && result.status === 404) {
                                 throw new Error('Player offline'); // Trigger queue
                             }
-                            erlcSyncMsg = `\n🎮 **ERLC:** Comando \`${cmd}\` enviado.`;
+                            erlcSyncMsg = `\n🎮 **ERLC:** Comando \`${cmd}\` enviado (${source === 'db' ? 'Vinculado' : 'Desde Discord'}).`;
                         } catch (erlcErr) {
                             // Queue System
                             console.log(`[ERLC Queue] Player offline or error. Queuing command: ${cmd}`);
                             await supabase.from('pending_erlc_commands').insert({
                                 discord_id: targetUser.id,
-                                roblox_username: citizen.roblox_username,
+                                roblox_username: robloxName,
                                 command: cmd,
                                 status: 'pending'
                             });
-                            erlcSyncMsg = `\n⏳ **ERLC:** Usuario offline. Comando \`${cmd}\` encolado automáticamente.`;
+                            erlcSyncMsg = `\n⏳ **ERLC:** Cmd \`${cmd}\` encolado (${source === 'db' ? 'Vinculado' : 'Desde Discord'}).`;
                         }
 
                         const updatedEmbed = EmbedBuilder.from(embed).setDescription(embed.data.description + erlcSyncMsg);
                         await interaction.editReply({ embeds: [updatedEmbed] });
                     }
                 } else {
-                    erlcSyncMsg = '\n⚠️ **No vinculado en ERLC:** No se pudieron actualizar permisos ingame.';
+                    erlcSyncMsg = '\n⚠️ **Error ERLC:** No se pudo determinar el nombre de usuario (Ni DB ni Discord válido).';
                     const updatedEmbed = EmbedBuilder.from(embed).setDescription(embed.data.description + erlcSyncMsg);
                     await interaction.editReply({ embeds: [updatedEmbed] });
                 }
