@@ -11,7 +11,7 @@
     "bot:gob": "cd bot && node index_gobierno.js",
     "dev:all": "concurrently \"npm run bot\" \"npm run bot:mod\" \"npm run bot:eco\" \"npm run bot:gob\"",
     "dev": "vite",
-    "build": "vite build",
+    "build:web": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
     "postinstall": "cd bot && npm install"
