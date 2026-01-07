@@ -42,6 +42,7 @@ log('SanctionService Instantiated');
 
 const DailyMissionManager = require('./services/DailyMissionManager');
 const missionManager = new DailyMissionManager(supabase);
+log('DailyMissionManager Instantiated');
 
 // ----------------
 
