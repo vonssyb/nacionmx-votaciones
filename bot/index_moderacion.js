@@ -166,6 +166,33 @@ client.on('interactionCreate', async interaction => {
         // If command not found in modular registry, FALL THROUGH to legacy handler
     }
 
+    // 2. PRIORITY BUTTONS (Before Legacy Handler)
+    if (interaction.isButton()) {
+        const customId = interaction.customId;
+
+        // --- PING ROLES (AUTO-ROLES) ---
+        if (customId.startsWith('ping_role_')) {
+            await interaction.deferReply({ flags: [64] }); // Hidden reply
+
+            const roleId = customId.split('_')[2];
+            const member = interaction.member;
+            const role = interaction.guild.roles.cache.get(roleId);
+
+            if (!role) {
+                return interaction.editReply('❌ El rol configurado ya no existe.');
+            }
+
+            if (member.roles.cache.has(roleId)) {
+                await member.roles.remove(role);
+                await interaction.editReply(`🔕 **Rol Removido:** ${role.name}`);
+            } else {
+                await member.roles.add(role);
+                await interaction.editReply(`🔔 **Rol Agregado:** ${role.name}`);
+            }
+            return; // STOP EXECUTION
+        }
+    }
+
     // 2. LEGACY HANDLER FALLBACK (MODERATION)
     // Only try legacy if it IS a chat input command (and wasn't handled above) OR if we want legacy to handle other types?
     const economyCommands = ['fichar', 'tarjeta', 'credito', 'empresa', 'transferir', 'depositar', 'multa', 'nomina', 'robar', 'crimen', 'bolsa', 'casino', 'jugar', 'slots', 'giro', 'movimientos', 'notificaciones', 'top-ricos', 'top-morosos', 'balanza', 'saldo', 'stake', 'fondos', 'dar-robo', 'licencia', 'tienda', 'inversion', 'impuestos', 'registrar-tarjeta'];
