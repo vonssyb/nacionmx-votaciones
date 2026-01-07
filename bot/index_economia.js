@@ -62,20 +62,32 @@ const client = new Client({
 });
 
 // Initialize Billing Service (Needs Client)
-const billingService = new BillingService(client, supabase);
+let billingService;
+try {
+    log('Instantiating BillingService...');
+    billingService = new BillingService(client, supabase);
+    log('BillingService Instantiated');
+} catch (error) {
+    console.error('💥 FATAL ERROR Instantiating BillingService:', error);
+}
 
 // Attach Services to Client
-client.services = {
-    billing: billingService,
-    tax: taxService,
-    company: companyService,
-    staking: new StakingService(supabase),
-    slots: new SlotsService(supabase),
-    levels: levelService,
-    achievements: achievementService,
-    missions: missionService,
-    store: storeService
-};
+try {
+    client.services = {
+        billing: billingService,
+        tax: taxService,
+        company: companyService,
+        staking: new StakingService(supabase),
+        slots: new SlotsService(supabase),
+        levels: levelService,
+        achievements: achievementService,
+        missions: missionService,
+        store: storeService
+    };
+    log('Eco Bot Services Attached');
+} catch (error) {
+    console.error('💥 FATAL ERROR Attaching Services:', error);
+}
 
 // --- EVENTS ---
 
