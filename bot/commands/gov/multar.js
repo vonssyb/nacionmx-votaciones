@@ -148,6 +148,12 @@ module.exports = {
                 await logsChannel.send({ embeds: [publicEmbed] });
             }
 
+            // Report Misión Diaria
+            if (client.missionManager) {
+                // "Multa" counts as traffic stop or citation
+                await client.missionManager.reportProgress(interaction.user.id, 'traffic_stop', 1);
+            }
+
         } catch (error) {
             console.error('[multar] Error:', error);
             await interaction.editReply('❌ Error al procesar la multa. Contacta a un administrador.');

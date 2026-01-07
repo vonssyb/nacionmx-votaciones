@@ -1,11 +1,12 @@
 const MISSION_POOL = [
+const MISSION_POOL = [
     {
-        title: 'Patrullaje Preventivo',
-        description: 'Realiza un patrullaje de al menos 30 minutos.',
+        title: 'Operativo de Tránsito',
+        description: 'Realiza 3 multas de tránsito justificadas.',
         difficulty: 'easy',
         reward_money: 5000,
         reward_xp: 100,
-        requirements: { type: 'shift_minutes', count: 30 }
+        requirements: { type: 'traffic_stop', count: 3 }
     },
     {
         title: 'Operativo de Tránsito',
