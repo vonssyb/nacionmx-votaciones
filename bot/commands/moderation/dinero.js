@@ -142,5 +142,9 @@ module.exports = {
             } catch (dmError) {
                 console.log('Could not DM user:', dmError.message);
             }
+        } catch (error) {
+            console.error('[DINERO] Error:', error);
+            await interaction.editReply('❌ Error al procesar la transacción.');
         }
+    }
 };
