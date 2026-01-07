@@ -224,9 +224,16 @@ async function startGovernmentBot() {
 
     client.on('interactionCreate', async interaction => {
         if (!interaction.isChatInputCommand()) return;
+
+        // GLOBAL DEFER
+        try { await interaction.deferReply(); } catch (e) { return; }
+
         const command = client.commands.get(interaction.commandName);
         if (command) {
-            try { await command.execute(interaction, client, supabase); } catch (e) { console.error('[GOV] Command Error:', e); }
+            try { await command.execute(interaction, client, supabase); } catch (e) {
+                console.error('[GOV] Command Error:', e);
+                await interaction.editReply('❌ Error ejecutando comando.').catch(() => { });
+            }
         }
     });
 
