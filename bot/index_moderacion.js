@@ -130,7 +130,7 @@ client.on('interactionCreate', async interaction => {
         // CONFLICT FIX: Check if this command should be ignored BEFORE deferring
         // These commands are handled by Main Bot, so Mod Bot should completely ignore them
         // NOTE: config-pings is handled by Mod Bot since it's the only one running on Render
-        const SHARED_COMMANDS_TO_IGNORE = ['verificar', 'ping', 'status'];
+        const SHARED_COMMANDS_TO_IGNORE = ['ping', 'status'];
         if (SHARED_COMMANDS_TO_IGNORE.includes(interaction.commandName)) {
             console.log(`[DEBUG] Ignoring shared command in ModBot (before defer): ${interaction.commandName}`);
             return; // Exit immediately without deferring
