@@ -50,7 +50,24 @@ module.exports = {
         .addSubcommand(subcommand =>
             subcommand
                 .setName('reporte')
-                .setDescription('Ver dashboard completo de tu empresa')),
+                .setDescription('Ver dashboard completo de tu empresa'))
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('cobrar')
+                .setDescription('Realizar un cobro a un cliente')
+                .addUserOption(option =>
+                    option.setName('cliente')
+                        .setDescription('Cliente a cobrar')
+                        .setRequired(true))
+                .addIntegerOption(option =>
+                    option.setName('monto')
+                        .setDescription('Monto a cobrar')
+                        .setRequired(true)
+                        .setMinValue(1))
+                .addStringOption(option =>
+                    option.setName('concepto')
+                        .setDescription('Motivo del cobro (ej: Venta de comida)')
+                        .setRequired(true))),
 
     async execute(interaction, client, supabase) {
         await interaction.deferReply({});
@@ -58,15 +75,36 @@ module.exports = {
         const subcommand = interaction.options.getSubcommand();
 
         try {
-            // Get user's company
-            const { data: company, error: compError } = await supabase
+            // Get user's company (Owner OR Employee)
+            let company = null;
+            let employeeRecord = null;
+
+            // 1. Check Owner
+            const { data: ownerComp } = await supabase
                 .from('companies')
                 .select('*')
                 .eq('owner_id', interaction.user.id)
                 .maybeSingle();
 
+            if (ownerComp) {
+                company = ownerComp;
+            } else {
+                // 2. Check Employee
+                const { data: emp, error } = await supabase
+                    .from('company_employees')
+                    .select('*, companies(*)')
+                    .eq('discord_id', interaction.user.id)
+                    .is('fired_at', null)
+                    .maybeSingle();
+
+                if (emp && emp.companies) {
+                    employeeRecord = emp;
+                    company = emp.companies;
+                }
+            }
+
             if (!company) {
-                return interaction.editReply('❌ No tienes una empresa registrada. Usa `/empresa crear` primero (legacy handler).');
+                return interaction.editReply('❌ No tienes una empresa registrada ni eres empleado.');
             }
 
             if (subcommand === 'contratar') {
@@ -233,6 +271,50 @@ module.exports = {
                     .setTimestamp();
 
                 return interaction.editReply({ embeds: [embed] });
+            } else if (subcommand === 'cobrar') {
+                const cliente = interaction.options.getUser('cliente');
+                const monto = interaction.options.getInteger('monto');
+                const concepto = interaction.options.getString('concepto');
+
+                const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+
+                // Button ID: btn_pay_company_{companyId}_{amount}_{timestamp} (timestamp to unique)
+                // Note: keeping ID short is good. {companyId}_{amount}
+                const customId = `btn_pay_company_${company.id}_${monto}`;
+
+                const row = new ActionRowBuilder()
+                    .addComponents(
+                        new ButtonBuilder()
+                            .setCustomId(customId)
+                            .setLabel(`Pagar $${monto.toLocaleString()}`)
+                            .setStyle(ButtonStyle.Success)
+                            .setEmoji('💳'),
+                        new ButtonBuilder()
+                            .setCustomId('btn_cancel') // Generic cancel? Or specific?
+                            .setLabel('Rechazar')
+                            .setStyle(ButtonStyle.Danger)
+                    );
+
+                const embed = new EmbedBuilder()
+                    .setTitle(`🧾 Factura: ${company.name}`)
+                    .setDescription(`**${interaction.user.tag}** le ha enviado un cobro.`)
+                    .addFields(
+                        { name: '👤 Cliente', value: `<@${cliente.id}>`, inline: true },
+                        { name: '💰 Monto', value: `$${monto.toLocaleString()}`, inline: true },
+                        { name: '📝 Concepto', value: concepto, inline: false }
+                    )
+                    .setColor('#F1C40F')
+                    .setThumbnail(company.logo_url || null)
+                    .setFooter({ text: 'Pagos seguros vía Nación MX Bank' })
+                    .setTimestamp();
+
+                // Reply so everyone sees (or ephemeral? No, client must see to click. But button only works for client?)
+                // Usually we want public proof of charge.
+                await interaction.editReply({
+                    content: `<@${cliente.id}>`, // Ping client
+                    embeds: [embed],
+                    components: [row]
+                });
             }
 
         } catch (error) {
