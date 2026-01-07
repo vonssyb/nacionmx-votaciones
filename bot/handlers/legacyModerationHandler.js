@@ -2375,6 +2375,23 @@ const handleModerationLegacy = async (interaction, client, supabase) => {
                                 .update({ status: 'opened' })
                                 .eq('id', sessionId);
 
+                            // UNLOCK ERLC SERVER (config)
+                            try {
+                                const fs = require('fs');
+                                const path = require('path');
+                                const configPath = path.join(__dirname, '../../data/erlc_config.json');
+                                let config = {};
+                                if (fs.existsSync(configPath)) {
+                                    config = JSON.parse(fs.readFileSync(configPath));
+                                }
+                                config.locked = false;
+                                fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
+                                if (client.erlcPendingKicks) client.erlcPendingKicks.clear();
+                                console.log('[VOTE] Server automatically unlocked via session vote.');
+                            } catch (e) {
+                                console.error('[VOTE] Failed to unlock erlc_config:', e);
+                            }
+
                             const targetChannelId = '1412963363545284680';
                             await clearChannelMessages(client, targetChannelId);
                             await renameChannel(client, targetChannelId, '✅・servidor-abierto');
