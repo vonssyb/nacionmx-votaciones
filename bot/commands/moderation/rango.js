@@ -217,7 +217,8 @@ module.exports = {
                     .maybeSingle();
 
                 let badgeNumber = 1;
-                if (existingBadge) {
+                // Rule: ID 001 is invalid/skipped. If user has it, we trigger recalculation.
+                if (existingBadge && existingBadge.badge_number > 1) {
                     badgeNumber = existingBadge.badge_number;
                 } else {
                     // Assign new number - HYBRID APPROACH (DB + Nickname Scan)
@@ -229,21 +230,16 @@ module.exports = {
 
                     const usedNumbers = new Set(allBadges?.map(b => b.badge_number) || []);
 
-                    // 2. Scan Discord Nicknames for this Rank Type (e.g. JD-005)
-                    // This creates a "self-healing" sequence
+                    // 2. Scan Discord Nicknames for Self-Healing
                     try {
-                        // Fetch all members with this specific rank role to scan their names
-                        await interaction.guild.members.fetch(); // Ensure cache is populated
+                        await interaction.guild.members.fetch();
                         const roleMembers = interaction.guild.roles.cache.get(newRank.main_id)?.members;
 
                         if (roleMembers) {
-                            // Flexible regex to catch: JD-005, JD 005, [JD-005]
                             const badgeRegex = new RegExp(`${newRank.badge_type}[-\\s](\\d+)`, 'i');
-
                             roleMembers.forEach(m => {
                                 const nick = m.displayName;
                                 const match = nick.match(badgeRegex);
-
                                 if (match && match[1]) {
                                     const num = parseInt(match[1]);
                                     if (!isNaN(num)) usedNumbers.add(num);
@@ -251,22 +247,29 @@ module.exports = {
                             });
                         }
                     } catch (scanErr) {
-                        console.error('Error scanning nicknames for badges:', scanErr);
+                        console.error('Error scanning nicknames:', scanErr);
                     }
 
-                    // 3. Find First Available Number (Fill Gaps)
-                    // Rule: Start from 002 (001 is reserved/skipped)
+                    // 3. Find First Available Number (Start from 2)
                     badgeNumber = 2;
                     while (usedNumbers.has(badgeNumber)) {
                         badgeNumber++;
                     }
 
-                    // Save to DB
-                    await supabase.from('staff_badges').insert({
-                        discord_id: targetUser.id,
-                        badge_type: newRank.badge_type,
-                        badge_number: badgeNumber
-                    });
+                    // Save to DB (Handle Correction)
+                    if (existingBadge) {
+                        // Correcting invalid ID 1 -> Update
+                        await supabase.from('staff_badges')
+                            .update({ badge_number: badgeNumber })
+                            .eq('id', existingBadge.id);
+                    } else {
+                        // New Record -> Insert
+                        await supabase.from('staff_badges').insert({
+                            discord_id: targetUser.id,
+                            badge_type: newRank.badge_type,
+                            badge_number: badgeNumber
+                        });
+                    }
                 }
 
                 const badgeStr = `${newRank.badge_type}-${String(badgeNumber).padStart(3, '0')}`; // ST-001
