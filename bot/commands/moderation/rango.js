@@ -294,9 +294,38 @@ module.exports = {
                 if (citizen && citizen.roblox_username) {
                     robloxName = citizen.roblox_username;
                 } else {
-                    // 2. Fallback: Use Discord Name (Cleaned)
-                    robloxName = cleanName.replace(/[^a-zA-Z0-9_]/g, ''); // Basic sanitization for Roblox
-                    source = 'discord';
+                    // 2. Fallback: Auto-Discovery via Roblox API
+                    // Try to find the user on Roblox using their Clean Discord Name
+                    const cleanUser = cleanName.replace(/[^a-zA-Z0-9_]/g, '');
+
+                    try {
+                        const RobloxService = require('../../services/RobloxService');
+                        const robloxUser = await RobloxService.getIdFromUsername(cleanUser);
+
+                        if (robloxUser) {
+                            robloxName = robloxUser.name;
+                            source = 'auto_linked';
+
+                            // AUTO-LINK IN DATABASE
+                            // We found a valid Roblox User matching their Discord Name!
+                            await supabase.from('citizens').upsert({
+                                discord_id: targetUser.id,
+                                roblox_id: robloxUser.id.toString(), // Store as string if schema expects it, or int
+                                roblox_username: robloxUser.name,
+                                citizen_name: robloxUser.name // Default citizen name
+                            }, { onConflict: 'discord_id' });
+
+                            // Log this auto-link
+                            changesLog.push(`🔗 **Auto-vinculado:** ${robloxUser.name} (ID: ${robloxUser.id})`);
+                        } else {
+                            // Valid Roblox user not found, fallback to raw guess but don't save
+                            robloxName = cleanUser;
+                            source = 'guessed';
+                        }
+                    } catch (apiErr) {
+                        console.error('Roblox Lookup Failed:', apiErr);
+                        robloxName = cleanUser;
+                    }
                 }
 
                 if (robloxName) {
