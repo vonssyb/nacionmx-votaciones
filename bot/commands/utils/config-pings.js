@@ -25,7 +25,9 @@ module.exports = {
             .setColor('#2F3136')
             .setFooter({ text: 'Nación MX | Auto-Roles' });
 
-        const row = new ActionRowBuilder();
+        const rows = [];
+        let currentRow = new ActionRowBuilder();
+        let count = 0;
 
         for (const [roleId, config] of Object.entries(ROLES)) {
             let style = ButtonStyle.Secondary;
@@ -33,16 +35,26 @@ module.exports = {
             if (config.style === 'Success') style = ButtonStyle.Success;
             if (config.style === 'Danger') style = ButtonStyle.Danger;
 
-            row.addComponents(
+            currentRow.addComponents(
                 new ButtonBuilder()
                     .setCustomId(`ping_role_${roleId}`)
                     .setLabel(config.label)
                     .setEmoji(config.emoji)
                     .setStyle(style)
             );
+
+            count++;
+            if (count % 5 === 0) {
+                rows.push(currentRow);
+                currentRow = new ActionRowBuilder();
+            }
         }
 
-        await channel.send({ embeds: [embed], components: [row] });
+        if (currentRow.components.length > 0) {
+            rows.push(currentRow);
+        }
+
+        await channel.send({ embeds: [embed], components: rows });
 
         await interaction.editReply({ content: '✅ Panel de roles enviado exitosamente.' });
     }
