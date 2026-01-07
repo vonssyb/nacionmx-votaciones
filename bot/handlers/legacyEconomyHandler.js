@@ -1955,7 +1955,8 @@ const handleEconomyLegacy = async (interaction, client, supabase) => {
                     interaction.guildId,
                     m.member_discord_id,
                     m.salary,
-                    `Nómina de ${interaction.user.username}`
+                    `Nómina de ${interaction.user.username}`,
+                    'cash'
                 );
                 report += `✅ <@${m.member_discord_id}>: $${m.salary.toLocaleString()}\n`;
             }
