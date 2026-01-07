@@ -345,6 +345,20 @@ module.exports = {
 
                 const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 
+                const embed = new EmbedBuilder()
+                    .setTitle(`🧾 Factura: ${company.name}`)
+                    .setDescription(`**${interaction.user.tag}** le ha enviado un cobro.`)
+                    .addFields(
+                        { name: '👤 Cliente', value: `<@${cliente.id}>`, inline: true },
+                        { name: '💰 Monto', value: `$${monto.toLocaleString()}`, inline: true },
+                        { name: '📝 Concepto', value: concepto, inline: false },
+                        { name: '⏳ Estado', value: 'Pendiente de pago', inline: false }
+                    )
+                    .setColor('#F1C40F')
+                    .setThumbnail(company.logo_url || null)
+                    .setFooter({ text: 'Pagos seguros vía Nación MX Bank' })
+                    .setTimestamp();
+
                 // Button ID: btn_pay_company_{companyId}_{amount}_{timestamp} (timestamp to unique)
                 // Note: keeping ID short is good. {companyId}_{amount}
                 const customId = `btn_pay_company_${company.id}_${monto}`;
@@ -361,19 +375,6 @@ module.exports = {
                             .setLabel('Rechazar')
                             .setStyle(ButtonStyle.Danger)
                     );
-
-                const embed = new EmbedBuilder()
-                    .setTitle(`🧾 Factura: ${company.name}`)
-                    .setDescription(`**${interaction.user.tag}** le ha enviado un cobro.`)
-                    .addFields(
-                        { name: '👤 Cliente', value: `<@${cliente.id}>`, inline: true },
-                        { name: '💰 Monto', value: `$${monto.toLocaleString()}`, inline: true },
-                        { name: '📝 Concepto', value: concepto, inline: false }
-                    )
-                    .setColor('#F1C40F')
-                    .setThumbnail(company.logo_url || null)
-                    .setFooter({ text: 'Pagos seguros vía Nación MX Bank' })
-                    .setTimestamp();
 
                 // Reply so everyone sees (or ephemeral? No, client must see to click. But button only works for client?)
                 // Usually we want public proof of charge.

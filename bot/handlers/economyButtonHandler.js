@@ -68,6 +68,42 @@ const handleEconomyButtons = async (interaction, client, supabase, billingServic
                 });
             }
 
+            // Update original invoice message
+            try {
+                const originalMessage = interaction.message;
+                if (originalMessage && originalMessage.embeds[0]) {
+                    const updatedEmbed = EmbedBuilder.from(originalMessage.embeds[0])
+                        .setColor('#2ecc71') // Green for paid
+                        .spliceFields(3, 1, { name: '✅ Estado', value: `PAGADO por <@${interaction.user.id}>`, inline: false });
+
+                    await originalMessage.edit({
+                        embeds: [updatedEmbed],
+                        components: [] // Disable buttons
+                    });
+                }
+            } catch (updateErr) {
+                console.error('[pay_comp] Failed to update invoice:', updateErr);
+            }
+
+            // Notify employee who issued invoice (find employee_id from message metadata or interaction)
+            try {
+                // Get the employee who created the invoice from the original interaction
+                // Since we don't have employee ID in button, we'll try to extract from embed description
+                const employeeMatch = interaction.message?.embeds[0]?.description?.match(/<@(\d+)>/);
+                if (employeeMatch) {
+                    const employeeId = employeeMatch[1];
+                    const employee = await interaction.guild.members.fetch(employeeId).catch(() => null);
+                    if (employee) {
+                        await employee.send(`💰 **Pago Recibido - ${company?.name}**\n\n<@${interaction.user.id}> ha pagado **$${amount.toLocaleString()}**\n\nBalance de empresa actualizado.`).catch(() => {
+                            // If DM fails, send in channel
+                            interaction.channel.send(`<@${employeeId}> 💰 Pago recibido: $${amount.toLocaleString()} de <@${interaction.user.id}>`).catch(() => { });
+                        });
+                    }
+                }
+            } catch (notifyErr) {
+                console.error('[pay_comp] Failed to notify employee:', notifyErr);
+            }
+
             await interaction.editReply({
                 content: `✅ **Pago Exitoso**\nHas pagado **$${amount.toLocaleString()}** a **${company?.name || 'Empresa'}**.`,
                 components: []
