@@ -268,7 +268,7 @@ module.exports = {
             if (String(sanctionType).toLowerCase().includes('ban temporal') && duration) {
                 text += ` (${duration} Días)`;
             }
-            sanctionVisual = `**⚖️ Sanción Aplicada:**\n${text}`;
+            sanctionVisual = text;
         }
 
         // Check if it's a BLACKLIST TOTAL (Perm Ban)
@@ -298,37 +298,59 @@ module.exports = {
             }
         }
 
+        const fields = [
+            {
+                name: '📅 Fecha y Hora',
+                value: `${date} - ${time} (Hora México)`,
+                inline: true
+            },
+            {
+                name: '👤 Usuario Sancionado',
+                value: `${offender}
+🆔 ${offender.id || 'N/A'}`,
+                inline: true
+            },
+            {
+                name: '📜 Infracción Cometida',
+                value: `**${ruleCode}**`,
+                inline: false
+            },
+            {
+                name: '📝 Descripción de los Hechos',
+                value: description,
+                inline: false
+            }
+        ];
+
+        // Add sanction type field if exists
+        if (sanctionVisual) {
+            fields.push({
+                name: '⚖️ Sanción Aplicada',
+                value: sanctionVisual,
+                inline: false
+            });
+        }
+
+        // Add action taken field if exists
+        if (data.actionTaken) {
+            fields.push({
+                name: '🎯 Acción Tomada',
+                value: data.actionTaken,
+                inline: false
+            });
+        }
+
+        fields.push({
+            name: '📸 Evidencia Adjunta',
+            value: evidenceUrl ? `[📸 Ver Evidencia](${evidenceUrl})` : 'Sin evidencia adjunta',
+            inline: false
+        });
+
         const embedData = {
             title: null, // Image has title
-            description: sanctionVisual,
+            description: null,
             color: color,
-            fields: [
-                {
-                    name: '📅 Fecha y Hora',
-                    value: `${date} - ${time} (Hora México)`,
-                    inline: true
-                },
-                {
-                    name: '👤 Usuario Sancionado',
-                    value: `${offender}\n🆔 ${offender.id || 'N/A'}`,
-                    inline: true
-                },
-                {
-                    name: '📜 Infracción Cometida',
-                    value: `**${ruleCode}**`,
-                    inline: false
-                },
-                {
-                    name: '📝 Descripción de los Hechos',
-                    value: description,
-                    inline: false
-                },
-                {
-                    name: '📸 Evidencia Adjunta',
-                    value: evidenceUrl ? `[📸 Ver Evidencia](${evidenceUrl})` : 'Sin evidencia adjunta',
-                    inline: false
-                }
-            ],
+            fields: fields,
             image: { url: `attachment://${imgName}` },
             footer: {
                 text: `Moderador: ${moderator.username} | Nación MX RP`,
