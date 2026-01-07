@@ -16,13 +16,7 @@ module.exports = {
         .addAttachmentOption(option =>
             option.setName('foto')
                 .setDescription('Evidencia fotográfica del arresto')
-                .setRequired(true))
-        .addIntegerOption(option =>
-            option.setName('tiempo')
-                .setDescription('Tiempo en minutos (Opcional - Se calcula automático si se deja vacío)')
-                .setRequired(false)
-                .setMinValue(1)
-                .setMaxValue(10080)), // 1 week max manually
+                .setRequired(true)),
 
     async execute(interaction, client, supabase) {
         // DEFER IMMEDIATELY to prevent timeout
@@ -88,10 +82,9 @@ module.exports = {
             // 3. Get options
             const targetUser = interaction.options.getUser('usuario');
             const articlesInput = interaction.options.getString('arts');
-            // 'tiempo' is now optional override, otherwise calculated
-            const tiempoOverride = interaction.options.getInteger('tiempo');
+            // 'tiempo' removed
             const evidencia = interaction.options.getAttachment('foto');
-            const razon = interaction.options.getString('razon');
+            const razon = interaction.options.getString('razon'); // Is this used? Check line 94 original. Yes but line 94 declared it.
 
             // 4. Validate target
             if (targetUser.id === interaction.user.id) {
@@ -152,18 +145,13 @@ module.exports = {
             // Calculate sentence with valid articles only
             const sentence = calculateSentence(validArticles.join(','));
 
-            let finalTime = 0;
             let fineAmount = sentence.totalFine || 0; // Base fines from articles
 
-            if (tiempoOverride) {
-                finalTime = tiempoOverride;
-            } else {
-                // Use calculated time (Default to minimum sentence)
-                finalTime = sentence.suggestedTime;
-            }
+            // Use calculated time (Default to minimum sentence)
+            let finalTime = sentence.suggestedTime;
 
             // Fallback if no time calculated
-            if (finalTime === 0 && !tiempoOverride) {
+            if (finalTime === 0) {
                 finalTime = 30; // 30 mins default (1 day RP)
                 sentence.reason = `Artículos: ${validArticles.join(', ')}`;
             }

@@ -4,6 +4,83 @@ const { getAvailablePaymentMethods, createPaymentButtons, createPaymentEmbed, pr
 const handleEconomyButtons = async (interaction, client, supabase, billingService) => {
 
     // ============================================================
+    // BUTTON: Pay Company Invoice (Initial Click)
+    // ============================================================
+    if (interaction.isButton() && interaction.customId.startsWith('btn_pay_company_')) {
+        await interaction.deferReply({ ephemeral: true });
+
+        const parts = interaction.customId.split('_');
+        const companyId = parts[3];
+        const amount = parseFloat(parts[4]);
+
+        try {
+            const pm = await getAvailablePaymentMethods(supabase, interaction.user.id, interaction.guildId);
+            // Prefix: pay_comp_final_{ID}_{AMT}
+            const pb = createPaymentButtons(pm, `pay_comp_final_${companyId}_${amount}`);
+
+            await interaction.editReply({
+                content: `💳 **Selecciona método de pago para abonar $${amount.toLocaleString()}**`,
+                components: [pb],
+                ephemeral: true
+            });
+        } catch (error) {
+            console.error('[pay_company_init]', error);
+            await interaction.editReply({ content: '❌ Error iniciando pago.', ephemeral: true });
+        }
+        return;
+    }
+
+    // ============================================================
+    // BUTTON: Pay Company Invoice (Final Confirmation)
+    // ============================================================
+    if (interaction.isButton() && interaction.customId.startsWith('pay_comp_final_')) {
+        await interaction.deferUpdate();
+
+        const parts = interaction.customId.split('_');
+        // ID: pay_comp_final_COMPANYID_AMOUNT_METHOD
+        // 0:pay, 1:comp, 2:final, 3:compId, 4:amount, 5:method
+
+        const companyId = parts[3];
+        const amount = parseFloat(parts[4]);
+        const paymentMethod = parts[5];
+
+        try {
+            // Re-fetch to be safe or pass PM? usually re-fetch for validation
+            const pm = await getAvailablePaymentMethods(supabase, interaction.user.id, interaction.guildId);
+            const result = await processPayment(billingService, supabase, paymentMethod, interaction.user.id, interaction.guildId, amount, `Pago a empresa`, pm);
+
+            if (!result.success) {
+                return interaction.editReply({ content: result.error, components: [] });
+            }
+
+            // Add funds to company
+            const { data: company } = await supabase.from('companies').select('balance, name').eq('id', companyId).single();
+            if (company) {
+                await supabase.from('companies').update({ balance: (company.balance || 0) + amount }).eq('id', companyId);
+
+                // Log transaction
+                await supabase.from('company_transactions').insert({
+                    company_id: companyId,
+                    type: 'income',
+                    amount: amount,
+                    description: `Pago de cliente (Discord: ${interaction.user.id})`,
+                    created_by: interaction.user.id
+                });
+            }
+
+            await interaction.editReply({
+                content: `✅ **Pago Exitoso**\nHas pagado **$${amount.toLocaleString()}** a **${company?.name || 'Empresa'}**.`,
+                components: []
+            });
+
+        } catch (error) {
+            console.error('[pay_comp_final]', error);
+            await interaction.editReply({ content: '❌ Error procesando el pago.', components: [] });
+        }
+        return;
+    }
+
+    // ============================================================
     // BUTTON: Pay Business Credit Card Debt
     // ============================================================
     if (interaction.isButton() && interaction.customId.startsWith('pay_biz_debt_')) {
