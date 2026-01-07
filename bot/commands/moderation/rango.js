@@ -220,7 +220,8 @@ module.exports = {
                 if (existingBadge) {
                     badgeNumber = existingBadge.badge_number;
                 } else {
-                    // Assign new number
+                    // Assign new number - HYBRID APPROACH (DB + Nickname Scan)
+                    // 1. Get Max from DB
                     const { data: maxBadge } = await supabase
                         .from('staff_badges')
                         .select('badge_number')
@@ -229,7 +230,38 @@ module.exports = {
                         .limit(1)
                         .maybeSingle();
 
-                    badgeNumber = (maxBadge?.badge_number || 0) + 1;
+                    const dbMax = maxBadge?.badge_number || 0;
+
+                    // 2. Scan Discord Nicknames for this Rank Type (e.g. JD-005)
+                    // This creates a "self-healing" sequence if DB is empty but badges exist
+                    let nicknameMax = 0;
+                    try {
+                        // Fetch all members with this specific rank role to scan their names
+                        // We use the main_id role of the target rank
+                        await interaction.guild.members.fetch(); // Ensure cache is populated
+                        const roleMembers = interaction.guild.roles.cache.get(newRank.main_id)?.members;
+
+                        if (roleMembers) {
+                            const badgeRegex = new RegExp(`\\[${newRank.badge_type}-(\\d+)\\]`); // Matches [JD-005]
+                            const legacyRegex = new RegExp(`${newRank.badge_type}-(\\d+)`);       // Matches JD-005 |
+
+                            roleMembers.forEach(m => {
+                                const nick = m.displayName;
+                                let match = nick.match(badgeRegex);
+                                if (!match) match = nick.match(legacyRegex);
+
+                                if (match && match[1]) {
+                                    const num = parseInt(match[1]);
+                                    if (!isNaN(num) && num > nicknameMax) nicknameMax = num;
+                                }
+                            });
+                        }
+                    } catch (scanErr) {
+                        console.error('Error scanning nicknames for max badge:', scanErr);
+                    }
+
+                    // 3. Take the highest of both worlds
+                    badgeNumber = Math.max(dbMax, nicknameMax) + 1;
 
                     // Save to DB
                     await supabase.from('staff_badges').insert({
