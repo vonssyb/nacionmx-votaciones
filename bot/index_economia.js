@@ -242,4 +242,24 @@ app.listen(port, () => {
 });
 
 // LOGIN
-client.login(DISCORD_TOKEN);
+// --- LOGIN WITH AUTO-RECONNECT ---
+async function startBot() {
+    try {
+        console.log('🔐 [ECO-BOT] Attempting Discord login...');
+
+        if (DISCORD_TOKEN) {
+            console.log(`[ECO-BOT] Token Check: ${DISCORD_TOKEN.substring(0, 5)}...`);
+        } else {
+            console.log('❌ [ECO-BOT] ERROR: No DISCORD_TOKEN found!');
+        }
+
+        await client.login(DISCORD_TOKEN);
+        console.log('✅ [ECO-BOT] Discord login successful!');
+    } catch (error) {
+        console.error('❌ [ECO-BOT] CRITICAL: Discord login failed!', error);
+        console.log('🔄 [ECO-BOT] Retrying login in 10 seconds...');
+        setTimeout(startBot, 10000);
+    }
+}
+
+startBot();
