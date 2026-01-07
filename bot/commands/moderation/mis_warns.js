@@ -6,7 +6,7 @@ module.exports = {
         .setDescription('Ver mi historial de sanciones y warns activos'),
 
     async execute(interaction) {
-        await interaction.deferReply({ flags: [64] });
+        // await interaction.deferReply({ flags: [64] });
 
         try {
             if (!interaction.client.services || !interaction.client.services.sanctions) {

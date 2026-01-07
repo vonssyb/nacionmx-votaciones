@@ -22,7 +22,7 @@ module.exports = {
                 .setDescription('Reclamar recompensa de una misión completada')),
 
     async execute(interaction, client, supabase) {
-        await interaction.deferReply({});
+        // await interaction.deferReply({});
 
         const subcommand = interaction.options.getSubcommand();
         const STAFF_ROLE_ID = '1450242487422812251';

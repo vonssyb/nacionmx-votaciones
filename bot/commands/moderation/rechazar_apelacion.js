@@ -15,7 +15,7 @@ module.exports = {
                 .setRequired(true)),
 
     async execute(interaction) {
-        await interaction.deferReply({ flags: [64] });
+        // await interaction.deferReply({ flags: [64] });
 
         // SECURITY CHECK: Specific Role/User ID Check
         const authorizedIds = [

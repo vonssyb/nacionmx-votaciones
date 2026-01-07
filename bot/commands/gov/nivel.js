@@ -11,7 +11,7 @@ module.exports = {
         ),
 
     async execute(interaction, client, supabase) {
-        await interaction.deferReply();
+        // await interaction.deferReply();
 
         try {
             const targetUser = interaction.options.getUser('usuario') || interaction.user;

@@ -14,7 +14,7 @@ module.exports = {
                 .setDescription('Pagar tu fianza para salir del arresto')),
 
     async execute(interaction, client, supabase) {
-        await interaction.deferReply({ flags: [64] }); // Ephemeral
+        // await interaction.deferReply({ flags: [64] }); // Ephemeral
 
         const subcommand = interaction.options.getSubcommand();
         const ARRESTED_ROLE_ID = '1413540729623679056';

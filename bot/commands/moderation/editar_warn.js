@@ -32,7 +32,7 @@ module.exports = {
             return interaction.reply({ content: '🛑 No tienes permiso para editar sanciones.', flags: [64] });
         }
 
-        await interaction.deferReply({ flags: [64] });
+        // await interaction.deferReply({ flags: [64] });
 
         const sanctionId = interaction.options.getString('id_sancion');
         const newReason = interaction.options.getString('nuevo_motivo');

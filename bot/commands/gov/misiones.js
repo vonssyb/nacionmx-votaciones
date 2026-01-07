@@ -6,7 +6,7 @@ module.exports = {
         .setDescription('📋 Ver tus misiones diarias activas'),
 
     async execute(interaction, client, supabase) {
-        await interaction.deferReply();
+        // await interaction.deferReply();
 
         try {
             const missionService = client.services.missions;

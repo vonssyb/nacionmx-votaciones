@@ -35,7 +35,7 @@ module.exports = {
                 .addUserOption(option => option.setName('dueño').setDescription('Buscar por dueño').setRequired(false))),
 
     async execute(interaction, client, supabase) {
-        await interaction.deferReply();
+        // await interaction.deferReply();
 
         // Permission Check - Staff only
         const staffRoleId = '1412882245735420006'; // Junta Directiva

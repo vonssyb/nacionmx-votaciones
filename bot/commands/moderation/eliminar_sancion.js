@@ -14,7 +14,7 @@ module.exports = {
                 .setRequired(true)),
 
     async execute(interaction) {
-        await interaction.deferReply({ flags: [64] });
+        // await interaction.deferReply({ flags: [64] });
 
         // 1. RBAC CHECK: Only "Encargado de Sanciones" (1456020936229912781)
         // Also allow Admin/Junta for safety/emergency

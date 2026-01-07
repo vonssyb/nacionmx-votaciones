@@ -43,7 +43,7 @@ module.exports = {
                 .setDescription('Ver quién te ha votado')),
 
     async execute(interaction, client, supabase) {
-        await interaction.deferReply({});
+        // await interaction.deferReply({});
 
         const subcommand = interaction.options.getSubcommand();
 

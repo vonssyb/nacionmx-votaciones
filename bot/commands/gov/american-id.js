@@ -64,7 +64,7 @@ module.exports = {
                 .setRequired(true))),
 
     async execute(interaction, client, supabase) {
-        await interaction.deferReply({ flags: [64] });
+        // await interaction.deferReply({ flags: [64] });
 
         const subCmd = interaction.options.getSubcommand();
         const AMERICAN_ROLE_ID = process.env.AMERICAN_ROLE_ID;

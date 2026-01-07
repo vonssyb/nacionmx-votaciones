@@ -11,7 +11,7 @@ module.exports = {
                 .setRequired(true)),
 
     async execute(interaction, client, supabase) {
-        await interaction.deferReply({});
+        // await interaction.deferReply({});
 
         const robloxUsername = interaction.options.getString('usuario');
         const discordUserId = interaction.user.id;

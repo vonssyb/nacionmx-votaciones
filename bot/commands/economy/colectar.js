@@ -7,7 +7,7 @@ module.exports = {
         .setDescription('💰 Colectar tu salario (cada 3 días/72 horas)'),
 
     async execute(interaction, client, supabase) {
-        await interaction.deferReply({}); // Show "pensando..."
+        // await interaction.deferReply({}); // Show "pensando..."
 
         const userId = interaction.user.id;
         const guildId = interaction.guildId;

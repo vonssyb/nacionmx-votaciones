@@ -116,7 +116,7 @@ module.exports = {
 
         // Deferral handled globally by index_moderacion.js
         // const isEphemeral = (type === 'notificacion');
-        // await interaction.deferReply({ flags: isEphemeral ? [64] : [] });
+        // // await interaction.deferReply({ flags: isEphemeral ? [64] : [] });
 
         // --- GET TARGET USER (Support 3 methods) ---
         const usuarioMention = interaction.options.getUser('usuario');

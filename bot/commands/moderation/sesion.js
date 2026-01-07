@@ -36,7 +36,7 @@ module.exports = {
     async execute(interaction) {
         // CRITICAL: Defer immediately to prevent "Unknown interaction" errors
         // Heavy operations like bulkDelete can take >3s, causing timeout
-        await interaction.deferReply().catch(() => { }); // Catch in case global defer already called
+        // await interaction.deferReply().catch(() => { }); // Catch in case global defer already called
 
         // Use client attached to interaction
         const client = interaction.client;

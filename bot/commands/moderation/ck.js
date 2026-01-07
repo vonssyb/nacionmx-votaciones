@@ -35,7 +35,7 @@ module.exports = {
 
         // --- REVERTIR LOGIC ---
         if (subcommand === 'revertir') {
-            await interaction.deferReply();
+            // await interaction.deferReply();
 
             // Check Permissions (Strict)
             if (!interaction.member.roles.cache.has(rKRole) && !interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
@@ -152,7 +152,7 @@ module.exports = {
         }
 
         // --- APLICAR LOGIC (Original Flow) ---
-        await interaction.deferReply({});
+        // await interaction.deferReply({});
         const ckTipo = interaction.options.getString('tipo');
         const razon = interaction.options.getString('razon');
         const evidencia = interaction.options.getAttachment('evidencia');

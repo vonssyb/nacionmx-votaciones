@@ -10,7 +10,7 @@ module.exports = {
                 .setRequired(true)),
 
     async execute(interaction, client, supabase) {
-        await interaction.deferReply({ flags: [64] });
+        // await interaction.deferReply({ flags: [64] });
 
         const motivo = interaction.options.getString('motivo');
         const STAFF_ROLE_ID = '1450242487422812251';

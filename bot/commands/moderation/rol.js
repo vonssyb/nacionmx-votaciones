@@ -31,7 +31,7 @@ module.exports = {
         ),
 
     async execute(interaction, client, supabase) {
-        await interaction.deferReply({ flags: [64] }); // Ephemeral
+        // await interaction.deferReply({ flags: [64] }); // Ephemeral
 
         const subcommand = interaction.options.getSubcommand();
 

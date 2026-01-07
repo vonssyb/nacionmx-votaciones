@@ -21,7 +21,7 @@ module.exports = {
     async execute(interaction, client, supabase) {
         // We use deferReply as a separate step or let the monkey-patch handle it 
         // But since this is a new modular command, we should be explicit.
-        await interaction.deferReply({ flags: [64] });
+        // await interaction.deferReply({ flags: [64] });
 
         const subCmd = interaction.options.getSubcommand();
 

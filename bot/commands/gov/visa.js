@@ -96,7 +96,7 @@ module.exports = {
             .setDescription('Ver solicitudes de visa pendientes - USCIS only')),
 
     async execute(interaction, client, supabase) {
-        await interaction.deferReply({ flags: [64] });
+        // await interaction.deferReply({ flags: [64] });
 
         const subCmd = interaction.options.getSubcommand();
         const AMERICAN_ROLE_ID = process.env.AMERICAN_ROLE_ID || '1457950212923461632';

@@ -33,7 +33,7 @@ module.exports = {
             return interaction.reply({ content: '❌ No puedes asignar roles de Administrador temporalmente por seguridad.', flags: [64] });
         }
 
-        await interaction.deferReply();
+        // await interaction.deferReply();
         const member = await interaction.guild.members.fetch(targetUser.id);
 
         // Parse time manually since we don't have a sophisticated parser lib

@@ -15,7 +15,7 @@ module.exports = {
                 .setRequired(false)),
 
     async execute(interaction) {
-        await interaction.deferReply({ flags: [64] });
+        // await interaction.deferReply({ flags: [64] });
 
         // Security Check: Only Admins (Double Check)
         if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {

@@ -15,7 +15,7 @@ module.exports = {
                 .setRequired(false)),
 
     async execute(interaction, client, supabase) {
-        await interaction.deferReply({ flags: [64] });
+        // await interaction.deferReply({ flags: [64] });
 
         // 1. Fetch most recent active sanction for the user
         const { data: sanction, error } = await supabase
