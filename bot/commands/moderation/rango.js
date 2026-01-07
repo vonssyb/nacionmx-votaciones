@@ -195,7 +195,12 @@ module.exports = {
             const originalNickname = member.displayName;
             // Strip existing prefix if any [ST-00X] Name -> Name
             // Regex matches [AA-999] or similar
-            const cleanName = originalNickname.replace(/^\[[A-Z]{2}-\d{3}\]\s*/, '');
+            // Strip existing prefix if any [ST-00X] Name -> Name
+            // Regex matches [AA-999] or similar, also "AD-002 |" patterns
+            const cleanName = originalNickname
+                .replace(/^\[[A-Z]{2,3}-\d{3}\]\s*/, '') // Remove standard [ST-001]
+                .replace(/^[A-Z]{2,3}-\d{3}\s*\|\s*/, '') // Remove format "AD-002 | "
+                .replace(/^[A-Z]{2,3}-\d{3}\s*/, ''); // Remove just "AD-002 "
 
             if (newRankIndex >= 0) { // Adding Rank
                 const newRank = RANGOS[newRankIndex];
