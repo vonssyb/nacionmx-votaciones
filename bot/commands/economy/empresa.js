@@ -78,11 +78,11 @@ module.exports = {
             let company = null;
             let employeeRecord = null;
 
-            // 1. Check Owner
+            // 1. Check Owner (owner_ids is an array in the database)
             const { data: ownerComp } = await supabase
                 .from('companies')
                 .select('*')
-                .eq('owner_id', interaction.user.id)
+                .contains('owner_ids', [interaction.user.id])
                 .maybeSingle();
 
             if (ownerComp) {
