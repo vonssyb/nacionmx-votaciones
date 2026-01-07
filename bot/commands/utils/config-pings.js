@@ -8,7 +8,8 @@ module.exports = {
         .setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages),
 
     async execute(interaction) {
-        // await interaction.deferReply({ flags: [64] }); // Handled globally by index_moderacion.js
+        await interaction.deferReply({ flags: [64] }); // Required now that ModBot ignores this command
+
 
         const channel = interaction.channel;
 
