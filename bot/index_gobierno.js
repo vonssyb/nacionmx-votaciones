@@ -60,6 +60,7 @@ client.once('ready', async () => {
     // --- DAILY MISSIONS ROTATION ---
     const DailyMissionManager = require('./services/DailyMissionManager');
     const missionManager = new DailyMissionManager(supabase);
+    client.missionManager = missionManager; // Attach for commands
 
     // Check immediately
     await missionManager.checkAndRotate();

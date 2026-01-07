@@ -29,8 +29,15 @@ module.exports = {
                             { name: 'Nivel 3: Administración', value: '3' },
                             { name: 'Nivel 4: Junta Directiva', value: '4' }
                         )
-                )
-        )
+                ))
+        .addSubcommand(subcommand =>
+            subcommand.setName('lock')
+                .setDescription('🔒 Bloquear ascensos de un usuario (Rank Lock)')
+                .addUserOption(option => option.setName('usuario').setDescription('Usuario').setRequired(true)))
+        .addSubcommand(subcommand =>
+            subcommand.setName('unlock')
+                .setDescription('🔓 Desbloquear ascensos de un usuario')
+                .addUserOption(option => option.setName('usuario').setDescription('Usuario').setRequired(true)))
         .setDefaultMemberPermissions(PermissionFlagsBits.ManageRoles),
 
     async execute(interaction, client, supabase) {
@@ -64,6 +71,38 @@ module.exports = {
 
         try {
             const member = await interaction.guild.members.fetch(targetUser.id);
+            const LOCK_ROLE_NAME = '🔒 Rank Locked';
+
+            // Find Lock Role
+            let lockRole = interaction.guild.roles.cache.find(r => r.name === LOCK_ROLE_NAME);
+            if (!lockRole && (subcommand === 'lock')) {
+                // Create if doesn't exist and trying to lock
+                try {
+                    lockRole = await interaction.guild.roles.create({
+                        name: LOCK_ROLE_NAME,
+                        color: 0x000000,
+                        reason: 'Sistema de Rank Lock Automático'
+                    });
+                } catch (e) {
+                    return interaction.followUp('❌ Error: No existe el rol "🔒 Rank Locked" y no pude crearlo. Verifica mis permisos.');
+                }
+            }
+
+            const isLocked = lockRole && member.roles.cache.has(lockRole.id);
+
+            // HANDLE LOCK/UNLOCK COMMANDS
+            if (subcommand === 'lock') {
+                if (isLocked) return interaction.followUp(`⚠️ **${targetUser.tag}** ya tiene Rank Lock.`);
+                await member.roles.add(lockRole);
+                return interaction.followUp(`🔒 **RANK LOCK ACTIVADO** para ${targetUser.tag}.\n⛔ Este usuario ya no podrá ser promovido.`);
+            }
+
+            if (subcommand === 'unlock') {
+                if (!isLocked) return interaction.followUp(`⚠️ **${targetUser.tag}** no tiene Rank Lock.`);
+                await member.roles.remove(lockRole);
+                return interaction.followUp(`🔓 **RANK LOCK RETIRADO** de ${targetUser.tag}.\n✅ Ahora puede ser promovido nuevamente.`);
+            }
+
 
             // Determine Current Level
             let currentRankIndex = -1;
@@ -78,6 +117,14 @@ module.exports = {
             let newRankIndex = -1;
 
             if (subcommand === 'promover') {
+                // RANK LOCK CHECK
+                if (isLocked) {
+                    return interaction.followUp({
+                        content: `🛑 **ACCIÓN BLOQUEADA**\n\nEl usuario **${targetUser.tag}** tiene un **RANK LOCK** activo.\nNo puede ser promovido hasta que un Directivo le quite el bloqueo con \`/rango unlock\`.`,
+                        flags: [64]
+                    });
+                }
+
                 if (currentRankIndex === -1) {
                     newRankIndex = 0; // Promote to Level 1
                 } else if (currentRankIndex < RANGOS.length - 1) {

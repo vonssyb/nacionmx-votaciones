@@ -52,6 +52,20 @@ module.exports = {
                     ? (completion.claimed ? '✅ Completada y Reclamada' : '⏳ Completada - Usa `/mision reclamar`')
                     : '🔄 Pendiente';
 
+                // Calculate Progress Bar
+                let progressText = '';
+                if (!completion || !completion.claimed) {
+                    const current = completion ? (completion.progress_current || 0) : 0;
+                    const target = completion ? (completion.progress_target || mission.requirements?.count || 1) : (mission.requirements?.count || 1);
+                    const percent = Math.min(100, Math.floor((current / target) * 100));
+
+                    const filled = Math.floor(percent / 10);
+                    const empty = 10 - filled;
+                    const bar = '🟩'.repeat(filled) + '⬜'.repeat(empty);
+
+                    progressText = `\n\n**Progreso:**\n${bar} ${percent}%\n(${current} / ${target} ${mission.requirements?.type === 'shift_minutes' ? 'minutos' : 'acciones'})`;
+                }
+
                 const difficultyColors = {
                     'easy': '#2ECC71',
                     'medium': '#F39C12',
@@ -60,7 +74,7 @@ module.exports = {
 
                 const embed = new EmbedBuilder()
                     .setTitle(`📋 Misión Diaria - ${new Date().toLocaleDateString('es-MX')}`)
-                    .setDescription(`**${mission.title}**\n\n${mission.description}`)
+                    .setDescription(`**${mission.title}**\n\n${mission.description}${progressText}`)
                     .setColor(difficultyColors[mission.difficulty] || '#3498DB')
                     .addFields(
                         { name: '🎯 Dificultad', value: mission.difficulty.toUpperCase(), inline: true },

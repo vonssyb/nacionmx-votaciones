@@ -1,5 +1,4 @@
 const MISSION_POOL = [
-const MISSION_POOL = [
     {
         title: 'Operativo de Tránsito',
         description: 'Realiza 3 multas de tránsito justificadas.',

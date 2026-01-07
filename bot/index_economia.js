@@ -44,9 +44,9 @@ const { renameChannel } = require('./utils/channelUtils');
 // Instantiate Economy Services
 const taxService = new TaxService(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY);
 const companyService = new CompanyService(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY);
-// const levelService = new LevelService(supabase);
-// const achievementService = new AchievementService(supabase, levelService);
-// const missionService = new MissionService(supabase, levelService);
+const levelService = new LevelService(supabase);
+const achievementService = new AchievementService(supabase, levelService);
+const missionService = new MissionService(supabase, levelService);
 const storeService = new StoreService(supabase);
 log('Economy Services Instantiated');
 
@@ -71,9 +71,9 @@ client.services = {
     company: companyService,
     staking: new StakingService(supabase),
     slots: new SlotsService(supabase),
-    // levels: levelService,
-    // achievements: achievementService,
-    // missions: missionService,
+    levels: levelService,
+    achievements: achievementService,
+    missions: missionService,
     store: storeService
 };
 
