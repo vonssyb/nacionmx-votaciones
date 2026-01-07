@@ -618,26 +618,7 @@ client.on('interactionCreate', async interaction => {
             await interaction.reply({ content: 'Solicitud rechazada.', flags: [64] });
         }
 
-        // --- PING ROLES (AUTO-ROLES) ---
-        if (customId.startsWith('ping_role_')) {
-            await interaction.deferReply({ flags: [64] }); // Hidden reply
 
-            const roleId = customId.split('_')[2];
-            const member = interaction.member;
-            const role = interaction.guild.roles.cache.get(roleId);
-
-            if (!role) {
-                return interaction.editReply('❌ El rol configurado ya no existe.');
-            }
-
-            if (member.roles.cache.has(roleId)) {
-                await member.roles.remove(role);
-                await interaction.editReply(`🔕 **Rol Removido:** ${role.name}`);
-            } else {
-                await member.roles.add(role);
-                await interaction.editReply(`🔔 **Rol Agregado:** ${role.name}`);
-            }
-        }
     }
 });
 
