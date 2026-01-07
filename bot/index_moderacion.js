@@ -665,7 +665,6 @@ client.on('interactionCreate', async interaction => {
 
     // 2. LEGACY HANDLER FALLBACK (MODERATION)
     // Only try legacy if it IS a chat input command (and wasn't handled above) OR if we want legacy to handle other types?
-    const economyCommands = ['fichar', 'tarjeta', 'credito', 'empresa', 'transferir', 'depositar', 'multa', 'nomina', 'robar', 'crimen', 'bolsa', 'casino', 'jugar', 'slots', 'giro', 'movimientos', 'notificaciones', 'top-ricos', 'top-morosos', 'balanza', 'saldo', 'stake', 'fondos', 'dar-robo', 'licencia', 'tienda', 'inversion', 'impuestos', 'registrar-tarjeta'];
     if (interaction.isChatInputCommand() && economyCommands.includes(interaction.commandName)) return;
 
     try {
