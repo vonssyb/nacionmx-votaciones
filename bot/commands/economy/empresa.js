@@ -89,17 +89,25 @@ module.exports = {
             if (ownerComp) {
                 company = ownerComp;
             } else {
-                // 2. Check Employee
-                const { data: emp, error } = await supabase
+                // 2. Check Employee (Two-step fetch to avoid join issues)
+                const { data: emp } = await supabase
                     .from('company_employees')
-                    .select('*, companies(*)')
+                    .select('*')
                     .eq('discord_id', interaction.user.id)
                     .is('fired_at', null)
                     .maybeSingle();
 
-                if (emp && emp.companies) {
-                    employeeRecord = emp;
-                    company = emp.companies;
+                if (emp) {
+                    const { data: empComp } = await supabase
+                        .from('companies')
+                        .select('*')
+                        .eq('id', emp.company_id)
+                        .maybeSingle();
+
+                    if (empComp) {
+                        employeeRecord = emp;
+                        company = empComp;
+                    }
                 }
             }
 

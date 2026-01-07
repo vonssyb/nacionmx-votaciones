@@ -14,8 +14,8 @@ class UnbelievableBoatService {
             }
         });
 
-        // Initialize cache with 30 second TTL
-        this.balanceCache = new CacheService(30000);
+        // Initialize cache with 5 second TTL (reduced from 30s for better UX)
+        this.balanceCache = new CacheService(5000);
 
         // Note: CacheService (node-cache) auto-cleans expired entries
     }
