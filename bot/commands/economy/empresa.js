@@ -73,22 +73,66 @@ module.exports = {
         // Note: deferReply is handled automatically by index_economia.js monkey-patch
         const subcommand = interaction.options.getSubcommand();
 
+
         try {
             // Get user's company (Owner OR Employee)
             let company = null;
             let employeeRecord = null;
 
-            // 1. Check Owner (owner_ids is an array in the database)
-            const { data: ownerComp } = await supabase
+            // 1. Check if user owns multiple companies
+            const { data: ownedCompanies } = await supabase
                 .from('companies')
                 .select('*')
-                .contains('owner_ids', [interaction.user.id])
-                .maybeSingle();
+                .contains('owner_ids', [interaction.user.id]);
 
-            if (ownerComp) {
-                company = ownerComp;
+            if (ownedCompanies && ownedCompanies.length > 1) {
+                // Multiple companies - show selector
+                const { StringSelectMenuBuilder, ActionRowBuilder } = require('discord.js');
+
+                const selectMenu = new StringSelectMenuBuilder()
+                    .setCustomId(`empresa_select_${interaction.user.id}_${subcommand}`)
+                    .setPlaceholder('Selecciona la empresa')
+                    .addOptions(ownedCompanies.map(comp => ({
+                        label: comp.name,
+                        description: `Balance: $${(comp.balance || 0).toLocaleString()}`,
+                        value: comp.id
+                    })));
+
+                const row = new ActionRowBuilder().addComponents(selectMenu);
+
+                await interaction.editReply({
+                    content: '🏢 **Tienes múltiples empresas**\nSelecciona con cuál deseas operar:',
+                    components: [row]
+                });
+
+                // Wait for selection
+                const filter = i => i.customId.startsWith('empresa_select_') && i.user.id === interaction.user.id;
+                const collected = await interaction.channel.awaitMessageComponent({
+                    filter,
+                    time: 60000
+                }).catch(() => null);
+
+                if (!collected) {
+                    return interaction.editReply({
+                        content: '⏱️ Tiempo agotado para seleccionar empresa.',
+                        components: []
+                    });
+                }
+
+                await collected.deferUpdate();
+
+                // Get selected company
+                const selectedId = collected.values[0];
+                company = ownedCompanies.find(c => c.id === selectedId);
+
+                // Clear menu
+                await interaction.editReply({ components: [] });
+
+            } else if (ownedCompanies && ownedCompanies.length === 1) {
+                // Single company owned
+                company = ownedCompanies[0];
             } else {
-                // 2. Check Employee (Two-step fetch to avoid join issues)
+                // Not an owner - check if employee
                 const { data: emp } = await supabase
                     .from('company_employees')
                     .select('*')
