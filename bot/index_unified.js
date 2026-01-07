@@ -73,8 +73,10 @@ async function startModerationBot() {
         if (!interaction.isChatInputCommand()) return;
 
         // GLOBAL DEFER - Fixes InteractionNotReplied errors
+        // GLOBAL DEFER - Fixes InteractionNotReplied errors
         try {
             await interaction.deferReply();
+            interaction.deferReply = async () => { }; // PATCH: Prevent double defer
         } catch (e) {
             console.error('[MOD] Failed to defer:', e);
             return; // Can't proceed
@@ -246,7 +248,10 @@ async function startGovernmentBot() {
         if (!interaction.isChatInputCommand()) return;
 
         // GLOBAL DEFER
-        try { await interaction.deferReply(); } catch (e) { return; }
+        try {
+            await interaction.deferReply();
+            interaction.deferReply = async () => { }; // PATCH
+        } catch (e) { return; }
 
         const command = client.commands.get(interaction.commandName);
         if (command) {
