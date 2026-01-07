@@ -140,4 +140,26 @@ app.listen(port, () => {
     console.log(`🌐 Government Server listening on port ${port}`);
 });
 
-client.login(DISCORD_TOKEN);
+// --- LOGIN WITH AUTO-RECONNECT ---
+async function startBot() {
+    try {
+        log('🔐 Attempting Discord login...');
+
+        // Debug Token (Safe)
+        if (DISCORD_TOKEN) {
+            const part1 = DISCORD_TOKEN.substring(0, 5);
+            log(`Token Preview: ${part1}...`);
+        } else {
+            log('❌ ERROR: No DISCORD_TOKEN found for Govt Bot!');
+        }
+
+        await client.login(DISCORD_TOKEN);
+        log('✅ Discord login successful!');
+    } catch (error) {
+        console.error('❌ CRITICAL: Discord login failed!', error);
+        log('🔄 Retrying login in 10 seconds...');
+        setTimeout(startBot, 10000);
+    }
+}
+
+startBot();
