@@ -185,6 +185,9 @@ client.on('interactionCreate', async interaction => {
     if (interaction.isButton()) {
         const customId = interaction.customId;
 
+        // --- IGNORE COLLECTOR BUTTONS (Let the command's collector handle them) ---
+        if (customId.startsWith('confirm_verif_')) return;
+
         // --- PING ROLES (AUTO-ROLES) ---
         if (customId.startsWith('ping_role_')) {
             await interaction.deferReply({ flags: [64] }); // Hidden reply
