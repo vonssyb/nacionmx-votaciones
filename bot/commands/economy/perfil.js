@@ -50,7 +50,7 @@ module.exports = {
             const member = await interaction.guild.members.fetch(targetUser.id);
 
             // **PARALLEL DATA FETCHING** - All queries run simultaneously
-            const [creditCard, licenses, sanctions, passes, dni, vehicleCount, activeArrest, americanId] = await Promise.all([
+            const [creditCard, licenses, sanctions, passes, dni, vehicleCount, activeArrest, americanId, ownedCompanies, employmentData] = await Promise.all([
                 // Fetch Credit Card
                 (async () => {
                     try {
@@ -276,6 +276,57 @@ module.exports = {
                     } catch (e) {
                         return null;
                     }
+                })(),
+
+                // Fetch Owned Companies
+                (async () => {
+                    try {
+                        const { data, error } = await supabase
+                            .from('companies')
+                            .select('name, balance')
+                            .contains('owner_ids', [targetUser.id]);
+
+                        if (error) {
+                            console.error('[perfil] Companies query error:', error);
+                            return [];
+                        }
+                        return data || [];
+                    } catch (e) {
+                        console.error('[perfil] Failed to fetch companies:', e.message);
+                        return [];
+                    }
+                })(),
+
+                // Fetch Employment Data
+                (async () => {
+                    try {
+                        const { data: emp, error } = await supabase
+                            .from('company_employees')
+                            .select('company_id, role, salary')
+                            .eq('discord_id', targetUser.id)
+                            .is('fired_at', null)
+                            .maybeSingle();
+
+                        if (error || !emp) {
+                            return null;
+                        }
+
+                        // Get company name
+                        const { data: company } = await supabase
+                            .from('companies')
+                            .select('name')
+                            .eq('id', emp.company_id)
+                            .maybeSingle();
+
+                        return {
+                            company_name: company?.name || 'Empresa Desconocida',
+                            role: emp.role,
+                            salary: emp.salary
+                        };
+                    } catch (e) {
+                        console.error('[perfil] Failed to fetch employment:', e.message);
+                        return null;
+                    }
                 })()
             ]);
 
@@ -395,6 +446,24 @@ module.exports = {
                 embed.addFields({
                     name: '📋 Historial de Sanciones',
                     value: '✅ Registro limpio\n📊 **Total:** 0 | 📝 **Notificaciones:** 0 | ⚠️ **SA:** 0 | 🚫 **Generales:** 0',
+                    inline: false
+                });
+            }
+
+            // Company/Employment Section
+            if (ownedCompanies && ownedCompanies.length > 0) {
+                const companyList = ownedCompanies.map(c => `🏢 **${c.name}** - Balance: $${(c.balance || 0).toLocaleString()}`).join('\n');
+                embed.addFields({
+                    name: '🏢 Empresas Propias',
+                    value: companyList,
+                    inline: false
+                });
+            }
+
+            if (employmentData) {
+                embed.addFields({
+                    name: '💼 Empleo Actual',
+                    value: `🏢 **${employmentData.company_name}**\n📋 Cargo: ${employmentData.role}\n💰 Salario: $${employmentData.salary.toLocaleString()}/mes`,
                     inline: false
                 });
             }
