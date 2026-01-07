@@ -273,7 +273,8 @@ module.exports = {
 
                 const badgeStr = `${newRank.badge_type}-${String(badgeNumber).padStart(3, '0')}`; // ST-001
                 finalBadge = badgeStr;
-                const newNickname = `[${badgeStr}] ${cleanName}`;
+                const newNickname = `${badgeStr} | ${cleanName}`;
+
 
                 try {
                     await member.setNickname(newNickname);
