@@ -1,22 +1,45 @@
 require('dotenv').config();
+
+// CRITICAL: Catch ANY startup errors
+process.on('uncaughtException', (err) => {
+    console.error('💥 [MAIN BOT] UNCAUGHT EXCEPTION:', err);
+    console.error(err.stack);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('💥 [MAIN BOT] UNHANDLED REJECTION:', reason);
+});
+
+console.log('🚀 [MAIN BOT] Starting index.js...');
+
 // 1. Unbuffered Logger
 const log = (msg) => process.stderr.write(`🟢 [BOT] ${msg}\n`);
 
-// ========================================
-// CRITICAL: START EXPRESS SERVER FIRST
-// This satisfies Koyeb's health check immediately
-// while the Discord bot initializes in the background
-// ========================================
-const express = require('express');
-const app = express();
-const port = process.env.PORT || 3003;
-app.get('/', (req, res) => res.send('🤖 Nacion MX MAIN Bot is running!'));
-app.listen(port, () => {
-    console.log(`🌐 [MAIN BOT] Web server listening on port ${port}`);
-    console.log('✅ [MAIN BOT] Health check endpoint active');
-});
-log('Express server started - health check ready');
-// ========================================
+try {
+    console.log('📦 [MAIN BOT] Loading Express...');
+    // ========================================
+    // CRITICAL: START EXPRESS SERVER FIRST
+    // This satisfies Koyeb's health check immediately
+    // while the Discord bot initializes in the background
+    // ========================================
+    const express = require('express');
+    console.log('✅ [MAIN BOT] Express loaded');
+    const app = express();
+    const port = process.env.PORT || 3003;
+    console.log(`🔌 [MAIN BOT] Will bind to port ${port}`);
+    app.get('/', (req, res) => res.send('🤖 Nacion MX MAIN Bot is running!'));
+    app.listen(port, () => {
+        console.log(`🌐 [MAIN BOT] Web server listening on port ${port}`);
+        console.log('✅ [MAIN BOT] Health check endpoint active');
+    });
+    log('Express server started - health check ready');
+    console.log('✅ [MAIN BOT] Express server initialized successfully');
+    // ========================================
+} catch (error) {
+    console.error('💥 [MAIN BOT] FAILED TO START EXPRESS:', error);
+    console.error(error.stack);
+    process.exit(1);
+}
 
 log('Starting bot/index.js execution...');
 const fs = require('fs');
