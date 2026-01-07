@@ -20,7 +20,13 @@ module.exports = {
                             { name: 'Auto CK', value: 'Auto CK' }
                         ))
                 .addStringOption(option => option.setName('razon').setDescription('Razón del CK').setRequired(true))
-                .addAttachmentOption(option => option.setName('evidencia').setDescription('Screenshot de evidencia').setRequired(true))),
+                .addAttachmentOption(option => option.setName('evidencia').setDescription('Screenshot de evidencia').setRequired(true)))
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('revertir')
+                .setDescription('♻️ Revertir un CK (Solo Encargado)')
+                .addUserOption(option => option.setName('usuario').setDescription('Usuario a restaurar').setRequired(true))
+                .addStringOption(option => option.setName('razon').setDescription('Motivo de la reversión').setRequired(true))),
 
     async execute(interaction, client, supabase) {
         await interaction.deferReply({});
