@@ -9,7 +9,7 @@
     "bot:mod": "cd bot && node index_moderacion.js",
     "bot:eco": "cd bot && node index_economia.js",
     "bot:gob": "cd bot && node index_gobierno.js",
-    "dev:all": "concurrently \"npm run bot:mod\" \"npm run bot:eco\" \"npm run bot:gob\"",
+    "dev:all": "cd bot && node index_unified.js",
     "dev": "vite",
     "build": "echo 'No build needed for bots'",
     "build:web": "vite build",
