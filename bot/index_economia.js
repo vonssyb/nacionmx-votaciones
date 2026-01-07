@@ -141,8 +141,13 @@ client.once('ready', async () => {
 client.on('interactionCreate', async interaction => {
     // 1. SLASH COMMANDS
     if (interaction.isChatInputCommand()) {
-        // Instant defer to prevent "Application did not respond"
-        // We monkey-patch deferReply to be a no-op if already called later
+        // CRITICAL: Defer IMMEDIATELY before any other processing
+        await interaction.deferReply({}).catch(e => {
+            console.error("CRITICAL: Failed to defer interaction:", e);
+            return; // Cannot proceed if defer fails
+        });
+
+        // NOW monkey-patch for safety (in case commands call defer manually)
         if (interaction.deferReply) {
             const originalDefer = interaction.deferReply.bind(interaction);
             interaction.deferReply = async (opts) => {
@@ -159,8 +164,6 @@ client.on('interactionCreate', async interaction => {
                 return originalReply(opts).catch(e => console.error("Reply error:", e));
             };
         }
-
-        await interaction.deferReply({}).catch(() => { });
 
         const commandName = interaction.commandName;
         const command = client.commands.get(commandName);
