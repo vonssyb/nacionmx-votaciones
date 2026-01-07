@@ -39,26 +39,13 @@ module.exports = {
 
         // Protected roles (NOT removed during CK)
         const protectedRoles = [
-            '1412882240991658177', '1449856794980516032',
-            '1450242210636365886', '1450242319121911848',
-            '1450242487422812251', '1412882245735420006',
-            '1456020936229912781', '1451703422800625777',
-            '1454985316292100226', '1457554145719488687',
-            '1455654563158954096', '1455654847717048473',
-            '1450938106395234526', '1456348822296068326',
-            '1450688555503587459', '1454986744004087839',
-            '1450688588155981976', '1412882248411381872',
-            '1412887079612059660', '1457558479287091417',
-            '1412887167654690908', '1456028933995630701',
-            '1456028797638934704', '1456028699718586459',
-            '1454636391932756049', '1450997809234051122',
-            '1449883899051114627', '1413709747244240896',
-            '1413718347052351529', '1413545369119490089',
-            '1451860028653834300', '1413714060423200778',
-            '1449930883762225253', '1413714467287470172',
-            '1413714540834852875', '1414033620636532849',
-            '1412887172503175270', '1423520675158691972',
-            '1412887176827375768', '1437614205393047622'
+            // USER PROVIDED PROTECTED ROLES
+            '1458506735185825993', '1458506888407810252',
+            '1458507178619965522', '1458507296958316751',
+            '1458507711938564399', '1458507744725176501',
+            '1458513516913758208', '1458515486722625648',
+            // CRITICAL SYSTEM ROLES
+            '1412882248411381872', '1412887079612059660', '1412887167654690908'
         ];
 
         // License roles to remove
@@ -186,6 +173,36 @@ module.exports = {
                             cash: 0,
                             bank: 0
                         }, { onConflict: 'guild_id,user_id' });
+
+                    // 2a. HANDLE COMPANIES (Expropriation / Partner Removal)
+                    const { data: companies } = await supabase
+                        .from('companies')
+                        .select('*')
+                        .contains('owner_ids', [targetUser.id]);
+
+                    if (companies && companies.length > 0) {
+                        for (const company of companies) {
+                            const newOwners = company.owner_ids.filter(id => id !== targetUser.id);
+
+                            if (newOwners.length > 0) {
+                                // Still has partners -> Just remove user
+                                await supabase
+                                    .from('companies')
+                                    .update({ owner_ids: newOwners })
+                                    .eq('id', company.id);
+                            } else {
+                                // Sole owner -> SEIZE FOR GOVERNMENT
+                                await supabase
+                                    .from('companies')
+                                    .update({
+                                        owner_ids: [],
+                                        status: 'government_seized',
+                                        name: `${company.name} (Expropiada)`
+                                    })
+                                    .eq('id', company.id);
+                            }
+                        }
+                    }
 
                     // 3. Deactivate all credit cards
                     await supabase
