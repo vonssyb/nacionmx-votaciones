@@ -1380,6 +1380,23 @@ client.on('interactionCreate', async interaction => {
     }
     processedInteractions.add(interaction.id);
 
+    // --- MODULAR COMMAND HANDLER (Added for config-pings and new commands) ---
+    if (interaction.isChatInputCommand()) {
+        const command = client.commands.get(interaction.commandName);
+        if (command) {
+            console.log(`[CMD] Executing Modular Command: ${interaction.commandName}`);
+            try {
+                await command.execute(interaction, client, supabase);
+            } catch (error) {
+                console.error(`[CMD] Error in ${interaction.commandName}:`, error);
+                const msg = { content: '❌ Error ejecutando comando.', flags: [64] };
+                if (interaction.replied || interaction.deferred) await interaction.followUp(msg).catch(console.error);
+                else await interaction.reply(msg).catch(console.error);
+            }
+            return; // Exit if handled modularly
+        }
+    }
+
     // BUTTON: Investment Collection
 
     // BUTTONS: Claim Mission Rewards (Gamification)
