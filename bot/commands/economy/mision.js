@@ -40,6 +40,19 @@ module.exports = {
                     return interaction.editReply('❌ No hay misión activa para hoy.');
                 }
 
+                // Check allowed_roles (if defined)
+                if (mission.allowed_roles && mission.allowed_roles.length > 0) {
+                    const member = interaction.member; // Already cached usually
+                    const hasRole = member.roles.cache.some(r => mission.allowed_roles.includes(r.id));
+
+                    if (!hasRole) {
+                        return interaction.editReply({
+                            content: '⛔ **Misión Bloqueada**\nEsta misión es exclusiva para miembros de Seguridad Pública (Fuerzas del Orden).',
+                            embeds: []
+                        });
+                    }
+                }
+
                 // Check if user has completed it
                 const { data: completion } = await supabase
                     .from('mission_completions')
