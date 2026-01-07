@@ -152,6 +152,14 @@ client.on('interactionCreate', async interaction => {
 
         const command = client.commands.get(interaction.commandName);
         if (command) {
+            // CONFLICT FIX: Ignore commands handled by Main Bot (Utils)
+            // Even if loaded, Mod Bot shouldn't execute them to avoid "Already acknowledged" race conditions.
+            const SHARED_COMMANDS_TO_IGNORE = ['verificar', 'config-pings', 'ping', 'status'];
+            if (SHARED_COMMANDS_TO_IGNORE.includes(interaction.commandName)) {
+                console.log(`[DEBUG] Ignoring shared command in ModBot: ${interaction.commandName}`);
+                return;
+            }
+
             try {
                 await command.execute(interaction, client, supabase);
             } catch (error) {
