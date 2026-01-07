@@ -20,6 +20,7 @@ module.exports = {
                 '📅 = Eventos y Dinámicas\n' +
                 '🆕 = Actualizaciones del Servidor\n' +
                 '🎰 = Novedades del Casino\n' +
+                '⚔️ = Facciones\n' +
                 '💰 = Noticias de Economía')
             .setColor('#2F3136')
             .setFooter({ text: 'Nación MX | Auto-Roles' });
