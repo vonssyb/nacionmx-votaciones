@@ -31,6 +31,11 @@ module.exports = {
                         )
                 ))
         .addSubcommand(subcommand =>
+            subcommand.setName('expulsar')
+                .setDescription('🚨 Expulsar miembro del Staff (Wipe completo)')
+                .addUserOption(option => option.setName('usuario').setDescription('Usuario a expulsar').setRequired(true))
+                .addStringOption(option => option.setName('razon').setDescription('Razón de la expulsión').setRequired(true)))
+        .addSubcommand(subcommand =>
             subcommand.setName('lock')
                 .setDescription('🔒 Bloquear ascensos de un usuario (Rank Lock)')
                 .addUserOption(option => option.setName('usuario').setDescription('Usuario').setRequired(true)))
@@ -41,16 +46,16 @@ module.exports = {
         .setDefaultMemberPermissions(PermissionFlagsBits.ManageRoles),
 
     async execute(interaction, client, supabase) {
+        // Defer reply immediately since this might take time (DB + ERLC + Discord API)
         await interaction.deferReply({});
 
         // --- CONFIGURATION ---
-        // --- CONFIGURATION ---
         // Roles Hierarchy (Lowest to Highest)
-        // IDs must match sancion.js config
         const RANGOS = [
             {
                 name: 'Staff en Entrenamiento',
                 level: 1,
+                badge_type: 'ST',
                 color: 0x3498DB, // Blue
                 main_id: '1457558479287091417',
                 roles: ['1457558479287091417', '1412887167654690908'] // Role + Staff Separator
@@ -58,6 +63,7 @@ module.exports = {
             {
                 name: 'Moderador / Staff',
                 level: 2,
+                badge_type: 'ST',
                 color: 0x2ECC71, // Green
                 main_id: '1412887079612059660',
                 roles: ['1412887079612059660', '1450242319121911848', '1450242487422812251', '1412887167654690908'] // Role + KeyMod + KeySeparator + StaffSeparator
@@ -65,14 +71,16 @@ module.exports = {
             {
                 name: 'Administración',
                 level: 3,
+                badge_type: 'AD',
                 color: 0xE74C3C, // Red
-                main_id: '1412882248411381872', // Keeping original distinct ID to ensure hierarchy exists
-                // Admin gets: Admin Role + Key Admin + Key Mod + Separators
-                roles: ['1412882248411381872', '1450242210636365886', '1450242319121911848', '1450242487422812251', '1412887167654690908']
+                main_id: '1412882248411381872',
+                // Admin gets: Admin Role + Key Mod + Key Separator + Staff Separator (NO KEY ADMIN)
+                roles: ['1412882248411381872', '1450242319121911848', '1450242487422812251', '1412887167654690908']
             },
             {
                 name: 'Junta Directiva',
                 level: 4,
+                badge_type: 'JD',
                 color: 0xF1C40F, // Gold
                 main_id: '1412882245735420006',
                 // JD gets: JD Role + Admin Keys + Key Mod + Separators
@@ -102,34 +110,28 @@ module.exports = {
 
             // Find Lock Role
             let lockRole = interaction.guild.roles.cache.find(r => r.name === LOCK_ROLE_NAME);
-            if (!lockRole && (subcommand === 'lock')) {
-                // Create if doesn't exist and trying to lock
-                try {
-                    lockRole = await interaction.guild.roles.create({
-                        name: LOCK_ROLE_NAME,
-                        color: 0x000000,
-                        reason: 'Sistema de Rank Lock Automático'
-                    });
-                } catch (e) {
-                    return interaction.followUp('❌ Error: No existe el rol "🔒 Rank Locked" y no pude crearlo. Verifica mis permisos.');
+
+            // Handle Lock/Unlock Command Logic
+            if (subcommand === 'lock' || subcommand === 'unlock') {
+                if (!lockRole && subcommand === 'lock') {
+                    try {
+                        lockRole = await interaction.guild.roles.create({ name: LOCK_ROLE_NAME, color: 0x000000, reason: 'Rank Lock' });
+                    } catch (e) { return interaction.followUp('❌ Error: No existe el rol "🔒 Rank Locked" y no pude crearlo. Verifica mis permisos.'); }
+                }
+                const isLocked = lockRole && member.roles.cache.has(lockRole.id);
+                if (subcommand === 'lock') {
+                    if (isLocked) return interaction.followUp(`⚠️ **${targetUser.tag}** ya tiene Rank Lock.`);
+                    await member.roles.add(lockRole);
+                    return interaction.followUp(`🔒 **RANK LOCK ACTIVADO** para ${targetUser.tag}.\n⛔ Este usuario ya no podrá ser promovido.`);
+                }
+                if (subcommand === 'unlock') {
+                    if (!isLocked) return interaction.followUp(`⚠️ **${targetUser.tag}** no tiene Rank Lock.`);
+                    await member.roles.remove(lockRole);
+                    return interaction.followUp(`🔓 **RANK LOCK RETIRADO** de ${targetUser.tag}.\n✅ Ahora puede ser promovido nuevamente.`);
                 }
             }
 
             const isLocked = lockRole && member.roles.cache.has(lockRole.id);
-
-            // HANDLE LOCK/UNLOCK COMMANDS
-            if (subcommand === 'lock') {
-                if (isLocked) return interaction.followUp(`⚠️ **${targetUser.tag}** ya tiene Rank Lock.`);
-                await member.roles.add(lockRole);
-                return interaction.followUp(`🔒 **RANK LOCK ACTIVADO** para ${targetUser.tag}.\n⛔ Este usuario ya no podrá ser promovido.`);
-            }
-
-            if (subcommand === 'unlock') {
-                if (!isLocked) return interaction.followUp(`⚠️ **${targetUser.tag}** no tiene Rank Lock.`);
-                await member.roles.remove(lockRole);
-                return interaction.followUp(`🔓 **RANK LOCK RETIRADO** de ${targetUser.tag}.\n✅ Ahora puede ser promovido nuevamente.`);
-            }
-
 
             // Determine Current Level
             let currentRankIndex = -1;
@@ -142,8 +144,13 @@ module.exports = {
             }
 
             let newRankIndex = -1;
+            let kickReason = '';
 
-            if (subcommand === 'promover') {
+            // LOGIC FOR COMMANDS
+            if (subcommand === 'expulsar') {
+                kickReason = interaction.options.getString('razon');
+                newRankIndex = -2; // Special code for removal
+            } else if (subcommand === 'promover') {
                 // RANK LOCK CHECK
                 if (isLocked) {
                     return interaction.followUp({
@@ -173,44 +180,103 @@ module.exports = {
                 newRankIndex = level - 1; // 1-based to 0-based
             }
 
-            // EXECUTE CHANGES
+            // --- EXECUTE CHANGES ---
             const changesLog = [];
-
-            // 1. Remove ALL staff roles (to ensure clean slate)
             const allStaffRoleIds = [...new Set(RANGOS.flatMap(r => r.roles))];
+
+            // Remove all roles first
             await member.roles.remove(allStaffRoleIds);
 
             let actionDescription = '';
             let color = 0x808080;
+            let finalBadge = null;
 
-            if (newRankIndex >= 0) {
-                // Add new rank roles
+            // HANDLE NICKNAME & BADGE
+            const originalNickname = member.displayName;
+            // Strip existing prefix if any [ST-00X] Name -> Name
+            // Regex matches [AA-999] or similar
+            const cleanName = originalNickname.replace(/^\[[A-Z]{2}-\d{3}\]\s*/, '');
+
+            if (newRankIndex >= 0) { // Adding Rank
                 const newRank = RANGOS[newRankIndex];
                 await member.roles.add(newRank.roles);
-
-                actionDescription = `✅ **Asignado Nuevo Rango:** <@&${newRank.main_id}> (${newRank.name})`;
-                if (newRank.roles.length > 1) {
-                    actionDescription += `\n🔑 **Roles Agregados:** ${newRank.roles.length} (Incluyendo Keys)`;
-                }
                 color = newRank.color;
 
+                // --- BADGE SYSTEM ---
+                // 1. Check if user already has a number for this type
+                const { data: existingBadge } = await supabase
+                    .from('staff_badges')
+                    .select('*')
+                    .eq('discord_id', targetUser.id)
+                    .eq('badge_type', newRank.badge_type)
+                    .maybeSingle();
+
+                let badgeNumber = 1;
+                if (existingBadge) {
+                    badgeNumber = existingBadge.badge_number;
+                } else {
+                    // Assign new number
+                    const { data: maxBadge } = await supabase
+                        .from('staff_badges')
+                        .select('badge_number')
+                        .eq('badge_type', newRank.badge_type)
+                        .order('badge_number', { ascending: false })
+                        .limit(1)
+                        .maybeSingle();
+
+                    badgeNumber = (maxBadge?.badge_number || 0) + 1;
+
+                    // Save to DB
+                    await supabase.from('staff_badges').insert({
+                        discord_id: targetUser.id,
+                        badge_type: newRank.badge_type,
+                        badge_number: badgeNumber
+                    });
+                }
+
+                const badgeStr = `${newRank.badge_type}-${String(badgeNumber).padStart(3, '0')}`; // ST-001
+                finalBadge = badgeStr;
+                const newNickname = `[${badgeStr}] ${cleanName}`;
+
+                try {
+                    await member.setNickname(newNickname);
+                    changesLog.push(`🏷️ **Placa Asignada:** ${badgeStr}`);
+                } catch (nickError) {
+                    changesLog.push(`⚠️ No pude cambiar apodo (Permisos insuficientes)`);
+                }
+
+                actionDescription = `✅ **Nuevo Rango:** <@&${newRank.main_id}> (${newRank.name})`;
                 const oldRankName = currentRankIndex >= 0 ? RANGOS[currentRankIndex].name : 'Ninguno';
                 changesLog.push(`De: ${oldRankName}`);
                 changesLog.push(`A: ${newRank.name}`);
 
-            } else if (newRankIndex === -2) {
-                // Removed from staff
-                actionDescription = '🔻 **Expulsado del Staff:** Se han retirado todos los roles de rango.';
+            } else if (newRankIndex === -2) { // Removing/Kicking
+                actionDescription = subcommand === 'expulsar' ?
+                    `🚨 **EXPULSADO DEL STAFF**\n📝 Razón: ${kickReason}` :
+                    '🔻 **Expulsado del Staff** (Retiro de roles)';
                 color = 0x000000;
+
+                // Reset Nickname
+                try {
+                    await member.setNickname(cleanName); // Remove prefix
+                    changesLog.push(`🏷️ Placa retirada`);
+                } catch (e) { }
+
+                if (subcommand === 'expulsar') {
+                    // Notify User via DM
+                    try {
+                        await targetUser.send(`🚨 **HAS SIDO EXPULSADO DEL STAFF DE NACIÓN MX**\n\n📝 **Razón:** ${kickReason}\n👮 **Por:** ${interaction.user.tag}`);
+                    } catch (e) { }
+                }
                 const oldRankName = currentRankIndex >= 0 ? RANGOS[currentRankIndex].name : 'Desconocido';
                 changesLog.push(`De: ${oldRankName}`);
                 changesLog.push('A: Ninguno (Civil)');
             }
 
-            // Embed Response
+            // --- EMBED ---
             const embed = new EmbedBuilder()
-                .setTitle(`⚙️ Actualización de Rango Staff`)
-                .setDescription(`${actionDescription}\n\n👤 **Usuario:** ${targetUser.tag}\n👮 **Gestionado por:** ${interaction.user.tag}`)
+                .setTitle(`⚙️ Gestión de Staff: ${subcommand.toUpperCase()}`)
+                .setDescription(`${actionDescription}\n\n👤 **Usuario:** ${targetUser.tag}\n👮 **Mod:** ${interaction.user.tag}\n\n${changesLog.join('\n')}`)
                 .setColor(color)
                 .setThumbnail(targetUser.displayAvatarURL())
                 .setTimestamp();
@@ -220,12 +286,7 @@ module.exports = {
             // --- ERLC SYNC ---
             let erlcSyncMsg = '';
             try {
-                // Get Roblox ID
-                const { data: citizen } = await supabase
-                    .from('citizens')
-                    .select('roblox_username, roblox_id')
-                    .eq('discord_id', targetUser.id)
-                    .maybeSingle();
+                const { data: citizen } = await supabase.from('citizens').select('roblox_username').eq('discord_id', targetUser.id).maybeSingle();
 
                 if (citizen && citizen.roblox_username) {
                     const ErlcService = require('../../services/ErlcService');
@@ -235,18 +296,29 @@ module.exports = {
                         const erlcService = new ErlcService(erlcKey);
                         let cmd = '';
 
-                        if (newRankIndex >= 2) { // Level 3 (Admin) or 4 (Board)
-                            cmd = `:admin ${citizen.roblox_username}`;
-                        } else if (newRankIndex >= 0) { // Level 1 or 2 (Mod)
-                            cmd = `:mod ${citizen.roblox_username}`;
-                        } else { // Removed or Demoted below 0
-                            cmd = `:removemod ${citizen.roblox_username}`;
+                        if (newRankIndex === 3) cmd = `:admin ${citizen.roblox_username}`; // Level 4 JD
+                        else if (newRankIndex >= 0) cmd = `:mod ${citizen.roblox_username}`; // Level 1, 2, 3
+                        else cmd = `:removemod ${citizen.roblox_username}`; // Removed or Demoted below 0
+
+                        // Try to execute
+                        try {
+                            const result = await erlcService.runCommand(cmd);
+                            if (result && result.success === false && result.status === 404) {
+                                throw new Error('Player offline'); // Trigger queue
+                            }
+                            erlcSyncMsg = `\n🎮 **ERLC:** Comando \`${cmd}\` enviado.`;
+                        } catch (erlcErr) {
+                            // Queue System
+                            console.log(`[ERLC Queue] Player offline or error. Queuing command: ${cmd}`);
+                            await supabase.from('pending_erlc_commands').insert({
+                                discord_id: targetUser.id,
+                                roblox_username: citizen.roblox_username,
+                                command: cmd,
+                                status: 'pending'
+                            });
+                            erlcSyncMsg = `\n⏳ **ERLC:** Usuario offline. Comando \`${cmd}\` encolado automáticamente.`;
                         }
 
-                        await erlcService.runCommand(cmd);
-                        erlcSyncMsg = `\n🎮 **ERLC Sincronizado:** Comando \`${cmd}\` enviado.`;
-
-                        // Update embed with sync info
                         const updatedEmbed = EmbedBuilder.from(embed).setDescription(embed.data.description + erlcSyncMsg);
                         await interaction.editReply({ embeds: [updatedEmbed] });
                     }
@@ -255,23 +327,18 @@ module.exports = {
                     const updatedEmbed = EmbedBuilder.from(embed).setDescription(embed.data.description + erlcSyncMsg);
                     await interaction.editReply({ embeds: [updatedEmbed] });
                 }
-            } catch (erlcError) {
-                console.error('ERLC Sync Error:', erlcError);
+            } catch (e) {
+                console.error('ERLC Sync Error:', e);
                 // Don't fail the whole command, just log it
             }
 
-            // Audit
-            await client.logAudit(
-                'Cambio de Rango Staff',
-                `Usuario: <@${targetUser.id}>\nAcción: ${subcommand.toUpperCase()}\n${changesLog.join('\n')}`,
-                interaction.user,
-                targetUser,
-                color
-            );
+            // Log Audit
+            await client.logAudit('Gestión de Staff', `Acción: ${subcommand}\n${changesLog.join('\n')}`, interaction.user, targetUser, color);
 
         } catch (error) {
             console.error('[Rango] Error:', error);
-            await interaction.followUp('❌ Error al gestionar los roles. Verifica que el bot tenga permisos superiores al rol que intenta asignar.');
+            await interaction.followUp('❌ Error crítico gestionando rango. Verifica que el bot tenga permisos superiores al rol que intenta asignar.');
         }
     }
 };
+```

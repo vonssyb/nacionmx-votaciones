@@ -801,6 +801,15 @@ const commands = [
                         ]
                     }
                 ]
+            },
+            {
+                name: 'expulsar',
+                description: '🚨 Expulsar miembro del Staff (Wipe completo)',
+                type: 1,
+                options: [
+                    { name: 'usuario', description: 'Usuario a expulsar', type: 6, required: true },
+                    { name: 'razon', description: 'Razón de la expulsión', type: 3, required: true }
+                ]
             }
         ]
     },
