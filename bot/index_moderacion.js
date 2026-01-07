@@ -157,8 +157,15 @@ client.on('interactionCreate', async interaction => {
             } catch (error) {
                 console.error(error);
                 try {
-                    if (interaction.replied || interaction.deferred) await interaction.followUp({ content: '❌ Error ejecutando comando.', flags: [64] });
-                    else await interaction.reply({ content: '❌ Error ejecutando comando.', flags: [64] });
+                    // Force a followUp if we suspect it's already acknowledged, or just try catch block wrapper
+                    if (interaction.replied || interaction.deferred) {
+                        await interaction.followUp({ content: '❌ Error ejecutando comando.', flags: [64] }).catch(() => { });
+                    } else {
+                        // If checking flags failed, try reply, if that fails, try editReply
+                        await interaction.reply({ content: '❌ Error ejecutando comando.', flags: [64] }).catch(async () => {
+                            await interaction.editReply({ content: '❌ Error ejecutando comando.' }).catch(() => { });
+                        });
+                    }
                 } catch (e) { }
             }
             return;
