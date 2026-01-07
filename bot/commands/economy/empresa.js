@@ -80,7 +80,23 @@ module.exports = {
                 .addStringOption(option =>
                     option.setName('concepto')
                         .setDescription('Motivo del retiro (opcional)')
-                        .setRequired(false))),
+                        .setRequired(false)))
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('remover_dueño')
+                .setDescription('Remover un socio/dueño de la empresa')
+                .addUserOption(option =>
+                    option.setName('usuario')
+                        .setDescription('Socio a remover')
+                        .setRequired(true)))
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('transferir')
+                .setDescription('Transferir la propiedad completa de la empresa')
+                .addUserOption(option =>
+                    option.setName('nuevo_dueño')
+                        .setDescription('Nuevo dueño de la empresa')
+                        .setRequired(true))),
 
     async execute(interaction, client, supabase) {
         // Note: deferReply is handled automatically by index_economia.js monkey-patch
@@ -398,6 +414,72 @@ module.exports = {
                         { name: '📝 Concepto', value: concepto, inline: false }
                     )
                     .setFooter({ text: 'Los fondos han sido transferidos a tu cuenta bancaria' })
+                    .setTimestamp();
+
+                return interaction.editReply({ embeds: [embed] });
+
+            } else if (subcommand === 'remover_dueño') {
+                // Only owners can remove other owners
+                const isOwner = company.owner_ids && company.owner_ids.includes(interaction.user.id);
+                if (!isOwner) {
+                    return interaction.editReply('❌ Solo un dueño puede remover socios.');
+                }
+
+                const targetUser = interaction.options.getUser('usuario');
+
+                // Check if target is an owner
+                if (!company.owner_ids || !company.owner_ids.includes(targetUser.id)) {
+                    return interaction.editReply(`❌ <@${targetUser.id}> no es dueño de **${company.name}**.`);
+                }
+
+                // Prevent removing yourself if you're the only owner
+                if (company.owner_ids.length === 1) {
+                    return interaction.editReply('❌ No puedes remover el último dueño. Usa `/empresa transferir` para cambiar de dueño.');
+                }
+
+                // Remove from owner_ids array
+                const newOwners = company.owner_ids.filter(id => id !== targetUser.id);
+                await supabase.from('companies')
+                    .update({ owner_ids: newOwners })
+                    .eq('id', company.id);
+
+                const embed = new EmbedBuilder()
+                    .setTitle('🚪 Socio Removido')
+                    .setColor('#E74C3C')
+                    .addFields(
+                        { name: '🏢 Empresa', value: company.name, inline: true },
+                        { name: '👤 Socio Removido', value: `<@${targetUser.id}>`, inline: true },
+                        { name: '👥 Dueños Restantes', value: `${newOwners.length}`, inline: true }
+                    )
+                    .setFooter({ text: 'El usuario ya no tiene permisos de dueño en esta empresa' })
+                    .setTimestamp();
+
+                return interaction.editReply({ embeds: [embed] });
+
+            } else if (subcommand === 'transferir') {
+                // Only current owners can transfer
+                const isOwner = company.owner_ids && company.owner_ids.includes(interaction.user.id);
+                if (!isOwner) {
+                    return interaction.editReply('❌ Solo un dueño puede transferir la empresa.');
+                }
+
+                const newOwner = interaction.options.getUser('nuevo_dueño');
+
+                // Transfer complete ownership (replace all owners with just the new one)
+                await supabase.from('companies')
+                    .update({ owner_ids: [newOwner.id] })
+                    .eq('id', company.id);
+
+                const embed = new EmbedBuilder()
+                    .setTitle('🔄 Empresa Transferida')
+                    .setColor('#3498DB')
+                    .addFields(
+                        { name: '🏢 Empresa', value: company.name, inline: false },
+                        { name: '👤 Antiguo Dueño', value: `<@${interaction.user.id}>`, inline: true },
+                        { name: '👤 Nuevo Dueño', value: `<@${newOwner.id}>`, inline: true }
+                    )
+                    .setDescription('⚠️ **Transferencia Completa:** El nuevo dueño tiene control total de la empresa.')
+                    .setFooter({ text: 'Ya no tienes permisos en esta empresa' })
                     .setTimestamp();
 
                 return interaction.editReply({ embeds: [embed] });
