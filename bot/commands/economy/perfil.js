@@ -10,8 +10,7 @@ module.exports = {
                 .setRequired(false)),
 
     async execute(interaction, client, supabase) {
-        await interaction.deferReply();
-
+        // Note: deferReply is handled automatically by index_economia.js monkey-patch
         const targetUser = interaction.options.getUser('usuario') || interaction.user;
         const isOwnProfile = targetUser.id === interaction.user.id;
 
