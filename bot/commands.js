@@ -811,451 +811,449 @@ const commands = [
                     { name: 'razon', description: 'Razón de la expulsión', type: 3, required: true }
                 ]
             }
-            }
-]
+        ]
     },
-{
-    name: 'sancion',
+    {
+        name: 'sancion',
         description: '⚖️ Sistema de Sanciones Profesional Nación MX',
-            options: [
-                {
-                    name: 'tipo',
-                    description: 'Tipo de sanción/documento',
+        options: [
+            {
+                name: 'tipo',
+                description: 'Tipo de sanción/documento',
+                type: 3,
+                required: true,
+                choices: [
+                    { name: '📜 Sanción General (Reporte)', value: 'general' },
+                    { name: '🚨 Sanción Administrativa (SA)', value: 'sa' },
+                    { name: '📢 Notificación', value: 'notificacion' }
+                ]
+            },
+            { name: 'motivo', description: 'Código de Regla / Asunto', type: 3, required: true },
+            { name: 'descripcion', description: 'Descripción de los hechos', type: 3, required: true },
+            { name: 'evidencia', description: 'Evidencia (Imagen/Video)', type: 11, required: true },
+            { name: 'usuario', description: 'Usuario a sancionar', type: 6, required: false },
+            { name: 'discord_id', description: 'ID Discord (Si salió del servidor)', type: 3, required: false },
+            {
+                name: 'accion',
+                description: 'Tipo de castigo (Solo General)',
+                type: 3,
+                required: false,
+                choices: [
+                    { name: 'Advertencia Verbal', value: 'Advertencia Verbal' },
+                    { name: 'Warn (Advertencia)', value: 'Warn' },
+                    { name: 'Ban Temporal ERLC', value: 'Ban Temporal ERLC' },
+                    { name: 'Ban Permanente ERLC', value: 'Ban Permanente ERLC' },
+                    { name: 'Kick ERLC', value: 'Kick ERLC' },
+                    { name: 'Kick Discord', value: 'Kick Discord' },
+                    { name: 'Ban Temporal Discord', value: 'Ban Temporal Discord' },
+                    { name: 'Ban Permanente Discord', value: 'Ban Permanente Discord' },
+                    { name: 'Timeout', value: 'Timeout' },
+                    { name: 'Blacklist', value: 'Blacklist' }
+                ]
+            },
+            {
+                name: 'tipo_blacklist',
+                description: 'Tipo de Blacklist (Si aplica)',
+                type: 3,
+                required: false,
+                choices: [
+                    { name: 'Moderación', value: 'Blacklist Moderacion' },
+                    { name: 'Facciones Policiales', value: 'Blacklist Facciones Policiales' },
+                    { name: 'Cartel', value: 'Blacklist Cartel' },
+                    { name: 'Política', value: 'Blacklist Politica' },
+                    { name: 'Empresas', value: 'Blacklist Empresas' },
+                    { name: 'TOTAL (Ban Permanente)', value: 'Blacklist Total' }
+                ]
+            },
+            { name: 'duracion', description: 'Tiempo (ej: 10m, 2h, 1d)', type: 3, required: false },
+            { name: 'roblox_usuario', description: 'Username o ID Roblox (Para Ban ERLC)', type: 3, required: false }
+        ]
+    },
+    {
+        name: 'agregar-rol',
+        description: '➕ Agregar un rol a un usuario (Solo Staff)',
+        options: [
+            { name: 'usuario', description: 'Usuario al que agregar rol', type: 6, required: true },
+            { name: 'rol', description: 'Rol a agregar', type: 8, required: true },
+            { name: 'razon', description: 'Razón del cambio', type: 3, required: false }
+        ]
+    },
+    {
+        name: 'quitar-rol',
+        description: '➖ Quitar un rol de un usuario (Solo Staff)',
+        options: [
+            { name: 'usuario', description: 'Usuario al que quitar rol', type: 6, required: true },
+            { name: 'rol', description: 'Rol a quitar', type: 8, required: true },
+            { name: 'razon', description: 'Razón del cambio', type: 3, required: false }
+        ]
+    },
+    {
+        name: 'saldo',
+        description: '🏦 Ver saldo de banco y efectivo',
+        options: [
+            { name: 'usuario', description: 'Usuario a consultar (Opcional)', type: 6, required: false }
+        ]
+    },
+    {
+        name: 'jugar',
+        description: '🎲 Juegos de Apuestas Rápidas',
+        options: [
+            {
+                name: 'slots',
+                description: '🎰 Jugar Tragamonedas',
+                type: 1,
+                options: [
+                    { name: 'apuesta', description: 'Cantidad a apostar', type: 4, required: true }
+                ]
+            },
+            {
+                name: 'dice',
+                description: '🎲 Dados - Alto, Bajo, Par, Impar',
+                type: 1,
+                options: [
+                    { name: 'apuesta', description: 'Cantidad a apostar', type: 4, required: true },
+                    {
+                        name: 'tipo',
+                        description: 'Tu predicción',
+                        type: 3,
+                        required: true,
+                        choices: [
+                            { name: 'Mayor a 7', value: 'alto' },
+                            { name: 'Menor a 7', value: 'bajo' },
+                            { name: 'Par', value: 'par' },
+                            { name: 'Impar', value: 'impar' },
+                            { name: 'Siete (x4)', value: 'siete' }
+                        ]
+                    }
+                ]
+            },
+            {
+                name: 'ruleta',
+                description: '🎯 Ruleta (Rojo/Negro/Verde)',
+                type: 1,
+                options: [
+                    { name: 'apuesta', description: 'Cantidad', type: 4, required: true },
+                    {
+                        name: 'color', description: 'Color', type: 3, required: true, choices: [
+                            { name: 'Rojo (x2)', value: 'rojo' },
+                            { name: 'Negro (x2)', value: 'negro' },
+                            { name: 'Verde (x14)', value: 'verde' }
+                        ]
+                    }
+                ]
+            },
+            {
+                name: 'crash',
+                description: '🚀 Crash Game',
+                type: 1,
+                options: [{ name: 'apuesta', description: 'Cantidad', type: 4, required: true }]
+            },
+            {
+                name: 'caballos',
+                description: '🏇 Carreras',
+                type: 1,
+                options: [
+                    { name: 'apuesta', description: 'Cantidad', type: 4, required: true },
+                    { name: 'caballo', description: 'Caballo (1-4)', type: 4, required: true, min_value: 1, max_value: 4 }
+                ]
+            },
+            {
+                name: 'gallos',
+                description: '🐓 Pelea de Gallos',
+                type: 1,
+                options: [
+                    { name: 'apuesta', description: 'Cantidad', type: 4, required: true },
+                    {
+                        name: 'gallo', description: 'Gallo', type: 3, required: true, choices: [
+                            { name: 'Rojo', value: 'rojo' },
+                            { name: 'Azul', value: 'azul' }
+                        ]
+                    }
+                ]
+            },
+            {
+                name: 'rusa',
+                description: '🔫 Ruleta Rusa',
+                type: 1,
+                options: [{ name: 'apuesta', description: 'Cantidad', type: 4, required: true }]
+            }
+        ]
+    },
+    {
+        name: 'business',
+        description: '🏢 Gestión de Tarjetas Empresariales (Staff)',
+        options: [
+            {
+                name: 'vincular',
+                description: 'Vincular nueva tarjeta business a una empresa',
+                type: 1,
+                options: [
+                    { name: 'dueño', description: 'Usuario dueño de la empresa', type: 6, required: true },
+                    {
+                        name: 'tipo',
+                        description: 'Tipo de tarjeta',
+                        type: 3,
+                        required: true,
+                        choices: [
+                            { name: 'Business Start ($50k Lím)', value: 'business_start' },
+                            { name: 'Business Gold ($100k Lím)', value: 'business_gold' },
+                            { name: 'Business Platinum ($200k Lím)', value: 'business_platinum' },
+                            { name: 'Business Elite ($500k Lím)', value: 'business_elite' },
+                            { name: 'NMX Corporate ($1M Lím)', value: 'nmx_corporate' }
+                        ]
+                    }
+                ]
+            }
+        ]
+    },
+    {
+        name: 'debito',
+        description: '🏦 Banco: Retirar y Depositar dinero',
+        options: [
+            {
+                name: 'retirar',
+                description: 'Sacar dinero del cajero (Banco -> Efectivo)',
+                type: 1,
+                options: [{ name: 'monto', description: 'Cantidad a retirar', type: 10, required: true }]
+            },
+            {
+                name: 'depositar',
+                description: 'Guardar dinero en el banco (Efectivo -> Banco)',
+                type: 1,
+                options: [{ name: 'monto', description: 'Cantidad a depositar', type: 10, required: true }]
+            },
+            {
+                name: 'estado',
+                description: 'Ver tu saldo bancario y número de tarjeta',
+                type: 1
+            },
+            {
+                name: 'transferir',
+                description: 'Transferir a otro usuario (Banco a Banco, 5 min)',
+                type: 1,
+                options: [
+                    { name: 'destinatario', description: 'Usuario a transferir', type: 6, required: true },
+                    { name: 'monto', description: 'Cantidad a transferir', type: 10, required: true },
+                    { name: 'concepto', description: 'Concepto de la transferencia', type: 3, required: false }
+                ]
+            }
+        ]
+    },
+
+    // PRIVACY ENHANCEMENTS - Add to commands.js
+    // Add these new subcommands to /privacidad command
+
+    // Replace the existing /privacidad command with this expanded version
+    {
+        name: 'privacidad',
+        description: '🕶️ Sistema de Privacidad Bancaria',
+        options: [
+            {
+                name: 'activar',
+                description: 'Activar protección de privacidad',
+                type: 1,
+                options: [{
+                    name: 'nivel',
+                    description: 'Nivel de protección',
                     type: 3,
                     required: true,
                     choices: [
-                        { name: '📜 Sanción General (Reporte)', value: 'general' },
-                        { name: '🚨 Sanción Administrativa (SA)', value: 'sa' },
-                        { name: '📢 Notificación', value: 'notificacion' }
+                        { name: '🥉 Básico ($50k/mes)', value: 'basico' },
+                        { name: '🥈 VIP ($150k/mes)', value: 'vip' },
+                        { name: '🥇 Elite ($500k/mes)', value: 'elite' }
                     ]
-                },
-                { name: 'motivo', description: 'Código de Regla / Asunto', type: 3, required: true },
-                { name: 'descripcion', description: 'Descripción de los hechos', type: 3, required: true },
-                { name: 'evidencia', description: 'Evidencia (Imagen/Video)', type: 11, required: true },
-                { name: 'usuario', description: 'Usuario a sancionar', type: 6, required: false },
-                { name: 'discord_id', description: 'ID Discord (Si salió del servidor)', type: 3, required: false },
-                { name: 'roblox_username', description: 'Username Roblox (DB Búsqueda)', type: 3, required: false },
-                {
-                    name: 'accion',
-                    description: 'Tipo de castigo (Solo General)',
+                }]
+            },
+            {
+                name: 'trial',
+                description: '🎁 3 días gratis de privacidad Básica',
+                type: 1
+            },
+            {
+                name: 'desactivar',
+                description: 'Desactivar privacidad',
+                type: 1
+            },
+            {
+                name: 'estado',
+                description: 'Ver tu nivel de privacidad actual',
+                type: 1
+            },
+            {
+                name: 'dashboard',
+                description: '📊 Ver estadísticas completas',
+                type: 1
+            },
+            {
+                name: 'upgrade',
+                description: 'Mejorar tu nivel de privacidad',
+                type: 1,
+                options: [{
+                    name: 'nuevo_nivel',
+                    description: 'Nuevo nivel',
                     type: 3,
-                    required: false,
+                    required: true,
                     choices: [
-                        { name: 'Advertencia Verbal', value: 'Advertencia Verbal' },
-                        { name: 'Warn (Advertencia)', value: 'Warn' },
-                        { name: 'Ban Temporal ERLC', value: 'Ban Temporal ERLC' },
-                        { name: 'Ban Permanente ERLC', value: 'Ban Permanente ERLC' },
-                        { name: 'Kick ERLC', value: 'Kick ERLC' },
-                        { name: 'Kick Discord', value: 'Kick Discord' },
-                        { name: 'Ban Temporal Discord', value: 'Ban Temporal Discord' },
-                        { name: 'Ban Permanente Discord', value: 'Ban Permanente Discord' },
-                        { name: 'Timeout', value: 'Timeout' },
-                        { name: 'Blacklist', value: 'Blacklist' }
+                        { name: 'VIP', value: 'vip' },
+                        { name: 'Elite', value: 'elite' }
                     ]
-                },
-                {
-                    name: 'tipo_blacklist',
-                    description: 'Tipo de Blacklist (Si aplica)',
+                }]
+            },
+            {
+                name: 'boveda',
+                description: 'Gestionar bóveda de emergencia (Elite)',
+                type: 1,
+                options: [
+                    {
+                        name: 'accion',
+                        description: 'Acción',
+                        type: 3,
+                        required: true,
+                        choices: [
+                            { name: 'Depositar', value: 'depositar' },
+                            { name: 'Retirar', value: 'retirar' },
+                            { name: 'Ver', value: 'ver' }
+                        ]
+                    },
+                    { name: 'monto', description: 'Cantidad', type: 10, required: false }
+                ]
+            },
+            {
+                name: 'offshore',
+                description: 'Configurar nombre offshore (Elite)',
+                type: 1,
+                options: [{ name: 'nombre', description: 'Nombre falso para transacciones', type: 3, required: true }]
+            },
+            {
+                name: 'panico',
+                description: 'Activar modo pánico (Elite)',
+                type: 1,
+                options: [{ name: 'pin', description: 'PIN de 6 dígitos', type: 3, required: true }]
+            },
+            {
+                name: 'recuperar',
+                description: '🔓 Recuperar de modo pánico',
+                type: 1,
+                options: [{ name: 'pin', description: 'PIN usado al activar', type: 3, required: true }]
+            },
+            {
+                name: 'alertas',
+                description: '🔔 Configurar alertas de seguridad',
+                type: 1,
+                options: [{
+                    name: 'estado',
+                    description: 'Activar/Desactivar',
                     type: 3,
-                    required: false,
+                    required: true,
                     choices: [
-                        { name: 'Moderación', value: 'Blacklist Moderacion' },
-                        { name: 'Facciones Policiales', value: 'Blacklist Facciones Policiales' },
-                        { name: 'Cartel', value: 'Blacklist Cartel' },
-                        { name: 'Política', value: 'Blacklist Politica' },
-                        { name: 'Empresas', value: 'Blacklist Empresas' },
-                        { name: 'TOTAL (Ban Permanente)', value: 'Blacklist Total' }
+                        { name: 'Activar', value: 'on' },
+                        { name: 'Desactivar', value: 'off' }
                     ]
-                },
-                { name: 'duracion', description: 'Tiempo (ej: 10m, 2h, 1d)', type: 3, required: false },
-                { name: 'roblox_usuario', description: 'Username o ID Roblox (Para Ban ERLC)', type: 3, required: false }
-            ]
-},
-{
-    name: 'agregar-rol',
-        description: '➕ Agregar un rol a un usuario (Solo Staff)',
-            options: [
-                { name: 'usuario', description: 'Usuario al que agregar rol', type: 6, required: true },
-                { name: 'rol', description: 'Rol a agregar', type: 8, required: true },
-                { name: 'razon', description: 'Razón del cambio', type: 3, required: false }
-            ]
-},
-{
-    name: 'quitar-rol',
-        description: '➖ Quitar un rol de un usuario (Solo Staff)',
-            options: [
-                { name: 'usuario', description: 'Usuario al que quitar rol', type: 6, required: true },
-                { name: 'rol', description: 'Rol a quitar', type: 8, required: true },
-                { name: 'razon', description: 'Razón del cambio', type: 3, required: false }
-            ]
-},
-{
-    name: 'saldo',
-        description: '🏦 Ver saldo de banco y efectivo',
-            options: [
-                { name: 'usuario', description: 'Usuario a consultar (Opcional)', type: 6, required: false }
-            ]
-},
-{
-    name: 'jugar',
-        description: '🎲 Juegos de Apuestas Rápidas',
-            options: [
-                {
-                    name: 'slots',
-                    description: '🎰 Jugar Tragamonedas',
-                    type: 1,
-                    options: [
-                        { name: 'apuesta', description: 'Cantidad a apostar', type: 4, required: true }
-                    ]
-                },
-                {
-                    name: 'dice',
-                    description: '🎲 Dados - Alto, Bajo, Par, Impar',
-                    type: 1,
-                    options: [
-                        { name: 'apuesta', description: 'Cantidad a apostar', type: 4, required: true },
-                        {
-                            name: 'tipo',
-                            description: 'Tu predicción',
-                            type: 3,
-                            required: true,
-                            choices: [
-                                { name: 'Mayor a 7', value: 'alto' },
-                                { name: 'Menor a 7', value: 'bajo' },
-                                { name: 'Par', value: 'par' },
-                                { name: 'Impar', value: 'impar' },
-                                { name: 'Siete (x4)', value: 'siete' }
-                            ]
-                        }
-                    ]
-                },
-                {
-                    name: 'ruleta',
-                    description: '🎯 Ruleta (Rojo/Negro/Verde)',
-                    type: 1,
-                    options: [
-                        { name: 'apuesta', description: 'Cantidad', type: 4, required: true },
-                        {
-                            name: 'color', description: 'Color', type: 3, required: true, choices: [
-                                { name: 'Rojo (x2)', value: 'rojo' },
-                                { name: 'Negro (x2)', value: 'negro' },
-                                { name: 'Verde (x14)', value: 'verde' }
-                            ]
-                        }
-                    ]
-                },
-                {
-                    name: 'crash',
-                    description: '🚀 Crash Game',
-                    type: 1,
-                    options: [{ name: 'apuesta', description: 'Cantidad', type: 4, required: true }]
-                },
-                {
-                    name: 'caballos',
-                    description: '🏇 Carreras',
-                    type: 1,
-                    options: [
-                        { name: 'apuesta', description: 'Cantidad', type: 4, required: true },
-                        { name: 'caballo', description: 'Caballo (1-4)', type: 4, required: true, min_value: 1, max_value: 4 }
-                    ]
-                },
-                {
-                    name: 'gallos',
-                    description: '🐓 Pelea de Gallos',
-                    type: 1,
-                    options: [
-                        { name: 'apuesta', description: 'Cantidad', type: 4, required: true },
-                        {
-                            name: 'gallo', description: 'Gallo', type: 3, required: true, choices: [
-                                { name: 'Rojo', value: 'rojo' },
-                                { name: 'Azul', value: 'azul' }
-                            ]
-                        }
-                    ]
-                },
-                {
-                    name: 'rusa',
-                    description: '🔫 Ruleta Rusa',
-                    type: 1,
-                    options: [{ name: 'apuesta', description: 'Cantidad', type: 4, required: true }]
-                }
-            ]
-},
-{
-    name: 'business',
-        description: '🏢 Gestión de Tarjetas Empresariales (Staff)',
-            options: [
-                {
-                    name: 'vincular',
-                    description: 'Vincular nueva tarjeta business a una empresa',
-                    type: 1,
-                    options: [
-                        { name: 'dueño', description: 'Usuario dueño de la empresa', type: 6, required: true },
-                        {
-                            name: 'tipo',
-                            description: 'Tipo de tarjeta',
-                            type: 3,
-                            required: true,
-                            choices: [
-                                { name: 'Business Start ($50k Lím)', value: 'business_start' },
-                                { name: 'Business Gold ($100k Lím)', value: 'business_gold' },
-                                { name: 'Business Platinum ($200k Lím)', value: 'business_platinum' },
-                                { name: 'Business Elite ($500k Lím)', value: 'business_elite' },
-                                { name: 'NMX Corporate ($1M Lím)', value: 'nmx_corporate' }
-                            ]
-                        }
-                    ]
-                }
-            ]
-},
-{
-    name: 'debito',
-        description: '🏦 Banco: Retirar y Depositar dinero',
-            options: [
-                {
-                    name: 'retirar',
-                    description: 'Sacar dinero del cajero (Banco -> Efectivo)',
-                    type: 1,
-                    options: [{ name: 'monto', description: 'Cantidad a retirar', type: 10, required: true }]
-                },
-                {
-                    name: 'depositar',
-                    description: 'Guardar dinero en el banco (Efectivo -> Banco)',
-                    type: 1,
-                    options: [{ name: 'monto', description: 'Cantidad a depositar', type: 10, required: true }]
-                },
-                {
+                }]
+            },
+            {
+                name: 'autorenovar',
+                description: '♻️ Auto-renovación mensual',
+                type: 1,
+                options: [{
                     name: 'estado',
-                    description: 'Ver tu saldo bancario y número de tarjeta',
-                    type: 1
-                },
-                {
-                    name: 'transferir',
-                    description: 'Transferir a otro usuario (Banco a Banco, 5 min)',
-                    type: 1,
-                    options: [
-                        { name: 'destinatario', description: 'Usuario a transferir', type: 6, required: true },
-                        { name: 'monto', description: 'Cantidad a transferir', type: 10, required: true },
-                        { name: 'concepto', description: 'Concepto de la transferencia', type: 3, required: false }
+                    description: 'Activar/Desactivar',
+                    type: 3,
+                    required: true,
+                    choices: [
+                        { name: 'Activar', value: 'on' },
+                        { name: 'Desactivar', value: 'off' }
                     ]
-                }
-            ]
-},
-
-// PRIVACY ENHANCEMENTS - Add to commands.js
-// Add these new subcommands to /privacidad command
-
-// Replace the existing /privacidad command with this expanded version
-{
-    name: 'privacidad',
-        description: '🕶️ Sistema de Privacidad Bancaria',
-            options: [
-                {
-                    name: 'activar',
-                    description: 'Activar protección de privacidad',
-                    type: 1,
-                    options: [{
-                        name: 'nivel',
-                        description: 'Nivel de protección',
+                }]
+            },
+            {
+                name: 'viaje',
+                description: '✈️ Activar privacidad temporal',
+                type: 1,
+                options: [{
+                    name: 'horas',
+                    description: 'Duración en horas (24-72)',
+                    type: 4,
+                    required: true,
+                    min_value: 24,
+                    max_value: 72
+                }]
+            },
+            {
+                name: 'referir',
+                description: '🎁 Referir a un amigo (10% descuento)',
+                type: 1,
+                options: [{ name: 'usuario', description: 'Usuario a referir', type: 6, required: true }]
+            },
+            {
+                name: 'familia',
+                description: '👨‍👩‍👧 Compartir privacidad con familia',
+                type: 1,
+                options: [
+                    {
+                        name: 'accion',
+                        description: 'Acción',
                         type: 3,
                         required: true,
                         choices: [
-                            { name: '🥉 Básico ($50k/mes)', value: 'basico' },
-                            { name: '🥈 VIP ($150k/mes)', value: 'vip' },
-                            { name: '🥇 Elite ($500k/mes)', value: 'elite' }
+                            { name: 'Agregar', value: 'add' },
+                            { name: 'Remover', value: 'remove' },
+                            { name: 'Ver', value: 'list' }
                         ]
-                    }]
-                },
-                {
-                    name: 'trial',
-                    description: '🎁 3 días gratis de privacidad Básica',
-                    type: 1
-                },
-                {
-                    name: 'desactivar',
-                    description: 'Desactivar privacidad',
-                    type: 1
-                },
-                {
-                    name: 'estado',
-                    description: 'Ver tu nivel de privacidad actual',
-                    type: 1
-                },
-                {
-                    name: 'dashboard',
-                    description: '📊 Ver estadísticas completas',
-                    type: 1
-                },
-                {
-                    name: 'upgrade',
-                    description: 'Mejorar tu nivel de privacidad',
-                    type: 1,
-                    options: [{
-                        name: 'nuevo_nivel',
-                        description: 'Nuevo nivel',
-                        type: 3,
-                        required: true,
-                        choices: [
-                            { name: 'VIP', value: 'vip' },
-                            { name: 'Elite', value: 'elite' }
-                        ]
-                    }]
-                },
-                {
-                    name: 'boveda',
-                    description: 'Gestionar bóveda de emergencia (Elite)',
-                    type: 1,
-                    options: [
-                        {
-                            name: 'accion',
-                            description: 'Acción',
-                            type: 3,
-                            required: true,
-                            choices: [
-                                { name: 'Depositar', value: 'depositar' },
-                                { name: 'Retirar', value: 'retirar' },
-                                { name: 'Ver', value: 'ver' }
-                            ]
-                        },
-                        { name: 'monto', description: 'Cantidad', type: 10, required: false }
-                    ]
-                },
-                {
-                    name: 'offshore',
-                    description: 'Configurar nombre offshore (Elite)',
-                    type: 1,
-                    options: [{ name: 'nombre', description: 'Nombre falso para transacciones', type: 3, required: true }]
-                },
-                {
-                    name: 'panico',
-                    description: 'Activar modo pánico (Elite)',
-                    type: 1,
-                    options: [{ name: 'pin', description: 'PIN de 6 dígitos', type: 3, required: true }]
-                },
-                {
-                    name: 'recuperar',
-                    description: '🔓 Recuperar de modo pánico',
-                    type: 1,
-                    options: [{ name: 'pin', description: 'PIN usado al activar', type: 3, required: true }]
-                },
-                {
-                    name: 'alertas',
-                    description: '🔔 Configurar alertas de seguridad',
-                    type: 1,
-                    options: [{
-                        name: 'estado',
-                        description: 'Activar/Desactivar',
-                        type: 3,
-                        required: true,
-                        choices: [
-                            { name: 'Activar', value: 'on' },
-                            { name: 'Desactivar', value: 'off' }
-                        ]
-                    }]
-                },
-                {
-                    name: 'autorenovar',
-                    description: '♻️ Auto-renovación mensual',
-                    type: 1,
-                    options: [{
-                        name: 'estado',
-                        description: 'Activar/Desactivar',
-                        type: 3,
-                        required: true,
-                        choices: [
-                            { name: 'Activar', value: 'on' },
-                            { name: 'Desactivar', value: 'off' }
-                        ]
-                    }]
-                },
-                {
-                    name: 'viaje',
-                    description: '✈️ Activar privacidad temporal',
-                    type: 1,
-                    options: [{
-                        name: 'horas',
-                        description: 'Duración en horas (24-72)',
-                        type: 4,
-                        required: true,
-                        min_value: 24,
-                        max_value: 72
-                    }]
-                },
-                {
-                    name: 'referir',
-                    description: '🎁 Referir a un amigo (10% descuento)',
-                    type: 1,
-                    options: [{ name: 'usuario', description: 'Usuario a referir', type: 6, required: true }]
-                },
-                {
-                    name: 'familia',
-                    description: '👨‍👩‍👧 Compartir privacidad con familia',
-                    type: 1,
-                    options: [
-                        {
-                            name: 'accion',
-                            description: 'Acción',
-                            type: 3,
-                            required: true,
-                            choices: [
-                                { name: 'Agregar', value: 'add' },
-                                { name: 'Remover', value: 'remove' },
-                                { name: 'Ver', value: 'list' }
-                            ]
-                        },
-                        { name: 'miembro', description: 'Miembro familiar', type: 6, required: false }
-                    ]
-                },
-                {
-                    name: 'score',
-                    description: '📈 Ver tu Privacy Score',
-                    type: 1
-                }
-            ]
-},
-{
-    name: 'sesion',
+                    },
+                    { name: 'miembro', description: 'Miembro familiar', type: 6, required: false }
+                ]
+            },
+            {
+                name: 'score',
+                description: '📈 Ver tu Privacy Score',
+                type: 1
+            }
+        ]
+    },
+    {
+        name: 'sesion',
         description: '🗳️ Sistema de votaciones para sesiones de rol',
-            options: [
-                {
-                    name: 'crear',
-                    description: 'Crear una votación para abrir el servidor',
-                    type: 1,
-                    options: [
-                        { name: 'horario', description: 'Horario de inicio (ej: 3, 21:00)', type: 3, required: true },
-                        { name: 'minimo', description: 'Votos mínimos necesarios', type: 4, required: false, min_value: 2, max_value: 20 },
-                        { name: 'imagen', description: 'URL de imagen personalizada', type: 3, required: false }
-                    ]
-                },
-                {
-                    name: 'cancelar',
-                    description: 'Cancelar la votación activa',
-                    type: 1
-                },
-                {
-                    name: 'forzar',
-                    description: '🔒 Abrir servidor sin mínimo de votos (Staff)',
-                    type: 1
-                },
-                {
-                    name: 'cerrar',
-                    description: '🔒 Cerrar servidor (Staff)',
-                    type: 1,
-                    options: [
-                        { name: 'razon', description: 'Razón del cierre', type: 3, required: false }
-                    ]
-                },
-                {
-                    name: 'mantenimiento',
-                    description: '🛠️ Activar modo mantenimiento (Staff)',
-                    type: 1,
-                    options: [
-                        { name: 'duracion', description: 'Tiempo estimado (ej: 1 hora)', type: 3, required: false },
-                        { name: 'razon', description: 'Motivo del mantenimiento', type: 3, required: false }
-                    ]
-                }
-            ]
-}
+        options: [
+            {
+                name: 'crear',
+                description: 'Crear una votación para abrir el servidor',
+                type: 1,
+                options: [
+                    { name: 'horario', description: 'Horario de inicio (ej: 3, 21:00)', type: 3, required: true },
+                    { name: 'minimo', description: 'Votos mínimos necesarios', type: 4, required: false, min_value: 2, max_value: 20 },
+                    { name: 'imagen', description: 'URL de imagen personalizada', type: 3, required: false }
+                ]
+            },
+            {
+                name: 'cancelar',
+                description: 'Cancelar la votación activa',
+                type: 1
+            },
+            {
+                name: 'forzar',
+                description: '🔒 Abrir servidor sin mínimo de votos (Staff)',
+                type: 1
+            },
+            {
+                name: 'cerrar',
+                description: '🔒 Cerrar servidor (Staff)',
+                type: 1,
+                options: [
+                    { name: 'razon', description: 'Razón del cierre', type: 3, required: false }
+                ]
+            },
+            {
+                name: 'mantenimiento',
+                description: '🛠️ Activar modo mantenimiento (Staff)',
+                type: 1,
+                options: [
+                    { name: 'duracion', description: 'Tiempo estimado (ej: 1 hora)', type: 3, required: false },
+                    { name: 'razon', description: 'Motivo del mantenimiento', type: 3, required: false }
+                ]
+            }
+        ]
+    }
 ];
 
 module.exports = commands;
