@@ -13,7 +13,7 @@ const axios = require('axios'); // For downloading images
 // --- CONFIGURATION ---
 const NOTIFICATION_CHANNEL_ID = process.env.NOTIFICATION_CHANNEL_ID;
 const GUILD_ID = process.env.GUILD_ID ? process.env.GUILD_ID.trim() : null;
-const DISCORD_TOKEN = process.env.DISCORD_BOT_TOKEN || process.env.DISCORD_TOKEN || (process.env.DISCORD_TOKEN ? process.env.DISCORD_TOKEN.trim() : null);
+const DISCORD_TOKEN = process.env.DISCORD_TOKEN_MOD || process.env.DISCORD_BOT_TOKEN || process.env.DISCORD_TOKEN || (process.env.DISCORD_TOKEN ? process.env.DISCORD_TOKEN.trim() : null);
 // ---------------------
 
 // --- SERVICES ---
