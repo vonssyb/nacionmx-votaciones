@@ -117,6 +117,55 @@ module.exports = {
                     const member = await interaction.guild.members.fetch(targetUser.id);
                     const removedRoles = [];
 
+                    // 0. CHECK FOR ANTI-CK INSURANCE (Role: 1449950413993410651)
+                    const ANTI_CK_ROLE = '1449950413993410651';
+                    const hasInsurance = member.roles.cache.has(ANTI_CK_ROLE);
+
+                    if (hasInsurance && ckTipo !== 'CK Administrativo') { // Admin CK bypasses insurance? Or asks? Let's assume Insurance saves from RP Death (Normal/Auto)
+                        await i.update({ content: '🛡️ **¡SEGURO ANTI-CK ACTIVADO!** Verificando...', embeds: [], components: [] });
+
+                        // Consume Insurance (Remove role & Update DB)
+                        try {
+                            // 1. Remove Role
+                            await member.roles.remove(ANTI_CK_ROLE);
+
+                            // 2. Consume in DB (using SQL function if available, or manual update)
+                            // We look for the active purchase of 'anti_ck' and expire it
+                            const { data: purchase } = await supabase
+                                .from('user_purchases')
+                                .select('id')
+                                .eq('user_id', targetUser.id)
+                                .eq('item_key', 'anti_ck')
+                                .eq('status', 'active')
+                                .single();
+
+                            if (purchase) {
+                                await supabase
+                                    .from('user_purchases')
+                                    .update({ status: 'consumed', uses_remaining: 0, expiration_date: new Date().toISOString() })
+                                    .eq('id', purchase.id);
+                            }
+
+                            // 3. Notify
+                            const savedEmbed = new EmbedBuilder()
+                                .setTitle(`🛡️ VIDA SALVADA`)
+                                .setColor('#00FF00')
+                                .setDescription(`El usuario **${targetUser.tag}** tenía un **Seguro Anti-CK** activo.\n\n✅ **El CK ha sido CANCELADO.**\n📉 **El seguro ha sido CONSUMIDO.**`)
+                                .addFields({ name: 'Tipo de CK evitado', value: ckTipo })
+                                .setTimestamp();
+
+                            await i.editReply({ content: '', embeds: [savedEmbed] });
+                            return; // STOP CK
+
+                        } catch (err) {
+                            console.error('Error consuming insurance:', err);
+                            // If error consuming, proceed with caution or ask admin? 
+                            // Safety: Fail safe -> Don't CK if we saw the role but DB failed.
+                            await i.editReply('❌ Error consumiendo el seguro, pero el usuario TIENE el rol. CK Cancelado por seguridad.');
+                            return;
+                        }
+                    }
+
                     // 1. Get current balances
                     const { data: balance } = await supabase
                         .from('user_balances')
