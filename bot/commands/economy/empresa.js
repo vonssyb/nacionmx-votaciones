@@ -140,14 +140,27 @@ module.exports = {
                     .eq('discord_id', targetUser.id)
                     .maybeSingle();
 
-                // Hire
-                await supabase.from('company_employees').insert({
+                // Hire - WITH ERROR VALIDATION
+                console.log(`[empresa/contratar] Attempting to hire user ${targetUser.id} for company ${company.id}`);
+                const { data: newEmp, error: insertError } = await supabase.from('company_employees').insert({
                     company_id: company.id,
                     discord_id: targetUser.id,
                     citizen_name: citizen?.full_name || targetUser.tag,
                     role: role,
                     salary: salary
-                });
+                }).select();
+
+                if (insertError) {
+                    console.error('[empresa/contratar] Insert failed:', insertError);
+                    return interaction.editReply(`❌ Error al contratar: ${insertError.message}\n\n**Posibles causas:**\n- Permisos de base de datos (RLS)\n- La empresa no existe\n- Error de conexión`);
+                }
+
+                if (!newEmp || newEmp.length === 0) {
+                    console.error('[empresa/contratar] Insert succeeded but returned no data');
+                    return interaction.editReply('❌ Error: La contratación no se pudo confirmar. Verifica permisos de la base de datos.');
+                }
+
+                console.log(`[empresa/contratar] ✅ Successfully hired user ${targetUser.id}`);
 
                 const embed = new EmbedBuilder()
                     .setTitle('✅ Empleado Contratado')
