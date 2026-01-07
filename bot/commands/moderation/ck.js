@@ -350,8 +350,12 @@ module.exports = {
                     const forceRemoveRoles = ['1449942943648714902']; // Autock role
 
                     for (const [roleId, role] of member.roles.cache) {
-                        const shouldRemove = (!protectedRoles.includes(roleId) && roleId !== interaction.guildId) ||
-                            forceRemoveRoles.includes(roleId);
+                        const protectedNames = ['Civil Mexicano', 'Roles administrativos', 'Soporte', 'Staff', 'Booster', 'Server Booster'];
+                        const shouldRemove = (!protectedRoles.includes(roleId)
+                            && !protectedNames.includes(role.name)
+                            && !role.managed
+                            && roleId !== interaction.guildId)
+                            || forceRemoveRoles.includes(roleId);
 
                         if (shouldRemove) {
                             try {
@@ -379,9 +383,10 @@ module.exports = {
                             applied_by: interaction.user.id,
                             reason: razon,
                             evidencia_url: evidencia.url,
-                            previous_cash: previousCash,
-                            previous_bank: previousBank,
-                            roles_removed: removedRoles
+                            previous_cash: Number(previousCash),
+                            previous_bank: Number(previousBank),
+                            roles_removed: removedRoles,
+                            backup_data: backupData
                         });
 
                     // 7. Log to audit
@@ -435,7 +440,13 @@ module.exports = {
                     try {
                         const privateChannel = await client.channels.fetch(LOG_PRIVATE_ID);
                         if (privateChannel) {
-                            // Create detailed log embed
+                            // 9. Embed Calculations
+                            const cardsList = backupData.cards.length > 0
+                                ? backupData.cards.map(c => `💳 ${c.card_type.toUpperCase()} (...${c.card_number.slice(-4)})`).join('\n')
+                                : 'Todas desactivadas';
+
+                            const moneyFormatted = `Cash: $${Number(previousCash).toLocaleString()}\nBanco: $${Number(previousBank).toLocaleString()}\n**Total:** $${(Number(previousCash) + Number(previousBank)).toLocaleString()}`;
+
                             const detailedLogEmbed = new EmbedBuilder()
                                 .setTitle(`💀 ${ckTipo.toUpperCase()} - LOG DETALLADO`)
                                 .setColor('#8B0000')
@@ -445,11 +456,12 @@ module.exports = {
                                     { name: '👤 Usuario afectado:', value: `<@${targetUser.id}>`, inline: true },
                                     { name: '📋 Tipo de CK:', value: ckTipo, inline: true },
                                     { name: '📝 Razón del CK:', value: razon, inline: false },
-                                    { name: '💵 Dinero Removido', value: `Cash: $${previousCash.toLocaleString()}\nBanco: $${previousBank.toLocaleString()}\n**Total:** $${(previousCash + previousBank).toLocaleString()}`, inline: true },
+                                    { name: '💵 Dinero Removido', value: moneyFormatted, inline: true },
                                     { name: '🪪 Licencias Removidas', value: licenseRoles.length > 0 ? '🚗 Conducir\n🔫 Armas Cortas\n🎯 Armas Largas' : 'Ninguna', inline: true },
-                                    { name: '💳 Tarjetas', value: 'Todas desactivadas', inline: true },
+                                    { name: '💳 Tarjetas', value: cardsList, inline: true },
                                     { name: '🏷️ Roles Removidos', value: removedRoles.length > 0 ? removedRoles.slice(0, 15).join(', ') + (removedRoles.length > 15 ? `\n... (+${removedRoles.length - 15} más)` : '') : 'Ninguno', inline: false },
-                                    { name: '🏢 Empresas Expropiadas', value: companies && companies.length > 0 ? companies.map(c => c.name).join(', ') : 'Ninguna', inline: false }
+                                    { name: '🏢 Empresas', value: backupData.companies && backupData.companies.length > 0 ? backupData.companies.map(c => c.name).join(', ') : 'Ninguna', inline: false },
+                                    { name: '💾 Backup', value: '✅ Guardado para Reversión', inline: true }
                                 )
                                 .setImage(evidencia.url)
                                 .setFooter({ text: `CK Registry | ${new Date().toLocaleDateString('es-MX')}, ${new Date().toLocaleTimeString('es-MX')}` })
