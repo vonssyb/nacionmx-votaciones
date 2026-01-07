@@ -147,6 +147,9 @@ client.on('interactionCreate', async interaction => {
 
         await interaction.deferReply({}).catch(() => { });
 
+        console.log(`[DEBUG] CMD: ${interaction.commandName}`);
+        // console.log(`[DEBUG] KEYS: ${Array.from(client.commands.keys()).join(', ')}`);
+
         const command = client.commands.get(interaction.commandName);
         if (command) {
             try {
