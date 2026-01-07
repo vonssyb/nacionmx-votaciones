@@ -1247,29 +1247,37 @@ const handleModerationLegacy = async (interaction, client, supabase) => {
 
                         // --- NEW: NOTIFY BLACKLIST CHANNEL ---
                         const blChannelId = '1412957060168945747';
-                        const blChannel = interaction.client.channels.cache.get(blChannelId);
-                        if (blChannel) {
-                            // Re-create the embed using NotificationTemplates to ensure correct "Severe" styling
-                            const NotificationTemplates = require('./services/NotificationTemplates');
-                            const moment = require('moment-timezone');
-                            const date = moment().tz('America/Mexico_City').format('DD/MM/YYYY');
-                            const time = moment().tz('America/Mexico_City').format('HH:mm');
+                        try {
+                            const blChannel = interaction.client.channels.cache.get(blChannelId);
+                            if (!blChannel) {
+                                console.error(`[BLACKLIST] Channel ${blChannelId} not found in cache`);
+                            } else {
+                                // Re-create the embed using NotificationTemplates to ensure correct "Severe" styling
+                                const NotificationTemplates = require('../services/NotificationTemplates');
+                                const moment = require('moment-timezone');
+                                const date = moment().tz('America/Mexico_City').format('DD/MM/YYYY');
+                                const time = moment().tz('America/Mexico_City').format('HH:mm');
 
-                            // We fetch moderator and offender based on IDs we parsed
-                            const moderator = await interaction.client.users.fetch(moderatorId).catch(() => ({ username: 'Desconocido', displayAvatarURL: () => null }));
-                            const offender = await interaction.client.users.fetch(targetId).catch(() => ({ username: 'Desconocido', id: targetId }));
+                                // We fetch moderator and offender based on IDs we parsed
+                                const moderator = await interaction.client.users.fetch(moderatorId).catch(() => ({ username: 'Desconocido', displayAvatarURL: () => null }));
+                                const offender = await interaction.client.users.fetch(targetId).catch(() => ({ username: 'Desconocido', id: targetId }));
 
-                            const notifPayload = NotificationTemplates.officialSanction({
-                                date, time, offender, moderator,
-                                ruleCode: reason, description: 'Sanción Aprobada por Junta Directiva via Two-Man Rule',
-                                sanctionType: `BLACKLIST (${blacklistType})`,
-                                duration: null, evidenceUrl: evidence
-                            });
+                                const notifPayload = NotificationTemplates.officialSanction({
+                                    date, time, offender, moderator,
+                                    ruleCode: reason, description: 'Sanción Aprobada por Junta Directiva via Two-Man Rule',
+                                    sanctionType: `BLACKLIST (${blacklistType})`,
+                                    duration: null, evidenceUrl: evidence
+                                });
 
-                            await blChannel.send({
-                                content: '@everyone',
-                                embeds: [notifPayload.embeds[0]]
-                            });
+                                await blChannel.send({
+                                    content: '@everyone',
+                                    embeds: [notifPayload.embeds[0]]
+                                });
+
+                                console.log(`[BLACKLIST] Notification sent to channel ${blChannelId} for user ${targetId}`);
+                            }
+                        } catch (blNotifyError) {
+                            console.error('[BLACKLIST] Failed to send notification:', blNotifyError);
                         }
                     } else if (type === 'sa') {
                         // SA Auto-Role Logic (Simplified)
