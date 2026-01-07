@@ -29,25 +29,29 @@ const AchievementService = require('./services/AchievementService');
 const BillingService = require('./services/BillingService');
 const ExchangeService = require('./services/ExchangeService');
 
-const levelService = new LevelService(supabase);
-log('LevelService Instantiated');
-const missionService = new MissionService(supabase, levelService);
-log('MissionService Instantiated');
-const achievementService = new AchievementService(supabase, levelService);
-log('AchievementService Instantiated');
-const billingService = new BillingService(client, supabase);
-log('BillingService Instantiated');
-const exchangeService = new ExchangeService(supabase, billingService.ubService);
-log('ExchangeService Instantiated');
+try {
+    const levelService = new LevelService(supabase);
+    log('LevelService Instantiated');
+    const missionService = new MissionService(supabase, levelService);
+    log('MissionService Instantiated');
+    const achievementService = new AchievementService(supabase, levelService);
+    log('AchievementService Instantiated');
+    const billingService = new BillingService(client, supabase);
+    log('BillingService Instantiated');
+    const exchangeService = new ExchangeService(supabase, billingService.ubService);
+    log('ExchangeService Instantiated');
 
-client.services = {
-    levels: levelService,
-    missions: missionService,
-    achievements: achievementService,
-    billing: billingService,
-    exchange: exchangeService
-};
-log('Gov Bot Services Attached');
+    client.services = {
+        levels: levelService,
+        missions: missionService,
+        achievements: achievementService,
+        billing: billingService,
+        exchange: exchangeService
+    };
+    log('Gov Bot Services Attached');
+} catch (error) {
+    console.error('💥 FATAL ERROR initializing Gov Services:', error);
+}
 
 // --- EVENTS ---
 client.once('ready', async () => {
