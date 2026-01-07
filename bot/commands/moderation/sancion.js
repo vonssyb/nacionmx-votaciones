@@ -97,7 +97,7 @@ module.exports = {
         else if (memberRoles.some(r => ROLES_CONFIG.LEVEL_2_STAFF.includes(r.id))) userLevel = 2;
         else if (memberRoles.some(r => ROLES_CONFIG.LEVEL_1_TRAINING.includes(r.id))) userLevel = 1;
 
-        if (userLevel === 0) return interaction.reply({ content: '⛔ **Acceso Denegado:** No tienes rango suficiente.', flags: [64] });
+        if (userLevel === 0) return interaction.followUp({ content: '⛔ **Acceso Denegado:** No tienes rango suficiente.', flags: [64] });
 
         // Helper to check levels
         const hasRole = (roleIds) => roleIds.some(id => memberRoles.has(id));
@@ -107,12 +107,12 @@ module.exports = {
         const isTraining = hasRole(ROLES_CONFIG.LEVEL_1_TRAINING) || isStaff;
 
         // Permission Checks (Blacklist, SA, etc)
-        if (accion === 'Blacklist' && !isBoard) return interaction.reply({ content: '🛑 **Acceso Denegado (Nivel 4)**', flags: [64] });
+        if (accion === 'Blacklist' && !isBoard) return interaction.followUp({ content: '🛑 **Acceso Denegado (Nivel 4)**', flags: [64] });
         if (((type === 'sa') || (accion === 'Ban Permanente ERLC') || (accion === 'Ban Temporal ERLC')) && !isAdmin)
-            return interaction.reply({ content: '🛑 **Acceso Denegado (Nivel 3)**', flags: [64] });
+            return interaction.followUp({ content: '🛑 **Acceso Denegado (Nivel 3)**', flags: [64] });
         if (((accion === 'Ban Permanente Discord') || (accion === 'Ban Temporal Discord') || (accion === 'Kick Discord')) && !isBoard)
-            return interaction.reply({ content: '🛑 **Acceso Denegado (Nivel 4)**', flags: [64] });
-        if (!isTraining) return interaction.reply({ content: '🛑 **Acceso Denegado**', flags: [64] });
+            return interaction.followUp({ content: '🛑 **Acceso Denegado (Nivel 4)**', flags: [64] });
+        if (!isTraining) return interaction.followUp({ content: '🛑 **Acceso Denegado**', flags: [64] });
 
         // Deferral handled globally by index_moderacion.js
         // const isEphemeral = (type === 'notificacion');
