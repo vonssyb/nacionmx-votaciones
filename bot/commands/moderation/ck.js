@@ -296,7 +296,7 @@ module.exports = {
                     const previousBank = balance?.bank || 0;
 
                     // 2. Reset all money
-                    await supabase
+
                     // 2. Reset Ecosystem (Money)
                     if (process.env.UNBELIEVABOAT_TOKEN) {
                         try {
