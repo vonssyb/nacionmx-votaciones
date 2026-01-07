@@ -67,15 +67,16 @@ module.exports = {
                 level: 3,
                 color: 0xE74C3C, // Red
                 main_id: '1412882248411381872', // Keeping original distinct ID to ensure hierarchy exists
-                roles: ['1412882248411381872', '1450242210636365886', '1450242487422812251', '1412887167654690908'] // Role + KeyAdmin + KeySeparator + StaffSeparator
+                // Admin gets: Admin Role + Key Admin + Key Mod + Separators
+                roles: ['1412882248411381872', '1450242210636365886', '1450242319121911848', '1450242487422812251', '1412887167654690908']
             },
             {
                 name: 'Junta Directiva',
                 level: 4,
                 color: 0xF1C40F, // Gold
                 main_id: '1412882245735420006',
-                // JD gets Admin Keys + JD Role
-                roles: ['1412882245735420006', '1450242210636365886', '1450242487422812251', '1412887167654690908']
+                // JD gets: JD Role + Admin Keys + Key Mod + Separators
+                roles: ['1412882245735420006', '1450242210636365886', '1450242319121911848', '1450242487422812251', '1412887167654690908']
             }
         ];
 
