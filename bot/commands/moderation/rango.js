@@ -221,47 +221,44 @@ module.exports = {
                     badgeNumber = existingBadge.badge_number;
                 } else {
                     // Assign new number - HYBRID APPROACH (DB + Nickname Scan)
-                    // 1. Get Max from DB
-                    const { data: maxBadge } = await supabase
+                    // 1. Get ALL Used Numbers from DB
+                    const { data: allBadges } = await supabase
                         .from('staff_badges')
                         .select('badge_number')
-                        .eq('badge_type', newRank.badge_type)
-                        .order('badge_number', { ascending: false })
-                        .limit(1)
-                        .maybeSingle();
+                        .eq('badge_type', newRank.badge_type);
 
-                    const dbMax = maxBadge?.badge_number || 0;
+                    const usedNumbers = new Set(allBadges?.map(b => b.badge_number) || []);
 
                     // 2. Scan Discord Nicknames for this Rank Type (e.g. JD-005)
-                    // This creates a "self-healing" sequence if DB is empty but badges exist
-                    let nicknameMax = 0;
+                    // This creates a "self-healing" sequence
                     try {
                         // Fetch all members with this specific rank role to scan their names
-                        // We use the main_id role of the target rank
                         await interaction.guild.members.fetch(); // Ensure cache is populated
                         const roleMembers = interaction.guild.roles.cache.get(newRank.main_id)?.members;
 
                         if (roleMembers) {
-                            const badgeRegex = new RegExp(`\\[${newRank.badge_type}-(\\d+)\\]`); // Matches [JD-005]
-                            const legacyRegex = new RegExp(`${newRank.badge_type}-(\\d+)`);       // Matches JD-005 |
+                            // Flexible regex to catch: JD-005, JD 005, [JD-005]
+                            const badgeRegex = new RegExp(`${newRank.badge_type}[-\\s](\\d+)`, 'i');
 
                             roleMembers.forEach(m => {
                                 const nick = m.displayName;
-                                let match = nick.match(badgeRegex);
-                                if (!match) match = nick.match(legacyRegex);
+                                const match = nick.match(badgeRegex);
 
                                 if (match && match[1]) {
                                     const num = parseInt(match[1]);
-                                    if (!isNaN(num) && num > nicknameMax) nicknameMax = num;
+                                    if (!isNaN(num)) usedNumbers.add(num);
                                 }
                             });
                         }
                     } catch (scanErr) {
-                        console.error('Error scanning nicknames for max badge:', scanErr);
+                        console.error('Error scanning nicknames for badges:', scanErr);
                     }
 
-                    // 3. Take the highest of both worlds
-                    badgeNumber = Math.max(dbMax, nicknameMax) + 1;
+                    // 3. Find First Available Number (Fill Gaps)
+                    badgeNumber = 1;
+                    while (usedNumbers.has(badgeNumber)) {
+                        badgeNumber++;
+                    }
 
                     // Save to DB
                     await supabase.from('staff_badges').insert({
