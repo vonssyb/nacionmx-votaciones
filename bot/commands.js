@@ -763,10 +763,6 @@ const commands = [
         type: 1
     },
     {
-        name: 'rol',
-        description: '🎭 Ver tu rol de staff actual'
-    },
-    {
         name: 'rango',
         description: '⚙️ Gestión de Rangos de Staff',
         options: [
