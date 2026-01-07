@@ -313,189 +313,187 @@ module.exports = {
 
                     if (companies && companies.length > 0) {
                         // Store companies state in backup before modification
-                        backupData.companies = JSON.parse(JSON.stringify(companies)); 
-                        .contains('owner_ids', [targetUser.id]);
+                        backupData.companies = JSON.parse(JSON.stringify(companies));
 
-        if (companies && companies.length > 0) {
-            for (const company of companies) {
-                const newOwners = company.owner_ids.filter(id => id !== targetUser.id);
+                        for (const company of companies) {
+                            const newOwners = company.owner_ids.filter(id => id !== targetUser.id);
 
-                if (newOwners.length > 0) {
-                    // Still has partners -> Just remove user
+                            if (newOwners.length > 0) {
+                                // Still has partners -> Just remove user
+                                await supabase
+                                    .from('companies')
+                                    .update({ owner_ids: newOwners })
+                                    .eq('id', company.id);
+                            } else {
+                                // Sole owner -> SEIZE FOR GOVERNMENT
+                                await supabase
+                                    .from('companies')
+                                    .update({
+                                        owner_ids: [],
+                                        status: 'government_seized',
+                                        name: `${company.name} (Expropiada)`
+                                    })
+                                    .eq('id', company.id);
+                            }
+                        }
+                    }
+
+                    // 3. Deactivate all credit cards
                     await supabase
-                        .from('companies')
-                        .update({ owner_ids: newOwners })
-                        .eq('id', company.id);
-                } else {
-                    // Sole owner -> SEIZE FOR GOVERNMENT
+                        .from('credit_cards')
+                        .update({ active: false })
+                        .eq('guild_id', interaction.guildId)
+                        .eq('user_id', targetUser.id);
+
+                    // 4. Remove roles (except protected)
+                    // Additional role to ALWAYS remove regardless
+                    const forceRemoveRoles = ['1449942943648714902']; // Autock role
+
+                    for (const [roleId, role] of member.roles.cache) {
+                        const shouldRemove = (!protectedRoles.includes(roleId) && roleId !== interaction.guildId) ||
+                            forceRemoveRoles.includes(roleId);
+
+                        if (shouldRemove) {
+                            try {
+                                await member.roles.remove(roleId);
+                                removedRoles.push(role.name); // Use name, not mention
+                            } catch (e) {
+                                console.log(`Could not remove role ${role.name}:`, e.message);
+                            }
+                        }
+                    }
+
+                    // 5. Reset DNI (optional - set to null or delete)
                     await supabase
-                        .from('companies')
-                        .update({
-                            owner_ids: [],
-                            status: 'government_seized',
-                            name: `${company.name} (Expropiada)`
-                        })
-                        .eq('id', company.id);
+                        .from('citizen_dni')
+                        .delete()
+                        .eq('guild_id', interaction.guildId)
+                        .eq('user_id', targetUser.id);
+
+                    // 6. Log to CK registry
+                    await supabase
+                        .from('ck_registry')
+                        .insert({
+                            guild_id: interaction.guildId,
+                            user_id: targetUser.id,
+                            applied_by: interaction.user.id,
+                            reason: razon,
+                            evidencia_url: evidencia.url,
+                            previous_cash: previousCash,
+                            previous_bank: previousBank,
+                            roles_removed: removedRoles
+                        });
+
+                    // 7. Log to audit
+                    const auditService = new AuditService(supabase, client);
+                    await auditService.logTransaction({
+                        guildId: interaction.guildId,
+                        userId: targetUser.id,
+                        transactionType: 'character_kill',
+                        amount: -(previousCash + previousBank),
+                        currencyType: 'combined',
+                        reason: `CK aplicado: ${razon}`,
+                        metadata: {
+                            applied_by: interaction.user.id,
+                            roles_removed: removedRoles.length,
+                            evidencia: evidencia.url
+                        },
+                        createdBy: interaction.user.id,
+                        createdByTag: interaction.user.tag,
+                        commandName: 'ck',
+                        interactionId: interaction.id,
+                        canRollback: false
+                    });
+
+                    // 8. Create result embed
+                    const resultEmbed = new EmbedBuilder()
+                        .setTitle(`💀 ${ckTipo.toUpperCase()}`)
+                        .setColor('#8B0000')
+                        .setThumbnail('https://cdn.discordapp.com/attachments/885232074083143741/1457553016743006363/25174-skull-lmfao.gif')
+                        .addFields(
+                            { name: 'Aprobado por:', value: `<@${interaction.user.id}>`, inline: true },
+                            { name: 'Usuario afectado:', value: `<@${targetUser.id}>`, inline: true },
+                            { name: 'Tipo de CK:', value: ckTipo, inline: true },
+                            { name: 'Razón del CK:', value: razon, inline: false },
+                            { name: 'Roles removidos:', value: removedRoles.length > 0 ? removedRoles.slice(0, 10).join(', ') + (removedRoles.length > 10 ? `... (+${removedRoles.length - 10} más)` : '') : 'Ninguno', inline: false }
+                        )
+                        .setImage(evidencia.url)
+                        .setFooter({ text: `${new Date().toLocaleDateString('es-MX')}, ${new Date().toLocaleTimeString('es-MX')}` })
+                        .setTimestamp();
+
+                    await i.editReply({ content: '', embeds: [resultEmbed] });
+
+                    // 9a. PUBLIC LOG (To Announcements)
+                    const LOG_PUBLIC_ID = '1412957234824089732';
+                    try {
+                        const publicChannel = await client.channels.fetch(LOG_PUBLIC_ID);
+                        if (publicChannel) await publicChannel.send({ embeds: [resultEmbed] });
+                    } catch (e) { console.error('[CK] Error sending public log:', e); }
+
+                    // 9b. PRIVATE LOG (Detailed Security)
+                    const LOG_PRIVATE_ID = '1457576874602659921';
+                    try {
+                        const privateChannel = await client.channels.fetch(LOG_PRIVATE_ID);
+                        if (privateChannel) {
+                            // Create detailed log embed
+                            const detailedLogEmbed = new EmbedBuilder()
+                                .setTitle(`💀 ${ckTipo.toUpperCase()} - LOG DETALLADO`)
+                                .setColor('#8B0000')
+                                .setThumbnail('https://cdn.discordapp.com/attachments/885232074083143741/1457553016743006363/25174-skull-lmfao.gif')
+                                .addFields(
+                                    { name: '👮 Aprobado por:', value: `<@${interaction.user.id}>`, inline: true },
+                                    { name: '👤 Usuario afectado:', value: `<@${targetUser.id}>`, inline: true },
+                                    { name: '📋 Tipo de CK:', value: ckTipo, inline: true },
+                                    { name: '📝 Razón del CK:', value: razon, inline: false },
+                                    { name: '💵 Dinero Removido', value: `Cash: $${previousCash.toLocaleString()}\nBanco: $${previousBank.toLocaleString()}\n**Total:** $${(previousCash + previousBank).toLocaleString()}`, inline: true },
+                                    { name: '🪪 Licencias Removidas', value: licenseRoles.length > 0 ? '🚗 Conducir\n🔫 Armas Cortas\n🎯 Armas Largas' : 'Ninguna', inline: true },
+                                    { name: '💳 Tarjetas', value: 'Todas desactivadas', inline: true },
+                                    { name: '🏷️ Roles Removidos', value: removedRoles.length > 0 ? removedRoles.slice(0, 15).join(', ') + (removedRoles.length > 15 ? `\n... (+${removedRoles.length - 15} más)` : '') : 'Ninguno', inline: false },
+                                    { name: '🏢 Empresas Expropiadas', value: companies && companies.length > 0 ? companies.map(c => c.name).join(', ') : 'Ninguna', inline: false }
+                                )
+                                .setImage(evidencia.url)
+                                .setFooter({ text: `CK Registry | ${new Date().toLocaleDateString('es-MX')}, ${new Date().toLocaleTimeString('es-MX')}` })
+                                .setTimestamp();
+
+                            await privateChannel.send({ embeds: [detailedLogEmbed] });
+                        }
+                    } catch (e) {
+                        console.error('[CK] Error sending private log:', e);
+                    }
+
+                    // 10. Notify user via DM
+                    try {
+                        const dmEmbed = new EmbedBuilder()
+                            .setTitle(`💀 ${ckTipo} Aplicado`)
+                            .setColor('#FF0000')
+                            .setDescription(`Tu personaje en Nación MX ha sido reseteado completamente.`)
+                            .addFields(
+                                { name: 'Tipo de CK', value: ckTipo, inline: false },
+                                { name: 'Razón', value: razon, inline: false },
+                                { name: '¿Qué perdiste?', value: 'Dinero, roles, licencias, tarjetas, y DNI', inline: false },
+                                { name: '⚠️ Importante', value: 'Debes crear un nuevo DNI usando `/dni crear`', inline: false }
+                            )
+                            .setFooter({ text: 'Puedes volver a empezar desde cero' })
+                            .setTimestamp();
+
+                        await targetUser.send({ embeds: [dmEmbed] });
+                    } catch (e) {
+                        console.log('Could not DM user:', e.message);
+                    }
+
+                } catch (error) {
+                    console.error('[CK] Error applying CK:', error);
+                    await i.editReply('❌ Error al aplicar el CK. Revisa los logs.');
                 }
-            }
-        }
-
-        // 3. Deactivate all credit cards
-        await supabase
-            .from('credit_cards')
-            .update({ active: false })
-            .eq('guild_id', interaction.guildId)
-            .eq('user_id', targetUser.id);
-
-        // 4. Remove roles (except protected)
-        // Additional role to ALWAYS remove regardless
-        const forceRemoveRoles = ['1449942943648714902']; // Autock role
-
-        for (const [roleId, role] of member.roles.cache) {
-            const shouldRemove = (!protectedRoles.includes(roleId) && roleId !== interaction.guildId) ||
-                forceRemoveRoles.includes(roleId);
-
-            if (shouldRemove) {
-                try {
-                    await member.roles.remove(roleId);
-                    removedRoles.push(role.name); // Use name, not mention
-                } catch (e) {
-                    console.log(`Could not remove role ${role.name}:`, e.message);
-                }
-            }
-        }
-
-        // 5. Reset DNI (optional - set to null or delete)
-        await supabase
-            .from('citizen_dni')
-            .delete()
-            .eq('guild_id', interaction.guildId)
-            .eq('user_id', targetUser.id);
-
-        // 6. Log to CK registry
-        await supabase
-            .from('ck_registry')
-            .insert({
-                guild_id: interaction.guildId,
-                user_id: targetUser.id,
-                applied_by: interaction.user.id,
-                reason: razon,
-                evidencia_url: evidencia.url,
-                previous_cash: previousCash,
-                previous_bank: previousBank,
-                roles_removed: removedRoles
-            });
-
-        // 7. Log to audit
-        const auditService = new AuditService(supabase, client);
-        await auditService.logTransaction({
-            guildId: interaction.guildId,
-            userId: targetUser.id,
-            transactionType: 'character_kill',
-            amount: -(previousCash + previousBank),
-            currencyType: 'combined',
-            reason: `CK aplicado: ${razon}`,
-            metadata: {
-                applied_by: interaction.user.id,
-                roles_removed: removedRoles.length,
-                evidencia: evidencia.url
-            },
-            createdBy: interaction.user.id,
-            createdByTag: interaction.user.tag,
-            commandName: 'ck',
-            interactionId: interaction.id,
-            canRollback: false
-        });
-
-        // 8. Create result embed
-        const resultEmbed = new EmbedBuilder()
-            .setTitle(`💀 ${ckTipo.toUpperCase()}`)
-            .setColor('#8B0000')
-            .setThumbnail('https://cdn.discordapp.com/attachments/885232074083143741/1457553016743006363/25174-skull-lmfao.gif')
-            .addFields(
-                { name: 'Aprobado por:', value: `<@${interaction.user.id}>`, inline: true },
-                { name: 'Usuario afectado:', value: `<@${targetUser.id}>`, inline: true },
-                { name: 'Tipo de CK:', value: ckTipo, inline: true },
-                { name: 'Razón del CK:', value: razon, inline: false },
-                { name: 'Roles removidos:', value: removedRoles.length > 0 ? removedRoles.slice(0, 10).join(', ') + (removedRoles.length > 10 ? `... (+${removedRoles.length - 10} más)` : '') : 'Ninguno', inline: false }
-            )
-            .setImage(evidencia.url)
-            .setFooter({ text: `${new Date().toLocaleDateString('es-MX')}, ${new Date().toLocaleTimeString('es-MX')}` })
-            .setTimestamp();
-
-        await i.editReply({ content: '', embeds: [resultEmbed] });
-
-        // 9a. PUBLIC LOG (To Announcements)
-        const LOG_PUBLIC_ID = '1412957234824089732';
-        try {
-            const publicChannel = await client.channels.fetch(LOG_PUBLIC_ID);
-            if (publicChannel) await publicChannel.send({ embeds: [resultEmbed] });
-        } catch (e) { console.error('[CK] Error sending public log:', e); }
-
-        // 9b. PRIVATE LOG (Detailed Security)
-        const LOG_PRIVATE_ID = '1457576874602659921';
-        try {
-            const privateChannel = await client.channels.fetch(LOG_PRIVATE_ID);
-            if (privateChannel) {
-                // Create detailed log embed
-                const detailedLogEmbed = new EmbedBuilder()
-                    .setTitle(`💀 ${ckTipo.toUpperCase()} - LOG DETALLADO`)
-                    .setColor('#8B0000')
-                    .setThumbnail('https://cdn.discordapp.com/attachments/885232074083143741/1457553016743006363/25174-skull-lmfao.gif')
-                    .addFields(
-                        { name: '👮 Aprobado por:', value: `<@${interaction.user.id}>`, inline: true },
-                        { name: '👤 Usuario afectado:', value: `<@${targetUser.id}>`, inline: true },
-                        { name: '📋 Tipo de CK:', value: ckTipo, inline: true },
-                        { name: '📝 Razón del CK:', value: razon, inline: false },
-                        { name: '💵 Dinero Removido', value: `Cash: $${previousCash.toLocaleString()}\nBanco: $${previousBank.toLocaleString()}\n**Total:** $${(previousCash + previousBank).toLocaleString()}`, inline: true },
-                        { name: '🪪 Licencias Removidas', value: licenseRoles.length > 0 ? '🚗 Conducir\n🔫 Armas Cortas\n🎯 Armas Largas' : 'Ninguna', inline: true },
-                        { name: '💳 Tarjetas', value: 'Todas desactivadas', inline: true },
-                        { name: '🏷️ Roles Removidos', value: removedRoles.length > 0 ? removedRoles.slice(0, 15).join(', ') + (removedRoles.length > 15 ? `\n... (+${removedRoles.length - 15} más)` : '') : 'Ninguno', inline: false },
-                        { name: '🏢 Empresas Expropiadas', value: companies && companies.length > 0 ? companies.map(c => c.name).join(', ') : 'Ninguna', inline: false }
-                    )
-                    .setImage(evidencia.url)
-                    .setFooter({ text: `CK Registry | ${new Date().toLocaleDateString('es-MX')}, ${new Date().toLocaleTimeString('es-MX')}` })
-                    .setTimestamp();
-
-                await privateChannel.send({ embeds: [detailedLogEmbed] });
-            }
-        } catch (e) {
-            console.error('[CK] Error sending private log:', e);
-        }
-
-        // 10. Notify user via DM
-        try {
-            const dmEmbed = new EmbedBuilder()
-                .setTitle(`💀 ${ckTipo} Aplicado`)
-                .setColor('#FF0000')
-                .setDescription(`Tu personaje en Nación MX ha sido reseteado completamente.`)
-                .addFields(
-                    { name: 'Tipo de CK', value: ckTipo, inline: false },
-                    { name: 'Razón', value: razon, inline: false },
-                    { name: '¿Qué perdiste?', value: 'Dinero, roles, licencias, tarjetas, y DNI', inline: false },
-                    { name: '⚠️ Importante', value: 'Debes crear un nuevo DNI usando `/dni crear`', inline: false }
-                )
-                .setFooter({ text: 'Puedes volver a empezar desde cero' })
-                .setTimestamp();
-
-            await targetUser.send({ embeds: [dmEmbed] });
-        } catch (e) {
-            console.log('Could not DM user:', e.message);
-        }
-
-    } catch(error) {
-        console.error('[CK] Error applying CK:', error);
-        await i.editReply('❌ Error al aplicar el CK. Revisa los logs.');
-    }
 
                 collector.stop();
-}
+            }
         });
 
-collector.on('end', collected => {
-    if (collected.size === 0) {
-        interaction.editReply({ content: '❌ Tiempo agotado. CK cancelado.', embeds: [], components: [] });
-    }
-});
+        collector.on('end', collected => {
+            if (collected.size === 0) {
+                interaction.editReply({ content: '❌ Tiempo agotado. CK cancelado.', embeds: [], components: [] });
+            }
+        });
     }
 };
