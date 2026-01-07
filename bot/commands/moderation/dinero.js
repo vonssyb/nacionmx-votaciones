@@ -41,11 +41,11 @@ module.exports = {
             .select('cash')
             .eq('guild_id', interaction.guildId)
             .eq('user_id', targetUser.id)
-            .single();
+            .maybeSingle();
 
-        if (balanceError && balanceError.code !== 'PGRST116') {
-            console.error('Error fetching balance:', balanceError);
-            return interaction.editReply('❌ Error al consultar el balance del usuario.');
+        if (balanceError) {
+            console.error('[DINERO] Error fetching balance:', balanceError);
+            return interaction.editReply('❌ Error al consultar el balance (DB Error).');
         }
 
         const currentCash = balance?.cash || 0;
