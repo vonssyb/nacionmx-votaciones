@@ -607,7 +607,7 @@ const handleEconomyButtons = async (interaction, client, supabase, billingServic
 
             const updateData = {
                 card_type: nextTier,
-                credit_limit: stats.limit,
+                card_limit: stats.limit, // FIX: Use card_limit as per schema
                 interest_rate: stats.interest
             };
 

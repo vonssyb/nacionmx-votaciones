@@ -68,7 +68,7 @@ module.exports = async (interaction, supabase, billingService) => {
             .from('credit_cards')
             .update({
                 card_type: nextTier,
-                credit_limit: stats.limit, // THIS IS THE FIX
+                card_limit: stats.limit, // FIX: Use card_limit as per schema
                 interest_rate: stats.interest,
                 updated_at: new Date().toISOString()
             })
