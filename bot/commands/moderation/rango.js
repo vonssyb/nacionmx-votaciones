@@ -46,8 +46,8 @@ module.exports = {
         .setDefaultMemberPermissions(PermissionFlagsBits.ManageRoles),
 
     async execute(interaction, client, supabase) {
-        // Defer reply immediately since this might take time (DB + ERLC + Discord API)
-        await interaction.deferReply({});
+        // Defer reply handled globally by index_moderacion.js
+
 
         // --- CONFIGURATION ---
         // Roles Hierarchy (Lowest to Highest)

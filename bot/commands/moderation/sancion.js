@@ -114,8 +114,9 @@ module.exports = {
             return interaction.reply({ content: '🛑 **Acceso Denegado (Nivel 4)**', flags: [64] });
         if (!isTraining) return interaction.reply({ content: '🛑 **Acceso Denegado**', flags: [64] });
 
-        const isEphemeral = (type === 'notificacion');
-        await interaction.deferReply({ flags: isEphemeral ? [64] : [] });
+        // Deferral handled globally by index_moderacion.js
+        // const isEphemeral = (type === 'notificacion');
+        // await interaction.deferReply({ flags: isEphemeral ? [64] : [] });
 
         // --- GET TARGET USER (Support 3 methods) ---
         const usuarioMention = interaction.options.getUser('usuario');
