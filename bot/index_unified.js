@@ -165,11 +165,31 @@ async function startEconomyBot() {
         }
         // Handle Commands
         if (!interaction.isChatInputCommand()) return;
+
+        // GLOBAL DEFER & SAFETY PATCH
+        try {
+            await interaction.deferReply();
+
+            // MONKEY PATCH: Prevent commands from double-deferring
+            const originalDefer = interaction.deferReply;
+            interaction.deferReply = async () => { /* No-op: Already deferred */ };
+
+        } catch (e) {
+            console.error('[ECO] Defer Failed:', e);
+            return;
+        }
+
         const command = client.commands.get(interaction.commandName);
         if (command) {
-            try { await command.execute(interaction, client, supabase); } catch (e) { console.error('[ECO] Command Error:', e); }
+            try { await command.execute(interaction, client, supabase); } catch (e) {
+                console.error('[ECO] Command Error:', e);
+                await interaction.editReply('❌ Error ejecutando comando.').catch(() => { });
+            }
         } else if (client.legacyHandler) {
-            try { await client.legacyHandler(interaction, client, supabase); } catch (e) { console.error('[ECO] Legacy Error:', e); }
+            try { await client.legacyHandler(interaction, client, supabase); } catch (e) {
+                console.error('[ECO] Legacy Error:', e);
+                await interaction.editReply('❌ Error en comando legacy.').catch(() => { });
+            }
         }
     });
 
