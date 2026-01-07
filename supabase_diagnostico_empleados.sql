@@ -6,7 +6,7 @@
 SELECT 
     id,
     name as empresa,
-    owner_discord_id as dueño_discord,
+    owner_ids as dueños_discord,
     balance,
     created_at
 FROM companies
