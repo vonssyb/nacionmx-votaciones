@@ -56,6 +56,18 @@ client.once('ready', async () => {
     client.legacyHandler = handleEconomyLegacy;
 
     console.log(`✅ Loaded ${client.commands.size} government commands.`);
+
+    // --- DAILY MISSIONS ROTATION ---
+    const DailyMissionManager = require('./services/DailyMissionManager');
+    const missionManager = new DailyMissionManager(supabase);
+
+    // Check immediately
+    await missionManager.checkAndRotate();
+
+    // Check every hour
+    setInterval(() => {
+        missionManager.checkAndRotate();
+    }, 3600000); // 1 hour
 });
 
 client.on('interactionCreate', async interaction => {
