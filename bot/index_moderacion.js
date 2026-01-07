@@ -2,6 +2,18 @@ require('dotenv').config();
 // 1. Unbuffered Logger
 const log = (msg) => process.stderr.write(`🟢 [MOD-BOT] ${msg}\n`);
 
+// SECURITY CRASH PREVENTION:
+// If this bot tries to run with the SAME token as the Main Bot, it will cause a limit-exceeded crash loop.
+// We detect this and gracefuly shut down THIS specific bot instance so the others survive.
+if (process.env.DISCORD_TOKEN_MOD === process.env.DISCORD_TOKEN && process.env.DISCORD_TOKEN) {
+    log('⚠️ WARNING: DISCORD_TOKEN_MOD is identical to Main DISCORD_TOKEN.');
+    log('🛑 SHUTTING DOWN Moderation Bot to prevent conflict. Please use a separate Bot Account for Moderation.');
+    setInterval(() => { }, 60000); // Keep process "alive" but idle so concurrently doesn't restart it immediately? 
+    // Actually, if we exit, concurrently depends on flags. 
+    // Let's just enter a zombie state:
+    return; // Stop execution of the rest of the file
+}
+
 log('Starting Nacion MX MODERATION BOT... (v5.8 - CacheService Fix)');
 const fs = require('fs');
 const path = require('path');
