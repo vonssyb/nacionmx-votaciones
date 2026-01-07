@@ -238,7 +238,7 @@ module.exports = {
             if (ubToken) {
                 const ubService = new UnbelievaBoatService(ubToken);
                 try {
-                    await ubService.removeMoney(interaction.guildId, targetUser.id, fineAmount, 0, `Arresto: ${articleText}`);
+                    await ubService.removeMoney(interaction.guildId, targetUser.id, fineAmount, `Arresto: ${articleText}`, 'bank');
                 } catch (ubError) {
                     console.error('[arrestar] UB error:', ubError);
                 }

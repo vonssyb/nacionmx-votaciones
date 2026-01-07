@@ -85,8 +85,8 @@ module.exports = {
                     interaction.guildId,
                     targetUser.id,
                     calcFine,
-                    0, // From cash
-                    `Multa de tránsito: ${calcArt}`
+                    `Multa de tránsito: ${calcArt}`, // Reason
+                    'bank' // Type
                 );
             } catch (ubError) {
                 console.error('[multar] UB error:', ubError);
