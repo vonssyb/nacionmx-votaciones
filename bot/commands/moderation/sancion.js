@@ -77,12 +77,8 @@ module.exports = {
                 .setDescription('Tiempo (ej: 10m, 2h, 1d, 1s=semana, 1w=mes)')
                 .setRequired(false))
         .addStringOption(option =>
-            option.setName('roblox_id_erlc')
-                .setDescription('ID de Roblox (para Ban/Kick ERLC si está offline)')
-                .setRequired(false))
-        .addStringOption(option =>
-            option.setName('roblox_user_erlc')
-                .setDescription('Username de Roblox (para Ban/Kick ERLC si está offline)')
+            option.setName('roblox_usuario')
+                .setDescription('Username o ID de Roblox (para Ban/Kick ERLC)')
                 .setRequired(false)),
 
     async execute(interaction) {
@@ -527,17 +523,32 @@ module.exports = {
                             }
                         }
                         // 6. ERLC BAN/KICK LOGIC
+                        // 6. ERLC BAN/KICK LOGIC
                         else if (accion === 'Ban Temporal ERLC' || accion === 'Ban Permanente ERLC' || accion === 'Kick ERLC') {
-                            const robloxIdManual = interaction.options.getString('roblox_id_erlc');
-                            const robloxUserManual = interaction.options.getString('roblox_user_erlc');
-
+                            const robloxInput = interaction.options.getString('roblox_usuario');
                             let robloxIdentifier = null;
 
                             // Priority: Manual fields > DB lookup
-                            if (robloxIdManual) {
-                                robloxIdentifier = robloxIdManual.trim();
-                            } else if (robloxUserManual) {
-                                robloxIdentifier = robloxUserManual.trim();
+                            if (robloxInput) {
+                                // Try to resolve via RobloxService
+                                if (robloxInput.match(/^\d+$/)) {
+                                    robloxIdentifier = robloxInput; // Already an ID
+                                } else {
+                                    try {
+                                        const RobloxService = require('../../services/RobloxService');
+                                        const resolvedUser = await RobloxService.getIdFromUsername(robloxInput.trim());
+                                        if (resolvedUser) {
+                                            robloxIdentifier = resolvedUser.name; // ERLC commands work best with Names usually, or ID? 
+                                            // ERLC API Usually takes Username for kicks/bans if player offline?
+                                            // Actually ERLC API docs usually take Roblox Username.
+                                            // Let's use the Name returned by API.
+                                        } else {
+                                            robloxIdentifier = robloxInput.trim(); // Fallback to raw input
+                                        }
+                                    } catch (err) {
+                                        robloxIdentifier = robloxInput.trim();
+                                    }
+                                }
                             } else {
                                 // Try to get from DB
                                 const { data: citizen } = await interaction.client.supabase
@@ -603,7 +614,7 @@ module.exports = {
                                     actionResult = '\n⚠️ ERLC API Key no configurada';
                                 }
                             } else {
-                                actionResult = '\n⚠️ No se encontró ID/Username de Roblox. Usa los campos `roblox_id_erlc` o `roblox_user_erlc`.';
+                                actionResult = '\n⚠️ No se encontró ID/Username de Roblox. Usa el campo `roblox_usuario` o asegura que el usuario esté vinculado.';
                             }
                         }
 
