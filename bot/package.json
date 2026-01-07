@@ -2,16 +2,16 @@
     "name": "nacionmx-bot",
     "version": "1.0.0",
     "description": "Discord Bot for Nacion MX RP Portal integration",
-    "main": "index.js",
+    "main": "index_unified.js",
     "scripts": {
-        "start": "node index_MINIMAL_TEST.js",
-        "dev": "nodemon index.js",
+        "start": "node index_unified.js",
+        "dev": "nodemon index_unified.js",
         "deploy:mod": "node register_moderacion.js",
         "deploy:eco": "node register_economia.js",
         "deploy:gov": "node register_gobierno.js",
-        "start:gov": "node index_gobierno.js",
-        "start:eco": "node index_economia.js",
-        "start:mod": "node index_moderacion.js"
+        "legacy:gov": "node legacy/index_gobierno.js",
+        "legacy:eco": "node legacy/index_economia.js",
+        "legacy:mod": "node legacy/index_moderacion.js"
     },
     "dependencies": {
         "@supabase/supabase-js": "^2.88.0",
