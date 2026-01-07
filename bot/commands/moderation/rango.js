@@ -255,7 +255,8 @@ module.exports = {
                     }
 
                     // 3. Find First Available Number (Fill Gaps)
-                    badgeNumber = 1;
+                    // Rule: Start from 002 (001 is reserved/skipped)
+                    badgeNumber = 2;
                     while (usedNumbers.has(badgeNumber)) {
                         badgeNumber++;
                     }
