@@ -763,6 +763,52 @@ const commands = [
         type: 1
     },
     {
+        name: 'rol',
+        description: '🎭 Ver tu rol de staff actual'
+    },
+    {
+        name: 'rango',
+        description: '⚙️ Gestión de Rangos de Staff',
+        options: [
+            {
+                name: 'promover',
+                description: 'Subir de rango a un miembro del staff',
+                type: 1,
+                options: [
+                    { name: 'usuario', description: 'Usuario a promover', type: 6, required: true }
+                ]
+            },
+            {
+                name: 'degradar',
+                description: 'Bajar de rango a un miembro del staff',
+                type: 1,
+                options: [
+                    { name: 'usuario', description: 'Usuario a degradar', type: 6, required: true }
+                ]
+            },
+            {
+                name: 'establecer',
+                description: 'Asignar un rango específico',
+                type: 1,
+                options: [
+                    { name: 'usuario', description: 'Usuario', type: 6, required: true },
+                    {
+                        name: 'nivel',
+                        description: 'Nuevo rango',
+                        type: 3,
+                        required: true,
+                        choices: [
+                            { name: 'Nivel 1: Staff en Entrenamiento', value: '1' },
+                            { name: 'Nivel 2: Moderador / Staff', value: '2' },
+                            { name: 'Nivel 3: Administración', value: '3' },
+                            { name: 'Nivel 4: Junta Directiva', value: '4' }
+                        ]
+                    }
+                ]
+            }
+        ]
+    },
+    {
         name: 'saldo',
         description: '🏦 Ver saldo de banco y efectivo',
         options: [
