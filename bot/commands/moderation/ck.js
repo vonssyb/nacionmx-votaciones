@@ -297,13 +297,23 @@ module.exports = {
 
                     // 2. Reset all money
                     await supabase
-                        .from('user_balances')
-                        .upsert({
-                            guild_id: interaction.guildId,
-                            user_id: targetUser.id,
-                            cash: 0,
-                            bank: 0
-                        }, { onConflict: 'guild_id,user_id' });
+                    // 2. Reset Ecosystem (Money)
+                    if (process.env.UNBELIEVABOAT_TOKEN) {
+                        try {
+                            const UnbelievaBoatService = require('../../services/UnbelievaBoatService');
+                            const ubService = new UnbelievaBoatService(process.env.UNBELIEVABOAT_TOKEN);
+
+                            if (previousCash > 0) {
+                                await ubService.removeMoney(interaction.guildId, targetUser.id, previousCash, `CK: ${razon}`, 'cash');
+                            }
+                            if (previousBank > 0) {
+                                await ubService.removeMoney(interaction.guildId, targetUser.id, previousBank, `CK: ${razon}`, 'bank');
+                            }
+                        } catch (ubError) {
+                            console.error('[CK] Failed to reset UnbelievaBoat balance:', ubError);
+                            // Non-blocking, continue CK
+                        }
+                    }
 
                     // 2a. HANDLE COMPANIES (Expropriation / Partner Removal)
                     const { data: companies } = await supabase
