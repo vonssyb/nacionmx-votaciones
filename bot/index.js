@@ -2,6 +2,22 @@ require('dotenv').config();
 // 1. Unbuffered Logger
 const log = (msg) => process.stderr.write(`🟢 [BOT] ${msg}\n`);
 
+// ========================================
+// CRITICAL: START EXPRESS SERVER FIRST
+// This satisfies Koyeb's health check immediately
+// while the Discord bot initializes in the background
+// ========================================
+const express = require('express');
+const app = express();
+const port = process.env.PORT || 3003;
+app.get('/', (req, res) => res.send('🤖 Nacion MX MAIN Bot is running!'));
+app.listen(port, () => {
+    console.log(`🌐 [MAIN BOT] Web server listening on port ${port}`);
+    console.log('✅ [MAIN BOT] Health check endpoint active');
+});
+log('Express server started - health check ready');
+// ========================================
+
 log('Starting bot/index.js execution...');
 const fs = require('fs');
 log('fs required');
@@ -66,26 +82,6 @@ const client = new Client({
         GatewayIntentBits.MessageContent
     ]
 });
-
-// -- EXPRESS SERVER FOR RENDER (Keeps the bot alive) --
-const express = require('express');
-const app = express();
-const port = process.env.PORT || 3003;
-app.get('/', (req, res) => res.send('🤖 Nacion MX MAIN Bot is running!'));
-app.listen(port, () => {
-    console.log(`🌐 Web server listening on port ${port}`);
-    // Start Keep-Alive (Self Ping)
-    try {
-        console.log('🔄 Starting Keep-Alive Service...');
-        const keepAliveService = require('./services/KeepAliveService');
-        keepAliveService.start();
-        console.log('✅ Keep-Alive Service started.');
-    } catch (kaError) {
-        console.error('❌ Keep-Alive Start Failed:', kaError);
-    }
-});
-console.log('✅ Express Server Setup Complete.');
-// -----------------------------------------------------
 
 // Supabase initialized at top of file
 // --- ERLC QUEUE PROCESSOR ---
