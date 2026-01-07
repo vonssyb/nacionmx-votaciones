@@ -68,14 +68,28 @@ async function startModerationBot() {
         log('🟢', `[MOD] Logged in as ${client.user.tag}`);
     });
 
-    // Interaction Handler (Simplified for brevity - importing logic would be better but keeping it self-contained for safety)
+    // Interaction Handler
     client.on('interactionCreate', async interaction => {
         if (!interaction.isChatInputCommand()) return;
+
+        // GLOBAL DEFER - Fixes InteractionNotReplied errors
+        try {
+            await interaction.deferReply();
+        } catch (e) {
+            console.error('[MOD] Failed to defer:', e);
+            return; // Can't proceed
+        }
+
         const command = client.commands.get(interaction.commandName);
         if (command) {
             try {
                 await command.execute(interaction, client, supabase);
-            } catch (e) { console.error('[MOD] Command Error:', e); }
+            } catch (e) {
+                console.error('[MOD] Command Error:', e);
+                const msg = '❌ Error fatal ejecutando el comando.';
+                if (interaction.replied || interaction.deferred) await interaction.editReply(msg).catch(() => { });
+                else await interaction.reply({ content: msg, ephemeral: true }).catch(() => { });
+            }
         }
     });
 
