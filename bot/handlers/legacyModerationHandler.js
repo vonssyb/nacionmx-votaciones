@@ -3356,7 +3356,9 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                     'NMX Oro': { limit: 250000, interest: 7, cost: 15000 },
                     'NMX Rubí': { limit: 500000, interest: 6, cost: 25000 },
                     'NMX Black': { limit: 1000000, interest: 5, cost: 40000 },
-                    'NMX Diamante': { limit: 2000000, interest: 3, cost: 60000 }
+                    'NMX Diamante': { limit: 2000000, interest: 3, cost: 60000 },
+                    'NMX Zafiro': { limit: 5000000, interest: 2.5, cost: 100000 },
+                    'NMX Platino Elite': { limit: 10000000, interest: 2, cost: 150000 }
                 };
                 const tiers = Object.keys(cardStats);
 
