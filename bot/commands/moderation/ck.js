@@ -289,30 +289,42 @@ module.exports = {
 
                     await i.editReply({ content: '', embeds: [resultEmbed] });
 
-                    // 9. Send detailed CK log to logs channel
-                    const CK_LOGS_CHANNEL_ID = '1456035521141670066';
-                    const ckLogsChannel = await client.channels.fetch(CK_LOGS_CHANNEL_ID);
-                    if (ckLogsChannel) {
-                        // Create detailed log embed
-                        const detailedLogEmbed = new EmbedBuilder()
-                            .setTitle(`💀 ${ckTipo.toUpperCase()} - LOG DETALLADO`)
-                            .setColor('#8B0000')
-                            .setThumbnail('https://cdn.discordapp.com/attachments/885232074083143741/1457553016743006363/25174-skull-lmfao.gif')
-                            .addFields(
-                                { name: '👮 Aprobado por:', value: `<@${interaction.user.id}>`, inline: true },
-                                { name: '👤 Usuario afectado:', value: `<@${targetUser.id}>`, inline: true },
-                                { name: '📋 Tipo de CK:', value: ckTipo, inline: true },
-                                { name: '📝 Razón del CK:', value: razon, inline: false },
-                                { name: '💵 Dinero Removido', value: `Cash: $${previousCash.toLocaleString()}\nBanco: $${previousBank.toLocaleString()}\n**Total:** $${(previousCash + previousBank).toLocaleString()}`, inline: true },
-                                { name: '🪪 Licencias Removidas', value: licenseRoles.length > 0 ? '🚗 Conducir\n🔫 Armas Cortas\n🎯 Armas Largas' : 'Ninguna', inline: true },
-                                { name: '💳 Tarjetas', value: 'Todas desactivadas', inline: true },
-                                { name: '🏷️ Roles Removidos', value: removedRoles.length > 0 ? removedRoles.slice(0, 15).join(', ') + (removedRoles.length > 15 ? `\n... (+${removedRoles.length - 15} más)` : '') : 'Ninguno', inline: false }
-                            )
-                            .setImage(evidencia.url)
-                            .setFooter({ text: `CK Registry | ${new Date().toLocaleDateString('es-MX')}, ${new Date().toLocaleTimeString('es-MX')}` })
-                            .setTimestamp();
+                    // 9a. PUBLIC LOG (To Announcements)
+                    const LOG_PUBLIC_ID = '1412957234824089732';
+                    try {
+                        const publicChannel = await client.channels.fetch(LOG_PUBLIC_ID);
+                        if (publicChannel) await publicChannel.send({ embeds: [resultEmbed] });
+                    } catch (e) { console.error('[CK] Error sending public log:', e); }
 
-                        await ckLogsChannel.send({ embeds: [detailedLogEmbed] });
+                    // 9b. PRIVATE LOG (Detailed Security)
+                    const LOG_PRIVATE_ID = '1457576874602659921';
+                    try {
+                        const privateChannel = await client.channels.fetch(LOG_PRIVATE_ID);
+                        if (privateChannel) {
+                            // Create detailed log embed
+                            const detailedLogEmbed = new EmbedBuilder()
+                                .setTitle(`💀 ${ckTipo.toUpperCase()} - LOG DETALLADO`)
+                                .setColor('#8B0000')
+                                .setThumbnail('https://cdn.discordapp.com/attachments/885232074083143741/1457553016743006363/25174-skull-lmfao.gif')
+                                .addFields(
+                                    { name: '👮 Aprobado por:', value: `<@${interaction.user.id}>`, inline: true },
+                                    { name: '👤 Usuario afectado:', value: `<@${targetUser.id}>`, inline: true },
+                                    { name: '📋 Tipo de CK:', value: ckTipo, inline: true },
+                                    { name: '📝 Razón del CK:', value: razon, inline: false },
+                                    { name: '💵 Dinero Removido', value: `Cash: $${previousCash.toLocaleString()}\nBanco: $${previousBank.toLocaleString()}\n**Total:** $${(previousCash + previousBank).toLocaleString()}`, inline: true },
+                                    { name: '🪪 Licencias Removidas', value: licenseRoles.length > 0 ? '🚗 Conducir\n🔫 Armas Cortas\n🎯 Armas Largas' : 'Ninguna', inline: true },
+                                    { name: '💳 Tarjetas', value: 'Todas desactivadas', inline: true },
+                                    { name: '🏷️ Roles Removidos', value: removedRoles.length > 0 ? removedRoles.slice(0, 15).join(', ') + (removedRoles.length > 15 ? `\n... (+${removedRoles.length - 15} más)` : '') : 'Ninguno', inline: false },
+                                    { name: '🏢 Empresas Expropiadas', value: companies && companies.length > 0 ? companies.map(c => c.name).join(', ') : 'Ninguna', inline: false }
+                                )
+                                .setImage(evidencia.url)
+                                .setFooter({ text: `CK Registry | ${new Date().toLocaleDateString('es-MX')}, ${new Date().toLocaleTimeString('es-MX')}` })
+                                .setTimestamp();
+
+                            await privateChannel.send({ embeds: [detailedLogEmbed] });
+                        }
+                    } catch (e) {
+                        console.error('[CK] Error sending private log:', e);
                     }
 
                     // 10. Notify user via DM
