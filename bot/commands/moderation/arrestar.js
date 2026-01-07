@@ -317,6 +317,11 @@ module.exports = {
                 await logsChannel.send({ embeds: [publicEmbed] });
             }
 
+            // Report Misión Diaria
+            if (client.missionManager) {
+                await client.missionManager.reportProgress(interaction.user.id, 'arrests', 1);
+            }
+
         } catch (error) {
             console.error('[arrestar] Error:', error);
             await interaction.editReply('❌ Error al procesar el arresto. Contacta a un administrador.');

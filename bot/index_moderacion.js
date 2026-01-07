@@ -28,6 +28,9 @@ const BillingService = require('./services/BillingService');
 const sanctionService = new SanctionService(supabase);
 log('SanctionService Instantiated');
 
+const DailyMissionManager = require('./services/DailyMissionManager');
+const missionManager = new DailyMissionManager(supabase);
+
 // ----------------
 
 // --- CLIENT SETUP ---
@@ -41,6 +44,7 @@ const client = new Client({
 });
 
 // Attach Services to Client
+client.missionManager = new (require('./services/DailyMissionManager'))(supabase); // Daily Missions Tracking
 client.services = {
     sanctions: sanctionService,
     billing: new BillingService(client, supabase)
