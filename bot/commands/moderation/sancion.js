@@ -41,10 +41,6 @@ module.exports = {
                 .setDescription('ID de Discord (si el usuario salió del servidor)')
                 .setRequired(false))
         .addStringOption(option =>
-            option.setName('roblox_username')
-                .setDescription('Username de Roblox (búsqueda en base de datos)')
-                .setRequired(false))
-        .addStringOption(option =>
             option.setName('accion')
                 .setDescription('Solo para Sanción General: Tipo de castigo')
                 .setRequired(false)
@@ -78,7 +74,7 @@ module.exports = {
                 .setRequired(false))
         .addStringOption(option =>
             option.setName('roblox_usuario')
-                .setDescription('Username o ID de Roblox (para Ban/Kick ERLC)')
+                .setDescription('Username/ID Roblox (Búsqueda DB y Ban ERLC)')
                 .setRequired(false)),
 
     async execute(interaction) {
@@ -86,26 +82,14 @@ module.exports = {
         const type = interaction.options.getString('tipo');
         const accion = interaction.options.getString('accion');
 
-        // --- PERMISSIONS CHECKS (RBAC SYSTEM v2) ---
-        // Check permissions BEFORE deferring to allow ephemeral errors
+        // ... (Permissions retained) ...
         const ROLES_CONFIG = {
-            // Junta Directiva & Encargados (FULL ACCESS - Bypass Approval)
-            LEVEL_4_BOARD: [
-                '1412882245735420006', // Junta Directiva
-                '1456020936229912781', // Encargado de Sanciones
-                '1451703422800625777', // Encargado de Apelaciones
-                '1454985316292100226'  // Encargado de Staff
-            ],
-            // Admins (FULL ACCESS - BUT REQUIRES APPROVAL for Critical)
+            LEVEL_4_BOARD: ['1412882245735420006', '1456020936229912781', '1451703422800625777', '1454985316292100226'],
             LEVEL_3_ADMIN: ['1412882248411381872'],
-            // Staff (Kick/TempBan)
             LEVEL_2_STAFF: ['1412887079612059660'],
-            // Training (Warns Only)
             LEVEL_1_TRAINING: ['1412887167654690908']
         };
-
         const memberRoles = interaction.member.roles.cache;
-
         // Determine User Level
         let userLevel = 0;
         if (memberRoles.some(r => ROLES_CONFIG.LEVEL_4_BOARD.includes(r.id))) userLevel = 4;
@@ -113,9 +97,7 @@ module.exports = {
         else if (memberRoles.some(r => ROLES_CONFIG.LEVEL_2_STAFF.includes(r.id))) userLevel = 2;
         else if (memberRoles.some(r => ROLES_CONFIG.LEVEL_1_TRAINING.includes(r.id))) userLevel = 1;
 
-        if (userLevel === 0) {
-            return interaction.reply({ content: '⛔ **Acceso Denegado:** No tienes rango suficiente para usar este sistema.', flags: [64] });
-        }
+        if (userLevel === 0) return interaction.reply({ content: '⛔ **Acceso Denegado:** No tienes rango suficiente.', flags: [64] });
 
         // Helper to check levels
         const hasRole = (roleIds) => roleIds.some(id => memberRoles.has(id));
@@ -124,99 +106,67 @@ module.exports = {
         const isStaff = hasRole(ROLES_CONFIG.LEVEL_2_STAFF) || isAdmin;
         const isTraining = hasRole(ROLES_CONFIG.LEVEL_1_TRAINING) || isStaff;
 
-        // 1. BLACKLIST Check - Requires Board ONLY
-        if (accion === 'Blacklist' && !isBoard) {
-            return interaction.reply({
-                content: '🛑 **Acceso Denegado (Nivel 4 Requerido)**\n\nSolo la **Junta Directiva y Encargados** pueden aplicar Blacklists.',
-                flags: [64]
-            });
-        }
+        // Permission Checks (Blacklist, SA, etc)
+        if (accion === 'Blacklist' && !isBoard) return interaction.reply({ content: '🛑 **Acceso Denegado (Nivel 4)**', flags: [64] });
+        if (((type === 'sa') || (accion === 'Ban Permanente ERLC') || (accion === 'Ban Temporal ERLC')) && !isAdmin)
+            return interaction.reply({ content: '🛑 **Acceso Denegado (Nivel 3)**', flags: [64] });
+        if (((accion === 'Ban Permanente Discord') || (accion === 'Ban Temporal Discord') || (accion === 'Kick Discord')) && !isBoard)
+            return interaction.reply({ content: '🛑 **Acceso Denegado (Nivel 4)**', flags: [64] });
+        if (!isTraining) return interaction.reply({ content: '🛑 **Acceso Denegado**', flags: [64] });
 
-        // 2. Other Critical Actions Check (SA, Ban ERLC) -> Requires Admin
-        const isCriticalAction = (type === 'sa') ||
-            (accion === 'Ban Permanente ERLC') ||
-            (accion === 'Ban Temporal ERLC');
-
-        if (isCriticalAction && !isAdmin) {
-            return interaction.reply({
-                content: '🛑 **Acceso Denegado (Nivel 3 Requerido)**\n\nSolo la **Administración y Junta Directiva** pueden aplicar SAs o Baneos (ERLC).',
-                flags: [64]
-            });
-        }
-
-        // 3. Discord Ban Actions Check (Ban Discord, Ban Temporal Discord) -> Requires Board ONLY
-        const isDiscordBanAction = (accion === 'Ban Permanente Discord') || (accion === 'Ban Temporal Discord');
-
-        if (isDiscordBanAction && !isBoard) {
-            return interaction.reply({
-                content: '🛑 **Acceso Denegado (Nivel 4 Requerido)**\n\nSolo la **Junta Directiva y Encargados** pueden aplicar Baneos de Discord.',
-                flags: [64]
-            });
-        }
-
-        // 4. Kick Discord Check -> Requires Board ONLY
-        if (accion === 'Kick Discord' && !isBoard) {
-            return interaction.reply({
-                content: '🛑 **Acceso Denegado (Nivel 4 Requerido)**\n\nSolo la **Junta Directiva y Encargados** pueden aplicar Kicks de Discord.',
-                flags: [64]
-            });
-        }
-
-        // 5. Basic Actions Check (Warns, Notif, Kick ERLC, Timeout) -> Requires Training
-        if (!isTraining) {
-            return interaction.reply({
-                content: '🛑 **Acceso Denegado**\nNo tienes el rol de Staff necesario para usar este comando.',
-                flags: [64]
-            });
-        }
-
-        // --- DEFERRAL LOGIC ---
-        // Sanciones = Public (No Ephemeral)
-        // Notificaciones = Private (Ephemeral)
         const isEphemeral = (type === 'notificacion');
         await interaction.deferReply({ flags: isEphemeral ? [64] : [] });
 
         // --- GET TARGET USER (Support 3 methods) ---
         const usuarioMention = interaction.options.getUser('usuario');
         const discordIdInput = interaction.options.getString('discord_id');
-        const robloxUsernameInput = interaction.options.getString('roblox_username');
+        // UNIFIED ROBLOX INPUT
+        const robloxInput = interaction.options.getString('roblox_usuario');
 
         let targetUser = null;
         let targetDiscordId = null;
 
         if (usuarioMention) {
-            // Method 1: Direct mention (@usuario)
+            // Method 1: Direct mention
             targetUser = usuarioMention;
             targetDiscordId = usuarioMention.id;
         } else if (discordIdInput) {
-            // Method 2: Discord ID (for users who left server)
+            // Method 2: Discord ID
             targetDiscordId = discordIdInput.trim();
             try {
                 targetUser = await interaction.client.users.fetch(targetDiscordId);
             } catch (error) {
                 return interaction.editReply(`❌ No se pudo encontrar el usuario con ID: ${targetDiscordId}`);
             }
-        } else if (robloxUsernameInput) {
-            // Method 3: Roblox username lookup
+        } else if (robloxInput) {
+            // Method 3: Roblox Unified Lookup (Name or ID)
+            // Try to find citizen by roblox_username OR roblox_id
             const { data: citizen } = await interaction.client.supabase
                 .from('citizens')
                 .select('discord_id, roblox_username')
-                .ilike('roblox_username', robloxUsernameInput.trim())
+                .or(`roblox_username.ilike.${robloxInput.trim()},roblox_id.eq.${robloxInput.trim()}`)
                 .maybeSingle();
 
             if (!citizen) {
-                return interaction.editReply(`❌ No se encontró ningún ciudadano con username de Roblox: **${robloxUsernameInput}**`);
-            }
-
-            targetDiscordId = citizen.discord_id;
-            try {
-                targetUser = await interaction.client.users.fetch(targetDiscordId);
-            } catch (error) {
-                // User left Discord but we have their ID
-                targetUser = { id: targetDiscordId, tag: `${robloxUsernameInput} (ID: ${targetDiscordId})`, bot: false };
+                // Not found in DB. 
+                // If the action is ERLC-only, we might proceed without a Discord User?
+                // But for Sancion General/SA we need a user.
+                if (accion && accion.includes('ERLC')) {
+                    // Proceed without discord targetUser (will only execute ERLC command)
+                    // targetUser remains null.
+                } else {
+                    return interaction.editReply(`❌ No se encontró ningún ciudadano vinculado con: **${robloxInput}**`);
+                }
+            } else {
+                targetDiscordId = citizen.discord_id;
+                try {
+                    targetUser = await interaction.client.users.fetch(targetDiscordId);
+                } catch (error) {
+                    targetUser = { id: targetDiscordId, tag: `${citizen.roblox_username} (ID: ${targetDiscordId})`, bot: false };
+                }
             }
         } else {
-            return interaction.editReply('❌ Debes especificar al menos uno: **@usuario**, **discord_id**, o **roblox_username**.');
+            return interaction.editReply('❌ Debes especificar: **@usuario**, **discord_id**, o **roblox_usuario**.');
         }
 
         // --- GET OTHER OPTIONS ---
@@ -525,7 +475,7 @@ module.exports = {
                         // 6. ERLC BAN/KICK LOGIC
                         // 6. ERLC BAN/KICK LOGIC
                         else if (accion === 'Ban Temporal ERLC' || accion === 'Ban Permanente ERLC' || accion === 'Kick ERLC') {
-                            const robloxInput = interaction.options.getString('roblox_usuario');
+                            // robloxInput is already defined at top of function
                             let robloxIdentifier = null;
 
                             // Priority: Manual fields > DB lookup
