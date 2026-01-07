@@ -109,15 +109,30 @@ module.exports = {
 
                 const targetUser = interaction.options.getUser('usuario');
 
-                // Get today's mission
-                const { data: mission } = await supabase
+                // Get today's missions
+                const { data: missions } = await supabase
                     .from('daily_missions')
                     .select('*')
-                    .eq('active_date', new Date().toISOString().split('T')[0])
-                    .maybeSingle();
+                    .eq('active_date', new Date().toISOString().split('T')[0]);
+
+                if (!missions || missions.length === 0) {
+                    return interaction.editReply('❌ No hay misiones activas para hoy.');
+                }
+
+                // Determine target mission for this user
+                // Same logic: Security -> General
+                const targetMember = await interaction.guild.members.fetch(targetUser.id);
+                let mission = null;
+
+                const securityMission = missions.find(m => m.allowed_roles && m.allowed_roles.length > 0);
+                if (securityMission) {
+                    const isSecurity = targetMember.roles.cache.some(r => securityMission.allowed_roles.includes(r.id));
+                    if (isSecurity) mission = securityMission;
+                }
+                if (!mission) mission = missions.find(m => !m.allowed_roles || m.allowed_roles.length === 0);
 
                 if (!mission) {
-                    return interaction.editReply('❌ No hay misión activa para hoy.');
+                    return interaction.editReply('❌ El usuario no califica para ninguna misión activa hoy.');
                 }
 
                 // Check if already completed
@@ -129,47 +144,64 @@ module.exports = {
                     .maybeSingle();
 
                 if (existing) {
-                    return interaction.editReply(`❌ ${targetUser.tag} ya completó esta misión.`);
+                    return interaction.editReply(`❌ ${targetUser.tag} ya completó la misión "${mission.title}".`);
                 }
 
-                // Mark as completed
+                // ... (Continue insert)
                 await supabase.from('mission_completions').insert({
                     mission_id: mission.id,
-                    discord_id: targetUser.id
+                    discord_id: targetUser.id,
+                    progress_current: mission.requirements?.count || 1, // Full progress
+                    progress_target: mission.requirements?.count || 1
                 });
 
                 return interaction.editReply(
-                    `✅ Misión marcada como completada para ${targetUser.tag}.\n` +
+                    `✅ Misión **"${mission.title}"** completada para ${targetUser.tag}.\n` +
                     `El usuario puede reclamar su recompensa con \`/mision reclamar\`.`
                 );
 
             } else if (subcommand === 'reclamar') {
-                // Get today's mission
-                const { data: mission } = await supabase
+                // Get today's missions
+                const { data: missions } = await supabase
                     .from('daily_missions')
                     .select('*')
-                    .eq('active_date', new Date().toISOString().split('T')[0])
-                    .maybeSingle();
+                    .eq('active_date', new Date().toISOString().split('T')[0]);
 
-                if (!mission) {
-                    return interaction.editReply('❌ No hay misión activa para hoy.');
+                if (!missions || missions.length === 0) {
+                    return interaction.editReply('❌ No hay misiones activas para hoy.');
                 }
 
-                // Check if completed
-                const { data: completion } = await supabase
-                    .from('mission_completions')
-                    .select('*')
-                    .eq('mission_id', mission.id)
-                    .eq('discord_id', interaction.user.id)
-                    .maybeSingle();
+                // Find a completed but unclaimed mission for this user
+                let completionToClaim = null;
+                let missionToClaim = null;
 
-                if (!completion) {
-                    return interaction.editReply('❌ Aún no has completado esta misión.');
+                for (const m of missions) {
+                    const { data: completion } = await supabase
+                        .from('mission_completions')
+                        .select('*')
+                        .eq('mission_id', m.id)
+                        .eq('discord_id', interaction.user.id)
+                        .maybeSingle();
+
+                    if (completion && !completion.claimed) {
+                        // Check if completed (either by manual override OR tracking)
+                        const target = completion.progress_target || m.requirements?.count || 1;
+                        if (completion.progress_current >= target || completion.completed_at) {
+                            completionToClaim = completion;
+                            missionToClaim = m;
+                            break; // Found one, claim it
+                        }
+                    }
                 }
 
-                if (completion.claimed) {
-                    return interaction.editReply('❌ Ya reclamaste la recompensa de esta misión.');
+                if (!completionToClaim) {
+                    return interaction.editReply('❌ No tienes misiones completadas pendientes de reclamar hoy.');
                 }
+
+                // ... (Proceed to claim missionToClaim using completionToClaim)
+                const mission = missionToClaim;
+                const completion = completionToClaim; // Redundant but keeping variable names consistent
+
 
                 // Give rewards
                 const UnbelievaBoatService = require('../../services/UnbelievaBoatService');
