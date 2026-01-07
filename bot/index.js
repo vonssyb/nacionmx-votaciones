@@ -70,8 +70,8 @@ const client = new Client({
 // -- EXPRESS SERVER FOR RENDER (Keeps the bot alive) --
 const express = require('express');
 const app = express();
-const port = process.env.PORT || 3000;
-app.get('/', (req, res) => res.send('🤖 Nacion MX Bot is running!'));
+const port = process.env.PORT || 3003;
+app.get('/', (req, res) => res.send('🤖 Nacion MX MAIN Bot is running!'));
 app.listen(port, () => {
     console.log(`🌐 Web server listening on port ${port}`);
     // Start Keep-Alive (Self Ping)

@@ -124,7 +124,7 @@ client.on('interactionCreate', async interaction => {
 // --- RENDER KEEP ALIVE (GOV) ---
 const express = require('express');
 const app = express();
-const port = process.env.PORT_GOV || 3001;
+const port = process.env.PORT_GOV || 3004;
 app.get('/', (req, res) => res.send('🏛️ Nacion MX GOVERNMENT Bot is running!'));
 app.listen(port, () => {
     console.log(`🌐 Government Server listening on port ${port}`);

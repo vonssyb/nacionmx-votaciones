@@ -6,6 +6,10 @@
   "scripts": {
     "start": "cd bot && npm start",
     "bot": "cd bot && npm start",
+    "bot:mod": "cd bot && node index_moderacion.js",
+    "bot:eco": "cd bot && node index_economia.js",
+    "bot:gob": "cd bot && node index_gobierno.js",
+    "dev:all": "concurrently \"npm run bot\" \"npm run bot:mod\" \"npm run bot:eco\" \"npm run bot:gob\"",
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
@@ -26,6 +30,7 @@
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.1.1",
     "autoprefixer": "^10.4.23",
+    "concurrently": "^9.2.1",
     "eslint": "^9.39.1",
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.4.24",
