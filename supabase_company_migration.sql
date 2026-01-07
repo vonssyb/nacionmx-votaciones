@@ -1,10 +1,26 @@
 -- ============================================
--- MIGRACIÓN: Completar Sistema de Empresas
+-- MIGRACIÓN: Alinear company_employees con Legacy
 -- ============================================
 
--- 1. Agregar columna faltante si no existe
+-- 1. Agregar columnas faltantes para compatibilidad con código modular
 DO $$ 
 BEGIN
+    -- Agregar discord_id como alias de discord_user_id
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'company_employees' 
+        AND column_name = 'discord_id'
+    ) THEN
+        ALTER TABLE company_employees 
+        ADD COLUMN discord_id text;
+        
+        -- Copiar datos existentes
+        UPDATE company_employees 
+        SET discord_id = discord_user_id 
+        WHERE discord_id IS NULL;
+    END IF;
+
+    -- Agregar fired_at (fecha de despido)
     IF NOT EXISTS (
         SELECT 1 FROM information_schema.columns 
         WHERE table_name = 'company_employees' 
@@ -12,6 +28,16 @@ BEGIN
     ) THEN
         ALTER TABLE company_employees 
         ADD COLUMN fired_at timestamp with time zone;
+    END IF;
+
+    -- Agregar citizen_name
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'company_employees' 
+        AND column_name = 'citizen_name'
+    ) THEN
+        ALTER TABLE company_employees 
+        ADD COLUMN citizen_name text;
     END IF;
 END $$;
 
@@ -43,11 +69,11 @@ ALTER TABLE company_transactions DISABLE ROW LEVEL SECURITY;
 
 -- 5. Verificación final
 SELECT 
-    c.column_name,
-    c.data_type,
-    c.is_nullable
-FROM information_schema.columns c
-WHERE c.table_name = 'company_employees'
-ORDER BY c.ordinal_position;
+    column_name,
+    data_type,
+    is_nullable
+FROM information_schema.columns
+WHERE table_name = 'company_employees'
+ORDER BY ordinal_position;
 
-SELECT '✅ Migración completada. Verifica que "fired_at" aparezca arriba.' as status;
+SELECT '✅ Migración completada. Verifica que discord_id, fired_at y citizen_name aparezcan arriba.' as status;

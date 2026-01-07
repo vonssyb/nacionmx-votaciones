@@ -144,10 +144,13 @@ module.exports = {
                 console.log(`[empresa/contratar] Attempting to hire user ${targetUser.id} for company ${company.id}`);
                 const { data: newEmp, error: insertError } = await supabase.from('company_employees').insert({
                     company_id: company.id,
-                    discord_id: targetUser.id,
+                    discord_id: targetUser.id,           // Modular
+                    discord_user_id: targetUser.id,      // Legacy compatibility
                     citizen_name: citizen?.full_name || targetUser.tag,
                     role: role,
-                    salary: salary
+                    salary: salary,
+                    status: 'active',                    // Legacy compatibility
+                    hired_at: new Date().toISOString()
                 }).select();
 
                 if (insertError) {
