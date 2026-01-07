@@ -1,8 +1,8 @@
 const { createClient } = require('@supabase/supabase-js');
 
 class CompanyService {
-    constructor(supabaseUrl, supabaseKey) {
-        this.supabase = createClient(supabaseUrl, supabaseKey);
+    constructor(supabase) {
+        this.supabase = supabase;
     }
 
     /**
