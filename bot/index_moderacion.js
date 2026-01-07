@@ -783,7 +783,7 @@ client.on('messageUpdate', async (oldMessage, newMessage) => {
 // --- RENDER KEEP ALIVE (MOD) ---
 const express = require('express');
 const app = express();
-const port = process.env.PORT || 3000;
+const port = process.env.PORT || 3002;
 app.get('/', (req, res) => res.send('🛡️ Nacion MX MODERATION Bot is running!'));
 app.listen(port, () => {
     console.log(`🌐 Mod Server listening on port ${port}`);

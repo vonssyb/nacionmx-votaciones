@@ -7460,7 +7460,8 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
     else if (commandName === 'transferir') {
         await interaction.deferReply();
         const targetUser = interaction.options.getUser('destinatario');
-        const amount = interaction.options.getNumber('monto');
+        let amount = interaction.options.getNumber('monto');
+        if (amount) amount = Math.floor(amount); // Fix: Enforce integer
         const concepto = interaction.options.getString('concepto') || 'Transferencia SPEI';
 
         // Self-transfer check
@@ -7853,7 +7854,8 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
         } else {
             // Remove any non-numeric chars (e.g. $, commas) to be safe
             const cleanMonto = inputMonto.replace(/[^0-9.]/g, '');
-            monto = parseFloat(cleanMonto);
+            // Fix: Enforce floor to avoid floating point issues causing negative balance
+            monto = Math.floor(parseFloat(cleanMonto));
         }
 
         // Helper function to rename channel based on state
