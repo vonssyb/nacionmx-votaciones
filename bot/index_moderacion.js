@@ -44,6 +44,22 @@ const DailyMissionManager = require('./services/DailyMissionManager');
 const missionManager = new DailyMissionManager(supabase);
 log('DailyMissionManager Instantiated');
 
+// ========================================
+// CRITICAL: START EXPRESS SERVER FIRST
+// This satisfies Koyeb's health check immediately
+// while the Discord bot initializes in the background
+// ========================================
+const express = require('express');
+const app = express();
+const port = process.env.PORT || process.env.PORT_MOD || 3002;
+app.get('/', (req, res) => res.send('🛡️ Nacion MX MODERATION Bot is running!'));
+app.listen(port, () => {
+    console.log(`🌐 [MOD-BOT] Web server listening on port ${port}`);
+    console.log('✅ [MOD-BOT] Health check endpoint active');
+});
+log('Express server started - health check ready');
+// ========================================
+
 // ----------------
 
 // --- CLIENT SETUP ---
@@ -793,14 +809,7 @@ client.on('messageUpdate', async (oldMessage, newMessage) => {
     );
 });
 
-// --- RENDER KEEP ALIVE (MOD) ---
-const express = require('express');
-const app = express();
-const port = process.env.PORT || process.env.PORT_MOD || 3002; // Koyeb PORT (8000) takes priority
-app.get('/', (req, res) => res.send('🛡️ Nacion MX MODERATION Bot is running!'));
-app.listen(port, () => {
-    console.log(`🌐 Mod Server listening on port ${port}`);
-});
+// Express server already initialized at top of file
 
 // === ELITE FEATURES: AUTO-EXPIRATION CRON ===
 setInterval(async () => {
