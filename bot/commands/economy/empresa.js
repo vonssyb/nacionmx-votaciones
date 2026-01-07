@@ -67,7 +67,20 @@ module.exports = {
                 .addStringOption(option =>
                     option.setName('concepto')
                         .setDescription('Motivo del cobro (ej: Venta de comida)')
-                        .setRequired(true))),
+                        .setRequired(true)))
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('retirar')
+                .setDescription('Retirar fondos de la empresa a tu cuenta personal')
+                .addIntegerOption(option =>
+                    option.setName('monto')
+                        .setDescription('Monto a retirar')
+                        .setRequired(true)
+                        .setMinValue(1))
+                .addStringOption(option =>
+                    option.setName('concepto')
+                        .setDescription('Motivo del retiro (opcional)')
+                        .setRequired(false))),
 
     async execute(interaction, client, supabase) {
         // Note: deferReply is handled automatically by index_economia.js monkey-patch
@@ -338,6 +351,57 @@ module.exports = {
                     .setTimestamp();
 
                 return interaction.editReply({ embeds: [embed] });
+
+            } else if (subcommand === 'retirar') {
+                // Only owners can withdraw
+                const isOwner = company.owner_ids && company.owner_ids.includes(interaction.user.id);
+                if (!isOwner) {
+                    return interaction.editReply('❌ Solo el dueño puede retirar fondos de la empresa.');
+                }
+
+                const monto = interaction.options.getInteger('monto');
+                const concepto = interaction.options.getString('concepto') || 'Retiro de fondos';
+
+                // Verify sufficient funds
+                const currentBalance = company.balance || 0;
+                if (currentBalance < monto) {
+                    return interaction.editReply(`❌ Fondos insuficientes.\\n\\nBalance: $${currentBalance.toLocaleString()}\\nIntentando retirar: $${monto.toLocaleString()}`);
+                }
+
+                // Deduct from company
+                await supabase.from('companies')
+                    .update({ balance: currentBalance - monto })
+                    .eq('id', company.id);
+
+                // Add to owner's personal account
+                const UnbelievaBoatService = client.billingService?.ubService;
+                if (UnbelievaBoatService) {
+                    await UnbelievaBoatService.addMoney(interaction.guildId, interaction.user.id, monto, `Retiro de ${company.name}`, 'bank');
+                }
+
+                // Log transaction
+                await supabase.from('company_transactions').insert({
+                    company_id: company.id,
+                    type: 'expense',
+                    amount: monto,
+                    description: `Retiro a cuenta personal: ${concepto}`,
+                    related_user_id: interaction.user.id
+                });
+
+                const embed = new EmbedBuilder()
+                    .setTitle('💰 Retiro Exitoso')
+                    .setColor('#2ECC71')
+                    .addFields(
+                        { name: '🏢 Empresa', value: company.name, inline: true },
+                        { name: '💵 Monto Retirado', value: `$${monto.toLocaleString()}`, inline: true },
+                        { name: '🏦 Nuevo Balance', value: `$${(currentBalance - monto).toLocaleString()}`, inline: true },
+                        { name: '📝 Concepto', value: concepto, inline: false }
+                    )
+                    .setFooter({ text: 'Los fondos han sido transferidos a tu cuenta bancaria' })
+                    .setTimestamp();
+
+                return interaction.editReply({ embeds: [embed] });
+
             } else if (subcommand === 'cobrar') {
                 const cliente = interaction.options.getUser('cliente');
                 const monto = interaction.options.getInteger('monto');
