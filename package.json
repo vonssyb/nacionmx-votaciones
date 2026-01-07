@@ -14,8 +14,7 @@
     "build": "echo 'No build needed for bots'",
     "build:web": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview",
-    "postinstall": "cd bot && npm install"
+    "preview": "vite preview"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.87.1",
