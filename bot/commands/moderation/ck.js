@@ -29,16 +29,130 @@ module.exports = {
                 .addStringOption(option => option.setName('razon').setDescription('Motivo de la reversión').setRequired(true))),
 
     async execute(interaction, client, supabase) {
-        await interaction.deferReply({});
 
-        const encargadoCKRoleId = '1450938106395234526';
+        const subcommand = interaction.options.getSubcommand();
+        const rKRole = '1450938106395234526'; // Encargado CK
 
-        // Permission Check - Only Encargado de CK
-        if (!interaction.member.roles.cache.has(encargadoCKRoleId) && !interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
-            return interaction.editReply('❌ Solo el Encargado de CK puede aplicar un CK.');
+        // --- REVERTIR LOGIC ---
+        if (subcommand === 'revertir') {
+            await interaction.deferReply();
+
+            // Check Permissions (Strict)
+            if (!interaction.member.roles.cache.has(rKRole) && !interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
+                return interaction.editReply('❌ Solo el Encargado de CK puede revertir una muerte.');
+            }
+
+            const targetUser = interaction.options.getUser('usuario');
+
+            try {
+                // 1. Find last CK record with backup
+                const { data: ckRecord, error } = await supabase
+                    .from('ck_registry')
+                    .select('*')
+                    .eq('user_id', targetUser.id)
+                    .order('created_at', { ascending: false })
+                    .limit(1)
+                    .single();
+
+                if (error || !ckRecord) {
+                    return interaction.editReply('❌ No se encontró un registro de CK para este usuario o no tiene backup.');
+                }
+
+                const backup = ckRecord.backup_data;
+                const rolesToRestore = ckRecord.roles_removed || [];
+
+                if (!backup) {
+                    return interaction.editReply('⚠️ El registro de CK existe pero es ANTIGUO y no tiene datos de respaldo (DNI/Empresas). Solo se puede devolver roles y dinero manualmente.');
+                }
+
+                await interaction.editReply(`⏳ **Iniciando Resurrección de ${targetUser.tag}...**\nRecuperando DNI, Bienes y Roles.`);
+
+                const member = await interaction.guild.members.fetch(targetUser.id).catch(() => null);
+                if (!member) return interaction.editReply('❌ El usuario no está en el servidor.');
+
+                // A. Restore Money
+                await supabase.from('user_balances').upsert({
+                    guild_id: interaction.guildId,
+                    user_id: targetUser.id,
+                    cash: ckRecord.previous_cash,
+                    bank: ckRecord.previous_bank
+                }, { onConflict: 'guild_id,user_id' });
+
+                // B. Restore DNI
+                if (backup.dni) {
+                    await supabase.from('citizen_dni').upsert(backup.dni);
+                }
+
+                // C. Restore Credit Cards
+                if (backup.cards && backup.cards.length > 0) {
+                    const cardIds = backup.cards.map(c => c.id);
+                    await supabase.from('credit_cards').update({ active: true }).in('id', cardIds);
+                }
+
+                // D. Restore Companies (Expropriation Reversal)
+                if (backup.companies && backup.companies.length > 0) {
+                    for (const comp of backup.companies) {
+                        const { data: currentComp } = await supabase.from('companies').select('owner_ids, status').eq('id', comp.id).single();
+
+                        if (currentComp) {
+                            let newOwners = currentComp.owner_ids || [];
+                            if (!newOwners.includes(targetUser.id)) {
+                                newOwners.push(targetUser.id);
+                            }
+                            const newStatus = currentComp.status === 'government_seized' ? 'active' : currentComp.status;
+                            await supabase.from('companies').update({
+                                owner_ids: newOwners,
+                                status: newStatus,
+                                name: comp.name
+                            }).eq('id', comp.id);
+                        }
+                    }
+                }
+
+                // E. Restore Roles
+                let rolesRestoredCount = 0;
+                for (const roleName of rolesToRestore) {
+                    const role = interaction.guild.roles.cache.find(r => r.name === roleName);
+                    if (role) {
+                        try {
+                            await member.roles.add(role);
+                            rolesRestoredCount++;
+                        } catch (e) { console.error(`Failed to give role ${roleName}`); }
+                    }
+                }
+
+                // F. Notify
+                const successEmbed = new EmbedBuilder()
+                    .setTitle('♻️ CK REVERTIDO - RESURRECCIÓN')
+                    .setColor('#00FF00')
+                    .setDescription(`Se ha restaurado exitosamente a **${targetUser.tag}**.`)
+                    .addFields(
+                        { name: '💰 Dinero Restaurado', value: `$${(Number(ckRecord.previous_cash) + Number(ckRecord.previous_bank)).toLocaleString()}`, inline: true },
+                        { name: '🪪 DNI', value: backup.dni ? 'Restaurado' : 'No encontrado', inline: true },
+                        { name: '🎭 Roles', value: `${rolesRestoredCount} recuperados`, inline: true },
+                        { name: '🏢 Empresas', value: backup.companies ? `${backup.companies.length} devueltas` : 'Ninguna', inline: true }
+                    )
+                    .setFooter({ text: `Autorizado por: ${interaction.user.tag}` })
+                    .setTimestamp();
+
+                await interaction.editReply({ content: '', embeds: [successEmbed] });
+
+                // Log to Private Channel
+                const LOG_PRIVATE_ID = '1457576874602659921';
+                try {
+                    const ch = await client.channels.fetch(LOG_PRIVATE_ID);
+                    if (ch) await ch.send({ content: `⚠️ **REVERSIÓN DE CK EJECUTADA**\nAdmin: <@${interaction.user.id}>\nTarget: <@${targetUser.id}>\nRazon: ${interaction.options.getString('razon')}` });
+                } catch (e) { }
+
+            } catch (err) {
+                console.error('[CK Revert] Error:', err);
+                await interaction.editReply('❌ Error crítico al revertir. Consulta los logs.');
+            }
+            return;
         }
 
-        const targetUser = interaction.options.getUser('usuario');
+        // --- APLICAR LOGIC (Original Flow) ---
+        await interaction.deferReply({});
         const ckTipo = interaction.options.getString('tipo');
         const razon = interaction.options.getString('razon');
         const evidencia = interaction.options.getAttachment('evidencia');
