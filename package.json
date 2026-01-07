@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "start": "cd bot && npm start",
-    "bot": "cd bot && node index_MINIMAL_TEST.js",
+    "bot": "cd bot && node index.js",
     "bot:mod": "cd bot && node index_moderacion.js",
     "bot:eco": "cd bot && node index_economia.js",
     "bot:gob": "cd bot && node index_gobierno.js",
