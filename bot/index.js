@@ -88,6 +88,62 @@ console.log('✅ Express Server Setup Complete.');
 // -----------------------------------------------------
 
 // Supabase initialized at top of file
+// --- ERLC QUEUE PROCESSOR ---
+const processErlcQueue = async () => {
+    try {
+        const { data: pendingCommands, error } = await supabase
+            .from('pending_erlc_commands')
+            .select('*')
+            .eq('status', 'pending')
+            .limit(5); // Process batches of 5
+
+        if (error) throw error;
+        if (!pendingCommands || pendingCommands.length === 0) return;
+
+        const ErlcService = require('./services/ErlcService');
+        const erlcKey = process.env.ERLC_API_KEY;
+        if (!erlcKey) return;
+        const erlcService = new ErlcService(erlcKey);
+
+        for (const record of pendingCommands) {
+            try {
+                // Check Max Attempts
+                if (record.attempts >= 20) {
+                    await supabase.from('pending_erlc_commands').update({ status: 'failed' }).eq('id', record.id);
+                    continue;
+                }
+
+                log(`[ERLC Queue] Retrying cmd ID ${record.id}: ${record.command} for ${record.roblox_username}`);
+                const result = await erlcService.runCommand(record.command);
+
+                // If explicit 404/Offline from service (assuming service handles it)
+                // If service throws error, catch block handles it.
+                // If service returns success: false and some status, handle it.
+                if (result && result.success === false && result.status === 404) {
+                    // Still offline
+                    await supabase.from('pending_erlc_commands').update({ attempts: record.attempts + 1 }).eq('id', record.id);
+                } else if (result && result.success) {
+                    // Success
+                    await supabase.from('pending_erlc_commands').update({ status: 'completed' }).eq('id', record.id);
+                    // Optional: Notify user via DM that their sync finished? (Maybe intrusive)
+                } else {
+                    // Other error
+                    await supabase.from('pending_erlc_commands').update({ attempts: record.attempts + 1 }).eq('id', record.id);
+                }
+            } catch (cmdError) {
+                console.error(`[ERLC Queue] Error proc ID ${record.id}:`, cmdError);
+                await supabase.from('pending_erlc_commands').update({ attempts: record.attempts + 1 }).eq('id', record.id);
+            }
+        }
+    } catch (e) {
+        console.error('[ERLC Queue] Processor Error:', e);
+    }
+};
+
+// Start ERLC Queue Loop (Every 60s)
+setInterval(processErlcQueue, 60000);
+log('✅ ERLC Queue Processor started (60s interval).');
+
 const supabaseUrl = process.env.SUPABASE_URL; // kept for legacy reference if needed
 
 // 3. Configuration
