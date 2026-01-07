@@ -188,6 +188,12 @@ module.exports = {
             }
 
             if (subcommand === 'contratar') {
+                // Only owners can hire
+                const isOwner = company.owner_ids && company.owner_ids.includes(interaction.user.id);
+                if (!isOwner) {
+                    return interaction.editReply('❌ Solo el dueño puede contratar empleados.');
+                }
+
                 const targetUser = interaction.options.getUser('usuario');
                 const salary = interaction.options.getInteger('salario');
                 const role = interaction.options.getString('rol') || 'Empleado';
@@ -251,6 +257,12 @@ module.exports = {
                 return interaction.editReply({ embeds: [embed] });
 
             } else if (subcommand === 'despedir') {
+                // Only owners can fire employees
+                const isOwner = company.owner_ids && company.owner_ids.includes(interaction.user.id);
+                if (!isOwner) {
+                    return interaction.editReply('❌ Solo el dueño puede despedir empleados.');
+                }
+
                 const targetUser = interaction.options.getUser('usuario');
 
                 const { data: emp } = await supabase
@@ -302,6 +314,12 @@ module.exports = {
                 });
 
             } else if (subcommand === 'salario') {
+                // Only owners can adjust salaries
+                const isOwner = company.owner_ids && company.owner_ids.includes(interaction.user.id);
+                if (!isOwner) {
+                    return interaction.editReply('❌ Solo el dueño puede ajustar salarios.');
+                }
+
                 const targetUser = interaction.options.getUser('usuario');
                 const newSalary = interaction.options.getInteger('nuevo_salario');
 
