@@ -98,7 +98,8 @@ module.exports = {
                         interaction.guildId,
                         interaction.user.id,
                         bailAmount,
-                        `Fianza pagada - Arresto: ${arrest.articles}`
+                        `Fianza pagada - Arresto: ${arrest.articles}`,
+                        'bank'
                     );
                     moneyDeducted = true;
 
@@ -160,7 +161,8 @@ module.exports = {
                                 interaction.guildId,
                                 interaction.user.id,
                                 bailAmount,
-                                'Reembolso Auto: Fallo en Fianza'
+                                'Reembolso Auto: Fallo en Fianza',
+                                'bank'
                             );
                             return interaction.editReply('❌ **Error Crítico:** Ocurrió un fallo al liberarte. Se te ha reembolsado el dinero.');
                         } catch (refundErr) {

@@ -141,7 +141,7 @@ module.exports = {
             const ubService = new UnbelievaBoatService(process.env.UNBELIEVABOAT_TOKEN);
 
             try {
-                await ubService.addMoney(interaction.guildId, interaction.user.id, netAmount, 0);
+                await ubService.addMoney(interaction.guildId, interaction.user.id, netAmount, `Salario Colectado`, 'cash');
                 console.log(`[colectar] Deposited $${netAmount} to cash for ${interaction.user.tag}`);
             } catch (ubError) {
                 console.error('[colectar] UnbelievaBoat error:', ubError);
