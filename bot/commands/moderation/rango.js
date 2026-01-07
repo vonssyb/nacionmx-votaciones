@@ -44,13 +44,39 @@ module.exports = {
         await interaction.deferReply({});
 
         // --- CONFIGURATION ---
+        // --- CONFIGURATION ---
         // Roles Hierarchy (Lowest to Highest)
         // IDs must match sancion.js config
         const RANGOS = [
-            { id: '1412887167654690908', name: 'Staff en Entrenamiento', level: 1, color: 0x3498DB },
-            { id: '1412887079612059660', name: 'Moderador / Staff', level: 2, color: 0x2ECC71 },
-            { id: '1412882248411381872', name: 'Administración', level: 3, color: 0xE74C3C },
-            { id: '1412882245735420006', name: 'Junta Directiva', level: 4, color: 0xF1C40F }
+            {
+                name: 'Staff en Entrenamiento',
+                level: 1,
+                color: 0x3498DB, // Blue
+                main_id: '1457558479287091417',
+                roles: ['1457558479287091417', '1412887167654690908'] // Role + Staff Separator
+            },
+            {
+                name: 'Moderador / Staff',
+                level: 2,
+                color: 0x2ECC71, // Green
+                main_id: '1412887079612059660',
+                roles: ['1412887079612059660', '1450242319121911848', '1450242487422812251', '1412887167654690908'] // Role + KeyMod + KeySeparator + StaffSeparator
+            },
+            {
+                name: 'Administración',
+                level: 3,
+                color: 0xE74C3C, // Red
+                main_id: '1412882248411381872', // Keeping original distinct ID to ensure hierarchy exists
+                roles: ['1412882248411381872', '1450242210636365886', '1450242487422812251', '1412887167654690908'] // Role + KeyAdmin + KeySeparator + StaffSeparator
+            },
+            {
+                name: 'Junta Directiva',
+                level: 4,
+                color: 0xF1C40F, // Gold
+                main_id: '1412882245735420006',
+                // JD gets Admin Keys + JD Role
+                roles: ['1412882245735420006', '1450242210636365886', '1450242487422812251', '1412887167654690908']
+            }
         ];
 
         // Roles that can manage staff
@@ -108,7 +134,7 @@ module.exports = {
             let currentRankIndex = -1;
             // Iterate backwards (highest to lowest) to find highest rank
             for (let i = RANGOS.length - 1; i >= 0; i--) {
-                if (member.roles.cache.has(RANGOS[i].id)) {
+                if (member.roles.cache.has(RANGOS[i].main_id)) {
                     currentRankIndex = i;
                     break;
                 }
@@ -149,19 +175,22 @@ module.exports = {
             // EXECUTE CHANGES
             const changesLog = [];
 
-            // 1. Remove old ranks (Clean sweep mostly, but safer to just remove the one we know)
-            // Strategy: Remove ALL staff roles to ensure clean state, then add the new one.
-            const allStaffRoleIds = RANGOS.map(r => r.id);
+            // 1. Remove ALL staff roles (to ensure clean slate)
+            const allStaffRoleIds = [...new Set(RANGOS.flatMap(r => r.roles))];
             await member.roles.remove(allStaffRoleIds);
 
             let actionDescription = '';
             let color = 0x808080;
 
             if (newRankIndex >= 0) {
-                // Add new rank
+                // Add new rank roles
                 const newRank = RANGOS[newRankIndex];
-                await member.roles.add(newRank.id);
-                actionDescription = `✅ **Asignado Nuevo Rango:** <@&${newRank.id}> (${newRank.name})`;
+                await member.roles.add(newRank.roles);
+
+                actionDescription = `✅ **Asignado Nuevo Rango:** <@&${newRank.main_id}> (${newRank.name})`;
+                if (newRank.roles.length > 1) {
+                    actionDescription += `\n🔑 **Roles Agregados:** ${newRank.roles.length} (Incluyendo Keys)`;
+                }
                 color = newRank.color;
 
                 const oldRankName = currentRankIndex >= 0 ? RANGOS[currentRankIndex].name : 'Ninguno';
