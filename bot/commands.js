@@ -805,6 +805,24 @@ const commands = [
         ]
     },
     {
+        name: 'agregar-rol',
+        description: '➕ Agregar un rol a un usuario (Solo Staff)',
+        options: [
+            { name: 'usuario', description: 'Usuario al que agregar rol', type: 6, required: true },
+            { name: 'rol', description: 'Rol a agregar', type: 8, required: true },
+            { name: 'razon', description: 'Razón del cambio', type: 3, required: false }
+        ]
+    },
+    {
+        name: 'quitar-rol',
+        description: '➖ Quitar un rol de un usuario (Solo Staff)',
+        options: [
+            { name: 'usuario', description: 'Usuario al que quitar rol', type: 6, required: true },
+            { name: 'rol', description: 'Rol a quitar', type: 8, required: true },
+            { name: 'razon', description: 'Razón del cambio', type: 3, required: false }
+        ]
+    },
+    {
         name: 'saldo',
         description: '🏦 Ver saldo de banco y efectivo',
         options: [
