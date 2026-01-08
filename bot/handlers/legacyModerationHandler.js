@@ -1199,6 +1199,28 @@ const handleModerationLegacy = async (interaction, client, supabase) => {
                     await user.send({ embeds: [successEmbed] }).catch(() => { });
                 }
 
+                // --- START ROLE SYNC ---
+                try {
+                    const member = await interaction.guild.members.fetch(sanction.discord_user_id).catch(() => null);
+                    if (member) {
+                        // Define Roles locally
+                        const SA_ROLES = { 1: '1450997809234051122', 2: '1454636391932756049', 3: '1456028699718586459', 4: '1456028797638934704', 5: '1456028933995630701' };
+                        const allSaRoles = Object.values(SA_ROLES);
+
+                        // 1. Remove ALL SA Roles (Reset)
+                        await member.roles.remove(allSaRoles).catch(e => console.error('[Appeal] Failed to remove roles:', e));
+
+                        // 2. Check remaining count and add correct role if needed
+                        const newCount = await client.services.sanctions.getSACount(sanction.discord_user_id);
+                        if (newCount > 0 && SA_ROLES[newCount]) {
+                            await member.roles.add(SA_ROLES[newCount]).catch(e => console.error('[Appeal] Failed to add new role:', e));
+                        }
+                    }
+                } catch (roleSyncError) {
+                    console.error('[Appeal] Role Sync Error:', roleSyncError);
+                }
+                // --- END ROLE SYNC ---
+
                 // Audit
                 if (client.logAudit) {
                     await client.logAudit(
