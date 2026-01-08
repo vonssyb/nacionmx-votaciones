@@ -1156,195 +1156,260 @@ const handleModerationLegacy = async (interaction, client, supabase) => {
     }
 
 
+    // BUTTON: Confirm SA Appeal (from /aceptar_apelacion)
+    if (interaction.customId.startsWith('confirm_sa_appeal_') || interaction.customId === 'cancel_sa_appeal') {
+        if (interaction.customId === 'cancel_sa_appeal') {
+            await interaction.update({ content: '❌ Acción cancelada.', embeds: [], components: [] });
+            return;
+        }
+
+        await interaction.deferUpdate();
+        const sanctionId = interaction.customId.replace('confirm_sa_appeal_', '');
+
+        // Recover "Motivo" from message content or embed
+        let motivo = 'Apelación Aprobada';
+        const match = interaction.message.content.match(/Motivo: (.*)_/);
+        if (match) motivo = match[1];
+
+        try {
+            // Appeal
+            await client.services.sanctions.appealSanction(sanctionId, motivo);
+
+            // Success Embed
+            const { EmbedBuilder } = require('discord.js');
+            const successEmbed = new EmbedBuilder()
+                .setTitle('⚖️ Apelación Aprobada (Confirmada)')
+                .setColor(0x00FF00)
+                .setDescription(`La sanción ha sido **REVOCADA** exitosamente.`)
+                .addFields(
+                    { name: '🆔 ID Sanción', value: sanctionId, inline: true },
+                    { name: '👮 Aprobado por', value: interaction.user.tag, inline: true },
+                    { name: '📝 Motivo', value: motivo, inline: false }
+                )
+                .setTimestamp();
+
+            await interaction.editReply({ content: null, embeds: [successEmbed], components: [] });
+
+            // Notify User
+            const sanction = await client.services.sanctions.getSanctionById(sanctionId);
+            if (sanction) {
+                const user = await client.users.fetch(sanction.discord_user_id).catch(() => null);
+                if (user) {
+                    successEmbed.setDescription(`✅ **¡Buenas noticias!**\nTu apelación de SA ha sido **APROBADA** en **${interaction.guild.name}**.\nLa sanción ha sido retirada.`);
+                    await user.send({ embeds: [successEmbed] }).catch(() => { });
+                }
+
+                // Audit
+                if (client.logAudit) {
+                    await client.logAudit(
+                        'Apelación SA Aprobada',
+                        `Sanción ${sanctionId} revocada via botón.\nMotivo: ${motivo}`,
+                        interaction.user,
+                        { id: sanction.discord_user_id, tag: 'Target' },
+                        0x00FF00
+                    );
+                }
+            }
+
+        } catch (e) {
+            console.error('Error confirming appeal:', e);
+            await interaction.followUp({ content: '❌ Error al procesar.', ephemeral: true });
+        }
+        return;
+    }
+
+    // --- TWO-MAN RULE: SANCTION APPROVAL HANDLER ---
+    if (interaction.customId.startsWith('approve_sancion_') || interaction.customId === 'reject_sancion') {
+        // 1. Security Check: Only Board/Encargados
+        const ALLOWED_APPROVERS = [
+            '1412882245735420006', // Junta Directiva
+            '1456020936229912781', // Encargado de Sanciones
+            '1451703422800625777', // Encargado de Apelaciones
+            '1454985316292100226'  // Encargado de Staff
+        ];
+        const hasPermission = interaction.member.roles.cache.some(r => ALLOWED_APPROVERS.includes(r.id));
+
+        if (!hasPermission) {
+            return interaction.reply({ content: '🛑 **Acceso Denegado:** Solo la Junta Directiva o Encargados pueden aprobar esto.', flags: [64] });
+        }
+
+        if (interaction.customId === 'reject_sancion') {
+            const file = new AttachmentBuilder(path.join(__dirname, '../assets/img/status/rechazado.png'), { name: 'rechazado.png' });
+            const rejectEmbed = EmbedBuilder.from(interaction.message.embeds[0])
+                .setColor(0xFF0000)
+                .setTitle(null)
+                .setImage('attachment://rechazado.png');
+
+            await interaction.update({ embeds: [rejectEmbed], components: [], files: [file] });
+            return;
+        }
+
+        // APPROVE LOGIC
+        await interaction.deferUpdate();
+        const targetId = interaction.customId.split('_')[2];
+        const embed = interaction.message.embeds[0];
+
+        // Parse Embed Fields to Reconstruct Data
+        // Fields: [0]: Solicitante, [1]: Usuario Objetivo, [2]: Tipo, [3]: Motivo, [4]: Evidencia
+        const typeField = embed.fields[2].value; // "BLACKLIST (Moderacion)" or "sa"
+        const reason = embed.fields[3].value;
+        const evidence = embed.fields[4].value === 'No adjunta' ? null : embed.fields[4].value;
+        const moderatorId = embed.fields[0].value.match(/<@(\d+)>/)[1];
+
+        // Reconstruct Action/Type
+        let type = 'general';
+        let action = null;
+        let blacklistType = null;
+
+        if (typeField.includes('BLACKLIST')) {
+            type = 'general';
+            action = 'Blacklist';
+            blacklistType = typeField.match(/\((.*?)\)/)[1]; // Extract "Moderacion" from "BLACKLIST (Moderacion)"
+        } else if (typeField === 'sa') {
+            type = 'sa';
+        } else if (typeField === 'Ban Permanente ERLC') {
+            type = 'general';
+            action = 'Ban Permanente ERLC';
+        }
+
+        // EXECUTE SANCTION (Copy of sancion.js logic)
+        let actionResult = '';
+        try {
+            // 1. DB Create
+            await client.services.sanctions.createSanction(targetId, moderatorId, type, reason, evidence);
+
+            // 2. Enforcement (Ban/Roles)
+            const guild = interaction.guild;
+            const member = await guild.members.fetch(targetId).catch(() => null);
+
+            if (member) {
+                if (action === 'Blacklist') {
+                    const BLACKLIST_ROLES = {
+                        'Blacklist Moderacion': '1451860028653834300',
+                        'Blacklist Facciones Policiales': '1413714060423200778',
+                        'Blacklist Cartel': '1449930883762225253',
+                        'Blacklist Politica': '1413714467287470172',
+                        'Blacklist Empresas': '1413714540834852875',
+                        'Blacklist Total': 'PERM_BAN'
+                        // Note: The original code had a typo 'Blacklist Moderacion' vs 'Blacklist Moderacion'
+                        // Corrected to match the key used in the if condition.
+                    };
+
+                    if (blacklistType === 'Blacklist Total') {
+                        await member.ban({ reason: `Blacklist TOTAL (Aprobado): ${reason}` });
+                        actionResult = 'User Banned (Blacklist Total)';
+                    } else {
+                        const roleId = BLACKLIST_ROLES[`Blacklist ${blacklistType}`] || BLACKLIST_ROLES[blacklistType];
+                        if (roleId) await member.roles.add(roleId);
+                    }
+
+                    // --- NEW: NOTIFY BLACKLIST CHANNEL ---
+                    const blChannelId = '1412957060168945747';
+                    try {
+                        const blChannel = interaction.client.channels.cache.get(blChannelId);
+                        if (!blChannel) {
+                            console.error(`[BLACKLIST] Channel ${blChannelId} not found in cache`);
+                        } else {
+                            // Re-create the embed using NotificationTemplates to ensure correct "Severe" styling
+                            const NotificationTemplates = require('../services/NotificationTemplates');
+                            const moment = require('moment-timezone');
+                            const date = moment().tz('America/Mexico_City').format('DD/MM/YYYY');
+                            const time = moment().tz('America/Mexico_City').format('HH:mm');
+
+                            // We fetch moderator and offender based on IDs we parsed
+                            const moderator = await interaction.client.users.fetch(moderatorId).catch(() => ({ username: 'Desconocido', displayAvatarURL: () => null }));
+                            const offender = await interaction.client.users.fetch(targetId).catch(() => ({ username: 'Desconocido', id: targetId }));
+
+                            const notifPayload = NotificationTemplates.officialSanction({
+                                date, time, offender, moderator,
+                                ruleCode: reason, description: 'Sanción Aprobada por Junta Directiva via Two-Man Rule',
+                                sanctionType: `BLACKLIST (${blacklistType})`,
+                                duration: null, evidenceUrl: evidence
+                            });
+
+                            await blChannel.send({
+                                content: '@everyone',
+                                embeds: [notifPayload.embeds[0]]
+                            });
+
+                            console.log(`[BLACKLIST] Notification sent to channel ${blChannelId} for user ${targetId}`);
+                        }
+                    } catch (blNotifyError) {
+                        console.error('[BLACKLIST] Failed to send notification:', blNotifyError);
+                    }
+                } else if (type === 'sa') {
+                    // SA Auto-Role Logic (Simplified)
+                    const count = await client.services.sanctions.getSACount(targetId);
+                    const SA_ROLES = { 1: '1450997809234051122', 2: '1454636391932756049', 3: '1456028699718586459', 4: '1456028797638934704', 5: '1456028933995630701' };
+                    const newRole = SA_ROLES[count];
+                    if (newRole) await member.roles.add(newRole);
+                }
+            }
+
+            // 3. Notify User (DM)
+            try {
+                const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+                const appealButtons = new ActionRowBuilder().addComponents(
+                    new ButtonBuilder()
+                        .setLabel('📩 Apelar (Baneo/Perm)')
+                        .setStyle(ButtonStyle.Link)
+                        .setURL('https://melonly.xyz/dashboard/7374175961132044288/applications/7412242701552193536'),
+                    new ButtonBuilder()
+                        .setLabel('📝 Apelar (Otras Sanciones)')
+                        .setStyle(ButtonStyle.Link)
+                        .setURL('https://discord.com/channels/1398525215134318713/1398889153919189042')
+                );
+
+                const user = await client.users.fetch(targetId);
+
+                // Determine Image (Ban/Blacklist vs Sanction)
+                const isBan = action === 'Blacklist' || action === 'Ban Permanente ERLC' || typeField.includes('BLACKLIST') || typeField.includes('Ban');
+                const imgName = isBan ? 'baneo.png' : 'sancion.png';
+                const dmFile = new AttachmentBuilder(path.join(__dirname, `../assets/img/status/${imgName}`), { name: imgName });
+
+                const dmEmbed = EmbedBuilder.from(interaction.message.embeds[0])
+                    .setTitle(null)
+                    .setImage(`attachment://${imgName}`)
+                    .setColor(isBan ? 0x800080 : 0xFF0000); // Purple/Red
+
+                await user.send({
+                    embeds: [dmEmbed],
+                    content: `Has recibido una sanción en **${interaction.guild.name}** (Aprobada por Dirección).\n${actionResult}`,
+                    components: [appealButtons],
+                    files: [dmFile]
+                });
+            } catch (dmErr) {
+                console.log('Could not DM user:', dmErr.message);
+            }
+
+            // 4. Update Message
+            const successFile = new AttachmentBuilder(path.join(__dirname, '../assets/img/status/aprobado.png'), { name: 'aprobado.png' });
+            const successEmbed = EmbedBuilder.from(interaction.message.embeds[0])
+                .setColor(0x00FF00)
+                .setTitle(null)
+                .setImage('attachment://aprobado.png')
+                .addFields({ name: '👮 Aprobado por', value: interaction.user.tag, inline: true });
+
+            await interaction.editReply({ embeds: [successEmbed], components: [], files: [successFile] });
+
+            // 4. Notify Original Log Channel (Audit)
+            if (client.logAudit) {
+                await client.logAudit('Sanción Aprobada (Two-Man Rule)', `La sanción solicitada por <@${moderatorId}> ha sido aprobada por <@${interaction.user.id}>.`, interaction.user, { id: targetId, tag: 'Target' }, 0x00FF00);
+            }
+
+        } catch (err) {
+            console.error('Error approving sanction:', err);
+            interaction.followUp({ content: `❌ Error ejecutando la sanción: ${err.message}`, flags: [64] });
+        }
+        return;
+    }
+
     // BUTTON: Debit Card Upgrade (User accepts offer)
     if (interaction.isButton() && interaction.customId.startsWith('btn_udp_upgrade_')) {
 
 
         // Parse customId: btn_udp_upgrade_{cardId}_{TierName_With_Underscores}
         // Example: btn_udp_upgrade_123_NMX_Débito_Gold
-        // --- TWO-MAN RULE: SANCTION APPROVAL HANDLER ---
-        if (interaction.customId.startsWith('approve_sancion_') || interaction.customId === 'reject_sancion') {
-            // 1. Security Check: Only Board/Encargados
-            const ALLOWED_APPROVERS = [
-                '1412882245735420006', // Junta Directiva
-                '1456020936229912781', // Encargado de Sanciones
-                '1451703422800625777', // Encargado de Apelaciones
-                '1454985316292100226'  // Encargado de Staff
-            ];
-            const hasPermission = interaction.member.roles.cache.some(r => ALLOWED_APPROVERS.includes(r.id));
-
-            if (!hasPermission) {
-                return interaction.reply({ content: '🛑 **Acceso Denegado:** Solo la Junta Directiva o Encargados pueden aprobar esto.', flags: [64] });
-            }
-
-            if (interaction.customId === 'reject_sancion') {
-                const file = new AttachmentBuilder(path.join(__dirname, '../assets/img/status/rechazado.png'), { name: 'rechazado.png' });
-                const rejectEmbed = EmbedBuilder.from(interaction.message.embeds[0])
-                    .setColor(0xFF0000)
-                    .setTitle(null)
-                    .setImage('attachment://rechazado.png');
-
-                await interaction.update({ embeds: [rejectEmbed], components: [], files: [file] });
-                return;
-            }
-
-            // APPROVE LOGIC
-            await interaction.deferUpdate();
-            const targetId = interaction.customId.split('_')[2];
-            const embed = interaction.message.embeds[0];
-
-            // Parse Embed Fields to Reconstruct Data
-            // Fields: [0]: Solicitante, [1]: Usuario Objetivo, [2]: Tipo, [3]: Motivo, [4]: Evidencia
-            const typeField = embed.fields[2].value; // "BLACKLIST (Moderacion)" or "sa"
-            const reason = embed.fields[3].value;
-            const evidence = embed.fields[4].value === 'No adjunta' ? null : embed.fields[4].value;
-            const moderatorId = embed.fields[0].value.match(/<@(\d+)>/)[1];
-
-            // Reconstruct Action/Type
-            let type = 'general';
-            let action = null;
-            let blacklistType = null;
-
-            if (typeField.includes('BLACKLIST')) {
-                type = 'general';
-                action = 'Blacklist';
-                blacklistType = typeField.match(/\((.*?)\)/)[1]; // Extract "Moderacion" from "BLACKLIST (Moderacion)"
-            } else if (typeField === 'sa') {
-                type = 'sa';
-            } else if (typeField === 'Ban Permanente ERLC') {
-                type = 'general';
-                action = 'Ban Permanente ERLC';
-            }
-
-            // EXECUTE SANCTION (Copy of sancion.js logic)
-            let actionResult = '';
-            try {
-                // 1. DB Create
-                await client.services.sanctions.createSanction(targetId, moderatorId, type, reason, evidence);
-
-                // 2. Enforcement (Ban/Roles)
-                const guild = interaction.guild;
-                const member = await guild.members.fetch(targetId).catch(() => null);
-
-                if (member) {
-                    if (action === 'Blacklist') {
-                        const BLACKLIST_ROLES = {
-                            'Blacklist Moderacion': '1451860028653834300',
-                            'Blacklist Facciones Policiales': '1413714060423200778',
-                            'Blacklist Cartel': '1449930883762225253',
-                            'Blacklist Politica': '1413714467287470172',
-                            'Blacklist Empresas': '1413714540834852875',
-                            'Blacklist Total': 'PERM_BAN'
-                        };
-
-                        if (blacklistType === 'Blacklist Total') {
-                            await member.ban({ reason: `Blacklist TOTAL (Aprobado): ${reason}` });
-                            actionResult = 'User Banned (Blacklist Total)';
-                        } else {
-                            const roleId = BLACKLIST_ROLES[`Blacklist ${blacklistType}`] || BLACKLIST_ROLES[blacklistType];
-                            if (roleId) await member.roles.add(roleId);
-                        }
-
-                        // --- NEW: NOTIFY BLACKLIST CHANNEL ---
-                        const blChannelId = '1412957060168945747';
-                        try {
-                            const blChannel = interaction.client.channels.cache.get(blChannelId);
-                            if (!blChannel) {
-                                console.error(`[BLACKLIST] Channel ${blChannelId} not found in cache`);
-                            } else {
-                                // Re-create the embed using NotificationTemplates to ensure correct "Severe" styling
-                                const NotificationTemplates = require('../services/NotificationTemplates');
-                                const moment = require('moment-timezone');
-                                const date = moment().tz('America/Mexico_City').format('DD/MM/YYYY');
-                                const time = moment().tz('America/Mexico_City').format('HH:mm');
-
-                                // We fetch moderator and offender based on IDs we parsed
-                                const moderator = await interaction.client.users.fetch(moderatorId).catch(() => ({ username: 'Desconocido', displayAvatarURL: () => null }));
-                                const offender = await interaction.client.users.fetch(targetId).catch(() => ({ username: 'Desconocido', id: targetId }));
-
-                                const notifPayload = NotificationTemplates.officialSanction({
-                                    date, time, offender, moderator,
-                                    ruleCode: reason, description: 'Sanción Aprobada por Junta Directiva via Two-Man Rule',
-                                    sanctionType: `BLACKLIST (${blacklistType})`,
-                                    duration: null, evidenceUrl: evidence
-                                });
-
-                                await blChannel.send({
-                                    content: '@everyone',
-                                    embeds: [notifPayload.embeds[0]]
-                                });
-
-                                console.log(`[BLACKLIST] Notification sent to channel ${blChannelId} for user ${targetId}`);
-                            }
-                        } catch (blNotifyError) {
-                            console.error('[BLACKLIST] Failed to send notification:', blNotifyError);
-                        }
-                    } else if (type === 'sa') {
-                        // SA Auto-Role Logic (Simplified)
-                        const count = await client.services.sanctions.getSACount(targetId);
-                        const SA_ROLES = { 1: '1450997809234051122', 2: '1454636391932756049', 3: '1456028699718586459', 4: '1456028797638934704', 5: '1456028933995630701' };
-                        const newRole = SA_ROLES[count];
-                        if (newRole) await member.roles.add(newRole);
-                    }
-                }
-
-                // 3. Notify User (DM)
-                try {
-                    const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
-                    const appealButtons = new ActionRowBuilder().addComponents(
-                        new ButtonBuilder()
-                            .setLabel('📩 Apelar (Baneo/Perm)')
-                            .setStyle(ButtonStyle.Link)
-                            .setURL('https://melonly.xyz/dashboard/7374175961132044288/applications/7412242701552193536'),
-                        new ButtonBuilder()
-                            .setLabel('📝 Apelar (Otras Sanciones)')
-                            .setStyle(ButtonStyle.Link)
-                            .setURL('https://discord.com/channels/1398525215134318713/1398889153919189042')
-                    );
-
-                    const user = await client.users.fetch(targetId);
-
-                    // Determine Image (Ban/Blacklist vs Sanction)
-                    const isBan = action === 'Blacklist' || action === 'Ban Permanente ERLC' || typeField.includes('BLACKLIST') || typeField.includes('Ban');
-                    const imgName = isBan ? 'baneo.png' : 'sancion.png';
-                    const dmFile = new AttachmentBuilder(path.join(__dirname, `../assets/img/status/${imgName}`), { name: imgName });
-
-                    const dmEmbed = EmbedBuilder.from(interaction.message.embeds[0])
-                        .setTitle(null)
-                        .setImage(`attachment://${imgName}`)
-                        .setColor(isBan ? 0x800080 : 0xFF0000); // Purple/Red
-
-                    await user.send({
-                        embeds: [dmEmbed],
-                        content: `Has recibido una sanción en **${interaction.guild.name}** (Aprobada por Dirección).\n${actionResult}`,
-                        components: [appealButtons],
-                        files: [dmFile]
-                    });
-                } catch (dmErr) {
-                    console.log('Could not DM user:', dmErr.message);
-                }
-
-                // 4. Update Message
-                const successFile = new AttachmentBuilder(path.join(__dirname, '../assets/img/status/aprobado.png'), { name: 'aprobado.png' });
-                const successEmbed = EmbedBuilder.from(interaction.message.embeds[0])
-                    .setColor(0x00FF00)
-                    .setTitle(null)
-                    .setImage('attachment://aprobado.png')
-                    .addFields({ name: '👮 Aprobado por', value: interaction.user.tag, inline: true });
-
-                await interaction.editReply({ embeds: [successEmbed], components: [], files: [successFile] });
-
-                // 4. Notify Original Log Channel (Audit)
-                if (client.logAudit) {
-                    await client.logAudit('Sanción Aprobada (Two-Man Rule)', `La sanción solicitada por <@${moderatorId}> ha sido aprobada por <@${interaction.user.id}>.`, interaction.user, { id: targetId, tag: 'Target' }, 0x00FF00);
-                }
-
-            } catch (err) {
-                console.error('Error approving sanction:', err);
-                interaction.followUp({ content: `❌ Error ejecutando la sanción: ${err.message}`, flags: [64] });
-            }
-            return;
-        }
 
         const parts = interaction.customId.split('_');
         const cardId = parts[3];
