@@ -25,6 +25,10 @@ const LOG_CRIMEN = '1452346918620500041';
 const formatCurrency = (amount) => `$${amount.toLocaleString()}`;
 
 // --- MAIN HANDLER ---
+// Interaction deduplication cache (Local to module)
+const processedInteractions = new Set();
+setInterval(() => processedInteractions.clear(), 60000);
+
 const handleEconomyLegacy = async (interaction, client, supabase) => {
     try {
         // If it's a button/modal/select, handles specific cases or generic legacy ones
