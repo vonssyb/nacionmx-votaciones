@@ -4,6 +4,7 @@ const { createClient } = require('@supabase/supabase-js');
 const fs = require('fs');
 const path = require('path');
 const express = require('express');
+const { handleModerationLegacy } = require('./handlers/legacyModerationHandler');
 
 // --- LOGGING ---
 const log = (prefix, msg) => console.log(`${prefix} ${msg}`);
@@ -77,9 +78,7 @@ async function startModerationBot() {
         if (!interaction.isChatInputCommand()) {
             try {
                 // FALLBACK TO LEGACY (Handles Buttons, Modals, Menus)
-                const { handleModerationLegacy } = require('./handlers/legacyModerationHandler');
-                const supabase = require('@supabase/supabase-js').createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY);
-                await handleModerationLegacy(interaction, client, supabase);
+                await handleModerationLegacy(interaction, client, client.supabase);
             } catch (e) {
                 console.error('[MOD] Legacy Handler Error:', e);
             }

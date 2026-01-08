@@ -1111,13 +1111,13 @@ const handleModerationLegacy = async (interaction, client, supabase) => {
     // Inject services from client
     billingService = client.services.billing; // Global assignment
 
-    console.log(`[DEBUG] Handling Legacy Moderation: ${interaction.commandName || interaction.customId}`);
-
     // Deduplicate interactions
     if (processedInteractions.has(interaction.id)) {
         return;
     }
     processedInteractions.add(interaction.id);
+
+    console.log(`[DEBUG] Handling Legacy Moderation: ${interaction.commandName || interaction.customId}`);
 
     // BUTTON: Investment Collection
 
