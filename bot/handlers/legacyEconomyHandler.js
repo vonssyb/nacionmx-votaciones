@@ -32,40 +32,22 @@ setInterval(() => processedInteractions.clear(), 60000);
 const handleEconomyLegacy = async (interaction, client, supabase) => {
     try {
         // If it's a button/modal/select, handles specific cases or generic legacy ones
-        if (!interaction.isChatInputCommand()) {
+        let commandName = null;
+        let subCmd = null;
 
-            // --- BLACKJACK BUTTONS ---
-            if (interaction.customId.startsWith('btn_bj_')) {
-                // Delegate to CasinoService
-                // We need to ensure the session exists in the service
-                if (client.services.casino.sessions.blackjack.state === 'PLAYING') {
-                    // Since handleBlackjackAction was internal, we need to adapt.
-                    // The logic was: handleBlackjackAction(interaction)
-                    // But wait, the service exposes specific methods? 
-                    // No, I need to check CasinoService.js
-
-                    // In CasinoService.js I did NOT export "handleBlackjackAction".
-                    // I need to add interaction handling to CasinoService OR move it here.
-                    // Let's assume for now I will handle specific legacy buttons here if they are simple,
-                    // OR I should have added a "handleInteraction" to CasinoService.
-
-                    // Re-reading CasinoService.js created in step 6140...
-                    // It has: startBlackjackGame, dealerPlay etc. but NOT handleInteraction.
-                    // I missed defining the interaction handler inside the Service. I will patch it.
-
-                    // Quick Fix: For this step, I will handle generic interactions but I need to patch CasinoService next.
-                    await client.services.casino.handleBlackjackInteraction(interaction);
-                    return;
-                }
-            }
-
-            return;
+        if (interaction.isChatInputCommand()) {
+            commandName = interaction.commandName;
+            subCmd = interaction.options.getSubcommand(false);
         }
 
-        const { commandName } = interaction;
-        const subCmd = interaction.options.getSubcommand(false);
-        const userId = interaction.user.id;
-        const guildId = interaction.guildId;
+        // --- BLACKJACK BUTTONS ---
+        if (interaction.customId && interaction.customId.startsWith('btn_bj_')) {
+            if (client.services.casino.sessions.blackjack.state === 'PLAYING') {
+                await client.services.casino.handleBlackjackInteraction(interaction);
+                return;
+            }
+        }
+
 
         // -- LOGGING HELPER --
         const logToChannel = async (channelId, embed) => {
