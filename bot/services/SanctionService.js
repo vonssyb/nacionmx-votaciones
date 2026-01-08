@@ -16,6 +16,26 @@ class SanctionService {
      */
     async createSanction(discordUserId, moderatorId, type, reason, evidenceUrl = null, expiresAt = null, actionType = null, description = null) {
         try {
+            // IDEMPOTENCY CHECK:
+            // Prevent duplicate sanctions (Same user, same type, same reason, same moderator) within 5 minutes.
+            // This fixes the issue of double-clicking or multiple bot instances creating duplicate logs.
+            const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+
+            const { data: duplicates } = await this.supabase
+                .from('sanctions')
+                .select('id')
+                .eq('discord_user_id', discordUserId)
+                .eq('moderator_id', moderatorId)
+                .eq('type', type)
+                .eq('reason', reason) // Reason is usually a strict enum or string
+                .eq('status', 'active')
+                .gt('created_at', fiveMinutesAgo);
+
+            if (duplicates && duplicates.length > 0) {
+                console.warn(`[SanctionService] Duplicate sanction suppressed for user ${discordUserId}`);
+                return duplicates[0]; // Return the existing one instead of creating new
+            }
+
             const { data, error } = await this.supabase
                 .from('sanctions')
                 .insert({

@@ -93,7 +93,7 @@ async function startModerationBot() {
             interaction.deferReply = async () => { }; // PATCH: Prevent double defer
         } catch (e) {
             console.error('[MOD] Failed to defer:', e);
-            // return; // Allow execution even if defer fails
+            if (e.code === 10062 || e.message === 'Unknown interaction') return; // Stop if interaction is dead
         }
 
         const command = client.commands.get(interaction.commandName);
@@ -197,7 +197,7 @@ async function startEconomyBot() {
                 interaction.deferReply = async () => { /* No-op */ };
             } catch (e) {
                 console.error('[ECO] Defer Failed Command:', e);
-                // return; // Allow command to try executing
+                if (e.code === 10062 || e.message === 'Unknown interaction') return; // Stop if interaction is dead
             }
         }
 
@@ -274,7 +274,7 @@ async function startGovernmentBot() {
             interaction.deferReply = async () => { }; // PATCH
         } catch (e) {
             console.error('[GOV] Defer Failed:', e);
-            // Continue execution even if defer fails
+            if (e.code === 10062 || e.message === 'Unknown interaction') return; // Stop if interaction is dead
         }
 
         const command = client.commands.get(interaction.commandName);
