@@ -1406,7 +1406,7 @@ const handleModerationLegacy = async (interaction, client, supabase) => {
 
     // BUTTON: Debit Card Upgrade (User accepts offer)
     if (interaction.isButton() && interaction.customId.startsWith('btn_udp_upgrade_')) {
-
+        await interaction.deferReply({ flags: [64] });
 
         // Parse customId: btn_udp_upgrade_{cardId}_{TierName_With_Underscores}
         // Example: btn_udp_upgrade_123_NMX_Débito_Gold
@@ -1419,9 +1419,8 @@ const handleModerationLegacy = async (interaction, client, supabase) => {
         console.log('[DEBUG] Upgrade button - Target tier:', targetTier, '| Available tiers:', Object.keys(CARD_TIERS));
 
         if (!targetTier || !CARD_TIERS[targetTier]) {
-            return interaction.followUp({
-                content: `❌ Error: Nivel de tarjeta inválido.\nBuscado: "${targetTier}"\nDisponibles: ${Object.keys(CARD_TIERS).filter(k => k.includes('Débito')).join(', ')}`,
-                flags: [64]
+            return interaction.editReply({
+                content: `❌ Error: Nivel de tarjeta inválido.\nBuscado: "${targetTier}"\nDisponibles: ${Object.keys(CARD_TIERS).filter(k => k.includes('Débito')).join(', ')}`
             });
         }
 
@@ -1433,9 +1432,8 @@ const handleModerationLegacy = async (interaction, client, supabase) => {
             .single();
 
         if (cardError || !card) {
-            return interaction.reply({
-                content: `❌ Tarjeta no encontrada.\nID buscado: ${cardId}\nError: ${cardError?.message || 'Unknown'}`,
-                flags: [64]
+            return interaction.editReply({
+                content: `❌ Tarjeta no encontrada.\nID buscado: ${cardId}\nError: ${cardError?.message || 'Unknown'}`
             });
         }
 
@@ -1449,25 +1447,18 @@ const handleModerationLegacy = async (interaction, client, supabase) => {
             realBalance: realBalance,
             userId: card.discord_user_id
         });
-        // ... (Upgrade logic continues)
-        // (Continuation of Upgrade Logic)
 
         const tierInfo = CARD_TIERS[targetTier];
 
         // Extract bank balance from UnbelievaBoat response
         const bankBalance = typeof realBalance === 'object' ? realBalance.bank : realBalance;
 
-        console.log('[DEBUG] Upgrade - Tier info:', { targetTier, cost: tierInfo.cost, bankBalance });
-
         // Check balance (use REAL balance from UnbelievaBoat)
         if (bankBalance < tierInfo.cost) {
-            return interaction.reply({
-                content: `❌ **Fondos insuficientes**\n\nCosto: **$${tierInfo.cost.toLocaleString()}**\nTu saldo: **$${bankBalance.toLocaleString()}**\nTarjeta: ${card.card_tier}\nID: ${cardId.slice(0, 8)}...`,
-                flags: [64]
+            return interaction.editReply({
+                content: `❌ **Fondos insuficientes**\n\nCosto: **$${tierInfo.cost.toLocaleString()}**\nTu saldo: **$${bankBalance.toLocaleString()}**\nTarjeta: ${card.card_tier}\nID: ${cardId.slice(0, 8)}...`
             });
         }
-
-        // Helper function to rename channel based on state
 
         // Deduct money from UnbelievaBoat (source of truth)
         await billingService.ubService.removeMoney(
@@ -1496,20 +1487,20 @@ const handleModerationLegacy = async (interaction, client, supabase) => {
                 'Rollback: Error en mejora de tarjeta',
                 'bank'
             );
-            return interaction.followUp({ content: '❌ Error al procesar la mejora.', flags: [64] });
+            return interaction.editReply({ content: '❌ Error al procesar la mejora.' });
         }
 
-        // Helper function to rename channel based on state
-
         // Success - update original message to remove buttons
-        await interaction.deferUpdate();
-        await interaction.editReply({ components: [] });
+        try {
+            await interaction.message.edit({ components: [] });
+        } catch (e) {
+            console.log('Could not remove buttons from original message', e);
+        }
 
         const newBalance = bankBalance - tierInfo.cost;
 
-        await interaction.followUp({
-            content: `✅ **¡Mejora Completada!**\n\n🎉 Nueva tarjeta: **${targetTier}**\n💰 Costo: $${tierInfo.cost.toLocaleString()}\n💳 Nuevo saldo: $${newBalance.toLocaleString()}\n📊 Límite: ${tierInfo.max_balance === Infinity ? '♾️ Ilimitado' : '$' + tierInfo.max_balance.toLocaleString()}`,
-
+        await interaction.editReply({
+            content: `✅ **¡Mejora Completada!**\n\n🎉 Nueva tarjeta: **${targetTier}**\n💰 Costo: $${tierInfo.cost.toLocaleString()}\n💳 Nuevo saldo: $${newBalance.toLocaleString()}\n📊 Límite: ${tierInfo.max_balance === Infinity ? '♾️ Ilimitado' : '$' + tierInfo.max_balance.toLocaleString()}`
         });
     }
 
