@@ -32,6 +32,25 @@ app.listen(port, () => {
 });
 
 // =============================================================================
+// HELPER: SAFE DEFER
+// =============================================================================
+async function safeDefer(interaction) {
+    try {
+        if (!interaction.deferred && !interaction.replied) {
+            await interaction.deferReply();
+            // PATCH: Prevent double defer
+            interaction.deferReply = async () => { };
+        }
+    } catch (e) {
+        if (e.code === 10062 || e.message === 'Unknown interaction') {
+            // Silently ignore "Unknown interaction" (Race condition or Timeout)
+            return;
+        }
+        console.error(`[Wrapper] Defer Failed (${interaction.commandName || 'component'}):`, e);
+    }
+}
+
+// =============================================================================
 // 👮‍♂️ MODERATION BOT SETUP
 // =============================================================================
 async function startModerationBot() {
@@ -85,15 +104,8 @@ async function startModerationBot() {
             return;
         }
 
-        // GLOBAL DEFER - Fixes InteractionNotReplied errors
-        // GLOBAL DEFER - Fixes InteractionNotReplied errors
-        try {
-            await interaction.deferReply();
-            interaction.deferReply = async () => { }; // PATCH: Prevent double defer
-        } catch (e) {
-            console.error('[MOD] Failed to defer:', e);
-            if (e.code === 10062 || e.message === 'Unknown interaction') return; // Stop if interaction is dead
-        }
+        // GLOBAL SAFE DEFER
+        await safeDefer(interaction);
 
         const command = client.commands.get(interaction.commandName);
         if (command) {
@@ -189,15 +201,7 @@ async function startEconomyBot() {
         }
         // Handle Commands
         if (interaction.isChatInputCommand()) {
-            // GLOBAL DEFER & SAFETY PATCH for Commands
-            try {
-                await interaction.deferReply();
-                const originalDefer = interaction.deferReply;
-                interaction.deferReply = async () => { /* No-op */ };
-            } catch (e) {
-                console.error('[ECO] Defer Failed Command:', e);
-                if (e.code === 10062 || e.message === 'Unknown interaction') return; // Stop if interaction is dead
-            }
+            await safeDefer(interaction);
         }
 
         const command = interaction.isChatInputCommand() ? client.commands.get(interaction.commandName) : null;
@@ -267,14 +271,8 @@ async function startGovernmentBot() {
     client.on('interactionCreate', async interaction => {
         if (!interaction.isChatInputCommand()) return;
 
-        // GLOBAL DEFER
-        try {
-            await interaction.deferReply();
-            interaction.deferReply = async () => { }; // PATCH
-        } catch (e) {
-            console.error('[GOV] Defer Failed:', e);
-            if (e.code === 10062 || e.message === 'Unknown interaction') return; // Stop if interaction is dead
-        }
+        // GLOBAL SAFE DEFER
+        await safeDefer(interaction);
 
         const command = client.commands.get(interaction.commandName);
         if (command) {
