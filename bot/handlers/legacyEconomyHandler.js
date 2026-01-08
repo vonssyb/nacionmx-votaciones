@@ -208,6 +208,83 @@ const handleEconomyLegacy = async (interaction, client, supabase) => {
     }
 
 
+    // BUTTON: Credit Card Upgrade Acceptance (Admin Offer)
+    if (interaction.isButton() && interaction.customId.startsWith('btn_upgrade_')) {
+        await interaction.deferUpdate();
+
+        // ID: btn_upgrade_{userId}_{tier}
+        // Example: btn_upgrade_123456789_NMX_Oro
+        const parts = interaction.customId.split('_');
+        const targetId = parts[2];
+        const newTier = parts.slice(3).join('_').replace(/_/g, ' '); // Reconstruct "NMX Oro" from "NMX_Oro"
+
+        // Security: Only target user can accept
+        if (interaction.user.id !== targetId) {
+            return interaction.followUp({ content: '⛔ Esta oferta no es para ti.', ephemeral: true });
+        }
+
+        const cardStats = {
+            'NMX Start': { limit: 15000, interest: 15, cost: 2000 },
+            'NMX Básica': { limit: 30000, interest: 12, cost: 4000 },
+            'NMX Plus': { limit: 50000, interest: 10, cost: 6000 },
+            'NMX Plata': { limit: 100000, interest: 8, cost: 10000 },
+            'NMX Oro': { limit: 250000, interest: 7, cost: 15000 },
+            'NMX Rubí': { limit: 500000, interest: 6, cost: 25000 },
+            'NMX Black': { limit: 1000000, interest: 5, cost: 40000 },
+            'NMX Diamante': { limit: 2000000, interest: 3, cost: 60000 },
+            'NMX Zafiro': { limit: 5000000, interest: 2.5, cost: 100000 },
+            'NMX Platino Elite': { limit: 10000000, interest: 2, cost: 150000 }
+        };
+
+        const stats = cardStats[newTier];
+        if (!stats) {
+            return interaction.followUp({ content: '❌ Error: Nivel de tarjeta no válido (' + newTier + ').', ephemeral: true });
+        }
+
+        try {
+            // 1. Check Balance using new billing service
+            const balance = await billingService.ubService.getUserBalance(interaction.guildId, targetId);
+            const totalMoney = balance.cash + balance.bank;
+
+            if (totalMoney < stats.cost) {
+                return interaction.followUp({ content: `❌ **Fondos Insuficientes**\nRequieres: $${stats.cost.toLocaleString()}\nTienes: $${totalMoney.toLocaleString()}`, ephemeral: true });
+            }
+
+            // 2. Charge User (Prefer Bank)
+            await billingService.ubService.removeMoney(interaction.guildId, targetId, stats.cost, `Upgrade Tarjeta a ${newTier}`, 'bank');
+
+            // 3. Update DB
+            const { data: citizen } = await supabase.from('citizens').select('id').eq('discord_id', targetId).single();
+            if (citizen) {
+                await supabase.from('credit_cards').update({
+                    card_type: newTier,
+                    card_limit: stats.limit
+                }).eq('citizen_id', citizen.id).eq('status', 'active');
+            }
+
+            // 4. Success Message
+            await interaction.editReply({
+                content: `✅ **¡Mejora Exitosa!**\n<@${targetId}> ha actualizado su tarjeta a **${newTier}**.\n\n💳 Nuevo Límite: $${stats.limit.toLocaleString()}\n💰 Costo: $${stats.cost.toLocaleString()}`,
+                embeds: [],
+                components: []
+            });
+
+        } catch (e) {
+            console.error('[Upgrade] Error:', e);
+            await interaction.followUp({ content: '❌ Error procesando el upgrade.', ephemeral: true });
+        }
+        return;
+    }
+
+    // BUTTON: Cancel Upgrade
+    if (interaction.isButton() && interaction.customId.startsWith('btn_cancel_upgrade_')) {
+        if (interaction.user.id !== interaction.customId.replace('btn_cancel_upgrade_', '')) {
+            return interaction.reply({ content: '⛔ No puedes cancelar esto.', ephemeral: true });
+        }
+        await interaction.update({ content: '❌ Oferta rechazada/cancelada.', embeds: [], components: [] });
+        return;
+    }
+
     // BUTTON: Debit Card Upgrade (User accepts offer)
     if (interaction.isButton() && interaction.customId.startsWith('btn_udp_upgrade_')) {
 
