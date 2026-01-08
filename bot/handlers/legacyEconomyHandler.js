@@ -1297,7 +1297,7 @@ const handleEconomyLegacy = async (interaction, client, supabase) => {
 
     // BUTTONS: Claim Mission Rewards (Gamification)
     if (interaction.isButton() && interaction.customId.startsWith('claim_mission_')) {
-        await interaction.deferReply({ flags: [64] });
+        // DEFER REMOVED BY AUDIT
         const missionId = interaction.customId.replace('claim_mission_', '');
 
         const result = await client.services.missions.claimRewards(interaction.user.id, missionId);
@@ -1315,7 +1315,7 @@ const handleEconomyLegacy = async (interaction, client, supabase) => {
     }
 
     if (interaction.isButton() && interaction.customId.startsWith('btn_invest_')) {
-        await interaction.deferReply({ flags: [64] });
+        // DEFER REMOVED BY AUDIT
         const invId = interaction.customId.replace('btn_collect_', '');
 
         // Fetch Inv
@@ -2047,7 +2047,7 @@ const handleEconomyLegacy = async (interaction, client, supabase) => {
 
     // BUTTON: Company Payroll (from panel)
     if (interaction.isButton() && interaction.customId.startsWith('company_payroll_')) {
-        await interaction.deferReply({});
+        // DEFER REMOVED BY AUDIT
 
         const companyId = interaction.customId.split('_')[2];
 
@@ -2095,7 +2095,7 @@ const handleEconomyLegacy = async (interaction, client, supabase) => {
 
     // BUTTON: Company Withdraw Funds
     if (interaction.isButton() && interaction.customId.startsWith('company_withdraw_')) {
-        await interaction.deferReply({});
+        // DEFER REMOVED BY AUDIT
 
         const companyId = interaction.customId.split('_')[2];
 
@@ -2187,7 +2187,7 @@ const handleEconomyLegacy = async (interaction, client, supabase) => {
 
     // Apply 8% tax to giro transfers
     if (interaction.isCommand() && interaction.commandName === 'giro') {
-        await interaction.deferReply({});
+        // DEFER REMOVED BY AUDIT
 
         const destUser = interaction.options.getUser('destinatario');
         const monto = interaction.options.getNumber('monto');
@@ -2439,7 +2439,7 @@ const handleEconomyLegacy = async (interaction, client, supabase) => {
 
     // BUTTON: Company Stats
     if (interaction.isButton() && interaction.customId.startsWith('company_stats_')) {
-        await interaction.deferReply({});
+        // DEFER REMOVED BY AUDIT
 
         const companyId = interaction.customId.split('_')[2];
 
@@ -2845,7 +2845,7 @@ const handleEconomyLegacy = async (interaction, client, supabase) => {
 
     else if (commandName === 'registrar-tarjeta') {
         // DEFER IMMEDIATELY before anything else
-        await interaction.deferReply({});
+        // DEFER REMOVED BY AUDIT
 
         try {
             // === ROLE-BASED AUTHORIZATION ===
@@ -3182,7 +3182,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
     }
 
     else if (commandName === 'credito') {
-        await interaction.deferReply({}); // Global defer to prevent timeouts
+        // DEFER REMOVED BY AUDIT // Global defer to prevent timeouts
 
         const subCmd = interaction.options.getSubcommand();
         const isPrivate = interaction.options.getBoolean('privado') ?? false;
@@ -3710,7 +3710,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
 
         // Helper function to rename channel based on state
         else if (subCmd === 'debug') {
-            await interaction.deferReply({});
+            // DEFER REMOVED BY AUDIT
 
             const userId = interaction.user.id;
             const userName = interaction.user.tag;
@@ -3762,7 +3762,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
     }
 
     else if (commandName === 'info') {
-        await interaction.deferReply();
+        // DEFER REMOVED BY AUDIT
 
         try {
             const { data: companies, error } = await supabase.from('companies').select('*').order('created_at', { ascending: false });
@@ -3862,7 +3862,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
     }
 
     else if (commandName === 'rol') {
-        await interaction.deferReply({});
+        // DEFER REMOVED BY AUDIT
         const subCmd = interaction.options.getSubcommand();
         if (subCmd === 'cancelar') {
 
@@ -3937,7 +3937,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
 
     /* DISABLED - Using new /multar command instead
     else if (commandName === 'multa') {
-        await interaction.deferReply();
+        // DEFER REMOVED BY AUDIT
     
         // 1. Role Check (Role ID: 1456368296818380862)
         if (!interaction.member.roles.cache.has('1456368296818380862') && !interaction.member.permissions.has('Administrator')) {
@@ -4113,7 +4113,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
 
 
     if (commandName === 'saldo') {
-        await interaction.deferReply();
+        // DEFER REMOVED BY AUDIT
 
         const targetUser = interaction.options.getUser('usuario') || interaction.user;
 
@@ -4154,7 +4154,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
         // Helper function to rename channel based on state
     }
     else if (commandName === 'empresa') {
-        await interaction.deferReply();
+        // DEFER REMOVED BY AUDIT
 
         const subCmd = interaction.options.getSubcommand();
         const userId = interaction.user.id;
@@ -4888,7 +4888,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
         // Helper function to rename channel based on state
     }
     else if (commandName === 'inversion') {
-        await interaction.deferReply(); // Global defer
+        // DEFER REMOVED BY AUDIT // Global defer
 
         const subCmd = interaction.options.getSubcommand();
 
@@ -5036,7 +5036,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
 
 
     else if (commandName === 'nomina') {
-        await interaction.deferReply(); // Global defer
+        // DEFER REMOVED BY AUDIT // Global defer
 
         const subCmd = interaction.options.getSubcommand();
 
@@ -5109,7 +5109,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
     }
 
     else if (commandName === 'jugar') {
-        await interaction.deferReply();
+        // DEFER REMOVED BY AUDIT
         const game = interaction.options.getSubcommand();
         const userId = interaction.user.id;
 
@@ -5480,7 +5480,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
 
 
     else if (commandName === 'dar-robo') {
-        await interaction.deferReply();
+        // DEFER REMOVED BY AUDIT
 
         // Role Check: Junta Directiva or Admin
         const member = interaction.member;
@@ -5543,7 +5543,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
 
 
     else if (commandName === 'business') {
-        await interaction.deferReply({ flags: 64 });
+        // DEFER REMOVED BY AUDIT
         const subcommand = interaction.options.getSubcommand();
 
         // Staff-only check
@@ -5669,7 +5669,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
         // Helper function to rename channel based on state
 
         else if (subcommand === 'listar') {
-            await interaction.deferReply({ flags: 64 });
+            // DEFER REMOVED BY AUDIT
 
             const targetUser = interaction.options.getUser('usuario');
 
@@ -5728,7 +5728,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
         // Helper function to rename channel based on state
 
         else if (subcommand === 'cancelar') {
-            await interaction.deferReply({ flags: 64 });
+            // DEFER REMOVED BY AUDIT
 
             const targetUser = interaction.options.getUser('usuario');
             const razon = interaction.options.getString('razon');
@@ -5767,7 +5767,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
 
 
     if (commandName === 'balanza') {
-        await interaction.deferReply();
+        // DEFER REMOVED BY AUDIT
         // Defer with error handling to prevent "Unknown interaction"
         try {
         } catch (err) {
@@ -5840,7 +5840,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
 
 
     else if (commandName === 'top-ricos') {
-        await interaction.deferReply();
+        // DEFER REMOVED BY AUDIT
 
         try {
             // Get all citizens with discord IDs
@@ -5962,7 +5962,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
         const subcommand = interaction.options.getSubcommand();
 
         if (subcommand === 'otorgar') {
-            await interaction.deferReply();
+            // DEFER REMOVED BY AUDIT
             const targetUser = interaction.options.getUser('ciudadano');
             const tipo = interaction.options.getString('tipo');
 
@@ -6163,7 +6163,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
         }
 
         if (subcommand === 'ver') {
-            await interaction.deferReply();
+            // DEFER REMOVED BY AUDIT
 
             try {
                 const { data: items, error } = await supabase
@@ -6247,7 +6247,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
         // Helper function to rename channel based on state
 
         else if (subcommand === 'comprar') {
-            await interaction.deferReply();
+            // DEFER REMOVED BY AUDIT
             const itemKey = interaction.options.getString('item');
             const userId = interaction.user.id;
 
@@ -6393,7 +6393,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
     // ===================================================================
 
     else if (commandName === 'robar') {
-        await interaction.deferReply();
+        // DEFER REMOVED BY AUDIT
         const targetUser = interaction.options.getUser('usuario');
 
         if (targetUser.id === interaction.user.id) return interaction.editReply('❌ No te puedes robar a ti mismo.');
@@ -6504,7 +6504,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
     // Copy this content to replace the current handlers in index.js
 
     else if (commandName === 'trabajar') {
-        await interaction.deferReply();
+        // DEFER REMOVED BY AUDIT
 
         // DNI Check
         const { data: jobDni, error: dniError } = await supabase
@@ -6531,7 +6531,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
         }
 
         console.log(`[trabajar] DNI validated for ${jobDni.nombre} ${jobDni.apellido} (${interaction.user.id})`);
-        await interaction.deferReply();
+        // DEFER REMOVED BY AUDIT
         const JOB_COOLDOWN = 60 * 60 * 1000;
         const jobKey = `job_${interaction.user.id}`;
         const lastJob = casinoSessions[jobKey] || 0;
@@ -6825,7 +6825,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
         }
 
         console.log(`[crimen] DNI validated for ${crimenDni.nombre} ${crimenDni.apellido} (${interaction.user.id})`);
-        await interaction.deferReply();
+        // DEFER REMOVED BY AUDIT
         const CRIME_COOLDOWN = 120 * 60 * 1000;
         const crimeKey = `crime_${interaction.user.id}`;
         const lastCrime = casinoSessions[crimeKey] || 0;
@@ -7073,7 +7073,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             });
         }
     } else if (commandName === 'bolsa') {
-        await interaction.deferReply();
+        // DEFER REMOVED BY AUDIT
         const subCmd = interaction.options.getSubcommand();
 
         // Dynamic Stock Market Engine
@@ -7304,7 +7304,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
     }
 
     else if (commandName === 'debito') {
-        await interaction.deferReply({ flags: [64] });
+        // DEFER REMOVED BY AUDIT
         const subCmd = interaction.options.getSubcommand();
         const balance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
 
@@ -7458,7 +7458,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
     }
 
     else if (commandName === 'transferir') {
-        await interaction.deferReply();
+        // DEFER REMOVED BY AUDIT
         const targetUser = interaction.options.getUser('destinatario');
         let amount = interaction.options.getNumber('monto');
         if (amount) amount = Math.floor(amount); // Fix: Enforce integer
@@ -7540,7 +7540,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
     }
 
     else if (commandName === 'casino') {
-        await interaction.deferReply();
+        // DEFER REMOVED BY AUDIT
         const subCmd = interaction.options.getSubcommand();
         const bet = interaction.options.getNumber('apuesta');
 
@@ -7794,7 +7794,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
 
 
     else if (commandName === 'top-morosos') {
-        await interaction.deferReply();
+        // DEFER REMOVED BY AUDIT
 
         try {
             const { data: debtors } = await supabase
@@ -7830,7 +7830,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
     }
 
     else if (commandName === 'depositar') {
-        await interaction.deferReply();
+        // DEFER REMOVED BY AUDIT
         const destUser = interaction.options.getUser('destinatario');
 
         // Prevent self-transfer
@@ -7943,7 +7943,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
 
 
     else if (commandName === 'giro') {
-        await interaction.deferReply(); // Defer immediately
+        // DEFER REMOVED BY AUDIT // Defer immediately
 
         const destUser = interaction.options.getUser('destinatario');
         const inputMonto = interaction.options.getString('monto');
@@ -8032,7 +8032,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
 
     /* DISABLED - Automatic tax collection via background service
     else if (commandName === 'impuestos') {
-        await interaction.deferReply();
+        // DEFER REMOVED BY AUDIT
      
         const EVASOR_FISCAL_ROLE_ID = '1449950636371214397';
         const targetUser = interaction.options.getUser('usuario') || interaction.user;
@@ -8217,7 +8217,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
     // ===================================================================
 
     else if (commandName === 'stake') {
-        await interaction.deferReply();
+        // DEFER REMOVED BY AUDIT
         try {
         } catch (err) {
             console.error('[ERROR] Failed to defer stake:', err);
@@ -8328,7 +8328,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
     }
 
     else if (commandName === 'slots') {
-        await interaction.deferReply();
+        // DEFER REMOVED BY AUDIT
         try {
         } catch (err) {
             console.error('[ERROR] Failed to defer slots:', err);
@@ -8396,7 +8396,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
     }
 
     else if (commandName === 'fondos') {
-        await interaction.deferReply();
+        // DEFER REMOVED BY AUDIT
         try {
         } catch (err) {
             console.error('[ERROR] Failed to defer fondos:', err);
@@ -8511,7 +8511,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
     // Add this to index.js
 
     else if (commandName === 'privacidad') {
-        await interaction.deferReply({ flags: [64] });
+        // DEFER REMOVED BY AUDIT
         const subCmd = interaction.options.getSubcommand();
         const userId = interaction.user.id;
 
@@ -9109,7 +9109,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
     //     }
     // ===== SESION VOTING SYSTEM =====
     else if (commandName === 'sesion') {
-        await interaction.deferReply();
+        // DEFER REMOVED BY AUDIT
         const subCmd = interaction.options.getSubcommand();
         const userId = interaction.user.id;
 
