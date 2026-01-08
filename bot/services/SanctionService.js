@@ -4,6 +4,7 @@ class SanctionService {
     constructor(supabase, client) {
         this.supabase = supabase;
         this.client = client;
+        this.processingLocks = new Set();
     }
 
     /**
@@ -15,10 +16,18 @@ class SanctionService {
      * @param {string|null} evidenceUrl 
      */
     async createSanction(discordUserId, moderatorId, type, reason, evidenceUrl = null, expiresAt = null, actionType = null, description = null) {
+        const signature = `sanction:${discordUserId}:${type}:${reason}`;
+
+        if (this.processingLocks.has(signature)) {
+            console.warn(`[SanctionService] Duplicate sanction blocked by in-memory lock: ${signature}`);
+            return { id: 'blocked-duplicate', status: 'duplicate' };
+        }
+
+        this.processingLocks.add(signature);
+        const lockTimeout = setTimeout(() => this.processingLocks.delete(signature), 10000);
+
         try {
-            // IDEMPOTENCY CHECK:
-            // Prevent duplicate sanctions (Same user, same type, same reason, same moderator) within 5 minutes.
-            // This fixes the issue of double-clicking or multiple bot instances creating duplicate logs.
+            // IDEMPOTENCY CHECK (Database Level - Cross Process)
             const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
 
             const { data: duplicates } = await this.supabase
@@ -27,13 +36,13 @@ class SanctionService {
                 .eq('discord_user_id', discordUserId)
                 .eq('moderator_id', moderatorId)
                 .eq('type', type)
-                .eq('reason', reason) // Reason is usually a strict enum or string
+                .eq('reason', reason)
                 .eq('status', 'active')
                 .gt('created_at', fiveMinutesAgo);
 
             if (duplicates && duplicates.length > 0) {
                 console.warn(`[SanctionService] Duplicate sanction suppressed for user ${discordUserId}`);
-                return duplicates[0]; // Return the existing one instead of creating new
+                return duplicates[0];
             }
 
             const { data, error } = await this.supabase
@@ -57,6 +66,9 @@ class SanctionService {
         } catch (error) {
             console.error('Error creating sanction:', error);
             throw error;
+        } finally {
+            clearTimeout(lockTimeout);
+            this.processingLocks.delete(signature);
         }
     }
 
