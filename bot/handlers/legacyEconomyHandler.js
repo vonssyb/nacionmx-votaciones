@@ -163,7 +163,7 @@ const handleEconomyLegacy = async (interaction, client, supabase) => {
     const missionService = client.services.missions;
     const storeService = client.services.store;
 
-    console.log(`[DEBUG] Handling Legacy Economy: ${interaction.commandName || interaction.customId}`);
+    // console.log(`[DEBUG] Handling Legacy Economy: ${interaction.commandName || interaction.customId}`);
 
     // Deduplicate interactions
     if (processedInteractions.has(interaction.id)) {
@@ -2060,368 +2060,231 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
     }
 
     else if (commandName === 'credito') {
-        // DEFER REMOVED BY AUDIT // Global defer to prevent timeouts
+        // Global defer in index_unified.js should have run.
+        try {
+            const subCmd = interaction.options.getSubcommand();
+            const isPrivate = interaction.options.getBoolean('privado') ?? false;
 
-        const subCmd = interaction.options.getSubcommand();
-        const isPrivate = interaction.options.getBoolean('privado') ?? false;
+            if (subCmd === 'buro') {
 
-        if (subCmd === 'buro') {
+                let { data: citizen } = await supabase.from('citizens').select('id, full_name, credit_score').eq('discord_id', interaction.user.id).order('created_at', { ascending: false }).limit(1).maybeSingle();
 
-            let { data: citizen } = await supabase.from('citizens').select('id, full_name, credit_score').eq('discord_id', interaction.user.id).order('created_at', { ascending: false }).limit(1).maybeSingle();
-
-            if (!citizen) {
-                // FALLBACK: Check citizen_dni
-                const { data: dniRecord } = await supabase.from('citizen_dni').select('nombre, apellido, foto_url').eq('user_id', interaction.user.id).maybeSingle();
-                if (dniRecord) {
-                    const { data: newCit } = await supabase.from('citizens').insert([{
-                        discord_id: interaction.user.id,
-                        full_name: `${dniRecord.nombre} ${dniRecord.apellido}`,
-                        dni: dniRecord.foto_url,
-                        credit_score: 100
-                    }]).select('id, full_name, credit_score').single();
-                    if (newCit) citizen = newCit;
+                if (!citizen) {
+                    // FALLBACK: Check citizen_dni
+                    const { data: dniRecord } = await supabase.from('citizen_dni').select('nombre, apellido, foto_url').eq('user_id', interaction.user.id).maybeSingle();
+                    if (dniRecord) {
+                        const { data: newCit } = await supabase.from('citizens').insert([{
+                            discord_id: interaction.user.id,
+                            full_name: `${dniRecord.nombre} ${dniRecord.apellido}`,
+                            dni: dniRecord.foto_url,
+                            credit_score: 100
+                        }]).select('id, full_name, credit_score').single();
+                        if (newCit) citizen = newCit;
+                    }
                 }
+
+                if (!citizen) return interaction.editReply('❌ No tienes un ciudadano vinculado.');
+
+                const score = citizen.credit_score || 100;
+                // Generate ASCII Progress Bar: [████████░░] 80/100
+                const filled = Math.round(score / 10); // 0-10
+                const bar = '█'.repeat(filled) + '░'.repeat(10 - filled);
+
+                const embed = new EmbedBuilder()
+                    .setTitle(`📉 Buró Financiero: ${citizen.full_name}`)
+                    .setColor(score > 60 ? 0x00FF00 : (score > 30 ? 0xFFA500 : 0xFF0000))
+                    .addFields(
+                        { name: 'Score Crediticio', value: `${bar} **${score}/100**` },
+                        { name: 'Estado', value: score > 60 ? '✅ Excelente' : (score > 30 ? '⚠️ Regular' : '⛔ RIESGO (Acceso Limitado)') }
+                    )
+                    .setFooter({ text: 'Mantén un buen historial pagando tus tarjetas a tiempo.' });
+
+                await interaction.editReply({ embeds: [embed] });
             }
 
-            if (!citizen) return interaction.editReply('❌ No tienes un ciudadano vinculado.');
+            // Helper function to rename channel based on state
+            else if (subCmd === 'info' && interaction.options.getSubcommandGroup() !== 'admin') {
 
-            const score = citizen.credit_score || 100;
-            // Generate ASCII Progress Bar: [████████░░] 80/100
-            const filled = Math.round(score / 10); // 0-10
-            const bar = '█'.repeat(filled) + '░'.repeat(10 - filled);
+                let { data: citizen } = await supabase.from('citizens').select('id, full_name, dni').eq('discord_id', interaction.user.id).limit(1).maybeSingle();
 
-            const embed = new EmbedBuilder()
-                .setTitle(`📉 Buró Financiero: ${citizen.full_name}`)
-                .setColor(score > 60 ? 0x00FF00 : (score > 30 ? 0xFFA500 : 0xFF0000))
-                .addFields(
-                    { name: 'Score Crediticio', value: `${bar} **${score}/100**` },
-                    { name: 'Estado', value: score > 60 ? '✅ Excelente' : (score > 30 ? '⚠️ Regular' : '⛔ RIESGO (Acceso Limitado)') }
-                )
-                .setFooter({ text: 'Mantén un buen historial pagando tus tarjetas a tiempo.' });
-
-            await interaction.editReply({ embeds: [embed] });
-        }
-
-        // Helper function to rename channel based on state
-        else if (subCmd === 'info' && interaction.options.getSubcommandGroup() !== 'admin') {
-
-            let { data: citizen } = await supabase.from('citizens').select('id, full_name, dni').eq('discord_id', interaction.user.id).limit(1).maybeSingle();
-
-            if (!citizen) {
-                const { data: dniRecord } = await supabase.from('citizen_dni').select('nombre, apellido, foto_url').eq('user_id', interaction.user.id).maybeSingle();
-                if (dniRecord) {
-                    const { data: newCit } = await supabase.from('citizens').insert([{
-                        discord_id: interaction.user.id,
-                        full_name: `${dniRecord.nombre} ${dniRecord.apellido}`,
-                        dni: dniRecord.foto_url,
-                        credit_score: 100
-                    }]).select('id, full_name, dni').single();
-                    if (newCit) citizen = newCit;
+                if (!citizen) {
+                    const { data: dniRecord } = await supabase.from('citizen_dni').select('nombre, apellido, foto_url').eq('user_id', interaction.user.id).maybeSingle();
+                    if (dniRecord) {
+                        const { data: newCit } = await supabase.from('citizens').insert([{
+                            discord_id: interaction.user.id,
+                            full_name: `${dniRecord.nombre} ${dniRecord.apellido}`,
+                            dni: dniRecord.foto_url,
+                            credit_score: 100
+                        }]).select('id, full_name, dni').single();
+                        if (newCit) citizen = newCit;
+                    }
                 }
+
+                if (!citizen) return interaction.editReply('❌ No tienes un ciudadano vinculado.');
+
+                const { data: userCard } = await supabase.from('credit_cards').select('*').eq('citizen_id', citizen.id).limit(1).maybeSingle();
+                if (!userCard) return interaction.editReply('❌ No tienes una tarjeta activa.');
+
+                const embed = new EmbedBuilder()
+                    .setTitle(`💳 ${userCard.card_type} | Banco Nacional`)
+                    .setColor(0x000000) // Classic Black/Dark
+                    .addFields(
+                        { name: 'Titular', value: citizen.full_name, inline: true },
+                        { name: 'DNI', value: citizen.dni || 'N/A', inline: true },
+                        { name: 'Estado', value: userCard.status === 'active' ? '✅ Activa' : '⛔ Bloqueada', inline: true },
+                        { name: 'Emisión', value: `<t:${Math.floor(new Date(userCard.created_at).getTime() / 1000)}:D>`, inline: true },
+                        { name: 'Corte', value: 'Domingos', inline: true }
+                    )
+                    .setFooter({ text: `ID: ${userCard.id.split('-')[0]}...` }); // Short ID like a card number snippet
+
+                await interaction.editReply({ embeds: [embed] });
             }
 
-            if (!citizen) return interaction.editReply('❌ No tienes un ciudadano vinculado.');
+            // Helper function to rename channel based on state
+            else if (subCmd === 'estado') {
 
-            const { data: userCard } = await supabase.from('credit_cards').select('*').eq('citizen_id', citizen.id).limit(1).maybeSingle();
-            if (!userCard) return interaction.editReply('❌ No tienes una tarjeta activa.');
+                // FIX: Query 'citizens' table instead of 'profiles' because credit_cards are linked to citizens.
+                let { data: citizen } = await supabase.from('citizens').select('id').eq('discord_id', interaction.user.id).order('created_at', { ascending: false }).limit(1).maybeSingle();
 
-            const embed = new EmbedBuilder()
-                .setTitle(`💳 ${userCard.card_type} | Banco Nacional`)
-                .setColor(0x000000) // Classic Black/Dark
-                .addFields(
-                    { name: 'Titular', value: citizen.full_name, inline: true },
-                    { name: 'DNI', value: citizen.dni || 'N/A', inline: true },
-                    { name: 'Estado', value: userCard.status === 'active' ? '✅ Activa' : '⛔ Bloqueada', inline: true },
-                    { name: 'Emisión', value: `<t:${Math.floor(new Date(userCard.created_at).getTime() / 1000)}:D>`, inline: true },
-                    { name: 'Corte', value: 'Domingos', inline: true }
-                )
-                .setFooter({ text: `ID: ${userCard.id.split('-')[0]}...` }); // Short ID like a card number snippet
-
-            await interaction.editReply({ embeds: [embed] });
-        }
-
-        // Helper function to rename channel based on state
-        else if (subCmd === 'estado') {
-
-            // FIX: Query 'citizens' table instead of 'profiles' because credit_cards are linked to citizens.
-            let { data: citizen } = await supabase.from('citizens').select('id').eq('discord_id', interaction.user.id).order('created_at', { ascending: false }).limit(1).maybeSingle();
-
-            if (!citizen) {
-                const { data: dniRecord } = await supabase.from('citizen_dni').select('nombre, apellido, foto_url').eq('user_id', interaction.user.id).maybeSingle();
-                if (dniRecord) {
-                    const { data: newCit } = await supabase.from('citizens').insert([{
-                        discord_id: interaction.user.id,
-                        full_name: `${dniRecord.nombre} ${dniRecord.apellido}`,
-                        dni: dniRecord.foto_url,
-                        credit_score: 100
-                    }]).select('id').single();
-                    if (newCit) citizen = newCit;
+                if (!citizen) {
+                    const { data: dniRecord } = await supabase.from('citizen_dni').select('nombre, apellido, foto_url').eq('user_id', interaction.user.id).maybeSingle();
+                    if (dniRecord) {
+                        const { data: newCit } = await supabase.from('citizens').insert([{
+                            discord_id: interaction.user.id,
+                            full_name: `${dniRecord.nombre} ${dniRecord.apellido}`,
+                            dni: dniRecord.foto_url,
+                            credit_score: 100
+                        }]).select('id').single();
+                        if (newCit) citizen = newCit;
+                    }
                 }
-            }
 
-            if (!citizen) {
-                return interaction.editReply('❌ No tienes un ciudadano vinculado a tu Discord. Contacta a un administrador en el Panel.');
-            }
-
-            const { data: userCard } = await supabase.from('credit_cards').select('*').eq('citizen_id', citizen.id).order('created_at', { ascending: false }).limit(1).maybeSingle();
-
-            if (!userCard) {
-                return interaction.editReply('❌ No tienes una tarjeta activa actualmente.');
-            }
-
-            const embed = new EmbedBuilder()
-                .setTitle(`💳 Estado de Cuenta: ${userCard.card_type}`)
-                .setColor(0xD4AF37)
-                .addFields(
-                    { name: 'Deuda Actual', value: `$${userCard.current_balance.toLocaleString()}`, inline: true },
-                    { name: 'Límite', value: `$${(userCard.credit_limit || userCard.card_limit || 0).toLocaleString()}`, inline: true },
-                    { name: 'Interés Semanal', value: `${userCard.interest_rate}%`, inline: true }
-                )
-                .setFooter({ text: 'El corte es cada domingo a medianoche.' });
-
-            await interaction.editReply({ embeds: [embed] });
-        }
-
-        // Helper function to rename channel based on state
-
-        else if (subCmd === 'pedir-prestamo') {
-
-            return interaction.editReply({
-                embeds: [new EmbedBuilder()
-                    .setTitle('❌ Función Desactivada')
-                    .setColor(0xFF0000)
-                    .setDescription('Las tarjetas de crédito ahora funcionan como **método de pago directo**.\n\n**No puedes retirar efectivo**, pero puedes usar tu tarjeta para pagar:\n• Multas\n• Licencias\n• Empresas\n• Transferencias\n\nAl pagar, selecciona "💳 Crédito" como método de pago.')
-                    .setFooter({ text: 'Banco Nacional - Nuevas Políticas de Crédito' })
-                ]
-            });
-        }
-
-        // Helper function to rename channel based on state
-
-        else if (subCmd === 'pagar') {
-
-            // Robust amount handling
-            const amount = interaction.options.getNumber('monto') || interaction.options.getInteger('monto');
-            if (!amount || amount <= 0) return interaction.editReply({ content: '❌ El monto debe ser mayor a 0.', flags: isPrivate ? [64] : [] });
-
-            try {
-                // 1. Find User (Citizen) & Card
-                // Note: removed profile join to avoid crashes
-                const { data: citizen } = await supabase.from('citizens').select('id, discord_id').eq('discord_id', interaction.user.id).order('created_at', { ascending: false }).limit(1).maybeSingle();
-                if (!citizen) return interaction.editReply({ content: '❌ No tienes cuenta vinculada (Citizen).', flags: isPrivate ? [64] : [] });
+                if (!citizen) {
+                    return interaction.editReply('❌ No tienes un ciudadano vinculado a tu Discord. Contacta a un administrador en el Panel.');
+                }
 
                 const { data: userCard } = await supabase.from('credit_cards').select('*').eq('citizen_id', citizen.id).order('created_at', { ascending: false }).limit(1).maybeSingle();
-                if (!userCard) return interaction.editReply({ content: '❌ No tienes una tarjeta activa.', flags: isPrivate ? [64] : [] });
 
-                if (amount > userCard.current_balance) {
-                    return interaction.editReply({ content: `⚠️ Solo debes **$${userCard.current_balance.toLocaleString()}**. No puedes pagar más de lo que debes.`, flags: isPrivate ? [64] : [] });
+                if (!userCard) {
+                    return interaction.editReply('❌ No tienes una tarjeta activa actualmente.');
                 }
 
-                // 2. CHECK FUNDS FIRST (User Request)
-                try {
-                    const balance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
-                    // Check cash + bank (or just cash? usually cash is for hand payments, bank for transfers. Let's assume Total or Cash.
-                    // Discord economy bots usually prioritize Cash or Bank. Let's check Total to be safe, or check documentation/preference.
-                    // User screenshot shows Cash: 10k, Bank: 0, Total: 10k.
-                    // Let's check Total Liquid Assets.
-                    const userMoney = balance.total || (balance.cash + balance.bank);
+                const embed = new EmbedBuilder()
+                    .setTitle(`💳 Estado de Cuenta: ${userCard.card_type}`)
+                    .setColor(0xD4AF37)
+                    .addFields(
+                        { name: 'Deuda Actual', value: `$${userCard.current_balance.toLocaleString()}`, inline: true },
+                        { name: 'Límite', value: `$${(userCard.credit_limit || userCard.card_limit || 0).toLocaleString()}`, inline: true },
+                        { name: 'Interés Semanal', value: `${userCard.interest_rate}%`, inline: true }
+                    )
+                    .setFooter({ text: 'El corte es cada domingo a medianoche.' });
 
-                    if (userMoney < amount) {
-                        return interaction.editReply({ content: `❌ **Fondos Insuficientes**. \nTienes: $${userMoney.toLocaleString()} \nIntentas pagar: $${amount.toLocaleString()}`, flags: isPrivate ? [64] : [] });
+                await interaction.editReply({ embeds: [embed] });
+            }
+
+            // Helper function to rename channel based on state
+
+            else if (subCmd === 'pedir-prestamo') {
+
+                return interaction.editReply({
+                    embeds: [new EmbedBuilder()
+                        .setTitle('❌ Función Desactivada')
+                        .setColor(0xFF0000)
+                        .setDescription('Las tarjetas de crédito ahora funcionan como **método de pago directo**.\n\n**No puedes retirar efectivo**, pero puedes usar tu tarjeta para pagar:\n• Multas\n• Licencias\n• Empresas\n• Transferencias\n\nAl pagar, selecciona "💳 Crédito" como método de pago.')
+                        .setFooter({ text: 'Banco Nacional - Nuevas Políticas de Crédito' })
+                    ]
+                });
+            }
+
+            // Helper function to rename channel based on state
+
+            else if (subCmd === 'pagar') {
+
+                // Robust amount handling
+                const amount = interaction.options.getNumber('monto') || interaction.options.getInteger('monto');
+                if (!amount || amount <= 0) return interaction.editReply({ content: '❌ El monto debe ser mayor a 0.', flags: isPrivate ? [64] : [] });
+
+                try {
+                    // 1. Find User (Citizen) & Card
+                    // Note: removed profile join to avoid crashes
+                    const { data: citizen } = await supabase.from('citizens').select('id, discord_id').eq('discord_id', interaction.user.id).order('created_at', { ascending: false }).limit(1).maybeSingle();
+                    if (!citizen) return interaction.editReply({ content: '❌ No tienes cuenta vinculada (Citizen).', flags: isPrivate ? [64] : [] });
+
+                    const { data: userCard } = await supabase.from('credit_cards').select('*').eq('citizen_id', citizen.id).order('created_at', { ascending: false }).limit(1).maybeSingle();
+                    if (!userCard) return interaction.editReply({ content: '❌ No tienes una tarjeta activa.', flags: isPrivate ? [64] : [] });
+
+                    if (amount > userCard.current_balance) {
+                        return interaction.editReply({ content: `⚠️ Solo debes **$${userCard.current_balance.toLocaleString()}**. No puedes pagar más de lo que debes.`, flags: isPrivate ? [64] : [] });
                     }
 
-                    // 3. Take Money from UnbelievaBoat
-                    // Show payment selector  
-                    const pmCred = await getAvailablePaymentMethods(interaction.user.id, interaction.guildId);
-                    const pbCred = createPaymentButtons(pmCred, 'cred_pay');
-                    const paymentEmbed = createPaymentEmbed(`💳 Pago de Crédito: ${userCard.card_type}`, amount, pmCred);
-                    await interaction.editReply({ embeds: [paymentEmbed], components: [pbCred] });
-                    const fCred = i => i.user.id === interaction.user.id && i.customId.startsWith('cred_pay_');
-                    const cCred = interaction.channel.createMessageComponentCollector({ filter: fCred, time: 60000, max: 1 });
-                    cCred.on('collect', async (i) => {
-                        try { await i.deferUpdate(); } catch (err) { return; }
-                        const prCred = await processPayment(i.customId.replace('cred_pay_', ''), interaction.user.id, interaction.guildId, amount, `Pago Tarjeta ${userCard.card_type}`, pmCred);
-                        if (!prCred.success) return i.editReply({ content: prCred.error, components: [] });
+                    // 2. CHECK FUNDS FIRST (User Request)
+                    try {
+                        const balance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
+                        // Check cash + bank (or just cash? usually cash is for hand payments, bank for transfers. Let's assume Total or Cash.
+                        // Discord economy bots usually prioritize Cash or Bank. Let's check Total to be safe, or check documentation/preference.
+                        // User screenshot shows Cash: 10k, Bank: 0, Total: 10k.
+                        // Let's check Total Liquid Assets.
+                        const userMoney = balance.total || (balance.cash + balance.bank);
 
-                        const newDebt = userCard.current_balance - amount;
-                        await supabase.from('credit_cards').update({ current_balance: newDebt }).eq('id', userCard.id);
-                        await i.editReply({ content: `✅ Pago procesado (${prCred.method})\n💳 ${userCard.card_type}\n💰 Pagado: $${amount.toLocaleString()}\n📊 Nuevo saldo: $${newDebt.toLocaleString()}`, components: [] });
-                    });
-                    cCred.on('end', c => { if (c.size === 0) interaction.editReply({ content: '⏱️ Tiempo agotado.', components: [] }); });
-                    return;
-                } catch (err) {
-                    console.error('[credito] Error:', err);
-                    return interaction.editReply({ content: '❌ Error procesando pago.', flags: [64] });
-                }
-            } catch (err) {
-                console.error('[credito-pagar] Error:', err);
-                return interaction.editReply({ content: '❌ Error procesando solicitud.', flags: isPrivate ? [64] : [] });
-            }
-        }
-
-        // Helper function to rename channel based on state
-
-
-
-        else if (interaction.options.getSubcommandGroup() === 'admin') {
-            // Permission Check
-            if (!interaction.member.permissions.has('Administrator')) {
-                return interaction.editReply({ content: '⛔ Solo administradores pueden usar esto.', flags: [64] });
-            }
-
-            const subCmdAdmin = interaction.options.getSubcommand();
-            const targetUser = interaction.options.getUser('usuario');
-
-            // SECURITY: Self-Target Check
-            if (targetUser.id === interaction.user.id) {
-                return interaction.editReply({ content: '⛔ **Seguridad:** No puedes usar comandos administrativos sobre tu propia cuenta.', flags: [64] });
-            }
-
-            // Already deferred globally at command start
-
-            // Resolve Citizen (Credit Cards are linked to CITIZENS, not Profiles directly)
-            // 1. Try to find via Citizens table first
-            let { data: citizen } = await supabase.from('citizens').select('id, full_name, credit_score, discord_id').eq('discord_id', targetUser.id).order('created_at', { ascending: false }).limit(1).maybeSingle();
-
-            if (!citizen) {
-                // FALLBACK: Check citizen_dni
-                const { data: dniRecord } = await supabase.from('citizen_dni').select('nombre, apellido, foto_url').eq('user_id', targetUser.id).maybeSingle();
-                if (dniRecord) {
-                    const { data: newCit } = await supabase.from('citizens').insert([{
-                        discord_id: targetUser.id,
-                        full_name: `${dniRecord.nombre} ${dniRecord.apellido}`,
-                        dni: dniRecord.foto_url,
-                        credit_score: 100
-                    }]).select('id, full_name, credit_score, discord_id').single();
-                    if (newCit) citizen = newCit;
-                }
-            }
-
-            if (!citizen) return interaction.editReply('❌ Este usuario no tiene un ciudadano vinculado (No tiene registro en el sistema financiero).');
-
-            const { data: userCard } = await supabase.from('credit_cards')
-                .select('*')
-                .eq('citizen_id', citizen.id)
-                .order('created_at', { ascending: false })
-                .limit(1)
-                .maybeSingle();
-
-            if (!userCard) return interaction.editReply('❌ Este usuario no tiene tarjetas registradas.');
-
-            if (subCmdAdmin === 'info') {
-                const embed = new EmbedBuilder()
-                    .setTitle(`📂 Info Bancaria: ${citizen.full_name}`)
-                    .setColor(0x0000FF)
-                    .addFields(
-                        { name: 'Tarjeta', value: userCard.card_type || 'Desconocida', inline: true },
-                        { name: 'Estado', value: userCard.status || 'Desconocido', inline: true },
-                        { name: 'Deuda', value: `$${(userCard.current_balance || 0).toLocaleString()}`, inline: true },
-                        { name: 'Límite', value: `$${(userCard.card_limit || userCard.credit_limit || 0).toLocaleString()}`, inline: true },
-                        { name: 'Discord ID', value: targetUser.id, inline: true }
-                    );
-                await interaction.editReply({ embeds: [embed] });
-            }
-
-            else if (subCmdAdmin === 'historial') {
-                // Get citizen balance
-                const balance = await billingService.ubService.getUserBalance(interaction.guildId, targetUser.id);
-                const cash = balance.cash || 0;
-                const bank = balance.bank || 0;
-
-                // Get all credit cards
-                const { data: allCards } = await supabase
-                    .from('credit_cards')
-                    .select('*')
-                    .eq('citizen_id', citizen.id)
-                    .order('created_at', { ascending: false });
-
-                let totalCreditLimit = 0;
-                let totalDebt = 0;
-                let totalAvailable = 0;
-
-                if (allCards && allCards.length > 0) {
-                    allCards.forEach(card => {
-                        const limit = card.card_limit || card.credit_limit || 0;
-                        const debt = card.current_balance || 0;
-                        totalCreditLimit += limit;
-                        totalDebt += debt;
-                        totalAvailable += (limit - debt);
-                    });
-                }
-
-                // Get transaction history (payments made)
-                const { data: payments } = await supabase
-                    .from('credit_card_payments')
-                    .select('*')
-                    .eq('card_id', userCard.id)
-                    .order('payment_date', { ascending: false })
-                    .limit(10);
-
-                let totalPaid = 0;
-                let interestPaid = 0;
-
-                if (payments) {
-                    payments.forEach(p => {
-                        totalPaid += (p.amount || 0);
-                        interestPaid += (p.interest_amount || 0);
-                    });
-                }
-
-                // Calculate usage stats
-                const cardAge = userCard.created_at ? Math.floor((Date.now() - new Date(userCard.created_at)) / (1000 * 60 * 60 * 24)) : 0;
-                const utilizationRate = totalCreditLimit > 0 ? Math.round((totalDebt / totalCreditLimit) * 100) : 0;
-
-                // Get credit score
-                const { data: citizenScore } = await supabase
-                    .from('citizens')
-                    .select('credit_score')
-                    .eq('discord_id', targetUser.id)
-                    .maybeSingle();
-
-                const creditScore = citizenScore?.credit_score || 100;
-
-                const embed = new EmbedBuilder()
-                    .setTitle(`📊 Historial Financiero: ${citizen.full_name}`)
-                    .setColor(0x1E90FF)
-                    .setDescription(`Análisis completo para decisiones de crédito`)
-                    .addFields(
-                        { name: '💰 Efectivo', value: `$${cash.toLocaleString()}`, inline: true },
-                        { name: '🏦 Banco/Débito', value: `$${bank.toLocaleString()}`, inline: true },
-                        { name: '📈 Score Crediticio', value: `${creditScore}/100`, inline: true },
-                        { name: '━━━━━━━━━━━━━━━━━', value: '**TARJETAS DE CRÉDITO**', inline: false },
-                        { name: '💳 Límite Total', value: `$${totalCreditLimit.toLocaleString()}`, inline: true },
-                        { name: '📊 Deuda Total', value: `$${totalDebt.toLocaleString()}`, inline: true },
-                        { name: '✅ Disponible', value: `$${totalAvailable.toLocaleString()}`, inline: true },
-                        { name: '📉 Utilización', value: `${utilizationRate}%`, inline: true },
-                        { name: '📅 Antigüedad', value: `${cardAge} días`, inline: true },
-                        { name: '━━━━━━━━━━━━━━━━━', value: '**HISTORIAL DE PAGOS**', inline: false },
-                        { name: '💵 Total Pagado', value: `$${totalPaid.toLocaleString()}`, inline: true },
-                        { name: '📈 Intereses Pagados', value: `$${interestPaid.toLocaleString()}`, inline: true },
-                        { name: '🎁 Puntos Acumulados', value: `${userCard.reward_points || 0} pts`, inline: true },
-                        { name: '━━━━━━━━━━━━━━━━━', value: '**RECOMENDACIÓN**', inline: false },
-                        {
-                            name: '💡 Análisis', value:
-                                utilizationRate < 30 && creditScore > 70
-                                    ? '✅ **EXCELENTE** - Cliente apto para upgrade'
-                                    : utilizationRate > 70
-                                        ? '⚠️ **PRECAUCIÓN** - Alta utilización de crédito'
-                                        : creditScore < 50
-                                            ? '❌ **RIESGO** - Score bajo, no recomendar upgrade'
-                                            : '📊 **REGULAR** - Monitorear comportamiento',
-                            inline: false
+                        if (userMoney < amount) {
+                            return interaction.editReply({ content: `❌ **Fondos Insuficientes**. \nTienes: $${userMoney.toLocaleString()} \nIntentas pagar: $${amount.toLocaleString()}`, flags: isPrivate ? [64] : [] });
                         }
-                    )
-                    .setFooter({ text: `Reporte generado por ${interaction.user.tag}` })
-                    .setTimestamp();
 
-                await interaction.editReply({ embeds: [embed] });
+                        // 3. Take Money from UnbelievaBoat
+                        // Show payment selector  
+                        const pmCred = await getAvailablePaymentMethods(interaction.user.id, interaction.guildId);
+                        const pbCred = createPaymentButtons(pmCred, 'cred_pay');
+                        const paymentEmbed = createPaymentEmbed(`💳 Pago de Crédito: ${userCard.card_type}`, amount, pmCred);
+                        await interaction.editReply({ embeds: [paymentEmbed], components: [pbCred] });
+                        const fCred = i => i.user.id === interaction.user.id && i.customId.startsWith('cred_pay_');
+                        const cCred = interaction.channel.createMessageComponentCollector({ filter: fCred, time: 60000, max: 1 });
+                        cCred.on('collect', async (i) => {
+                            try { await i.deferUpdate(); } catch (err) { return; }
+                            const prCred = await processPayment(i.customId.replace('cred_pay_', ''), interaction.user.id, interaction.guildId, amount, `Pago Tarjeta ${userCard.card_type}`, pmCred);
+                            if (!prCred.success) return i.editReply({ content: prCred.error, components: [] });
+
+                            const newDebt = userCard.current_balance - amount;
+                            await supabase.from('credit_cards').update({ current_balance: newDebt }).eq('id', userCard.id);
+                            await i.editReply({ content: `✅ Pago procesado (${prCred.method})\n💳 ${userCard.card_type}\n💰 Pagado: $${amount.toLocaleString()}\n📊 Nuevo saldo: $${newDebt.toLocaleString()}`, components: [] });
+                        });
+                        cCred.on('end', c => { if (c.size === 0) interaction.editReply({ content: '⏱️ Tiempo agotado.', components: [] }); });
+                        return;
+                    } catch (err) {
+                        console.error('[credito] Error:', err);
+                        return interaction.editReply({ content: '❌ Error procesando pago.', flags: [64] });
+                    }
+                } catch (err) {
+                    console.error('[credito-pagar] Error:', err);
+                    return interaction.editReply({ content: '❌ Error procesando solicitud.', flags: isPrivate ? [64] : [] });
+                }
             }
 
-            else if (subCmdAdmin === 'puntos') {
-                // Fetch Citizen to get Score (not profile, Score is on citizens now)
-                let { data: citizenData } = await supabase.from('citizens').select('id, full_name, credit_score').eq('discord_id', targetUser.id).order('created_at', { ascending: false }).limit(1).maybeSingle();
+            // Helper function to rename channel based on state
 
-                if (!citizenData) {
+
+
+            else if (interaction.options.getSubcommandGroup() === 'admin') {
+                // Permission Check
+                if (!interaction.member.permissions.has('Administrator')) {
+                    return interaction.editReply({ content: '⛔ Solo administradores pueden usar esto.', flags: [64] });
+                }
+
+                const subCmdAdmin = interaction.options.getSubcommand();
+                const targetUser = interaction.options.getUser('usuario');
+
+                // SECURITY: Self-Target Check
+                if (targetUser.id === interaction.user.id) {
+                    return interaction.editReply({ content: '⛔ **Seguridad:** No puedes usar comandos administrativos sobre tu propia cuenta.', flags: [64] });
+                }
+
+                // Already deferred globally at command start
+
+                // Resolve Citizen (Credit Cards are linked to CITIZENS, not Profiles directly)
+                // 1. Try to find via Citizens table first
+                let { data: citizen } = await supabase.from('citizens').select('id, full_name, credit_score, discord_id').eq('discord_id', targetUser.id).order('created_at', { ascending: false }).limit(1).maybeSingle();
+
+                if (!citizen) {
+                    // FALLBACK: Check citizen_dni
                     const { data: dniRecord } = await supabase.from('citizen_dni').select('nombre, apellido, foto_url').eq('user_id', targetUser.id).maybeSingle();
                     if (dniRecord) {
                         const { data: newCit } = await supabase.from('citizens').insert([{
@@ -2429,214 +2292,355 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                             full_name: `${dniRecord.nombre} ${dniRecord.apellido}`,
                             dni: dniRecord.foto_url,
                             credit_score: 100
-                        }]).select('id, full_name, credit_score').single();
-                        if (newCit) citizenData = newCit;
+                        }]).select('id, full_name, credit_score, discord_id').single();
+                        if (newCit) citizen = newCit;
                     }
                 }
 
-                if (!citizenData) return interaction.editReply('❌ El usuario no tiene un registro ciudadano.');
+                if (!citizen) return interaction.editReply('❌ Este usuario no tiene un ciudadano vinculado (No tiene registro en el sistema financiero).');
 
-                const amountChange = interaction.options.getInteger('cantidad');
-                const reason = interaction.options.getString('razon');
-
-                let currentScore = citizenData.credit_score || 100;
-                let newScore = currentScore + amountChange;
-
-                // Clamp 0-100
-                if (newScore > 100) newScore = 100;
-                if (newScore < 0) newScore = 0;
-
-                await supabase.from('citizens').update({ credit_score: newScore }).eq('id', citizenData.id);
-
-                const embed = new EmbedBuilder()
-                    .setTitle('📉 Ajuste de Buró Financiero')
-                    .setColor(amountChange >= 0 ? 0x00FF00 : 0xFF0000)
-                    .setDescription(`El score de **${citizenData.full_name}** ha sido actualizado por **${interaction.user.tag}**.`)
-                    .addFields(
-                        { name: 'Cambio', value: `${amountChange > 0 ? '+' : ''}${amountChange}`, inline: true },
-                        { name: 'Nuevo Score', value: `${newScore}/100`, inline: true },
-                        { name: 'Motivo', value: reason }
-                    );
-
-                await interaction.editReply({ embeds: [embed] });
-            }
-
-            else if (subCmdAdmin === 'perdonar') {
-                await supabase.from('credit_cards').update({ current_balance: 0 }).eq('id', userCard.id);
-                await supabase.from('transaction_logs').insert([{
-                    card_id: userCard.id,
-                    discord_user_id: targetUser.id,
-                    amount: userCard.current_balance,
-                    type: 'ADJUSTMENT',
-                    status: 'SUCCESS',
-                    metadata: { type: 'FORGIVE', by: interaction.user.tag }
-                }]);
-                await interaction.editReply(`✅ Deuda perdonada para **${citizen.full_name}**. Deuda actual: $0.`);
-            }
-
-            else if (subCmdAdmin === 'congelar') {
-                await supabase.from('credit_cards').update({ status: 'FROZEN' }).eq('id', userCard.id);
-                await interaction.editReply(`❄️ Tarjeta de **${citizen.full_name}** ha sido **CONGELADA**.`);
-            }
-
-            else if (subCmdAdmin === 'descongelar') {
-                await supabase.from('credit_cards').update({ status: 'ACTIVE' }).eq('id', userCard.id);
-                await interaction.editReply(`🔥 Tarjeta de **${citizen.full_name}** ha sido **DESCONGELADA** y está Activa.`);
-            }
-
-
-            else if (subCmdAdmin === 'ofrecer-upgrade') {
-                // Robust Citizen Lookup
-                let citizenData = null;
-                // let userCard is defined in outer scope, but we might need to refresh it or specifically get the citizen from it
-
-                // 1. Try to find via Credit Card (Strongest link if they have one)
-                const { data: cardData } = await supabase
-                    .from('credit_cards')
-                    .select('*, citizens!inner(id, full_name, credit_score, discord_id)')
-                    .eq('citizens.discord_id', targetUser.id)
+                const { data: userCard } = await supabase.from('credit_cards')
+                    .select('*')
+                    .eq('citizen_id', citizen.id)
                     .order('created_at', { ascending: false })
                     .limit(1)
                     .maybeSingle();
 
-                if (cardData) {
-                    citizenData = cardData.citizens;
-                } else {
-                    // 2. Fallback: Find citizen directly (if they don't have a card yet)
-                    const { data: cData } = await supabase
+                if (!userCard) return interaction.editReply('❌ Este usuario no tiene tarjetas registradas.');
+
+                if (subCmdAdmin === 'info') {
+                    const embed = new EmbedBuilder()
+                        .setTitle(`📂 Info Bancaria: ${citizen.full_name}`)
+                        .setColor(0x0000FF)
+                        .addFields(
+                            { name: 'Tarjeta', value: userCard.card_type || 'Desconocida', inline: true },
+                            { name: 'Estado', value: userCard.status || 'Desconocido', inline: true },
+                            { name: 'Deuda', value: `$${(userCard.current_balance || 0).toLocaleString()}`, inline: true },
+                            { name: 'Límite', value: `$${(userCard.card_limit || userCard.credit_limit || 0).toLocaleString()}`, inline: true },
+                            { name: 'Discord ID', value: targetUser.id, inline: true }
+                        );
+                    await interaction.editReply({ embeds: [embed] });
+                }
+
+                else if (subCmdAdmin === 'historial') {
+                    // Get citizen balance
+                    const balance = await billingService.ubService.getUserBalance(interaction.guildId, targetUser.id);
+                    const cash = balance.cash || 0;
+                    const bank = balance.bank || 0;
+
+                    // Get all credit cards
+                    const { data: allCards } = await supabase
+                        .from('credit_cards')
+                        .select('*')
+                        .eq('citizen_id', citizen.id)
+                        .order('created_at', { ascending: false });
+
+                    let totalCreditLimit = 0;
+                    let totalDebt = 0;
+                    let totalAvailable = 0;
+
+                    if (allCards && allCards.length > 0) {
+                        allCards.forEach(card => {
+                            const limit = card.card_limit || card.credit_limit || 0;
+                            const debt = card.current_balance || 0;
+                            totalCreditLimit += limit;
+                            totalDebt += debt;
+                            totalAvailable += (limit - debt);
+                        });
+                    }
+
+                    // Get transaction history (payments made)
+                    const { data: payments } = await supabase
+                        .from('credit_card_payments')
+                        .select('*')
+                        .eq('card_id', userCard.id)
+                        .order('payment_date', { ascending: false })
+                        .limit(10);
+
+                    let totalPaid = 0;
+                    let interestPaid = 0;
+
+                    if (payments) {
+                        payments.forEach(p => {
+                            totalPaid += (p.amount || 0);
+                            interestPaid += (p.interest_amount || 0);
+                        });
+                    }
+
+                    // Calculate usage stats
+                    const cardAge = userCard.created_at ? Math.floor((Date.now() - new Date(userCard.created_at)) / (1000 * 60 * 60 * 24)) : 0;
+                    const utilizationRate = totalCreditLimit > 0 ? Math.round((totalDebt / totalCreditLimit) * 100) : 0;
+
+                    // Get credit score
+                    const { data: citizenScore } = await supabase
                         .from('citizens')
-                        .select('id, full_name, credit_score')
+                        .select('credit_score')
                         .eq('discord_id', targetUser.id)
+                        .maybeSingle();
+
+                    const creditScore = citizenScore?.credit_score || 100;
+
+                    const embed = new EmbedBuilder()
+                        .setTitle(`📊 Historial Financiero: ${citizen.full_name}`)
+                        .setColor(0x1E90FF)
+                        .setDescription(`Análisis completo para decisiones de crédito`)
+                        .addFields(
+                            { name: '💰 Efectivo', value: `$${cash.toLocaleString()}`, inline: true },
+                            { name: '🏦 Banco/Débito', value: `$${bank.toLocaleString()}`, inline: true },
+                            { name: '📈 Score Crediticio', value: `${creditScore}/100`, inline: true },
+                            { name: '━━━━━━━━━━━━━━━━━', value: '**TARJETAS DE CRÉDITO**', inline: false },
+                            { name: '💳 Límite Total', value: `$${totalCreditLimit.toLocaleString()}`, inline: true },
+                            { name: '📊 Deuda Total', value: `$${totalDebt.toLocaleString()}`, inline: true },
+                            { name: '✅ Disponible', value: `$${totalAvailable.toLocaleString()}`, inline: true },
+                            { name: '📉 Utilización', value: `${utilizationRate}%`, inline: true },
+                            { name: '📅 Antigüedad', value: `${cardAge} días`, inline: true },
+                            { name: '━━━━━━━━━━━━━━━━━', value: '**HISTORIAL DE PAGOS**', inline: false },
+                            { name: '💵 Total Pagado', value: `$${totalPaid.toLocaleString()}`, inline: true },
+                            { name: '📈 Intereses Pagados', value: `$${interestPaid.toLocaleString()}`, inline: true },
+                            { name: '🎁 Puntos Acumulados', value: `${userCard.reward_points || 0} pts`, inline: true },
+                            { name: '━━━━━━━━━━━━━━━━━', value: '**RECOMENDACIÓN**', inline: false },
+                            {
+                                name: '💡 Análisis', value:
+                                    utilizationRate < 30 && creditScore > 70
+                                        ? '✅ **EXCELENTE** - Cliente apto para upgrade'
+                                        : utilizationRate > 70
+                                            ? '⚠️ **PRECAUCIÓN** - Alta utilización de crédito'
+                                            : creditScore < 50
+                                                ? '❌ **RIESGO** - Score bajo, no recomendar upgrade'
+                                                : '📊 **REGULAR** - Monitorear comportamiento',
+                                inline: false
+                            }
+                        )
+                        .setFooter({ text: `Reporte generado por ${interaction.user.tag}` })
+                        .setTimestamp();
+
+                    await interaction.editReply({ embeds: [embed] });
+                }
+
+                else if (subCmdAdmin === 'puntos') {
+                    // Fetch Citizen to get Score (not profile, Score is on citizens now)
+                    let { data: citizenData } = await supabase.from('citizens').select('id, full_name, credit_score').eq('discord_id', targetUser.id).order('created_at', { ascending: false }).limit(1).maybeSingle();
+
+                    if (!citizenData) {
+                        const { data: dniRecord } = await supabase.from('citizen_dni').select('nombre, apellido, foto_url').eq('user_id', targetUser.id).maybeSingle();
+                        if (dniRecord) {
+                            const { data: newCit } = await supabase.from('citizens').insert([{
+                                discord_id: targetUser.id,
+                                full_name: `${dniRecord.nombre} ${dniRecord.apellido}`,
+                                dni: dniRecord.foto_url,
+                                credit_score: 100
+                            }]).select('id, full_name, credit_score').single();
+                            if (newCit) citizenData = newCit;
+                        }
+                    }
+
+                    if (!citizenData) return interaction.editReply('❌ El usuario no tiene un registro ciudadano.');
+
+                    const amountChange = interaction.options.getInteger('cantidad');
+                    const reason = interaction.options.getString('razon');
+
+                    let currentScore = citizenData.credit_score || 100;
+                    let newScore = currentScore + amountChange;
+
+                    // Clamp 0-100
+                    if (newScore > 100) newScore = 100;
+                    if (newScore < 0) newScore = 0;
+
+                    await supabase.from('citizens').update({ credit_score: newScore }).eq('id', citizenData.id);
+
+                    const embed = new EmbedBuilder()
+                        .setTitle('📉 Ajuste de Buró Financiero')
+                        .setColor(amountChange >= 0 ? 0x00FF00 : 0xFF0000)
+                        .setDescription(`El score de **${citizenData.full_name}** ha sido actualizado por **${interaction.user.tag}**.`)
+                        .addFields(
+                            { name: 'Cambio', value: `${amountChange > 0 ? '+' : ''}${amountChange}`, inline: true },
+                            { name: 'Nuevo Score', value: `${newScore}/100`, inline: true },
+                            { name: 'Motivo', value: reason }
+                        );
+
+                    await interaction.editReply({ embeds: [embed] });
+                }
+
+                else if (subCmdAdmin === 'perdonar') {
+                    await supabase.from('credit_cards').update({ current_balance: 0 }).eq('id', userCard.id);
+                    await supabase.from('transaction_logs').insert([{
+                        card_id: userCard.id,
+                        discord_user_id: targetUser.id,
+                        amount: userCard.current_balance,
+                        type: 'ADJUSTMENT',
+                        status: 'SUCCESS',
+                        metadata: { type: 'FORGIVE', by: interaction.user.tag }
+                    }]);
+                    await interaction.editReply(`✅ Deuda perdonada para **${citizen.full_name}**. Deuda actual: $0.`);
+                }
+
+                else if (subCmdAdmin === 'congelar') {
+                    await supabase.from('credit_cards').update({ status: 'FROZEN' }).eq('id', userCard.id);
+                    await interaction.editReply(`❄️ Tarjeta de **${citizen.full_name}** ha sido **CONGELADA**.`);
+                }
+
+                else if (subCmdAdmin === 'descongelar') {
+                    await supabase.from('credit_cards').update({ status: 'ACTIVE' }).eq('id', userCard.id);
+                    await interaction.editReply(`🔥 Tarjeta de **${citizen.full_name}** ha sido **DESCONGELADA** y está Activa.`);
+                }
+
+
+                else if (subCmdAdmin === 'ofrecer-upgrade') {
+                    // Robust Citizen Lookup
+                    let citizenData = null;
+                    // let userCard is defined in outer scope, but we might need to refresh it or specifically get the citizen from it
+
+                    // 1. Try to find via Credit Card (Strongest link if they have one)
+                    const { data: cardData } = await supabase
+                        .from('credit_cards')
+                        .select('*, citizens!inner(id, full_name, credit_score, discord_id)')
+                        .eq('citizens.discord_id', targetUser.id)
                         .order('created_at', { ascending: false })
                         .limit(1)
                         .maybeSingle();
-                    citizenData = cData;
-                }
 
-                if (!citizenData) {
-                    return interaction.editReply('❌ No tiene un ciudadano vinculado.');
-                }
+                    if (cardData) {
+                        citizenData = cardData.citizens;
+                    } else {
+                        // 2. Fallback: Find citizen directly (if they don't have a card yet)
+                        const { data: cData } = await supabase
+                            .from('citizens')
+                            .select('id, full_name, credit_score')
+                            .eq('discord_id', targetUser.id)
+                            .order('created_at', { ascending: false })
+                            .limit(1)
+                            .maybeSingle();
+                        citizenData = cData;
+                    }
 
-                const score = citizenData.credit_score || 100;
+                    if (!citizenData) {
+                        return interaction.editReply('❌ No tiene un ciudadano vinculado.');
+                    }
 
-                // Require good credit score (>70) to offer upgrade
-                if (score < 70) {
-                    return interaction.editReply(`❌ **${citizen.full_name}** tiene un Score de ${score}/100. Se requiere mínimo 70 puntos para ofrecer un upgrade.`);
-                }
+                    const score = citizenData.credit_score || 100;
 
-                // Card tier ladder
-                // Card tier ladder & Stats
-                const cardStats = {
-                    'NMX Start': { limit: 15000, interest: 15, cost: 2000 },
-                    'NMX Básica': { limit: 30000, interest: 12, cost: 4000 },
-                    'NMX Plus': { limit: 50000, interest: 10, cost: 6000 },
-                    'NMX Plata': { limit: 100000, interest: 8, cost: 10000 },
-                    'NMX Oro': { limit: 250000, interest: 7, cost: 15000 },
-                    'NMX Rubí': { limit: 500000, interest: 6, cost: 25000 },
-                    'NMX Black': { limit: 1000000, interest: 5, cost: 40000 },
-                    'NMX Diamante': { limit: 2000000, interest: 3, cost: 60000 },
-                    'NMX Zafiro': { limit: 5000000, interest: 2.5, cost: 100000 },
-                    'NMX Platino Elite': { limit: 10000000, interest: 2, cost: 150000 }
-                };
-                const tiers = Object.keys(cardStats);
+                    // Require good credit score (>70) to offer upgrade
+                    if (score < 70) {
+                        return interaction.editReply(`❌ **${citizen.full_name}** tiene un Score de ${score}/100. Se requiere mínimo 70 puntos para ofrecer un upgrade.`);
+                    }
 
-                const currentTier = userCard.card_type;
-                const currentIndex = tiers.indexOf(currentTier);
+                    // Card tier ladder
+                    // Card tier ladder & Stats
+                    const cardStats = {
+                        'NMX Start': { limit: 15000, interest: 15, cost: 2000 },
+                        'NMX Básica': { limit: 30000, interest: 12, cost: 4000 },
+                        'NMX Plus': { limit: 50000, interest: 10, cost: 6000 },
+                        'NMX Plata': { limit: 100000, interest: 8, cost: 10000 },
+                        'NMX Oro': { limit: 250000, interest: 7, cost: 15000 },
+                        'NMX Rubí': { limit: 500000, interest: 6, cost: 25000 },
+                        'NMX Black': { limit: 1000000, interest: 5, cost: 40000 },
+                        'NMX Diamante': { limit: 2000000, interest: 3, cost: 60000 },
+                        'NMX Zafiro': { limit: 5000000, interest: 2.5, cost: 100000 },
+                        'NMX Platino Elite': { limit: 10000000, interest: 2, cost: 150000 }
+                    };
+                    const tiers = Object.keys(cardStats);
 
-                if (currentIndex === -1 || currentIndex >= tiers.length - 1) {
-                    return interaction.editReply(`ℹ️ **${citizenData.full_name}** ya tiene la mejor tarjeta disponible: **${currentTier}**.`);
-                }
+                    const currentTier = userCard.card_type;
+                    const currentIndex = tiers.indexOf(currentTier);
 
-                const nextTier = tiers[currentIndex + 1];
-                const nextStats = cardStats[nextTier];
+                    if (currentIndex === -1 || currentIndex >= tiers.length - 1) {
+                        return interaction.editReply(`ℹ️ **${citizenData.full_name}** ya tiene la mejor tarjeta disponible: **${currentTier}**.`);
+                    }
 
-                // Button for User to Accept
-                const upgradeRow = new ActionRowBuilder().addComponents(
-                    new ButtonBuilder()
-                        .setCustomId(`btn_upgrade_${targetUser.id}_${nextTier.replace(/ /g, '_')}`)
-                        .setLabel(`Aceptar y Pagar $${nextStats.cost.toLocaleString()}`)
-                        .setStyle(ButtonStyle.Success)
-                        .setEmoji('💳'),
-                    new ButtonBuilder()
-                        .setCustomId(`btn_cancel_upgrade_${targetUser.id}`)
-                        .setLabel('Cancelar')
-                        .setStyle(ButtonStyle.Secondary)
-                        .setEmoji('❌')
-                );
+                    const nextTier = tiers[currentIndex + 1];
+                    const nextStats = cardStats[nextTier];
 
-                // Send Offer to Channel Publicly (Ticket)
-                const offerEmbed = new EmbedBuilder()
-                    .setTitle('🎁 ¡Oferta Exclusiva de Banco Nacional!')
-                    .setColor(0xFFD700)
-                    .setDescription(`Estimado/a <@${targetUser.id}>,\n\nDado tu excelente historial crediticio (Score: **${score}/100**), el Banco Nacional te ofrece una **mejora de tarjeta**.\n\n**Beneficios:**\n✅ Nuevo Límite: $${nextStats.limit.toLocaleString()}\n✅ Tasa Interés: ${nextStats.interest}%`)
-                    .addFields(
-                        { name: 'Tarjeta Actual', value: currentTier, inline: true },
-                        { name: 'Nueva Oferta', value: `✨ **${nextTier}**`, inline: true },
-                        { name: 'Coste Mejora', value: `$${nextStats.cost.toLocaleString()}`, inline: true },
-                        { name: 'Ejecutivo Asignado', value: '<@1451291919320748275>', inline: false }
-                    )
-                    .setFooter({ text: 'Pulsa el botón para aceptar la mejora inmediata.' })
-                    .setTimestamp();
+                    // Button for User to Accept
+                    const upgradeRow = new ActionRowBuilder().addComponents(
+                        new ButtonBuilder()
+                            .setCustomId(`btn_upgrade_${targetUser.id}_${nextTier.replace(/ /g, '_')}`)
+                            .setLabel(`Aceptar y Pagar $${nextStats.cost.toLocaleString()}`)
+                            .setStyle(ButtonStyle.Success)
+                            .setEmoji('💳'),
+                        new ButtonBuilder()
+                            .setCustomId(`btn_cancel_upgrade_${targetUser.id}`)
+                            .setLabel('Cancelar')
+                            .setStyle(ButtonStyle.Secondary)
+                            .setEmoji('❌')
+                    );
 
-                await interaction.editReply({
-                    content: `🔔 Atención <@${targetUser.id}>`,
-                    embeds: [offerEmbed],
-                    components: [upgradeRow]
-                });
-            }
-        }
+                    // Send Offer to Channel Publicly (Ticket)
+                    const offerEmbed = new EmbedBuilder()
+                        .setTitle('🎁 ¡Oferta Exclusiva de Banco Nacional!')
+                        .setColor(0xFFD700)
+                        .setDescription(`Estimado/a <@${targetUser.id}>,\n\nDado tu excelente historial crediticio (Score: **${score}/100**), el Banco Nacional te ofrece una **mejora de tarjeta**.\n\n**Beneficios:**\n✅ Nuevo Límite: $${nextStats.limit.toLocaleString()}\n✅ Tasa Interés: ${nextStats.interest}%`)
+                        .addFields(
+                            { name: 'Tarjeta Actual', value: currentTier, inline: true },
+                            { name: 'Nueva Oferta', value: `✨ **${nextTier}**`, inline: true },
+                            { name: 'Coste Mejora', value: `$${nextStats.cost.toLocaleString()}`, inline: true },
+                            { name: 'Ejecutivo Asignado', value: '<@1451291919320748275>', inline: false }
+                        )
+                        .setFooter({ text: 'Pulsa el botón para aceptar la mejora inmediata.' })
+                        .setTimestamp();
 
-        // Helper function to rename channel based on state
-        else if (subCmd === 'debug') {
-            // DEFER REMOVED BY AUDIT
-
-            const userId = interaction.user.id;
-            const userName = interaction.user.tag;
-            let output = `🔍 **Diagnóstico de Usuario**\n`;
-            output += `Discord ID: \`${userId}\`\n`;
-            output += `Usuario: ${userName}\n\n`;
-
-            // 1. Search in Citizens with loose matching
-            // Try explicit match
-            const { data: exactMatch, error: exactError } = await supabase.from('citizens').select('*').eq('discord_id', userId).order('created_at', { ascending: false }).limit(1).maybeSingle();
-
-            if (exactMatch) {
-                output += `✅ **Ciudadano Encontrado (Match Exacto)**\n`;
-                output += `ID: ${exactMatch.id}\nNombre: ${exactMatch.full_name}\nDNI: ${exactMatch.dni}\nDiscordID en DB: \`${exactMatch.discord_id}\`\n\n`;
-
-                const { data: card } = await supabase.from('credit_cards').select('*').eq('citizen_id', exactMatch.id).order('created_at', { ascending: false }).limit(1).maybeSingle();
-                if (card) {
-                    output += `✅ **Tarjeta Encontrada**\nTipo: ${card.card_type}\nEstado: ${card.status}\n`;
-                } else {
-                    output += `⚠️ **Sin Tarjeta vinculada al ciudadano.**\n`;
-                }
-
-            } else {
-                output += `❌ **No se encontró coincidencia exacta en Citizens.**\n`;
-                if (exactError) output += `Error DB: ${exactError.message}\n`;
-
-                // Try fuzzy search or list recent to help Staff identify the correct record
-                const { data: potentials } = await supabase.from('citizens').select('full_name, discord_id').limit(5).order('created_at', { ascending: false });
-                output += `\n📋 **Últimos 5 registros (Para comparar):**\n`;
-                if (potentials) {
-                    potentials.forEach(p => {
-                        output += `- ${p.full_name}: \`${p.discord_id}\`\n`;
+                    await interaction.editReply({
+                        content: `🔔 Atención <@${targetUser.id}>`,
+                        embeds: [offerEmbed],
+                        components: [upgradeRow]
                     });
                 }
             }
 
-            // Check Profiles just in case
-            const { data: profile } = await supabase.from('profiles').select('*').eq('discord_id', userId).order('created_at', { ascending: false }).limit(1).maybeSingle();
-            if (profile) {
-                output += `\n✅ **Perfil Web Encontrado (profiles)**\nRole: ${profile.role}\n`;
-            } else {
-                output += `\n⚠️ **Sin Perfil Web (profiles)**\n`;
+            // Helper function to rename channel based on state
+            else if (subCmd === 'debug') {
+                // DEFER REMOVED BY AUDIT
+
+                const userId = interaction.user.id;
+                const userName = interaction.user.tag;
+                let output = `🔍 **Diagnóstico de Usuario**\n`;
+                output += `Discord ID: \`${userId}\`\n`;
+                output += `Usuario: ${userName}\n\n`;
+
+                // 1. Search in Citizens with loose matching
+                // Try explicit match
+                const { data: exactMatch, error: exactError } = await supabase.from('citizens').select('*').eq('discord_id', userId).order('created_at', { ascending: false }).limit(1).maybeSingle();
+
+                if (exactMatch) {
+                    output += `✅ **Ciudadano Encontrado (Match Exacto)**\n`;
+                    output += `ID: ${exactMatch.id}\nNombre: ${exactMatch.full_name}\nDNI: ${exactMatch.dni}\nDiscordID en DB: \`${exactMatch.discord_id}\`\n\n`;
+
+                    const { data: card } = await supabase.from('credit_cards').select('*').eq('citizen_id', exactMatch.id).order('created_at', { ascending: false }).limit(1).maybeSingle();
+                    if (card) {
+                        output += `✅ **Tarjeta Encontrada**\nTipo: ${card.card_type}\nEstado: ${card.status}\n`;
+                    } else {
+                        output += `⚠️ **Sin Tarjeta vinculada al ciudadano.**\n`;
+                    }
+
+                } else {
+                    output += `❌ **No se encontró coincidencia exacta en Citizens.**\n`;
+                    if (exactError) output += `Error DB: ${exactError.message}\n`;
+
+                    // Try fuzzy search or list recent to help Staff identify the correct record
+                    const { data: potentials } = await supabase.from('citizens').select('full_name, discord_id').limit(5).order('created_at', { ascending: false });
+                    output += `\n📋 **Últimos 5 registros (Para comparar):**\n`;
+                    if (potentials) {
+                        potentials.forEach(p => {
+                            output += `- ${p.full_name}: \`${p.discord_id}\`\n`;
+                        });
+                    }
+                }
+
+                // Check Profiles just in case
+                const { data: profile } = await supabase.from('profiles').select('*').eq('discord_id', userId).order('created_at', { ascending: false }).limit(1).maybeSingle();
+                if (profile) {
+                    output += `\n✅ **Perfil Web Encontrado (profiles)**\nRole: ${profile.role}\n`;
+                } else {
+                    output += `\n⚠️ **Sin Perfil Web (profiles)**\n`;
+                }
+
+                await interaction.editReply(output.substring(0, 1999));
             }
 
-            await interaction.editReply(output.substring(0, 1999));
+            // Helper function to rename channel based on state
+        } catch (error) {
+            console.error('[Legacy] Credito Error:', error);
+            await interaction.editReply('❌ Error al procesar crédito.').catch(() => { });
         }
-
-        // Helper function to rename channel based on state
     }
 
     else if (commandName === 'info') {
@@ -2816,41 +2820,41 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
     /* DISABLED - Using new /multar command instead
     else if (commandName === 'multa') {
         // DEFER REMOVED BY AUDIT
-    
+     
         // 1. Role Check (Role ID: 1456368296818380862)
         if (!interaction.member.roles.cache.has('1456368296818380862') && !interaction.member.permissions.has('Administrator')) {
             return interaction.editReply({ content: '⛔ Acceso Denegado: No tienes permiso para aplicar multas.' });
         }
-    
+     
         // Helper function to rename channel based on state
-    
+     
         const targetUser = interaction.options.getUser('usuario');
         const amount = interaction.options.getNumber('monto');
         const reason = interaction.options.getString('razon');
-    
+     
         // 2. Find Citizen
         let { data: citizen } = await supabase.from('citizens').select('id, full_name').eq('discord_id', targetUser.id).order('created_at', { ascending: false }).limit(1).maybeSingle();
-    
+     
         if (!citizen) {
             // Auto-register "John Doe" so we can fine him
             // Use targetUser.globalName or username as fallback
             const displayName = targetUser.globalName || targetUser.username;
             console.log(`Auto-registering ${displayName} for fine...`);
-    
+     
             const { data: newCit, error: createError } = await supabase.from('citizens').insert([{
                 discord_id: targetUser.id,
                 full_name: displayName,
                 dni: 'PENDING_MULTA',
                 credit_score: 50 // Penalty for not being registered? Or default 100.
             }]).select('id, full_name').single();
-    
+     
             if (createError || !newCit) return interaction.editReply(`❌ Error creando registro temporal: ${createError?.message}`);
-    
+     
             citizen = newCit; // Assign to continue logic
         }
-    
+     
         // Helper function to rename channel based on state
-    
+     
         // 3. Request Payment Method
         const paymentResult = await requestPaymentMethod(
             interaction,
@@ -2858,17 +2862,17 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             amount,
             `🚔 Multa: ${reason}`
         );
-    
+     
         let status = 'UNPAID';
         let paymentMethod = 'ninguno';
-    
+     
         if (paymentResult.success) {
             status = 'PAID';
             paymentMethod = paymentResult.method;
         }
-    
+     
         // Helper function to rename channel based on state
-    
+     
         // 4. Record Fine
         const { error: fineError } = await supabase.from('fines').insert([{
             citizen_id: citizen.id,
@@ -2877,9 +2881,9 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             reason: reason,
             status: status
         }]);
-    
+     
         const paymentMethodLabel = paymentMethod === 'cash' ? '💵 Efectivo' : paymentMethod === 'bank' ? '🏦 Banco/Débito' : paymentMethod === 'credit' ? '💳 Crédito' : '⏳ Pendiente';
-    
+     
         const embed = new EmbedBuilder()
             .setTitle('🚔 Multa Aplicada')
             .setColor(status === 'PAID' ? 0xFF0000 : 0xFFA500)
@@ -2892,7 +2896,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 { name: 'Oficial', value: interaction.user.tag, inline: true }
             )
             .setTimestamp();
-    
+     
         await interaction.editReply({ embeds: [embed], components: [] });
     }
     */
