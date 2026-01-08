@@ -40,13 +40,16 @@ async function safeDefer(interaction) {
             await interaction.deferReply();
             // PATCH: Prevent double defer
             interaction.deferReply = async () => { };
+            return true;
         }
+        return true; // Already deferred/replied is considered "safe"
     } catch (e) {
         if (e.code === 10062 || e.message === 'Unknown interaction') {
             // Silently ignore "Unknown interaction" (Race condition or Timeout)
-            return;
+            return false;
         }
         console.error(`[Wrapper] Defer Failed (${interaction.commandName || 'component'}):`, e);
+        return false;
     }
 }
 
@@ -105,7 +108,7 @@ async function startModerationBot() {
         }
 
         // GLOBAL SAFE DEFER
-        await safeDefer(interaction);
+        if (!await safeDefer(interaction)) return;
 
         const command = client.commands.get(interaction.commandName);
         if (command) {
@@ -201,7 +204,7 @@ async function startEconomyBot() {
         }
         // Handle Commands
         if (interaction.isChatInputCommand()) {
-            await safeDefer(interaction);
+            if (!await safeDefer(interaction)) return;
         }
 
         const command = interaction.isChatInputCommand() ? client.commands.get(interaction.commandName) : null;
@@ -272,7 +275,7 @@ async function startGovernmentBot() {
         if (!interaction.isChatInputCommand()) return;
 
         // GLOBAL SAFE DEFER
-        await safeDefer(interaction);
+        if (!await safeDefer(interaction)) return;
 
         const command = client.commands.get(interaction.commandName);
         if (command) {

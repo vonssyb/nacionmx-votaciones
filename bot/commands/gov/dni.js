@@ -94,6 +94,10 @@ module.exports = {
                 });
 
             if (error) {
+                if (error.code === '23505') {
+                    // Unique constraint violation (Race condition caught)
+                    return interaction.editReply(`❌ ${targetUser.tag} ya tiene un DNI registrado. Usa \`/dni editar\` para modificarlo.`);
+                }
                 console.error('[dni] Error creating DNI:', error);
                 return interaction.editReply('❌ Error al crear el DNI.');
             }

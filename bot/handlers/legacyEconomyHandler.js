@@ -6,6 +6,7 @@ require('dotenv').config();
 
 // IMPORT NEW SERVICES (Refactored)
 const { BENEFIT_ROLES, CARD_TIERS, applyRoleBenefits, getDebitCard } = require('../services/EconomyHelper');
+const { getAvailablePaymentMethods, processPayment } = require('../utils/economyUtils');
 // Note: CasinoService and StockService are accessed via client.services.casino / client.services.stocks
 
 // CONFIGURACIÓN CENTRALIZADA
@@ -559,8 +560,8 @@ const handleEconomyLegacy = async (interaction, client, supabase) => {
 
         if (amount <= 0) return interaction.followUp({ content: '❌ No se pudo determinar el monto.', flags: [64] });
 
-        const pm = await getAvailablePaymentMethods(userId, interaction.guildId);
-        const result = await processPayment(method, userId, interaction.guildId, amount, 'Compra de fichas casino', pm);
+        const pm = await getAvailablePaymentMethods(supabase, userId, interaction.guildId);
+        const result = await processPayment(client.services.billing, supabase, method, userId, interaction.guildId, amount, 'Compra de fichas casino', pm);
 
         if (!result.success) {
             return interaction.followUp({ content: result.error, flags: [64] });
@@ -1287,7 +1288,7 @@ const handleEconomyLegacy = async (interaction, client, supabase) => {
         const name = VEHICLE_NAMES[vehicleType];
 
         try {
-            const pmVehicle = await getAvailablePaymentMethods(interaction.user.id, interaction.guildId);
+            const pmVehicle = await getAvailablePaymentMethods(supabase, interaction.user.id, interaction.guildId);
             const pbVehicle = createPaymentButtons(pmVehicle, 'vehicle_pay');
             const vehicleEmbed = createPaymentEmbed(name, cost, pmVehicle);
 
@@ -1305,7 +1306,7 @@ const handleEconomyLegacy = async (interaction, client, supabase) => {
                     await i.deferUpdate();
                     const method = i.customId.replace('vehicle_pay_', '');
 
-                    const paymentResult = await processPayment(method, interaction.user.id, interaction.guildId, cost, `[Vehículo] ${name}`, pmVehicle);
+                    const paymentResult = await processPayment(client.services.billing, supabase, method, interaction.user.id, interaction.guildId, cost, `[Vehículo] ${name}`, pmVehicle);
 
                     if (!paymentResult.success) {
                         return i.editReply({ content: paymentResult.error, embeds: [], components: [] });
@@ -2291,7 +2292,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
 
                         // 3. Take Money from UnbelievaBoat
                         // Show payment selector  
-                        const pmCred = await getAvailablePaymentMethods(interaction.user.id, interaction.guildId);
+                        const pmCred = await getAvailablePaymentMethods(supabase, interaction.user.id, interaction.guildId);
                         const pbCred = createPaymentButtons(pmCred, 'cred_pay');
                         const paymentEmbed = createPaymentEmbed(`💳 Pago de Crédito: ${userCard.card_type}`, amount, pmCred);
                         await interaction.editReply({ embeds: [paymentEmbed], components: [pbCred] });
@@ -2299,7 +2300,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                         const cCred = interaction.channel.createMessageComponentCollector({ filter: fCred, time: 60000, max: 1 });
                         cCred.on('collect', async (i) => {
                             try { await i.deferUpdate(); } catch (err) { return; }
-                            const prCred = await processPayment(i.customId.replace('cred_pay_', ''), interaction.user.id, interaction.guildId, amount, `Pago Tarjeta ${userCard.card_type}`, pmCred);
+                            const prCred = await processPayment(client.services.billing, supabase, i.customId.replace('cred_pay_', ''), interaction.user.id, interaction.guildId, amount, `Pago Tarjeta ${userCard.card_type}`, pmCred);
                             if (!prCred.success) return i.editReply({ content: prCred.error, components: [] });
 
                             const newDebt = userCard.current_balance - amount;
@@ -3141,7 +3142,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 }
 
                 // Show rich payment selector
-                const pmEmpresa = await getAvailablePaymentMethods(dueño.id, interaction.guildId);
+                const pmEmpresa = await getAvailablePaymentMethods(supabase, dueño.id, interaction.guildId);
                 const pbEmpresa = createPaymentButtons(pmEmpresa, 'emp_pay');
                 const empresaEmbed = createPaymentEmbed(
                     `🏢 ${nombre}` + (appliedRole ? ` (⭐ Descuento ${appliedRole} 30%)` : ''),
@@ -3847,7 +3848,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
 
             // Remove Money
             // Show payment selector
-            const pmInv = await getAvailablePaymentMethods(interaction.user.id, interaction.guildId);
+            const pmInv = await getAvailablePaymentMethods(supabase, interaction.user.id, interaction.guildId);
             const pbInv = createPaymentButtons(pmInv, 'inv_pay');
             const paymentEmbed = createPaymentEmbed(`📈 Inversión a Plazo (${days} días, ${rate}% interés)`, amount, pmInv);
             await interaction.editReply({ embeds: [paymentEmbed], components: [pbInv] });
@@ -3855,7 +3856,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             const cInv = interaction.channel.createMessageComponentCollector({ filter: fInv, time: 60000, max: 1 });
             cInv.on('collect', async (i) => {
                 try { await i.deferUpdate(); } catch (err) { console.error('[inv] defer:', err.message); return; }
-                const prInv = await processPayment(i.customId.replace('inv_pay_', ''), interaction.user.id, interaction.guildId, amount, 'Inversión Plazo Fijo', pmInv);
+                const prInv = await processPayment(client.services.billing, supabase, i.customId.replace('inv_pay_', ''), interaction.user.id, interaction.guildId, amount, 'Inversión Plazo Fijo', pmInv);
                 if (!prInv.success) return i.editReply({ content: prInv.error, components: [] });
 
                 // Calculate Dates and Profit
@@ -4024,7 +4025,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
 
             // Deduct from Owner
             // Show payment selector
-            const pmNom = await getAvailablePaymentMethods(interaction.user.id, interaction.guildId);
+            const pmNom = await getAvailablePaymentMethods(supabase, interaction.user.id, interaction.guildId);
             const pbNom = createPaymentButtons(pmNom, 'nom_pay');
             const paymentEmbed = createPaymentEmbed(`💼 Nómina${groupName ? ': ' + groupName : ''} (${members.length} empleados)`, total, pmNom);
             await interaction.editReply({ embeds: [paymentEmbed], components: [pbNom] });
@@ -4032,7 +4033,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             const cNom = interaction.channel.createMessageComponentCollector({ filter: fNom, time: 60000, max: 1 });
             cNom.on('collect', async (i) => {
                 try { await i.deferUpdate(); } catch (err) { return; }
-                const prNom = await processPayment(i.customId.replace('nom_pay_', ''), interaction.user.id, interaction.guildId, total, `Pago Nómina${groupName ? ': ' + groupName : ''}`, pmNom);
+                const prNom = await processPayment(client.services.billing, supabase, i.customId.replace('nom_pay_', ''), interaction.user.id, interaction.guildId, total, `Pago Nómina${groupName ? ': ' + groupName : ''}`, pmNom);
                 if (!prNom.success) return i.editReply({ content: prNom.error, components: [] });
 
                 let report = `💰 **Nómina Pagada** (${prNom.method})\nTotal: $${total.toLocaleString()}\n\n`;
@@ -4974,7 +4975,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 }
 
                 // Show payment selector
-                const pmLicense = await getAvailablePaymentMethods(targetUser.id, interaction.guildId);
+                const pmLicense = await getAvailablePaymentMethods(supabase, targetUser.id, interaction.guildId);
                 const pbLicense = createPaymentButtons(pmLicense, 'license_pay');
                 const licenseEmbed = createPaymentEmbed(
                     license.name + (appliedRole ? ` (⭐ Descuento ${appliedRole} 15%)` : ''),
@@ -5006,7 +5007,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                         const method = i.customId.replace('license_pay_', '');
 
                         // Process payment with discounted price
-                        const paymentResult = await processPayment(
+                        const paymentResult = await processPayment(client.services.billing, supabase, 
                             method,
                             targetUser.id,
                             interaction.guildId,
@@ -5217,7 +5218,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                     return interaction.editReply(`⚠️ Ya tienes este item activo.${expiryDate}`);
                 }
 
-                const pmStore = await getAvailablePaymentMethods(userId, interaction.guildId);
+                const pmStore = await getAvailablePaymentMethods(supabase, userId, interaction.guildId);
                 const pbStore = createPaymentButtons(pmStore, 'store_pay');
                 const storeEmbed = createPaymentEmbed(`${item.icon_emoji} ${item.name}`, item.price, pmStore);
 
@@ -5231,7 +5232,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                         await i.deferUpdate();
                         const method = i.customId.replace('store_pay_', '');
 
-                        const paymentResult = await processPayment(method, userId, interaction.guildId, item.price, `[Tienda] ${item.name}`, pmStore);
+                        const paymentResult = await processPayment(client.services.billing, supabase, method, userId, interaction.guildId, item.price, `[Tienda] ${item.name}`, pmStore);
 
                         if (!paymentResult.success) {
                             return i.editReply({ content: paymentResult.error, embeds: [], components: [] });
@@ -6067,7 +6068,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
 
             try {
                 // Get available payment methods
-                const availableMethods = await getAvailablePaymentMethods(interaction.user.id, interaction.guildId);
+                const availableMethods = await getAvailablePaymentMethods(supabase, interaction.user.id, interaction.guildId);
                 const paymentButtons = createPaymentButtons(availableMethods, 'stock_buy');
 
                 // Create purchase embed
@@ -6109,7 +6110,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                         const costWithFee = Math.floor(totalCost * (1 + fees));
 
                         // Process payment
-                        const paymentResult = await processPayment(
+                        const paymentResult = await processPayment(client.services.billing, supabase, 
                             method,
                             interaction.user.id,
                             interaction.guildId,
@@ -6949,7 +6950,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
 
             const giroSenderName = senderGiroPrivacy?.offshore_name || (senderGiroPrivacy ? '🕶️ Anónimo' : interaction.user.tag);
 
-            const pmGiro = await getAvailablePaymentMethods(interaction.user.id, interaction.guildId);
+            const pmGiro = await getAvailablePaymentMethods(supabase, interaction.user.id, interaction.guildId);
             const pbGiro = createPaymentButtons(pmGiro, 'giro_pay');
             const paymentEmbed = createPaymentEmbed(`📮 Giro a ${destUser.tag} (Entrega 24h)`, monto, pmGiro);
             paymentEmbed.addFields({ name: '👤 Remitente', value: giroSenderName, inline: true });
@@ -6958,7 +6959,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             const cGiro = interaction.channel.createMessageComponentCollector({ filter: fGiro, time: 60000, max: 1 });
             cGiro.on('collect', async (i) => {
                 await i.deferUpdate();
-                const prGiro = await processPayment(i.customId.replace('giro_pay_', ''), interaction.user.id, interaction.guildId, monto, `[Giro] ${destUser.tag}`, pmGiro);
+                const prGiro = await processPayment(client.services.billing, supabase, i.customId.replace('giro_pay_', ''), interaction.user.id, interaction.guildId, monto, `[Giro] ${destUser.tag}`, pmGiro);
                 if (!prGiro.success) return i.editReply({ content: prGiro.error, components: [] });
                 await i.editReply({ content: `✅ **Giro Enviado** (${prGiro.method})\n\nDestinatario: **${destUser.tag}**\nMonto: **$${monto.toLocaleString()}**\nEntrega: 24 horas`, components: [] });
             });
