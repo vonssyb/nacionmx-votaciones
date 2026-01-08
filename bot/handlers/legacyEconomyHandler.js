@@ -8345,4 +8345,4 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
     }
 }; // End of handler function
 
-module.exports = { handleEconomyLegacy, startLegacyBackgroundTasks };
+module.exports = { handleEconomyLegacy };
