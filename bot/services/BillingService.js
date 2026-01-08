@@ -13,7 +13,7 @@ if (!UB_TOKEN) {
 }
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
-const ubService = new UnbelievableBoatService(UB_TOKEN);
+const ubService = new UnbelievableBoatService(UB_TOKEN, supabase);
 
 class BillingService {
     constructor(client) {

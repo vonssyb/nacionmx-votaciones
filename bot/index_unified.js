@@ -51,12 +51,16 @@ async function startModerationBot() {
     const SanctionService = require('./services/SanctionService');
     const BillingService = require('./services/BillingService');
     const DailyMissionManager = require('./services/DailyMissionManager');
+    const CasinoService = require('./services/CasinoService');
+    const StockService = require('./services/StockService');
 
     const sanctionService = new SanctionService(supabase);
     client.missionManager = new DailyMissionManager(supabase);
     client.services = {
         sanctions: sanctionService,
-        billing: new BillingService(client, supabase)
+        billing: new BillingService(client, supabase),
+        casino: new CasinoService(supabase),
+        stocks: new StockService(supabase)
     };
 
     // Load Commands
@@ -70,7 +74,17 @@ async function startModerationBot() {
 
     // Interaction Handler
     client.on('interactionCreate', async interaction => {
-        if (!interaction.isChatInputCommand()) return;
+        if (!interaction.isChatInputCommand()) {
+            try {
+                // FALLBACK TO LEGACY (Handles Buttons, Modals, Menus)
+                const { handleModerationLegacy } = require('./handlers/legacyModerationHandler');
+                const supabase = require('@supabase/supabase-js').createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY);
+                await handleModerationLegacy(interaction, client, supabase);
+            } catch (e) {
+                console.error('[MOD] Legacy Handler Error:', e);
+            }
+            return;
+        }
 
         // GLOBAL DEFER - Fixes InteractionNotReplied errors
         // GLOBAL DEFER - Fixes InteractionNotReplied errors
@@ -79,7 +93,7 @@ async function startModerationBot() {
             interaction.deferReply = async () => { }; // PATCH: Prevent double defer
         } catch (e) {
             console.error('[MOD] Failed to defer:', e);
-            return; // Can't proceed
+            // return; // Allow execution even if defer fails
         }
 
         const command = client.commands.get(interaction.commandName);
@@ -134,6 +148,13 @@ async function startEconomyBot() {
     let billingService;
     try { billingService = new BillingService(client, supabase); } catch (e) { console.error('Eco Billing Error:', e); }
 
+    // Services
+    const CasinoService = require('./services/CasinoService');
+    const StockService = require('./services/StockService');
+
+    const casinoService = new CasinoService(supabase);
+    const stockService = new StockService(supabase);
+
     client.services = {
         billing: billingService,
         tax: new TaxService(supabase),
@@ -143,7 +164,9 @@ async function startEconomyBot() {
         levels: levelService,
         achievements: achievementService,
         missions: missionService,
-        store: storeService
+        store: storeService,
+        casino: casinoService,
+        stocks: stockService
     };
 
     // Load Commands
@@ -166,31 +189,29 @@ async function startEconomyBot() {
             return;
         }
         // Handle Commands
-        if (!interaction.isChatInputCommand()) return;
-
-        // GLOBAL DEFER & SAFETY PATCH
-        try {
-            await interaction.deferReply();
-
-            // MONKEY PATCH: Prevent commands from double-deferring
-            const originalDefer = interaction.deferReply;
-            interaction.deferReply = async () => { /* No-op: Already deferred */ };
-
-        } catch (e) {
-            console.error('[ECO] Defer Failed:', e);
-            return;
+        if (interaction.isChatInputCommand()) {
+            // GLOBAL DEFER & SAFETY PATCH for Commands
+            try {
+                await interaction.deferReply();
+                const originalDefer = interaction.deferReply;
+                interaction.deferReply = async () => { /* No-op */ };
+            } catch (e) {
+                console.error('[ECO] Defer Failed Command:', e);
+                // return; // Allow command to try executing
+            }
         }
 
-        const command = client.commands.get(interaction.commandName);
+        const command = interaction.isChatInputCommand() ? client.commands.get(interaction.commandName) : null;
         if (command) {
             try { await command.execute(interaction, client, supabase); } catch (e) {
                 console.error('[ECO] Command Error:', e);
                 await interaction.editReply('❌ Error ejecutando comando.').catch(() => { });
             }
         } else if (client.legacyHandler) {
+            // FALLBACK TO LEGACY (Handles Buttons, Modals, Menus not caught above)
             try { await client.legacyHandler(interaction, client, supabase); } catch (e) {
                 console.error('[ECO] Legacy Error:', e);
-                await interaction.editReply('❌ Error en comando legacy.').catch(() => { });
+                // Don't reply here as legacy handler might have handled it or it's an unrelated interaction
             }
         }
     });
@@ -251,7 +272,10 @@ async function startGovernmentBot() {
         try {
             await interaction.deferReply();
             interaction.deferReply = async () => { }; // PATCH
-        } catch (e) { return; }
+        } catch (e) {
+            console.error('[GOV] Defer Failed:', e);
+            // Continue execution even if defer fails
+        }
 
         const command = client.commands.get(interaction.commandName);
         if (command) {

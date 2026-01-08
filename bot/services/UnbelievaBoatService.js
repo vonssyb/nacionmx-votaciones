@@ -3,8 +3,9 @@ const CacheService = require('./CacheService');
 const logger = require('./Logger');
 
 class UnbelievableBoatService {
-    constructor(token) {
+    constructor(token, supabase) {
         this.token = token;
+        this.supabase = supabase; // Inject Supabase client
         this.baseUrl = 'https://unbelievaboat.com/api/v1';
         this.client = axios.create({
             baseURL: this.baseUrl,
@@ -56,6 +57,26 @@ class UnbelievableBoatService {
     }
 
     /**
+     * Log transaction to Supabase
+     */
+    async logTransaction(guildId, userId, amount, type, reason, balanceAfter, currency) {
+        if (!this.supabase) return;
+        try {
+            await this.supabase.from('money_history').insert({
+                guild_id: guildId,
+                user_id: userId,
+                amount: amount,
+                transaction_type: type, // 'salary', 'payment', 'transfer', etc. inferred? Or passed?
+                description: reason,
+                balance_after: balanceAfter,
+                currency: currency
+            });
+        } catch (error) {
+            logger.errorWithContext('Failed to log transaction to Supabase', error, { guildId, userId, amount, reason });
+        }
+    }
+
+    /**
      * Get user balance
      * @param {string} guildId 
      * @param {string} userId 
@@ -89,11 +110,6 @@ class UnbelievableBoatService {
 
     /**
      * Modify user balance (remove money)
-     * To remove money, use negative amount with 'update'? No, standard is usually Patch with 'cash' operation.
-     * API Docs say: PATCH /guilds/{guild_id}/users/{user_id}
-     * Body: { cash: number, bank: number, reason: string }
-     * The number is the amount to SET or ADD? Default is usually relative or absolute depending on flags.
-     * Let's check typical behavior: Usually 'cash' adds if positive, removes if negative.
      */
     async removeMoney(guildId, userId, amount, reason = "Cobro Banco NMX", type = 'bank') {
         const result = await this.retryWithBackoff(async () => {
@@ -105,7 +121,13 @@ class UnbelievableBoatService {
                     payload.bank = -Math.abs(amount);
                 }
                 const response = await this.client.patch(`/guilds/${guildId}/users/${userId}`, payload);
-                return { success: true, newBalance: response.data };
+                const newData = response.data;
+
+                // Log Transaction
+                const newBalance = type === 'cash' ? newData.cash : newData.bank;
+                this.logTransaction(guildId, userId, -Math.abs(amount), 'remove_money', reason, newBalance, type);
+
+                return { success: true, newBalance: newData };
             } catch (error) {
                 logger.errorWithContext('Failed to remove money from user', error, { guildId, userId, amount, type });
                 throw new Error(error.response?.data?.message || error.message);
@@ -130,7 +152,13 @@ class UnbelievableBoatService {
                     payload.bank = Math.abs(amount);
                 }
                 const response = await this.client.patch(`/guilds/${guildId}/users/${userId}`, payload);
-                return { success: true, newBalance: response.data };
+                const newData = response.data;
+
+                // Log Transaction
+                const newBalance = type === 'cash' ? newData.cash : newData.bank;
+                this.logTransaction(guildId, userId, Math.abs(amount), 'add_money', reason, newBalance, type);
+
+                return { success: true, newBalance: newData };
             } catch (error) {
                 logger.errorWithContext('Failed to add money to user', error, { guildId, userId, amount, type });
                 throw new Error(error.response?.data?.message || error.message);

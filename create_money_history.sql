@@ -12,3 +12,22 @@ CREATE TABLE IF NOT EXISTS public.money_history (
 
 -- Index for faster queries by user
 CREATE INDEX IF NOT EXISTS idx_money_history_user_id ON public.money_history(user_id);
+
+-- Enable Row Level Security
+ALTER TABLE public.money_history ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policy: Users can only view their own history
+CREATE POLICY "Users can view their own money history"
+ON public.money_history
+FOR SELECT
+USING ( auth.uid()::text = user_id OR user_id = current_setting('request.jwt.claim.sub', true) );
+
+-- RLS Policy: Service Role (Bot) can do everything
+CREATE POLICY "Service Role can manage all history"
+ON public.money_history
+USING ( true )
+WITH CHECK ( true );
+
+-- Enable Realtime for this table
+ALTER PUBLICATION supabase_realtime ADD TABLE public.money_history;
+

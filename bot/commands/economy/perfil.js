@@ -473,7 +473,11 @@ module.exports = {
                     : `Información solicitada por ${interaction.user.tag}`
             });
 
-            await interaction.editReply({ embeds: [embed] });
+            if (interaction.replied || interaction.deferred) {
+                await interaction.editReply({ embeds: [embed] });
+            } else {
+                await interaction.reply({ embeds: [embed] });
+            }
 
         } catch (error) {
             console.error('[perfil] Critical Error:', error);

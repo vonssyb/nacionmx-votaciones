@@ -11,6 +11,7 @@ module.exports = {
                 .setRequired(true)),
 
     async execute(interaction, client, supabase) {
+        console.log('[VERIFICAR] Executing command...');
         // await interaction.deferReply({});
 
         const robloxUsername = interaction.options.getString('usuario');
