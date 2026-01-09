@@ -5705,448 +5705,207 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             .setTimestamp();
 
         // ... (Visuals same as Trabajar but darker) ...
-        if (crime.type === 'wires') {
-            embed.addFields({ name: '💣 DESACTIVACIÓN', value: `\`\`\`\n🔴 ROJO\n🟢 VERDE\n🔵 AZUL\n🟡 AMARILLO\n⚫ NEGRO\n\`\`\`\n⚠️ ¡Corta el cable ${crime.wire}!` });
-            const row = new ActionRowBuilder();
-            crime.opts.forEach(opt => row.addComponents(new ButtonBuilder().setCustomId(`crime_${opt}`).setLabel(opt).setStyle(ButtonStyle.Danger)));
-            await interaction.editReply({ embeds: [embed], components: [row] });
-        } else if (crime.type === 'memory') {
-            embed.addFields({ name: '🔐 CÓDIGO DE SEGURIDAD', value: `\`\`\`\n${crime.code}\n\`\`\`` });
+        if (crime.type === 'memory') {
+            embed.addFields({ name: '🔐 MEMORIZA EL PLAN:', value: `\`\`\`\n${crime.code}\n\`\`\`` });
             await interaction.editReply({ embeds: [embed] });
-            // Countdown ...
-            await new Promise(r => setTimeout(r, 3000));
-            embed.setDescription('¿Cuál era el código?');
+
+            for (let i = 3; i > 0; i--) {
+                await new Promise(r => setTimeout(r, 1000));
+                embed.setFooter({ text: `⏰ Destruyendo evidencia en ${i}...` });
+                await interaction.editReply({ embeds: [embed] });
+            }
+
+            embed.setDescription(`🕵️ ¿Cuál era el plan?`);
             embed.spliceFields(0, 1);
+
             const row = new ActionRowBuilder();
-            crime.opts.forEach(opt => row.addComponents(new ButtonBuilder().setCustomId(`crime_${opt}`).setLabel(opt).setStyle(ButtonStyle.Secondary)));
+            crime.opts.forEach(opt =>
+                row.addComponents(new ButtonBuilder()
+                    .setCustomId(`crime_${opt}`)
+                    .setLabel(opt)
+                    .setStyle(ButtonStyle.Danger))
+            );
             await interaction.editReply({ embeds: [embed], components: [row] });
-        }
-        // ... (Other types mapped similarly) ...
-        else {
-            // Fallback generic for brevity in this replacement
+
+        } else if (crime.type === 'wires') {
+            embed.addFields({
+                name: '💣 BOMBA NUCLEAR',
+                value: `\`\`\`\n╔═══════════╗\n║  ☢️ PELIGRO ☢️  ║\n║  🔴 🟢 🔵  ║\n║  10:00:00  ║\n╚═══════════╝\n\`\`\`\n⚠️ ¡CORTA EL CABLE ${crime.wire}!`
+            });
+
             const row = new ActionRowBuilder();
-            if (crime.opts) crime.opts.forEach(opt => row.addComponents(new ButtonBuilder().setCustomId(`crime_${opt}`).setLabel(opt).setStyle(ButtonStyle.Danger)));
+            crime.opts.forEach(opt =>
+                row.addComponents(new ButtonBuilder()
+                    .setCustomId(`crime_${opt}`)
+                    .setLabel(opt)
+                    .setStyle(ButtonStyle.Danger))
+            );
             await interaction.editReply({ embeds: [embed], components: [row] });
-        }
 
-        // Collector
-        const filter = i => i.user.id === interaction.user.id && i.customId.startsWith('crime_');
-        const collector = interaction.channel.createMessageComponentCollector({ filter, time: 15000, max: 1 });
+        } else if (crime.type === 'nav') {
+            embed.addFields({
+                name: '🚔 PERSECUCIÓN',
+                value: `\`\`\`\n  🚗💨\n━━━┃━━━\n🚓 ↑ 🚧\n━━━━━━━\n\`\`\`\n⚡ Gira a la ${crime.dir} ¡YA!`
+            });
 
-        collector.on('collect', async i => {
-            await i.deferUpdate();
-            const selected = i.customId.replace('crime_', '');
-            let win = false;
+            const row = new ActionRowBuilder();
+            crime.opts.forEach(opt =>
+                row.addComponents(new ButtonBuilder()
+                    .setCustomId(`crime_${opt}`)
+                    .setLabel(opt)
+                    .setStyle(ButtonStyle.Danger))
+            );
+            await interaction.editReply({ embeds: [embed], components: [row] });
 
-            if (crime.type === 'wires') win = selected.includes(crime.wire);
-            else if (crime.type === 'memory') win = selected === crime.code;
-            else if (crime.type === 'luck') win = Math.random() > (1 - crime.luck); // luck is chance to fail? No, luck 0.20 means low chance? 
-            // Original code had: luck: 0.20. Let's assume 20% success? Or 20% fail? 
-            // Usually luck means Success Rate. Let's say win = Math.random() < crime.luck.
-            else win = Math.random() > 0.5; // Default
+        } else if (crime.type === 'luck') {
+            embed.addFields({
+                name: '🏰 JARDÍN MINADO',
+                value: `\`\`\`\n🏰 MANSIÓN 🏰\n[A] [B] [C] [D] [E]\n 💀  ?  💀  ?  💀\n\`\`\`\n⚠️ Probabilidad de éxito: 25%`
+            });
 
-            if (win) {
-                const loot = Math.floor(Math.random() * (crime.pay[1] - crime.pay[0] + 1)) + crime.pay[0];
-                await billingService.ubService.addMoney(interaction.guildId, interaction.user.id, loot, `Crimen: ${crime.title}`, 'cash');
-                casinoSessions[crimeKey] = Date.now();
-                await i.editReply({ content: `💰 **¡Éxito!** Escapaste con **$${loot.toLocaleString()}**.`, embeds: [], components: [] });
-            } else {
-                const fine = Math.floor(Math.random() * (crime.fine[1] - crime.fine[0] + 1)) + crime.fine[0];
-                await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, fine, `Multa Crimen: ${crime.title}`, 'cash');
-                casinoSessions[crimeKey] = Date.now();
-                await i.editReply({ content: `🚨 **¡Atrapado!** Pagaste una fianza de **$${fine.toLocaleString()}**.`, embeds: [], components: [] });
-            }
-        });
+            const row = new ActionRowBuilder();
+            crime.opts.forEach(opt =>
+                row.addComponents(new ButtonBuilder()
+                    .setCustomId(`crime_${opt}`)
+                    .setLabel(opt)
+                    .setStyle(ButtonStyle.Danger))
+            );
+            await interaction.editReply({ embeds: [embed], components: [row] });
 
-        collector.on('end', collected => {
-            if (collected.size === 0) interaction.editReply({ content: '👮 **Te atrapó la policía por lento.**', embeds: [], components: [] }).catch(() => { });
-        });
-
-    } else if (commandName === 'tienda') {
-        // ... (Keep existing tienda logic, verifying we fix errors by logging them) ...
-        // ... (Actually, the store error was in button handling not command handling) ...
-        // Just ensure we don't break it. 
-        // Since I am replacing a huge block, I need to be careful. 
-        // The tienda logic is separate. The ERROR reported was "❌ Error procesando la compra."
-        // This is inside the collector for 'store_pay_' buttons (lines 5230+ in original).
-
-        // I will look at 'store_buy' logic in the NEXT tool call or if I can reach it here.
-        // Ah, this replacement block is strictly `robar`, `trabajar`, `crimen`.
-        // `tienda` was further separate.
-    }
-    // Similar structure to trabajar but with crime visuals
-    if (crime.type === 'memory') {
-        embed.addFields({ name: '🔐 MEMORIZA EL PLAN:', value: `\`\`\`\n${crime.code}\n\`\`\`` });
-        await interaction.editReply({ embeds: [embed] });
-
-        for (let i = 3; i > 0; i--) {
-            await new Promise(r => setTimeout(r, 1000));
-            embed.setFooter({ text: `⏰ Destruyendo evidencia en ${i}...` });
+        } else if (crime.type === 'typing') {
+            embed.addFields({
+                name: '🖥️ TERMINAL BANCARIA',
+                value: `\`\`\`bash\n🏦 BANCO CENTRAL\n> ACCESO DENEGADO\n> BYPASS...\n$ ${crime.cmd}\n\`\`\`\n⌨️ Ejecuta el comando`
+            });
             await interaction.editReply({ embeds: [embed] });
         }
 
-        embed.setDescription(`🕵️ ¿Cuál era el plan?`);
-        embed.spliceFields(0, 1);
+        // Helper function to rename channel based on state
 
-        const row = new ActionRowBuilder();
-        crime.opts.forEach(opt =>
-            row.addComponents(new ButtonBuilder()
-                .setCustomId(`crime_${opt}`)
-                .setLabel(opt)
-                .setStyle(ButtonStyle.Danger))
-        );
-        await interaction.editReply({ embeds: [embed], components: [row] });
+        // Collector (same logic but with crime penalties)
+        if (crime.type === 'typing') {
+            const filter = m => m.author.id === interaction.user.id;
+            try {
+                const collected = await interaction.channel.awaitMessages({ filter, max: 1, time: 20000, errors: ['time'] });
+                const m = collected.first();
 
-    } else if (crime.type === 'wires') {
-        embed.addFields({
-            name: '💣 BOMBA NUCLEAR',
-            value: `\`\`\`\n╔═══════════╗\n║  ☢️ PELIGRO ☢️  ║\n║  🔴 🟢 🔵  ║\n║  10:00:00  ║\n╚═══════════╝\n\`\`\`\n⚠️ ¡CORTA EL CABLE ${crime.wire}!`
-        });
+                if (m.content.trim() === crime.cmd) {
+                    const pay = Math.floor(Math.random() * (crime.pay[1] - crime.pay[0] + 1)) + crime.pay[0];
+                    // Correct UB Service usage if needed, or stick to provided pattern
+                    const ubService = new UnbelievaBoatService(process.env.UNBELIEVABOAT_TOKEN);
+                    await ubService.addMoney(interaction.guildId, interaction.user.id, pay, 0);
+                    casinoSessions[crimeKey] = Date.now();
 
-        const row = new ActionRowBuilder();
-        crime.opts.forEach(opt =>
-            row.addComponents(new ButtonBuilder()
-                .setCustomId(`crime_${opt}`)
-                .setLabel(opt)
-                .setStyle(ButtonStyle.Danger))
-        );
-        await interaction.editReply({ embeds: [embed], components: [row] });
+                    const successEmbed = new EmbedBuilder()
+                        .setTitle('💸 ¡ÉXITO CRIMINAL!')
+                        .setColor(0x00FF00)
+                        .setDescription(`Completaste: **${crime.title}**`)
+                        .addFields({ name: '💰 Botín', value: `$${pay.toLocaleString()}`, inline: true })
+                        .setFooter({ text: 'Aléjate de la escena del crimen' });
 
-    } else if (crime.type === 'nav') {
-        embed.addFields({
-            name: '🚔 PERSECUCIÓN',
-            value: `\`\`\`\n  🚗💨\n━━━┃━━━\n🚓 ↑ 🚧\n━━━━━━━\n\`\`\`\n⚡ Gira a la ${crime.dir} ¡YA!`
-        });
-
-        const row = new ActionRowBuilder();
-        crime.opts.forEach(opt =>
-            row.addComponents(new ButtonBuilder()
-                .setCustomId(`crime_${opt}`)
-                .setLabel(opt)
-                .setStyle(ButtonStyle.Danger))
-        );
-        await interaction.editReply({ embeds: [embed], components: [row] });
-
-    } else if (crime.type === 'luck') {
-        embed.addFields({
-            name: '🏰 JARDÍN MINADO',
-            value: `\`\`\`\n🏰 MANSIÓN 🏰\n[A] [B] [C] [D] [E]\n 💀  ?  💀  ?  💀\n\`\`\`\n⚠️ Probabilidad de éxito: 25%`
-        });
-
-        const row = new ActionRowBuilder();
-        crime.opts.forEach(opt =>
-            row.addComponents(new ButtonBuilder()
-                .setCustomId(`crime_${opt}`)
-                .setLabel(opt)
-                .setStyle(ButtonStyle.Danger))
-        );
-        await interaction.editReply({ embeds: [embed], components: [row] });
-
-    } else if (crime.type === 'typing') {
-        embed.addFields({
-            name: '🖥️ TERMINAL BANCARIA',
-            value: `\`\`\`bash\n🏦 BANCO CENTRAL\n> ACCESO DENEGADO\n> BYPASS...\n$ ${crime.cmd}\n\`\`\`\n⌨️ Ejecuta el comando`
-        });
-        await interaction.editReply({ embeds: [embed] });
-    }
-
-    // Helper function to rename channel based on state
-
-    // Collector (same logic but with crime penalties)
-    if (crime.type === 'typing') {
-        const filter = m => m.author.id === interaction.user.id;
-        try {
-            const collected = await interaction.channel.awaitMessages({ filter, max: 1, time: 20000, errors: ['time'] });
-            const m = collected.first();
-
-            if (m.content.trim() === crime.cmd) {
-                const pay = Math.floor(Math.random() * (crime.pay[1] - crime.pay[0] + 1)) + crime.pay[0];
-                // Correct UB Service usage if needed, or stick to provided pattern
-                const ubService = new UnbelievaBoatService(process.env.UNBELIEVABOAT_TOKEN);
-                await ubService.addMoney(interaction.guildId, interaction.user.id, pay, 0);
-                casinoSessions[crimeKey] = Date.now();
-
-                const successEmbed = new EmbedBuilder()
-                    .setTitle('💸 ¡ÉXITO CRIMINAL!')
-                    .setColor(0x00FF00)
-                    .setDescription(`Completaste: **${crime.title}**`)
-                    .addFields({ name: '💰 Botín', value: `$${pay.toLocaleString()}`, inline: true })
-                    .setFooter({ text: 'Aléjate de la escena del crimen' });
-
-                await m.react('😈');
-                await interaction.followUp({ embeds: [successEmbed] });
-            } else {
-                const fine = Math.floor(Math.random() * (crime.fine[1] - crime.fine[0] + 1)) + crime.fine[0];
-                const ubService = new UnbelievaBoatService(process.env.UNBELIEVABOAT_TOKEN);
-                await ubService.removeMoney(interaction.guildId, interaction.user.id, fine, 0);
-                casinoSessions[crimeKey] = Date.now();
-                await m.react('🚔');
-                await interaction.followUp(`🚨 **ARRESTADO**. Fallaste. Multa: **$${fine.toLocaleString()}**`);
+                    await m.react('😈');
+                    await interaction.followUp({ embeds: [successEmbed] });
+                } else {
+                    const fine = Math.floor(Math.random() * (crime.fine[1] - crime.fine[0] + 1)) + crime.fine[0];
+                    const ubService = new UnbelievaBoatService(process.env.UNBELIEVABOAT_TOKEN);
+                    await ubService.removeMoney(interaction.guildId, interaction.user.id, fine, 0);
+                    casinoSessions[crimeKey] = Date.now();
+                    await m.react('🚔');
+                    await interaction.followUp(`🚨 **ARRESTADO**. Fallaste. Multa: **$${fine.toLocaleString()}**`);
+                }
+            } catch (e) {
+                await interaction.followUp(`⏰ **Muy lento.** La policía te vio, pero lograste huir.`);
             }
-        } catch (e) {
-            await interaction.followUp(`⏰ **Muy lento.** La policía te vio, pero lograste huir.`);
         }
-    }
 
-    else {
-        const filter = i => i.user.id === interaction.user.id && i.customId.startsWith('crime_');
-        const collector = interaction.channel.createMessageComponentCollector({ filter, time: 20000, max: 1 });
-
-        collector.on('collect', async i => {
-            const selected = i.customId.replace('crime_', '');
-            let win = false;
-
-            if (crime.type === 'memory') win = selected === crime.code;
-            else if (crime.type === 'wires') win = selected.includes(crime.wire);
-            else if (crime.type === 'nav') win = selected.includes(crime.dir);
-            else if (crime.type === 'luck') win = Math.random() > (crime.luck || 0.75);
-
-            if (win) {
-                const basePay = Math.floor(Math.random() * (crime.pay[1] - crime.pay[0] + 1)) + crime.pay[0];
-
-                // Detect Premium Roles
-                const PREMIUM_ROLE_ID = '1412887172503175270';
-                const BOOSTER_ROLE_ID = '1423520675158691972';
-                const ULTRAPASS_ROLE_ID = '1414033620636532849';
-                const EVASOR_FISCAL_ROLE_ID = '1449950636371214397';
-
-                const member = await interaction.guild.members.fetch(interaction.user.id);
-                const isPremium = member.roles.cache.has(PREMIUM_ROLE_ID);
-                const isBooster = member.roles.cache.has(BOOSTER_ROLE_ID);
-                const isUltraPass = member.roles.cache.has(ULTRAPASS_ROLE_ID);
-                const hasEvasorRole = member.roles.cache.has(EVASOR_FISCAL_ROLE_ID);
-
-                // Apply +10% bonus for Premium/Booster/UltraPass
-                let bonusMultiplier = 1.0;
-                let bonusLabel = '';
-                if (isUltraPass) {
-                    bonusMultiplier = 1.10;
-                    bonusLabel = '👑 UltraPass +10%';
-                } else if (isPremium) {
-                    bonusMultiplier = 1.10;
-                    bonusLabel = '⭐ Premium +10%';
-                } else if (isBooster) {
-                    bonusMultiplier = 1.10;
-                    bonusLabel = '🚀 Booster +10%';
-                }
-
-                const grossPay = Math.floor(basePay * bonusMultiplier);
-
-                // Tax rates based on role
-                let taxRate = 0.08; // Default 8%
-                if (isUltraPass || hasEvasorRole) {
-                    taxRate = 0.04; // UltraPass or Evasor: 4%
-                } else if (isPremium || isBooster) {
-                    taxRate = 0.06; // Premium/Booster: 6%
-                }
-
-                const taxAmount = Math.floor(grossPay * taxRate);
-                const netPay = grossPay - taxAmount;
-
-                await billingService.ubService.addMoney(interaction.guildId, interaction.user.id, netPay, `Crimen: ${crime.title}`, 'cash');
-                casinoSessions[crimeKey] = Date.now();
-
-                const fields = [
-                    { name: '💰 Botín Base', value: `$${basePay.toLocaleString()}`, inline: true }
-                ];
-
-                if (bonusLabel) {
-                    const bonusAmount = grossPay - basePay;
-                    fields.push({ name: '⭐ Bonus', value: `+$${bonusAmount.toLocaleString()} (${bonusLabel})`, inline: true });
-                }
-
-                fields.push(
-                    { name: '💸 Impuesto SAT', value: `-$${taxAmount.toLocaleString()} (${taxRate * 100}%)`, inline: true },
-                    { name: '✅ Botín Neto', value: `$${netPay.toLocaleString()}`, inline: false }
-                );
-
-                const successEmbed = new EmbedBuilder()
-                    .setTitle('💸 ¡ÉXITO CRIMINAL!')
-                    .setColor(0x00FF00)
-                    .setDescription(`Completaste: **${crime.title}**`)
-                    .addFields(fields)
-                    .setFooter({ text: `${bonusLabel || 'Criminal Estándar'} | Impuesto: ${taxRate * 100}% | Escóndete 2 horas` })
-                    .setTimestamp();
-
-                await i.update({ embeds: [successEmbed], components: [] });
-            } else {
-                const fine = Math.floor(Math.random() * (crime.fine[1] - crime.fine[0] + 1)) + crime.fine[0];
-                await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, fine, `Multa: ${crime.title}`, 'cash');
-                casinoSessions[crimeKey] = Date.now();
-
-                await i.update({
-                    content: `🚨 **ARRESTADO** en ${crime.title}. Multa: **$${fine.toLocaleString()}**`,
-                    embeds: [],
-                    components: []
-                });
-            }
-        });
-
-        collector.on('end', collected => {
-            if (collected.size === 0) {
-                interaction.followUp('⏱️ Tiempo agotado. La policía te atrapó.').catch(() => { });
-                casinoSessions[crimeKey] = Date.now();
-            }
-        });
-    }
-} else if (commandName === 'bolsa') {
-    // DEFER REMOVED BY AUDIT
-    const subCmd = interaction.options.getSubcommand();
-
-    // Dynamic Stock Market Engine
-    const STOCKS = {};
-    const globalStocks = client.services.stocks.getStocks();
-    globalStocks.forEach(s => {
-        STOCKS[s.symbol] = { name: s.name, basePrice: s.base, volatility: s.volatility };
-    });
-
-    const getStockPrice = (symbol) => {
-        const stock = STOCKS[symbol];
-        const date = new Date();
-        const hour = date.getHours();
-        const day = date.getDate();
-        const seed = (day * 24) + hour;
-        const change = Math.sin(seed * 0.5) * stock.volatility;
-        return Math.floor(stock.basePrice * (1 + change));
-    };
-
-    if (subCmd === 'ver') {
-        const embed = new EmbedBuilder()
-            .setTitle('📈 Bolsa de Valores Nación MX')
-            .setColor('#0099FF')
-            .setDescription('Precios actualizados en tiempo real. ¡Compra barato, vende caro!')
-            .setTimestamp();
-
-        for (const [symbol, data] of Object.entries(STOCKS)) {
-            const price = getStockPrice(symbol);
-            const trend = price > data.basePrice ? '🟢 Alza' : '🔴 Baja';
-            embed.addFields({
-                name: `${symbol} - ${data.name}`,
-                value: `💰 **$${price.toLocaleString()}**\n📊 Tendencia: ${trend}`,
-                inline: true
-            });
-        }
-        return interaction.editReply({ embeds: [embed] });
-    }
-
-    // Helper function to rename channel based on state
-
-    if (subCmd === 'comprar') {
-        const symbol = interaction.options.getString('empresa').toUpperCase();
-        const qty = interaction.options.getNumber('cantidad');
-
-        if (!STOCKS[symbol]) return interaction.editReply('❌ Empresa no cotizada. Usa `/bolsa ver`.');
-        if (qty <= 0) return interaction.editReply('❌ Cantidad inválida.');
-
-        const price = getStockPrice(symbol);
-        const totalCost = price * qty;
-
-        try {
-            // Get available payment methods
-            const availableMethods = await getAvailablePaymentMethods(supabase, interaction.user.id, interaction.guildId);
-            const paymentButtons = createPaymentButtons(availableMethods, 'stock_buy');
-
-            // Create purchase embed
-            const purchaseEmbed = new EmbedBuilder()
-                .setTitle('📈 Compra de Acciones')
-                .setColor('#00AAFF')
-                .setDescription(`**${STOCKS[symbol].name} (${symbol})**`)
-                .addFields(
-                    { name: '📊 Precio por Acción', value: `$${price.toLocaleString()}`, inline: true },
-                    { name: '📦 Cantidad', value: `${qty} acc.`, inline: true },
-                    { name: '💰 Costo Total', value: `**$${totalCost.toLocaleString()}**`, inline: false },
-                    { name: '💳 Método de Pago', value: 'Selecciona abajo:', inline: false }
-                )
-                .setFooter({ text: '⚡ Comisión: 2% Efectivo/Banco | 5% Crédito' })
-                .setTimestamp();
-
-            await interaction.editReply({
-                embeds: [purchaseEmbed],
-                components: [paymentButtons]
-            });
-
-            // Wait for payment selection
-            const filter = i => i.user.id === interaction.user.id && i.customId.startsWith('stock_buy_');
-            const collector = interaction.channel.createMessageComponentCollector({ filter, time: 60000, max: 1 });
+        else {
+            const filter = i => i.user.id === interaction.user.id && i.customId.startsWith('crime_');
+            const collector = interaction.channel.createMessageComponentCollector({ filter, time: 20000, max: 1 });
 
             collector.on('collect', async i => {
-                try {
-                    // Prevent double-click processing
-                    if (i.replied || i.deferred) {
-                        console.log('[bolsa comprar] Interaction already processed, skipping');
-                        return;
+                const selected = i.customId.replace('crime_', '');
+                let win = false;
+
+                if (crime.type === 'memory') win = selected === crime.code;
+                else if (crime.type === 'wires') win = selected.includes(crime.wire);
+                else if (crime.type === 'nav') win = selected.includes(crime.dir);
+                else if (crime.type === 'luck') win = Math.random() > (crime.luck || 0.75);
+
+                if (win) {
+                    const basePay = Math.floor(Math.random() * (crime.pay[1] - crime.pay[0] + 1)) + crime.pay[0];
+
+                    // Detect Premium Roles
+                    const PREMIUM_ROLE_ID = '1412887172503175270';
+                    const BOOSTER_ROLE_ID = '1423520675158691972';
+                    const ULTRAPASS_ROLE_ID = '1414033620636532849';
+                    const EVASOR_FISCAL_ROLE_ID = '1449950636371214397';
+
+                    const member = await interaction.guild.members.fetch(interaction.user.id);
+                    const isPremium = member.roles.cache.has(PREMIUM_ROLE_ID);
+                    const isBooster = member.roles.cache.has(BOOSTER_ROLE_ID);
+                    const isUltraPass = member.roles.cache.has(ULTRAPASS_ROLE_ID);
+                    const hasEvasorRole = member.roles.cache.has(EVASOR_FISCAL_ROLE_ID);
+
+                    // Apply +10% bonus for Premium/Booster/UltraPass
+                    let bonusMultiplier = 1.0;
+                    let bonusLabel = '';
+                    if (isUltraPass) {
+                        bonusMultiplier = 1.10;
+                        bonusLabel = '👑 UltraPass +10%';
+                    } else if (isPremium) {
+                        bonusMultiplier = 1.10;
+                        bonusLabel = '⭐ Premium +10%';
+                    } else if (isBooster) {
+                        bonusMultiplier = 1.10;
+                        bonusLabel = '🚀 Booster +10%';
                     }
 
-                    await i.deferUpdate();
-                    const method = i.customId.replace('stock_buy_', '');
+                    const grossPay = Math.floor(basePay * bonusMultiplier);
 
-                    // Calculate fees based on method
-                    const fees = method === 'credit' ? 0.05 : 0.02;
-                    const costWithFee = Math.floor(totalCost * (1 + fees));
+                    // Tax rates based on role
+                    let taxRate = 0.08; // Default 8%
+                    if (isUltraPass || hasEvasorRole) {
+                        taxRate = 0.04; // UltraPass or Evasor: 4%
+                    } else if (isPremium || isBooster) {
+                        taxRate = 0.06; // Premium/Booster: 6%
+                    }
 
-                    // Process payment
-                    const paymentResult = await processPayment(client.services.billing, supabase,
-                        method,
-                        interaction.user.id,
-                        interaction.guildId,
-                        costWithFee,
-                        `Compra de ${qty} acciones de ${symbol}`,
-                        availableMethods
+                    const taxAmount = Math.floor(grossPay * taxRate);
+                    const netPay = grossPay - taxAmount;
+
+                    await billingService.ubService.addMoney(interaction.guildId, interaction.user.id, netPay, `Crimen: ${crime.title}`, 'cash');
+                    casinoSessions[crimeKey] = Date.now();
+
+                    const fields = [
+                        { name: '💰 Botín Base', value: `$${basePay.toLocaleString()}`, inline: true }
+                    ];
+
+                    if (bonusLabel) {
+                        const bonusAmount = grossPay - basePay;
+                        fields.push({ name: '⭐ Bonus', value: `+$${bonusAmount.toLocaleString()} (${bonusLabel})`, inline: true });
+                    }
+
+                    fields.push(
+                        { name: '💸 Impuesto SAT', value: `-$${taxAmount.toLocaleString()} (${taxRate * 100}%)`, inline: true },
+                        { name: '✅ Botín Neto', value: `$${netPay.toLocaleString()}`, inline: false }
                     );
 
-                    if (!paymentResult.success) {
-                        return i.editReply({
-                            content: paymentResult.error,
-                            embeds: [],
-                            components: []
-                        });
-                    }
-
-                    // Update portfolio
-                    const { data: current } = await supabase
-                        .from('stock_portfolios')
-                        .select('*')
-                        .eq('discord_user_id', interaction.user.id)
-                        .eq('stock_symbol', symbol)
-                        .maybeSingle();
-
-                    if (current) {
-                        await supabase
-                            .from('stock_portfolios')
-                            .update({ shares: current.shares + qty })
-                            .eq('id', current.id);
-                    } else {
-                        await supabase
-                            .from('stock_portfolios')
-                            .insert({
-                                discord_user_id: interaction.user.id,
-                                stock_symbol: symbol,
-                                shares: qty
-                            });
-                    }
-
-                    // Success embed
                     const successEmbed = new EmbedBuilder()
-                        .setColor('#00FF00')
-                        .setTitle('✅ Compra Exitosa')
-                        .setDescription(`Has comprado **${qty} acciones** de **${STOCKS[symbol].name}**`)
-                        .addFields(
-                            { name: '📊 Símbolo', value: symbol, inline: true },
-                            { name: '💰 Precio', value: `$${price.toLocaleString()}/acc`, inline: true },
-                            { name: '📦 Cantidad', value: `${qty}`, inline: true },
-                            { name: '💸 Comisión', value: `$${(costWithFee - totalCost).toLocaleString()} (${fees * 100}%)`, inline: true },
-                            { name: '💳 Método', value: paymentResult.method, inline: true },
-                            { name: '🔢 Total Pagado', value: `**$${costWithFee.toLocaleString()}**`, inline: true }
-                        )
-                        .setFooter({ text: 'Ver tu portafolio con /bolsa portafolio' })
+                        .setTitle('💸 ¡ÉXITO CRIMINAL!')
+                        .setColor(0x00FF00)
+                        .setDescription(`Completaste: **${crime.title}**`)
+                        .addFields(fields)
+                        .setFooter({ text: `${bonusLabel || 'Criminal Estándar'} | Impuesto: ${taxRate * 100}% | Escóndete 2 horas` })
                         .setTimestamp();
 
-                    await i.editReply({ embeds: [successEmbed], components: [] });
+                    await i.update({ embeds: [successEmbed], components: [] });
+                } else {
+                    const fine = Math.floor(Math.random() * (crime.fine[1] - crime.fine[0] + 1)) + crime.fine[0];
+                    await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, fine, `Multa: ${crime.title}`, 'cash');
+                    casinoSessions[crimeKey] = Date.now();
 
-                } catch (error) {
-                    console.error('[bolsa comprar] Error:', error);
-                    await i.editReply({
-                        content: '❌ Error procesando la compra.',
+                    await i.update({
+                        content: `🚨 **ARRESTADO** en ${crime.title}. Multa: **$${fine.toLocaleString()}**`,
                         embeds: [],
                         components: []
                     });
@@ -6155,174 +5914,419 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
 
             collector.on('end', collected => {
                 if (collected.size === 0) {
-                    interaction.editReply({
-                        content: '⏰ Tiempo agotado para la compra.',
-                        embeds: [],
-                        components: []
-                    });
+                    interaction.followUp('⏱️ Tiempo agotado. La policía te atrapó.').catch(() => { });
+                    casinoSessions[crimeKey] = Date.now();
                 }
             });
-
-        } catch (error) {
-            console.error('[bolsa comprar] Error:', error);
-            return interaction.editReply('❌ Error al iniciar la compra.');
         }
-    }
+    } else if (commandName === 'bolsa') {
+        // DEFER REMOVED BY AUDIT
+        const subCmd = interaction.options.getSubcommand();
 
-    // Helper function to rename channel based on state
+        // Dynamic Stock Market Engine
+        const STOCKS = {};
+        const globalStocks = client.services.stocks.getStocks();
+        globalStocks.forEach(s => {
+            STOCKS[s.symbol] = { name: s.name, basePrice: s.base, volatility: s.volatility };
+        });
 
-    if (subCmd === 'vender') {
-        const symbol = interaction.options.getString('empresa').toUpperCase();
-        const qty = interaction.options.getNumber('cantidad');
+        const getStockPrice = (symbol) => {
+            const stock = STOCKS[symbol];
+            const date = new Date();
+            const hour = date.getHours();
+            const day = date.getDate();
+            const seed = (day * 24) + hour;
+            const change = Math.sin(seed * 0.5) * stock.volatility;
+            return Math.floor(stock.basePrice * (1 + change));
+        };
 
-        if (!STOCKS[symbol]) return interaction.editReply('❌ Empresa no cotizada.');
-        if (qty <= 0) return interaction.editReply('❌ Cantidad inválida.');
+        if (subCmd === 'ver') {
+            const embed = new EmbedBuilder()
+                .setTitle('📈 Bolsa de Valores Nación MX')
+                .setColor('#0099FF')
+                .setDescription('Precios actualizados en tiempo real. ¡Compra barato, vende caro!')
+                .setTimestamp();
 
-        const { data: current } = await supabase.from('stock_portfolios').select('*').eq('discord_user_id', interaction.user.id).eq('stock_symbol', symbol).maybeSingle();
-
-        if (!current || current.shares < qty) {
-            return interaction.editReply(`❌ No tienes suficientes acciones. Tienes: ${current ? current.shares : 0}`);
-        }
-
-        const price = getStockPrice(symbol);
-        const totalVal = price * qty;
-        const valWithFee = Math.floor(totalVal * 0.98); // 2% Broker Fee
-
-        const newShares = current.shares - qty;
-        if (newShares <= 0) {
-            await supabase.from('stock_portfolios').delete().eq('id', current.id);
-        } else {
-            await supabase.from('stock_portfolios').update({ shares: newShares }).eq('id', current.id);
-        }
-
-        await billingService.ubService.addMoney(interaction.guildId, interaction.user.id, valWithFee, `Venta acciones ${symbol}`, 'bank');
-        return interaction.editReply(`✅ **Venta Exitosa**\nHas vendido **${qty}** de **${symbol}** a $${price}.\nRecibido: $${valWithFee.toLocaleString()}`);
-    }
-
-    // Helper function to rename channel based on state
-
-    if (subCmd === 'portafolio') {
-        const { data: myStocks } = await supabase.from('stock_portfolios').select('*').eq('discord_user_id', interaction.user.id);
-        if (!myStocks || myStocks.length === 0) return interaction.editReply('📉 No tienes inversiones activas.');
-
-        let totalValue = 0;
-        const embed = new EmbedBuilder().setTitle('💼 Mi Portafolio de Inversión').setColor('#FFD700');
-        for (const stock of myStocks) {
-            if (!STOCKS[stock.stock_symbol]) continue;
-            const price = getStockPrice(stock.stock_symbol);
-            const val = price * stock.shares;
-            totalValue += val;
-            embed.addFields({ name: `${stock.stock_symbol} (${stock.shares} acc.)`, value: `Val: $${val.toLocaleString()}`, inline: true });
-        }
-        embed.setDescription(`**Valor Total:** $${totalValue.toLocaleString()}`);
-        return interaction.editReply({ embeds: [embed] });
-    }
-
-    // Helper function to rename channel based on state
-}
-
-else if (commandName === 'debito') {
-    // DEFER REMOVED BY AUDIT
-    const subCmd = interaction.options.getSubcommand();
-    const balance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
-
-    if (subCmd === 'estado') {
-        // Fetch debit card info
-        const { data: debitCard } = await supabase
-            .from('debit_cards')
-            .select('*')
-            .eq('discord_user_id', interaction.user.id)
-            .eq('status', 'active')
-            .maybeSingle();
-
-        const embed = new EmbedBuilder()
-            .setTitle('💳 Estado de Cuenta')
-            .setColor('#2F3136')
-            .addFields(
-                { name: '🏦 Banco', value: `$${(balance.bank || 0).toLocaleString()}`, inline: true },
-                { name: '💵 Efectivo', value: `$${(balance.cash || 0).toLocaleString()}`, inline: true },
-                { name: '💰 Patrimonio Total', value: `$${((balance.bank || 0) + (balance.cash || 0)).toLocaleString()}`, inline: false }
-            );
-
-        if (debitCard) {
-            embed.addFields(
-                { name: '💳 Tarjeta', value: `${debitCard.card_type}`, inline: true },
-                { name: '🔢 Número', value: `**** **** **** ${debitCard.card_number.slice(-4)}`, inline: true }
-            );
-        } else {
-            embed.setFooter({ text: 'No tienes tarjeta de débito activa' });
+            for (const [symbol, data] of Object.entries(STOCKS)) {
+                const price = getStockPrice(symbol);
+                const trend = price > data.basePrice ? '🟢 Alza' : '🔴 Baja';
+                embed.addFields({
+                    name: `${symbol} - ${data.name}`,
+                    value: `💰 **$${price.toLocaleString()}**\n📊 Tendencia: ${trend}`,
+                    inline: true
+                });
+            }
+            return interaction.editReply({ embeds: [embed] });
         }
 
-        return interaction.editReply({ embeds: [embed] });
-    }
+        // Helper function to rename channel based on state
 
-    // Helper function to rename channel based on state
+        if (subCmd === 'comprar') {
+            const symbol = interaction.options.getString('empresa').toUpperCase();
+            const qty = interaction.options.getNumber('cantidad');
 
-    if (subCmd === 'retirar') {
-        const amount = interaction.options.getNumber('monto');
-        if (amount <= 0) return interaction.editReply('❌ Monto inválido.');
-        if ((balance.bank || 0) < amount) return interaction.editReply(`❌ **Fondos Insuficientes en Banco**\nTienes: $${(balance.bank || 0).toLocaleString()}`);
+            if (!STOCKS[symbol]) return interaction.editReply('❌ Empresa no cotizada. Usa `/bolsa ver`.');
+            if (qty <= 0) return interaction.editReply('❌ Cantidad inválida.');
 
-        await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, amount, 'Retiro cajero', 'bank');
-        await billingService.ubService.addMoney(interaction.guildId, interaction.user.id, amount, 'Retiro cajero', 'cash');
-        return interaction.editReply(`✅ **Retiro Exitoso**\nRetiraste $${amount.toLocaleString()} del banco.`);
-    }
+            const price = getStockPrice(symbol);
+            const totalCost = price * qty;
 
-    // Helper function to rename channel based on state
+            try {
+                // Get available payment methods
+                const availableMethods = await getAvailablePaymentMethods(supabase, interaction.user.id, interaction.guildId);
+                const paymentButtons = createPaymentButtons(availableMethods, 'stock_buy');
 
-    if (subCmd === 'depositar') {
-        const amount = interaction.options.getNumber('monto');
-        if (amount <= 0) return interaction.editReply('❌ Monto inválido.');
-        if ((balance.cash || 0) < amount) return interaction.editReply(`❌ **Fondos Insuficientes en Efectivo**\nTienes: $${(balance.cash || 0).toLocaleString()}`);
+                // Create purchase embed
+                const purchaseEmbed = new EmbedBuilder()
+                    .setTitle('📈 Compra de Acciones')
+                    .setColor('#00AAFF')
+                    .setDescription(`**${STOCKS[symbol].name} (${symbol})**`)
+                    .addFields(
+                        { name: '📊 Precio por Acción', value: `$${price.toLocaleString()}`, inline: true },
+                        { name: '📦 Cantidad', value: `${qty} acc.`, inline: true },
+                        { name: '💰 Costo Total', value: `**$${totalCost.toLocaleString()}**`, inline: false },
+                        { name: '💳 Método de Pago', value: 'Selecciona abajo:', inline: false }
+                    )
+                    .setFooter({ text: '⚡ Comisión: 2% Efectivo/Banco | 5% Crédito' })
+                    .setTimestamp();
 
-        await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, amount, 'Depósito cajero', 'cash');
-        await billingService.ubService.addMoney(interaction.guildId, interaction.user.id, amount, 'Depósito cajero', 'bank');
-        await interaction.editReply(`✅ **Depósito Exitoso**\nDepositaste $${amount.toLocaleString()} en tu cuenta.`);
+                await interaction.editReply({
+                    embeds: [purchaseEmbed],
+                    components: [paymentButtons]
+                });
 
-        // GAMIFICATION HOOKS
-        try {
-            // 1. Add XP (Deposit = 10 XP)
-            const levelRes = await client.services.levels.addXP(interaction.user.id, 10);
+                // Wait for payment selection
+                const filter = i => i.user.id === interaction.user.id && i.customId.startsWith('stock_buy_');
+                const collector = interaction.channel.createMessageComponentCollector({ filter, time: 60000, max: 1 });
 
-            if (levelRes && levelRes.leveledUp) {
-                await interaction.followUp({ content: `🎉 **¡SUBISTE DE NIVEL!**\nAhora eres nivel **${levelRes.newLevel}**`, flags: [64] });
+                collector.on('collect', async i => {
+                    try {
+                        // Prevent double-click processing
+                        if (i.replied || i.deferred) {
+                            console.log('[bolsa comprar] Interaction already processed, skipping');
+                            return;
+                        }
+
+                        await i.deferUpdate();
+                        const method = i.customId.replace('stock_buy_', '');
+
+                        // Calculate fees based on method
+                        const fees = method === 'credit' ? 0.05 : 0.02;
+                        const costWithFee = Math.floor(totalCost * (1 + fees));
+
+                        // Process payment
+                        const paymentResult = await processPayment(client.services.billing, supabase,
+                            method,
+                            interaction.user.id,
+                            interaction.guildId,
+                            costWithFee,
+                            `Compra de ${qty} acciones de ${symbol}`,
+                            availableMethods
+                        );
+
+                        if (!paymentResult.success) {
+                            return i.editReply({
+                                content: paymentResult.error,
+                                embeds: [],
+                                components: []
+                            });
+                        }
+
+                        // Update portfolio
+                        const { data: current } = await supabase
+                            .from('stock_portfolios')
+                            .select('*')
+                            .eq('discord_user_id', interaction.user.id)
+                            .eq('stock_symbol', symbol)
+                            .maybeSingle();
+
+                        if (current) {
+                            await supabase
+                                .from('stock_portfolios')
+                                .update({ shares: current.shares + qty })
+                                .eq('id', current.id);
+                        } else {
+                            await supabase
+                                .from('stock_portfolios')
+                                .insert({
+                                    discord_user_id: interaction.user.id,
+                                    stock_symbol: symbol,
+                                    shares: qty
+                                });
+                        }
+
+                        // Success embed
+                        const successEmbed = new EmbedBuilder()
+                            .setColor('#00FF00')
+                            .setTitle('✅ Compra Exitosa')
+                            .setDescription(`Has comprado **${qty} acciones** de **${STOCKS[symbol].name}**`)
+                            .addFields(
+                                { name: '📊 Símbolo', value: symbol, inline: true },
+                                { name: '💰 Precio', value: `$${price.toLocaleString()}/acc`, inline: true },
+                                { name: '📦 Cantidad', value: `${qty}`, inline: true },
+                                { name: '💸 Comisión', value: `$${(costWithFee - totalCost).toLocaleString()} (${fees * 100}%)`, inline: true },
+                                { name: '💳 Método', value: paymentResult.method, inline: true },
+                                { name: '🔢 Total Pagado', value: `**$${costWithFee.toLocaleString()}**`, inline: true }
+                            )
+                            .setFooter({ text: 'Ver tu portafolio con /bolsa portafolio' })
+                            .setTimestamp();
+
+                        await i.editReply({ embeds: [successEmbed], components: [] });
+
+                    } catch (error) {
+                        console.error('[bolsa comprar] Error:', error);
+                        await i.editReply({
+                            content: '❌ Error procesando la compra.',
+                            embeds: [],
+                            components: []
+                        });
+                    }
+                });
+
+                collector.on('end', collected => {
+                    if (collected.size === 0) {
+                        interaction.editReply({
+                            content: '⏰ Tiempo agotado para la compra.',
+                            embeds: [],
+                            components: []
+                        });
+                    }
+                });
+
+            } catch (error) {
+                console.error('[bolsa comprar] Error:', error);
+                return interaction.editReply('❌ Error al iniciar la compra.');
+            }
+        }
+
+        // Helper function to rename channel based on state
+
+        if (subCmd === 'vender') {
+            const symbol = interaction.options.getString('empresa').toUpperCase();
+            const qty = interaction.options.getNumber('cantidad');
+
+            if (!STOCKS[symbol]) return interaction.editReply('❌ Empresa no cotizada.');
+            if (qty <= 0) return interaction.editReply('❌ Cantidad inválida.');
+
+            const { data: current } = await supabase.from('stock_portfolios').select('*').eq('discord_user_id', interaction.user.id).eq('stock_symbol', symbol).maybeSingle();
+
+            if (!current || current.shares < qty) {
+                return interaction.editReply(`❌ No tienes suficientes acciones. Tienes: ${current ? current.shares : 0}`);
             }
 
-            // 2. Update Mission Progress
-            await client.services.missions.updateProgress(interaction.user.id, 'deposit', { amount: amount });
+            const price = getStockPrice(symbol);
+            const totalVal = price * qty;
+            const valWithFee = Math.floor(totalVal * 0.98); // 2% Broker Fee
 
-        } catch (gameErr) {
-            console.error('Gamification Error:', gameErr);
+            const newShares = current.shares - qty;
+            if (newShares <= 0) {
+                await supabase.from('stock_portfolios').delete().eq('id', current.id);
+            } else {
+                await supabase.from('stock_portfolios').update({ shares: newShares }).eq('id', current.id);
+            }
+
+            await billingService.ubService.addMoney(interaction.guildId, interaction.user.id, valWithFee, `Venta acciones ${symbol}`, 'bank');
+            return interaction.editReply(`✅ **Venta Exitosa**\nHas vendido **${qty}** de **${symbol}** a $${price}.\nRecibido: $${valWithFee.toLocaleString()}`);
         }
-        return;
+
+        // Helper function to rename channel based on state
+
+        if (subCmd === 'portafolio') {
+            const { data: myStocks } = await supabase.from('stock_portfolios').select('*').eq('discord_user_id', interaction.user.id);
+            if (!myStocks || myStocks.length === 0) return interaction.editReply('📉 No tienes inversiones activas.');
+
+            let totalValue = 0;
+            const embed = new EmbedBuilder().setTitle('💼 Mi Portafolio de Inversión').setColor('#FFD700');
+            for (const stock of myStocks) {
+                if (!STOCKS[stock.stock_symbol]) continue;
+                const price = getStockPrice(stock.stock_symbol);
+                const val = price * stock.shares;
+                totalValue += val;
+                embed.addFields({ name: `${stock.stock_symbol} (${stock.shares} acc.)`, value: `Val: $${val.toLocaleString()}`, inline: true });
+            }
+            embed.setDescription(`**Valor Total:** $${totalValue.toLocaleString()}`);
+            return interaction.editReply({ embeds: [embed] });
+        }
+
+        // Helper function to rename channel based on state
     }
 
-    // Helper function to rename channel based on state
+    else if (commandName === 'debito') {
+        // DEFER REMOVED BY AUDIT
+        const subCmd = interaction.options.getSubcommand();
+        const balance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
 
-    if (subCmd === 'transferir') {
+        if (subCmd === 'estado') {
+            // Fetch debit card info
+            const { data: debitCard } = await supabase
+                .from('debit_cards')
+                .select('*')
+                .eq('discord_user_id', interaction.user.id)
+                .eq('status', 'active')
+                .maybeSingle();
+
+            const embed = new EmbedBuilder()
+                .setTitle('💳 Estado de Cuenta')
+                .setColor('#2F3136')
+                .addFields(
+                    { name: '🏦 Banco', value: `$${(balance.bank || 0).toLocaleString()}`, inline: true },
+                    { name: '💵 Efectivo', value: `$${(balance.cash || 0).toLocaleString()}`, inline: true },
+                    { name: '💰 Patrimonio Total', value: `$${((balance.bank || 0) + (balance.cash || 0)).toLocaleString()}`, inline: false }
+                );
+
+            if (debitCard) {
+                embed.addFields(
+                    { name: '💳 Tarjeta', value: `${debitCard.card_type}`, inline: true },
+                    { name: '🔢 Número', value: `**** **** **** ${debitCard.card_number.slice(-4)}`, inline: true }
+                );
+            } else {
+                embed.setFooter({ text: 'No tienes tarjeta de débito activa' });
+            }
+
+            return interaction.editReply({ embeds: [embed] });
+        }
+
+        // Helper function to rename channel based on state
+
+        if (subCmd === 'retirar') {
+            const amount = interaction.options.getNumber('monto');
+            if (amount <= 0) return interaction.editReply('❌ Monto inválido.');
+            if ((balance.bank || 0) < amount) return interaction.editReply(`❌ **Fondos Insuficientes en Banco**\nTienes: $${(balance.bank || 0).toLocaleString()}`);
+
+            await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, amount, 'Retiro cajero', 'bank');
+            await billingService.ubService.addMoney(interaction.guildId, interaction.user.id, amount, 'Retiro cajero', 'cash');
+            return interaction.editReply(`✅ **Retiro Exitoso**\nRetiraste $${amount.toLocaleString()} del banco.`);
+        }
+
+        // Helper function to rename channel based on state
+
+        if (subCmd === 'depositar') {
+            const amount = interaction.options.getNumber('monto');
+            if (amount <= 0) return interaction.editReply('❌ Monto inválido.');
+            if ((balance.cash || 0) < amount) return interaction.editReply(`❌ **Fondos Insuficientes en Efectivo**\nTienes: $${(balance.cash || 0).toLocaleString()}`);
+
+            await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, amount, 'Depósito cajero', 'cash');
+            await billingService.ubService.addMoney(interaction.guildId, interaction.user.id, amount, 'Depósito cajero', 'bank');
+            await interaction.editReply(`✅ **Depósito Exitoso**\nDepositaste $${amount.toLocaleString()} en tu cuenta.`);
+
+            // GAMIFICATION HOOKS
+            try {
+                // 1. Add XP (Deposit = 10 XP)
+                const levelRes = await client.services.levels.addXP(interaction.user.id, 10);
+
+                if (levelRes && levelRes.leveledUp) {
+                    await interaction.followUp({ content: `🎉 **¡SUBISTE DE NIVEL!**\nAhora eres nivel **${levelRes.newLevel}**`, flags: [64] });
+                }
+
+                // 2. Update Mission Progress
+                await client.services.missions.updateProgress(interaction.user.id, 'deposit', { amount: amount });
+
+            } catch (gameErr) {
+                console.error('Gamification Error:', gameErr);
+            }
+            return;
+        }
+
+        // Helper function to rename channel based on state
+
+        if (subCmd === 'transferir') {
+            const targetUser = interaction.options.getUser('destinatario');
+            const amount = interaction.options.getNumber('monto');
+            const concepto = interaction.options.getString('concepto') || 'Transferencia';
+
+            // Self-transfer check
+            if (targetUser.id === interaction.user.id) {
+                return interaction.editReply('❌ No puedes transferirte a ti mismo.');
+            }
+
+            if (amount <= 0) return interaction.editReply('❌ Monto inválido.');
+
+            // Check for Evasor Fiscal role
+            const EVASOR_FISCAL_ROLE_ID = '1449950636371214397';
+            const hasEvasorRole = interaction.member.roles.cache.has(EVASOR_FISCAL_ROLE_ID);
+
+            // Calculate transaction tax
+            const taxRate = hasEvasorRole ? 0.04 : 0.08; // 4% with evasor, 8% normal
+            const taxAmount = Math.floor(amount * taxRate);
+            const totalRequired = amount + taxAmount;
+
+            if ((balance.bank || 0) < totalRequired) {
+                return interaction.editReply(`❌ **Fondos Insuficientes en Banco**\n\nMonto: $${amount.toLocaleString()}\nImpuesto (${taxRate * 100}%): $${taxAmount.toLocaleString()}\nTotal Requerido: $${totalRequired.toLocaleString()}\nTienes: $${(balance.bank || 0).toLocaleString()}`);
+            }
+
+            // Check recipient has debit card
+            const { data: recipientCard } = await supabase
+                .from('debit_cards')
+                .select('*')
+                .eq('discord_user_id', targetUser.id)
+                .eq('status', 'active')
+                .maybeSingle();
+
+            if (!recipientCard) {
+                return interaction.editReply(`❌ ${targetUser.tag} no tiene una tarjeta de débito activa.`);
+            }
+
+            // Remove money from sender (transfer amount + tax)
+            await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, amount, `Transfer a ${targetUser.tag}`, 'bank');
+
+            // Charge transaction tax
+            await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, taxAmount, `💸 Impuesto Transaccional (${taxRate * 100}%)`, 'bank');
+
+            // Schedule transfer (5 minutes)
+            const releaseDate = new Date(Date.now() + (5 * 60 * 1000));
+
+            await supabase.from('pending_transfers').insert({
+                sender_id: interaction.user.id,
+                receiver_id: targetUser.id,
+                amount: amount,
+                reason: concepto,
+                release_date: releaseDate.toISOString(),
+                status: 'PENDING',
+                transfer_type: 'debito'
+            });
+
+            const embed = new EmbedBuilder()
+                .setTitle('💳 Transferencia Programada')
+                .setColor(0x00FF00)
+                .setDescription(`Transferencia a **${targetUser.tag}** en proceso.`)
+                .addFields(
+                    { name: '💰 Monto', value: `$${amount.toLocaleString()}`, inline: true },
+                    { name: '💸 Impuesto', value: `$${taxAmount.toLocaleString()} (${taxRate * 100}%)`, inline: true },
+                    { name: '🔢 Total Cobrado', value: `$${totalRequired.toLocaleString()}`, inline: true },
+                    { name: '⏱️ Tiempo', value: '5 minutos', inline: true },
+                    { name: '📝 Concepto', value: concepto, inline: false }
+                )
+                .setFooter({ text: hasEvasorRole ? '✅ Descuento fiscal aplicado (4%)' : 'Impuesto transaccional: 8%' })
+                .setTimestamp();
+
+            return interaction.editReply({ embeds: [embed] });
+        }
+
+        // Helper function to rename channel based on state
+    }
+
+    else if (commandName === 'transferir') {
+        // DEFER REMOVED BY AUDIT
         const targetUser = interaction.options.getUser('destinatario');
-        const amount = interaction.options.getNumber('monto');
-        const concepto = interaction.options.getString('concepto') || 'Transferencia';
+        let amount = interaction.options.getNumber('monto');
+        if (amount) amount = Math.floor(amount); // Fix: Enforce integer
+        const concepto = interaction.options.getString('concepto') || 'Transferencia SPEI';
 
         // Self-transfer check
         if (targetUser.id === interaction.user.id) {
             return interaction.editReply('❌ No puedes transferirte a ti mismo.');
         }
 
+        // Helper function to rename channel based on state
+
         if (amount <= 0) return interaction.editReply('❌ Monto inválido.');
 
-        // Check for Evasor Fiscal role
-        const EVASOR_FISCAL_ROLE_ID = '1449950636371214397';
-        const hasEvasorRole = interaction.member.roles.cache.has(EVASOR_FISCAL_ROLE_ID);
-
-        // Calculate transaction tax
-        const taxRate = hasEvasorRole ? 0.04 : 0.08; // 4% with evasor, 8% normal
-        const taxAmount = Math.floor(amount * taxRate);
-        const totalRequired = amount + taxAmount;
-
-        if ((balance.bank || 0) < totalRequired) {
-            return interaction.editReply(`❌ **Fondos Insuficientes en Banco**\n\nMonto: $${amount.toLocaleString()}\nImpuesto (${taxRate * 100}%): $${taxAmount.toLocaleString()}\nTotal Requerido: $${totalRequired.toLocaleString()}\nTienes: $${(balance.bank || 0).toLocaleString()}`);
+        const balance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
+        if ((balance.bank || 0) < amount) {
+            return interaction.editReply(`❌ **Fondos Insuficientes en Banco**\nRequiere: $${amount.toLocaleString()}\nTienes: $${(balance.bank || 0).toLocaleString()}`);
         }
+
+        // Helper function to rename channel based on state
 
         // Check recipient has debit card
         const { data: recipientCard } = await supabase
@@ -6333,1940 +6337,1839 @@ else if (commandName === 'debito') {
             .maybeSingle();
 
         if (!recipientCard) {
-            return interaction.editReply(`❌ ${targetUser.tag} no tiene una tarjeta de débito activa.`);
+            return interaction.editReply(`❌ ${targetUser.tag} no tiene una tarjeta de débito activa para recibir transferencias.`);
         }
 
-        // Remove money from sender (transfer amount + tax)
-        await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, amount, `Transfer a ${targetUser.tag}`, 'bank');
+        // Helper function to rename channel based on state
 
-        // Charge transaction tax
-        await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, taxAmount, `💸 Impuesto Transaccional (${taxRate * 100}%)`, 'bank');
+        // GHOST MODE: Check if sender has Elite privacy
+        const { data: senderPrivacy } = await supabase
+            .from('privacy_accounts')
+            .select('*')
+            .eq('user_id', interaction.user.id)
+            .eq('level', 'elite')
+            .gt('expires_at', new Date().toISOString())
+            .maybeSingle();
 
-        // Schedule transfer (5 minutes)
-        const releaseDate = new Date(Date.now() + (5 * 60 * 1000));
+        const senderName = senderPrivacy?.offshore_name || (senderPrivacy ? '🕶️ Usuario Anónimo' : interaction.user.tag);
 
-        await supabase.from('pending_transfers').insert({
-            sender_id: interaction.user.id,
-            receiver_id: targetUser.id,
-            amount: amount,
-            reason: concepto,
-            release_date: releaseDate.toISOString(),
-            status: 'PENDING',
-            transfer_type: 'debito'
-        });
+        // Immediate transfer
+        await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, amount, `SPEI a ${targetUser.tag}`, 'bank');
+        await billingService.ubService.addMoney(interaction.guildId, targetUser.id, amount, `SPEI de ${senderName}`, 'bank');
+
+        // Notify recipient if they have alerts
+        const { data: recipientPrivacy } = await supabase
+            .from('privacy_accounts')
+            .select('alerts_enabled')
+            .eq('user_id', targetUser.id)
+            .maybeSingle();
+
+        if (recipientPrivacy?.alerts_enabled) {
+            try {
+                await targetUser.send(`💰 **Transferencia Recibida**\n$${amount.toLocaleString()} de ${senderName}\nConcepto: ${concepto}`);
+            } catch (e) { }
+        }
+
+        // Helper function to rename channel based on state
 
         const embed = new EmbedBuilder()
-            .setTitle('💳 Transferencia Programada')
+            .setTitle('⚡ Transferencia SPEI Exitosa')
             .setColor(0x00FF00)
-            .setDescription(`Transferencia a **${targetUser.tag}** en proceso.`)
+            .setDescription(`Transferencia inmediata a **${targetUser.tag}** completada.`)
             .addFields(
                 { name: '💰 Monto', value: `$${amount.toLocaleString()}`, inline: true },
-                { name: '💸 Impuesto', value: `$${taxAmount.toLocaleString()} (${taxRate * 100}%)`, inline: true },
-                { name: '🔢 Total Cobrado', value: `$${totalRequired.toLocaleString()}`, inline: true },
-                { name: '⏱️ Tiempo', value: '5 minutos', inline: true },
-                { name: '📝 Concepto', value: concepto, inline: false }
+                { name: '💳 Destino', value: `*${recipientCard.card_number.slice(-4)}`, inline: true },
+                { name: '📝 Concepto', value: concepto, inline: false },
+                { name: '👤 Remitente', value: senderName, inline: true }
             )
-            .setFooter({ text: hasEvasorRole ? '✅ Descuento fiscal aplicado (4%)' : 'Impuesto transaccional: 8%' })
             .setTimestamp();
 
         return interaction.editReply({ embeds: [embed] });
     }
 
-    // Helper function to rename channel based on state
-}
+    else if (commandName === 'casino') {
+        // DEFER REMOVED BY AUDIT
+        const subCmd = interaction.options.getSubcommand();
+        const bet = interaction.options.getNumber('apuesta');
 
-else if (commandName === 'transferir') {
-    // DEFER REMOVED BY AUDIT
-    const targetUser = interaction.options.getUser('destinatario');
-    let amount = interaction.options.getNumber('monto');
-    if (amount) amount = Math.floor(amount); // Fix: Enforce integer
-    const concepto = interaction.options.getString('concepto') || 'Transferencia SPEI';
+        if (['blackjack', 'ruleta'].includes(subCmd)) {
+            if (!bet || bet < 100) return interaction.editReply('❌ Apuesta mínima $100.');
 
-    // Self-transfer check
-    if (targetUser.id === interaction.user.id) {
-        return interaction.editReply('❌ No puedes transferirte a ti mismo.');
-    }
-
-    // Helper function to rename channel based on state
-
-    if (amount <= 0) return interaction.editReply('❌ Monto inválido.');
-
-    const balance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
-    if ((balance.bank || 0) < amount) {
-        return interaction.editReply(`❌ **Fondos Insuficientes en Banco**\nRequiere: $${amount.toLocaleString()}\nTienes: $${(balance.bank || 0).toLocaleString()}`);
-    }
-
-    // Helper function to rename channel based on state
-
-    // Check recipient has debit card
-    const { data: recipientCard } = await supabase
-        .from('debit_cards')
-        .select('*')
-        .eq('discord_user_id', targetUser.id)
-        .eq('status', 'active')
-        .maybeSingle();
-
-    if (!recipientCard) {
-        return interaction.editReply(`❌ ${targetUser.tag} no tiene una tarjeta de débito activa para recibir transferencias.`);
-    }
-
-    // Helper function to rename channel based on state
-
-    // GHOST MODE: Check if sender has Elite privacy
-    const { data: senderPrivacy } = await supabase
-        .from('privacy_accounts')
-        .select('*')
-        .eq('user_id', interaction.user.id)
-        .eq('level', 'elite')
-        .gt('expires_at', new Date().toISOString())
-        .maybeSingle();
-
-    const senderName = senderPrivacy?.offshore_name || (senderPrivacy ? '🕶️ Usuario Anónimo' : interaction.user.tag);
-
-    // Immediate transfer
-    await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, amount, `SPEI a ${targetUser.tag}`, 'bank');
-    await billingService.ubService.addMoney(interaction.guildId, targetUser.id, amount, `SPEI de ${senderName}`, 'bank');
-
-    // Notify recipient if they have alerts
-    const { data: recipientPrivacy } = await supabase
-        .from('privacy_accounts')
-        .select('alerts_enabled')
-        .eq('user_id', targetUser.id)
-        .maybeSingle();
-
-    if (recipientPrivacy?.alerts_enabled) {
-        try {
-            await targetUser.send(`💰 **Transferencia Recibida**\n$${amount.toLocaleString()} de ${senderName}\nConcepto: ${concepto}`);
-        } catch (e) { }
-    }
-
-    // Helper function to rename channel based on state
-
-    const embed = new EmbedBuilder()
-        .setTitle('⚡ Transferencia SPEI Exitosa')
-        .setColor(0x00FF00)
-        .setDescription(`Transferencia inmediata a **${targetUser.tag}** completada.`)
-        .addFields(
-            { name: '💰 Monto', value: `$${amount.toLocaleString()}`, inline: true },
-            { name: '💳 Destino', value: `*${recipientCard.card_number.slice(-4)}`, inline: true },
-            { name: '📝 Concepto', value: concepto, inline: false },
-            { name: '👤 Remitente', value: senderName, inline: true }
-        )
-        .setTimestamp();
-
-    return interaction.editReply({ embeds: [embed] });
-}
-
-else if (commandName === 'casino') {
-    // DEFER REMOVED BY AUDIT
-    const subCmd = interaction.options.getSubcommand();
-    const bet = interaction.options.getNumber('apuesta');
-
-    if (['blackjack', 'ruleta'].includes(subCmd)) {
-        if (!bet || bet < 100) return interaction.editReply('❌ Apuesta mínima $100.');
-
-        // Validate Funds
-        const balance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
-        const userCash = balance.cash || 0;
-        if (userCash < bet) return interaction.editReply('❌ No tienes suficiente efectivo.');
-    }
-
-    if (subCmd === 'blackjack') {
-        const suits = ['♠️', '♥️', '♣️', '♦️'];
-        const values = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
-        const deck = [];
-        for (const s of suits) for (const v of values) deck.push({ value: v, suit: s });
-        for (let i = deck.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [deck[i], deck[j]] = [deck[j], deck[i]];
-        }
-
-        const getCardValue = (card) => {
-            if (['J', 'Q', 'K'].includes(card.value)) return 10;
-            if (card.value === 'A') return 11;
-            return parseInt(card.value);
-        };
-
-        const calculateScore = (hand) => {
-            let score = 0;
-            let aces = 0;
-            for (const card of hand) {
-                score += getCardValue(card);
-                if (card.value === 'A') aces++;
-            }
-            while (score > 21 && aces > 0) {
-                score -= 10;
-                aces--;
-            }
-            return score;
-        };
-
-        const playerHand = [deck.pop(), deck.pop()];
-        const dealerHand = [deck.pop(), deck.pop()];
-
-        let playerScore = calculateScore(playerHand);
-        const dealerVisible = `**${dealerHand[0].value}${dealerHand[0].suit}** | 🎴`;
-
-        const getEmbed = (pScore, dScore, pHand, dHand, status = 'PLAYING') => {
-            const color = status === 'WIN' ? '#00FF00' : (status === 'LOSE' ? '#FF0000' : '#FFFF00');
-            return new EmbedBuilder()
-                .setTitle('🎰 Blackjack Nación MX')
-                .setColor(color)
-                .addFields(
-                    { name: `Tus Cartas (${pScore})`, value: pHand.map(c => `[${c.value}${c.suit}]`).join(' '), inline: true },
-                    { name: `Dealer (${status === 'PLAYING' ? '?' : dScore})`, value: status === 'PLAYING' ? dealerVisible : dHand.map(c => `[${c.value}${c.suit}]`).join(' '), inline: true },
-                    { name: '💰 Apuesta', value: `$${bet.toLocaleString()}`, inline: false }
-                );
-        };
-
-        const row = new ActionRowBuilder()
-            .addComponents(
-                new ButtonBuilder().setCustomId('hit').setLabel('Pedir Carta').setStyle(ButtonStyle.Primary),
-                new ButtonBuilder().setCustomId('stand').setLabel('Plantarse').setStyle(ButtonStyle.Success)
-            );
-
-        const msg = await interaction.editReply({ embeds: [getEmbed(playerScore, 0, playerHand, dealerHand)], components: [row] });
-
-        if (playerScore === 21) {
-            await billingService.ubService.addMoney(interaction.guildId, interaction.user.id, Math.floor(bet * 1.5), 'Blackjack Win', 'cash');
-            return interaction.editReply({ content: '🔥 **¡BLACKJACK!** Ganaste 3:2.', components: [] });
-        }
-
-        await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, bet, 'Blackjack Bet', 'cash');
-
-        const collector = msg.createMessageComponentCollector({ filter: i => i.user.id === interaction.user.id, time: 60000 });
-
-        collector.on('collect', async i => {
-            await i.deferUpdate();
-            if (i.customId === 'hit') {
-                playerHand.push(deck.pop());
-                playerScore = calculateScore(playerHand);
-
-                if (playerScore > 21) {
-                    collector.stop('bust');
-                } else {
-                    await i.editReply({ embeds: [getEmbed(playerScore, 0, playerHand, dealerHand)], components: [row] });
-                }
-            } else if (i.customId === 'stand') {
-                collector.stop('stand');
-            }
-        });
-
-        collector.on('end', async (c, reason) => {
-            if (reason === 'bust') {
-                await interaction.editReply({
-                    embeds: [getEmbed(playerScore, calculateScore(dealerHand), playerHand, dealerHand, 'LOSE').setDescription('❌ **Te pasaste!** Perdiste tu apuesta.')],
-                    components: []
-                });
-            } else {
-                let dealerScore = calculateScore(dealerHand);
-                while (dealerScore < 17) {
-                    dealerHand.push(deck.pop());
-                    dealerScore = calculateScore(dealerHand);
-                }
-
-                let result = '';
-                let payout = 0;
-
-                if (dealerScore > 21 || playerScore > dealerScore) {
-                    result = 'WIN';
-                    payout = bet * 2;
-                    await billingService.ubService.addMoney(interaction.guildId, interaction.user.id, payout, 'Blackjack Win', 'cash');
-                } else if (playerScore === dealerScore) {
-                    result = 'PUSH';
-                    payout = bet;
-                    await billingService.ubService.addMoney(interaction.guildId, interaction.user.id, payout, 'Blackjack Push', 'cash');
-                } else {
-                    result = 'LOSE';
-                }
-
-                const resultMsg = result === 'WIN' ? `✅ **¡GANASTE!** (Dealer: ${dealerScore})` : (result === 'PUSH' ? '🤝 **Empate** - Apuesta devuelta.' : `❌ **Perdiste.** (Dealer: ${dealerScore})`);
-
-                await interaction.editReply({
-                    embeds: [getEmbed(playerScore, dealerScore, playerHand, dealerHand, result).setDescription(resultMsg)],
-                    components: []
-                });
-            }
-        });
-    }
-
-    // Helper function to rename channel based on state
-
-    else if (subCmd === 'ruleta') {
-        const option = interaction.options.getString('opcion');
-        await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, bet, 'Ruleta Bet', 'cash');
-        await interaction.editReply(`🎲 Girando ruleta...apostando **$${bet}** a **${option}**...`);
-
-        setTimeout(async () => {
-            const resultNum = Math.floor(Math.random() * 37);
-            const colors = { 0: 'green' };
-            const reds = [1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36];
-            for (let i = 1; i <= 36; i++) {
-                if (!colors[i]) colors[i] = reds.includes(i) ? 'red' : 'black';
-            }
-            const resultColor = colors[resultNum];
-
-            let win = false;
-            let multiplier = 0;
-
-            if (option === 'red' && resultColor === 'red') { win = true; multiplier = 2; }
-            else if (option === 'black' && resultColor === 'black') { win = true; multiplier = 2; }
-            else if (option === 'green' && resultColor === 'green') { win = true; multiplier = 14; }
-            else if (option === 'low' && resultNum >= 1 && resultNum <= 18) { win = true; multiplier = 2; }
-            else if (option === 'high' && resultNum >= 19 && resultNum <= 36) { win = true; multiplier = 2; }
-
-            const embed = new EmbedBuilder()
-                .setTitle(`🎰 Resultado: [ ${resultNum} ${resultColor === 'red' ? '🔴' : (resultColor === 'black' ? '⚫' : '🟢')} ]`)
-                .setColor(win ? '#00FF00' : '#FF0000')
-                .setTimestamp();
-
-            if (win) {
-                const payout = bet * multiplier;
-                await billingService.ubService.addMoney(interaction.guildId, interaction.user.id, payout, 'Ruleta Win', 'cash');
-                embed.setDescription(`🎉 **¡GANASTE!**\nRecibes: **$${payout.toLocaleString()}**`);
-            } else {
-                embed.setDescription(`❌ **Perdiste.**\nLa casa gana.`);
-            }
-            await interaction.editReply({ content: '', embeds: [embed] });
-        }, 4000);
-    }
-
-    // Helper function to rename channel based on state
-
-    else if (subCmd === 'fichas') {
-        const accion = interaction.options.getString('accion');
-        const cantidad = interaction.options.getNumber('cantidad');
-
-        const FICHA_PRICE = 100; // $100 por ficha
-
-        if (accion === 'comprar') {
-            const costo = cantidad * FICHA_PRICE;
-
-            // Fetch Balance for this specific action
+            // Validate Funds
             const balance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
             const userCash = balance.cash || 0;
-            if (userCash < costo) {
-                return interaction.editReply(`❌ **Fondos Insuficientes**\nNecesitas: $${costo.toLocaleString()}\nTienes: $${userCash.toLocaleString()}`);
+            if (userCash < bet) return interaction.editReply('❌ No tienes suficiente efectivo.');
+        }
+
+        if (subCmd === 'blackjack') {
+            const suits = ['♠️', '♥️', '♣️', '♦️'];
+            const values = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
+            const deck = [];
+            for (const s of suits) for (const v of values) deck.push({ value: v, suit: s });
+            for (let i = deck.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [deck[i], deck[j]] = [deck[j], deck[i]];
             }
 
-            await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, costo, 'Compra fichas casino', 'cash');
+            const getCardValue = (card) => {
+                if (['J', 'Q', 'K'].includes(card.value)) return 10;
+                if (card.value === 'A') return 11;
+                return parseInt(card.value);
+            };
 
-            // Update or create chips record
-            const { data: existing } = await supabase.from('casino_chips').select('*').eq('user_id', interaction.user.id).maybeSingle();
+            const calculateScore = (hand) => {
+                let score = 0;
+                let aces = 0;
+                for (const card of hand) {
+                    score += getCardValue(card);
+                    if (card.value === 'A') aces++;
+                }
+                while (score > 21 && aces > 0) {
+                    score -= 10;
+                    aces--;
+                }
+                return score;
+            };
 
-            if (existing) {
-                await supabase.from('casino_chips').update({
-                    chips: existing.chips + cantidad
-                }).eq('user_id', interaction.user.id);
-            } else {
-                await supabase.from('casino_chips').insert({
-                    user_id: interaction.user.id,
-                    chips: cantidad,
-                    total_won: 0,
-                    total_lost: 0,
-                    games_played: 0
-                });
-            }
+            const playerHand = [deck.pop(), deck.pop()];
+            const dealerHand = [deck.pop(), deck.pop()];
 
-            const embed = new EmbedBuilder()
-                .setTitle('🎰 Compra de Fichas')
-                .setColor(0xFFD700)
-                .setDescription(`Has comprado **${cantidad} fichas** del casino`)
-                .addFields(
-                    { name: '💰 Costo', value: `$${costo.toLocaleString()}`, inline: true },
-                    { name: '🎲 Total Fichas', value: `${(existing?.chips || 0) + cantidad}`, inline: true }
-                )
-                .setFooter({ text: 'Usa las fichas en /jugar' });
+            let playerScore = calculateScore(playerHand);
+            const dealerVisible = `**${dealerHand[0].value}${dealerHand[0].suit}** | 🎴`;
 
-            return interaction.editReply({ embeds: [embed] });
+            const getEmbed = (pScore, dScore, pHand, dHand, status = 'PLAYING') => {
+                const color = status === 'WIN' ? '#00FF00' : (status === 'LOSE' ? '#FF0000' : '#FFFF00');
+                return new EmbedBuilder()
+                    .setTitle('🎰 Blackjack Nación MX')
+                    .setColor(color)
+                    .addFields(
+                        { name: `Tus Cartas (${pScore})`, value: pHand.map(c => `[${c.value}${c.suit}]`).join(' '), inline: true },
+                        { name: `Dealer (${status === 'PLAYING' ? '?' : dScore})`, value: status === 'PLAYING' ? dealerVisible : dHand.map(c => `[${c.value}${c.suit}]`).join(' '), inline: true },
+                        { name: '💰 Apuesta', value: `$${bet.toLocaleString()}`, inline: false }
+                    );
+            };
 
-        } else if (accion === 'vender') {
-            const { data: chips } = await supabase.from('casino_chips').select('*').eq('user_id', interaction.user.id).maybeSingle();
-
-            if (!chips || chips.chips < cantidad) {
-                return interaction.editReply(`❌ **Fichas Insuficientes**\nTienes: ${chips?.chips || 0} fichas`);
-            }
-
-            const ganancia = cantidad * FICHA_PRICE;
-            await supabase.from('casino_chips').update({
-                chips: chips.chips - cantidad
-            }).eq('user_id', interaction.user.id);
-
-            await billingService.ubService.addMoney(interaction.guildId, interaction.user.id, ganancia, 'Venta fichas casino', 'cash');
-
-            const embed = new EmbedBuilder()
-                .setTitle('💵 Venta de Fichas')
-                .setColor(0x00FF00)
-                .setDescription(`Has vendido **${cantidad} fichas**`)
-                .addFields(
-                    { name: '💰 Ganancia', value: `$${ganancia.toLocaleString()}`, inline: true },
-                    { name: '🎲 Fichas Restantes', value: `${chips.chips - cantidad}`, inline: true }
+            const row = new ActionRowBuilder()
+                .addComponents(
+                    new ButtonBuilder().setCustomId('hit').setLabel('Pedir Carta').setStyle(ButtonStyle.Primary),
+                    new ButtonBuilder().setCustomId('stand').setLabel('Plantarse').setStyle(ButtonStyle.Success)
                 );
 
-            return interaction.editReply({ embeds: [embed] });
+            const msg = await interaction.editReply({ embeds: [getEmbed(playerScore, 0, playerHand, dealerHand)], components: [row] });
+
+            if (playerScore === 21) {
+                await billingService.ubService.addMoney(interaction.guildId, interaction.user.id, Math.floor(bet * 1.5), 'Blackjack Win', 'cash');
+                return interaction.editReply({ content: '🔥 **¡BLACKJACK!** Ganaste 3:2.', components: [] });
+            }
+
+            await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, bet, 'Blackjack Bet', 'cash');
+
+            const collector = msg.createMessageComponentCollector({ filter: i => i.user.id === interaction.user.id, time: 60000 });
+
+            collector.on('collect', async i => {
+                await i.deferUpdate();
+                if (i.customId === 'hit') {
+                    playerHand.push(deck.pop());
+                    playerScore = calculateScore(playerHand);
+
+                    if (playerScore > 21) {
+                        collector.stop('bust');
+                    } else {
+                        await i.editReply({ embeds: [getEmbed(playerScore, 0, playerHand, dealerHand)], components: [row] });
+                    }
+                } else if (i.customId === 'stand') {
+                    collector.stop('stand');
+                }
+            });
+
+            collector.on('end', async (c, reason) => {
+                if (reason === 'bust') {
+                    await interaction.editReply({
+                        embeds: [getEmbed(playerScore, calculateScore(dealerHand), playerHand, dealerHand, 'LOSE').setDescription('❌ **Te pasaste!** Perdiste tu apuesta.')],
+                        components: []
+                    });
+                } else {
+                    let dealerScore = calculateScore(dealerHand);
+                    while (dealerScore < 17) {
+                        dealerHand.push(deck.pop());
+                        dealerScore = calculateScore(dealerHand);
+                    }
+
+                    let result = '';
+                    let payout = 0;
+
+                    if (dealerScore > 21 || playerScore > dealerScore) {
+                        result = 'WIN';
+                        payout = bet * 2;
+                        await billingService.ubService.addMoney(interaction.guildId, interaction.user.id, payout, 'Blackjack Win', 'cash');
+                    } else if (playerScore === dealerScore) {
+                        result = 'PUSH';
+                        payout = bet;
+                        await billingService.ubService.addMoney(interaction.guildId, interaction.user.id, payout, 'Blackjack Push', 'cash');
+                    } else {
+                        result = 'LOSE';
+                    }
+
+                    const resultMsg = result === 'WIN' ? `✅ **¡GANASTE!** (Dealer: ${dealerScore})` : (result === 'PUSH' ? '🤝 **Empate** - Apuesta devuelta.' : `❌ **Perdiste.** (Dealer: ${dealerScore})`);
+
+                    await interaction.editReply({
+                        embeds: [getEmbed(playerScore, dealerScore, playerHand, dealerHand, result).setDescription(resultMsg)],
+                        components: []
+                    });
+                }
+            });
         }
-    }
 
-    // Helper function to rename channel based on state
-}
+        // Helper function to rename channel based on state
 
+        else if (subCmd === 'ruleta') {
+            const option = interaction.options.getString('opcion');
+            await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, bet, 'Ruleta Bet', 'cash');
+            await interaction.editReply(`🎲 Girando ruleta...apostando **$${bet}** a **${option}**...`);
 
-else if (commandName === 'top-morosos') {
-    // DEFER REMOVED BY AUDIT
+            setTimeout(async () => {
+                const resultNum = Math.floor(Math.random() * 37);
+                const colors = { 0: 'green' };
+                const reds = [1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36];
+                for (let i = 1; i <= 36; i++) {
+                    if (!colors[i]) colors[i] = reds.includes(i) ? 'red' : 'black';
+                }
+                const resultColor = colors[resultNum];
 
-    try {
-        const { data: debtors } = await supabase
-            .from('credit_cards')
-            .select('current_balance, card_type, citizen_id, citizens!inner(full_name, discord_id)')
-            .gt('current_balance', 0)
-            .order('current_balance', { ascending: false })
-            .limit(10);
+                let win = false;
+                let multiplier = 0;
 
-        if (!debtors || debtors.length === 0) {
-            return interaction.editReply('✅ ¡No hay deudores! Todos están al corriente.');
+                if (option === 'red' && resultColor === 'red') { win = true; multiplier = 2; }
+                else if (option === 'black' && resultColor === 'black') { win = true; multiplier = 2; }
+                else if (option === 'green' && resultColor === 'green') { win = true; multiplier = 14; }
+                else if (option === 'low' && resultNum >= 1 && resultNum <= 18) { win = true; multiplier = 2; }
+                else if (option === 'high' && resultNum >= 19 && resultNum <= 36) { win = true; multiplier = 2; }
+
+                const embed = new EmbedBuilder()
+                    .setTitle(`🎰 Resultado: [ ${resultNum} ${resultColor === 'red' ? '🔴' : (resultColor === 'black' ? '⚫' : '🟢')} ]`)
+                    .setColor(win ? '#00FF00' : '#FF0000')
+                    .setTimestamp();
+
+                if (win) {
+                    const payout = bet * multiplier;
+                    await billingService.ubService.addMoney(interaction.guildId, interaction.user.id, payout, 'Ruleta Win', 'cash');
+                    embed.setDescription(`🎉 **¡GANASTE!**\nRecibes: **$${payout.toLocaleString()}**`);
+                } else {
+                    embed.setDescription(`❌ **Perdiste.**\nLa casa gana.`);
+                }
+                await interaction.editReply({ content: '', embeds: [embed] });
+            }, 4000);
         }
 
-        const embed = new EmbedBuilder()
-            .setTitle('📉 Top 10 - Mayores Deudas')
-            .setColor(0xFF0000)
-            .setTimestamp();
+        // Helper function to rename channel based on state
 
-        let description = '';
-        debtors.forEach((d, index) => {
-            description += `${index + 1}. **${d.citizens.full_name}** - $${d.current_balance.toLocaleString()} (${d.card_type})\n`;
-        });
+        else if (subCmd === 'fichas') {
+            const accion = interaction.options.getString('accion');
+            const cantidad = interaction.options.getNumber('cantidad');
 
-        embed.setDescription(description);
-        embed.setFooter({ text: 'Recuerda pagar tus tarjetas a tiempo' });
-        await interaction.editReply({ embeds: [embed] });
-    } catch (error) {
-        console.error(error);
-        await interaction.editReply('❌ Error obteniendo el ranking.');
+            const FICHA_PRICE = 100; // $100 por ficha
+
+            if (accion === 'comprar') {
+                const costo = cantidad * FICHA_PRICE;
+
+                // Fetch Balance for this specific action
+                const balance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
+                const userCash = balance.cash || 0;
+                if (userCash < costo) {
+                    return interaction.editReply(`❌ **Fondos Insuficientes**\nNecesitas: $${costo.toLocaleString()}\nTienes: $${userCash.toLocaleString()}`);
+                }
+
+                await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, costo, 'Compra fichas casino', 'cash');
+
+                // Update or create chips record
+                const { data: existing } = await supabase.from('casino_chips').select('*').eq('user_id', interaction.user.id).maybeSingle();
+
+                if (existing) {
+                    await supabase.from('casino_chips').update({
+                        chips: existing.chips + cantidad
+                    }).eq('user_id', interaction.user.id);
+                } else {
+                    await supabase.from('casino_chips').insert({
+                        user_id: interaction.user.id,
+                        chips: cantidad,
+                        total_won: 0,
+                        total_lost: 0,
+                        games_played: 0
+                    });
+                }
+
+                const embed = new EmbedBuilder()
+                    .setTitle('🎰 Compra de Fichas')
+                    .setColor(0xFFD700)
+                    .setDescription(`Has comprado **${cantidad} fichas** del casino`)
+                    .addFields(
+                        { name: '💰 Costo', value: `$${costo.toLocaleString()}`, inline: true },
+                        { name: '🎲 Total Fichas', value: `${(existing?.chips || 0) + cantidad}`, inline: true }
+                    )
+                    .setFooter({ text: 'Usa las fichas en /jugar' });
+
+                return interaction.editReply({ embeds: [embed] });
+
+            } else if (accion === 'vender') {
+                const { data: chips } = await supabase.from('casino_chips').select('*').eq('user_id', interaction.user.id).maybeSingle();
+
+                if (!chips || chips.chips < cantidad) {
+                    return interaction.editReply(`❌ **Fichas Insuficientes**\nTienes: ${chips?.chips || 0} fichas`);
+                }
+
+                const ganancia = cantidad * FICHA_PRICE;
+                await supabase.from('casino_chips').update({
+                    chips: chips.chips - cantidad
+                }).eq('user_id', interaction.user.id);
+
+                await billingService.ubService.addMoney(interaction.guildId, interaction.user.id, ganancia, 'Venta fichas casino', 'cash');
+
+                const embed = new EmbedBuilder()
+                    .setTitle('💵 Venta de Fichas')
+                    .setColor(0x00FF00)
+                    .setDescription(`Has vendido **${cantidad} fichas**`)
+                    .addFields(
+                        { name: '💰 Ganancia', value: `$${ganancia.toLocaleString()}`, inline: true },
+                        { name: '🎲 Fichas Restantes', value: `${chips.chips - cantidad}`, inline: true }
+                    );
+
+                return interaction.editReply({ embeds: [embed] });
+            }
+        }
+
+        // Helper function to rename channel based on state
     }
 
-    // Helper function to rename channel based on state
-}
 
-else if (commandName === 'depositar') {
-    // DEFER REMOVED BY AUDIT
-    const destUser = interaction.options.getUser('destinatario');
+    else if (commandName === 'top-morosos') {
+        // DEFER REMOVED BY AUDIT
 
-    // Prevent self-transfer
-    if (destUser.id === interaction.user.id) {
-        return interaction.editReply('❌ No puedes depositarte a ti mismo. Usa `/debito depositar` para guardar efectivo en tu banco.');
+        try {
+            const { data: debtors } = await supabase
+                .from('credit_cards')
+                .select('current_balance, card_type, citizen_id, citizens!inner(full_name, discord_id)')
+                .gt('current_balance', 0)
+                .order('current_balance', { ascending: false })
+                .limit(10);
+
+            if (!debtors || debtors.length === 0) {
+                return interaction.editReply('✅ ¡No hay deudores! Todos están al corriente.');
+            }
+
+            const embed = new EmbedBuilder()
+                .setTitle('📉 Top 10 - Mayores Deudas')
+                .setColor(0xFF0000)
+                .setTimestamp();
+
+            let description = '';
+            debtors.forEach((d, index) => {
+                description += `${index + 1}. **${d.citizens.full_name}** - $${d.current_balance.toLocaleString()} (${d.card_type})\n`;
+            });
+
+            embed.setDescription(description);
+            embed.setFooter({ text: 'Recuerda pagar tus tarjetas a tiempo' });
+            await interaction.editReply({ embeds: [embed] });
+        } catch (error) {
+            console.error(error);
+            await interaction.editReply('❌ Error obteniendo el ranking.');
+        }
+
+        // Helper function to rename channel based on state
     }
 
-    // Helper function to rename channel based on state
+    else if (commandName === 'depositar') {
+        // DEFER REMOVED BY AUDIT
+        const destUser = interaction.options.getUser('destinatario');
 
-    const inputMonto = interaction.options.getString('monto');
-    const razon = interaction.options.getString('razon') || 'Depósito en Efectivo';
+        // Prevent self-transfer
+        if (destUser.id === interaction.user.id) {
+            return interaction.editReply('❌ No puedes depositarte a ti mismo. Usa `/debito depositar` para guardar efectivo en tu banco.');
+        }
 
-    // Parse Amount
-    let monto = 0;
-    // Fetch balance early to handle 'todo'
-    const balance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
-    const cash = balance.cash || 0;
+        // Helper function to rename channel based on state
 
-    if (inputMonto.toLowerCase() === 'todo' || inputMonto.toLowerCase() === 'all') {
-        monto = cash;
-    } else {
-        // Remove any non-numeric chars (e.g. $, commas) to be safe
-        const cleanMonto = inputMonto.replace(/[^0-9.]/g, '');
-        // Fix: Enforce floor to avoid floating point issues causing negative balance
-        monto = Math.floor(parseFloat(cleanMonto));
-    }
+        const inputMonto = interaction.options.getString('monto');
+        const razon = interaction.options.getString('razon') || 'Depósito en Efectivo';
 
-    // Helper function to rename channel based on state
-
-    // Security: Check for NaN, Finite, and positive amount
-    if (isNaN(monto) || !isFinite(monto) || monto <= 0) {
-        return interaction.editReply('❌ Monto inválido. Debes ingresar un número positivo mayor a 0.');
-    }
-
-    // Helper function to rename channel based on state
-
-
-    try {
-        // 1. Check Sender CASH (OXXO Logic: You pay with cash)
+        // Parse Amount
+        let monto = 0;
+        // Fetch balance early to handle 'todo'
         const balance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
         const cash = balance.cash || 0;
 
-        if (cash < monto) {
-            return interaction.editReply(`❌ No tienes suficiente **efectivo** en mano. Tienes: $${cash.toLocaleString()}`);
-        }
-
-        // 2. Check Recipient Debit Card
-        const { data: destCard } = await supabase
-            .from('debit_cards')
-            .select('*')
-            .eq('discord_user_id', destUser.id)
-            .eq('status', 'active')
-            .maybeSingle();
-
-        if (!destCard) {
-            return interaction.editReply(`❌ El destinatario ${destUser.tag} no tiene una Tarjeta de Débito NMX activa para recibir depósitos.`);
-        }
-
-        // 3. Process Logic
-        // Remove Cash from Sender instantly
-        await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, monto, `Depósito a ${destUser.tag}`, 'cash');
-
-        // Schedule Pending Transfer (4 Hours Delay)
-        const completionTime = new Date(Date.now() + (4 * 60 * 60 * 1000)); // 4 Hours
-
-        await supabase.from('pending_transfers').insert({
-            sender_id: interaction.user.id,
-            receiver_id: destUser.id,
-            amount: monto,
-            reason: razon,
-            release_date: completionTime.toISOString(),
-            status: 'PENDING'
-        });
-
-        // GHOST MODE: Check sender privacy
-        const { data: senderDepositPrivacy } = await supabase
-            .from('privacy_accounts')
-            .select('*')
-            .eq('user_id', interaction.user.id)
-            .eq('level', 'elite')
-            .gt('expires_at', new Date().toISOString())
-            .maybeSingle();
-
-        const depositSenderName = senderDepositPrivacy?.offshore_name || (senderDepositPrivacy ? '🕶️ Anónimo' : interaction.user.tag);
-
-        // 4. Response
-        const embed = new EmbedBuilder()
-            .setTitle('🏪 Depósito Realizado')
-            .setColor(0xFFA500)
-            .setDescription(`Has depositado efectivo a la cuenta de **${destUser.tag}**.`)
-            .addFields(
-                { name: '💸 Monto', value: `$${monto.toLocaleString()}`, inline: true },
-                { name: '💳 Destino', value: `Tarjeta NMX *${destCard.card_number.slice(-4)}`, inline: true },
-                { name: '⏳ Tiempo estimado', value: '4 Horas', inline: false },
-                { name: '📝 Concepto', value: razon, inline: false },
-                { name: '👤 Remitente', value: depositSenderName, inline: true }
-            )
-            .setFooter({ text: 'El dinero llegará automáticamente cuando se procese.' })
-            .setTimestamp();
-
-        await interaction.editReply({ embeds: [embed] });
-
-    } catch (error) {
-        console.error(error);
-        await interaction.editReply('❌ Error procesando el depósito.');
-    }
-
-    // Helper function to rename channel based on state
-}
-
-
-else if (commandName === 'giro') {
-    // DEFER REMOVED BY AUDIT // Defer immediately
-
-    const destUser = interaction.options.getUser('destinatario');
-    const inputMonto = interaction.options.getString('monto');
-    const razon = interaction.options.getString('razon') || 'Giro Postal';
-
-    // Fetch balance early
-    const senderBalance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
-
-    let monto = 0;
-    if (inputMonto.toLowerCase() === 'todo' || inputMonto.toLowerCase() === 'all') {
-        monto = senderBalance.cash || 0;
-    } else {
-        // Remove any non-numeric chars
-        const cleanMonto = inputMonto.replace(/[^0-9.]/g, '');
-        monto = parseFloat(cleanMonto);
-    }
-
-    // Helper function to rename channel based on state
-
-    // Security: Check for NaN, Finite, and positive amount
-    if (isNaN(monto) || !isFinite(monto) || monto <= 0) {
-        return interaction.editReply({ content: '❌ Monto inválido. Debes ingresar un número positivo mayor a 0.' });
-    }
-
-    // Helper function to rename channel based on state
-    if (destUser.id === interaction.user.id) return interaction.editReply({ content: '❌ No puedes enviarte un giro a ti mismo.' });
-
-    try {
-        // Already fetched balance above.
-        if ((senderBalance.cash || 0) < monto) {
-            return interaction.editReply(`❌ Fondos insuficientes en Efectivo. Tienes $${(senderBalance.cash || 0).toLocaleString()}.`);
-        }
-
-        // 2. Create Pending Transfer FIRST (24h Delay)
-        const releaseDate = new Date();
-        releaseDate.setHours(releaseDate.getHours() + 24);
-
-        const { error: insertError } = await supabase.from('giro_transfers').insert({
-            sender_id: interaction.user.id,
-            receiver_id: destUser.id,
-            amount: monto,
-            reason: razon,
-            release_date: releaseDate.toISOString(),
-            status: 'pending'
-        });
-
-        if (insertError) {
-            console.error('[giro] Error:', insertError);
-            return interaction.editReply(`❌ Error creando giro.\nDetalles: ${insertError.message}`);
-        }
-
-        // 3. Show payment selector
-        // GHOST MODE: Check sender privacy
-        const { data: senderGiroPrivacy } = await supabase
-            .from('privacy_accounts')
-            .select('*')
-            .eq('user_id', interaction.user.id)
-            .eq('level', 'elite')
-            .gt('expires_at', new Date().toISOString())
-            .maybeSingle();
-
-        const giroSenderName = senderGiroPrivacy?.offshore_name || (senderGiroPrivacy ? '🕶️ Anónimo' : interaction.user.tag);
-
-        const pmGiro = await getAvailablePaymentMethods(supabase, interaction.user.id, interaction.guildId);
-        const pbGiro = createPaymentButtons(pmGiro, 'giro_pay');
-        const paymentEmbed = createPaymentEmbed(`📮 Giro a ${destUser.tag} (Entrega 24h)`, monto, pmGiro);
-        paymentEmbed.addFields({ name: '👤 Remitente', value: giroSenderName, inline: true });
-        await interaction.editReply({ embeds: [paymentEmbed], components: [pbGiro] });
-        const fGiro = i => i.user.id === interaction.user.id && i.customId.startsWith('giro_pay_');
-        const cGiro = interaction.channel.createMessageComponentCollector({ filter: fGiro, time: 60000, max: 1 });
-        cGiro.on('collect', async (i) => {
-            await i.deferUpdate();
-            const prGiro = await processPayment(client.services.billing, supabase, i.customId.replace('giro_pay_', ''), interaction.user.id, interaction.guildId, monto, `[Giro] ${destUser.tag}`, pmGiro);
-            if (!prGiro.success) return i.editReply({ content: prGiro.error, components: [] });
-            await i.editReply({ content: `✅ **Giro Enviado** (${prGiro.method})\n\nDestinatario: **${destUser.tag}**\nMonto: **$${monto.toLocaleString()}**\nEntrega: 24 horas`, components: [] });
-        });
-        cGiro.on('end', collected => { if (collected.size === 0) interaction.editReply({ content: '⏱️ Tiempo agotado.', components: [] }); });
-
-    } catch (error) {
-        console.error(error);
-        await interaction.editReply('❌ Error procesando el giro postal.');
-    }
-
-    // Helper function to rename channel based on state
-}
-
-/* DISABLED - Automatic tax collection via background service
-else if (commandName === 'impuestos') {
-    // DEFER REMOVED BY AUDIT
- 
-    const EVASOR_FISCAL_ROLE_ID = '1449950636371214397';
-    const targetUser = interaction.options.getUser('usuario') || interaction.user;
-    const hasEvasorRole = interaction.member.roles.cache.has(EVASOR_FISCAL_ROLE_ID);
- 
-    try {
-        const balance = await billingService.ubService.getUserBalance(interaction.guildId, targetUser.id);
-        const cash = balance.cash || 0;
- 
-        const TAX_THRESHOLD = 1000000;
-        const BASE_TAX_RATE = 0.05;
- 
-        // Calculate base tax
-        let baseTaxAmount = 0;
-        if (cash > TAX_THRESHOLD) {
-            baseTaxAmount = Math.floor((cash - TAX_THRESHOLD) * BASE_TAX_RATE);
-        }
- 
-        if (baseTaxAmount === 0) {
-            const embed = new EmbedBuilder()
-                .setColor('#00FF00')
-                .setTitle(`💼 Estado Fiscal de ${targetUser.username}`)
-                .setDescription('✅ **EXENTO DE IMPUESTOS**\n\nNo tienes suficiente efectivo gravable.')
-                .addFields(
-                    { name: '💵 Efectivo Actual', value: `$${cash.toLocaleString()}`, inline: true },
-                    { name: '📊 Umbral Exento', value: `$${TAX_THRESHOLD.toLocaleString()}`, inline: true }
-                )
-                .setTimestamp();
-            return interaction.editReply({ embeds: [embed] });
-        }
- 
-        // EVASION MECHANICS
-        if (hasEvasorRole) {
-            // Get evasion history to calculate suspicion
-            const { data: history } = await supabase
-                .from('tax_evasion_history')
-                .select('evasion_type')
-                .eq('guild_id', interaction.guildId)
-                .eq('user_id', targetUser.id)
-                .order('created_at', { ascending: false })
-                .limit(10);
- 
-            const recentEvasions = (history || []).filter(h => h.evasion_type === 'success').length;
-            const recentCaught = (history || []).filter(h => h.evasion_type === 'caught').length;
- 
-            // Calculate catch probability
-            let catchProbability = 0.20; // 20% base
-            catchProbability += recentEvasions * 0.05; // +5% per recent evasion
-            catchProbability = Math.min(catchProbability, 0.60); // Max 60%
- 
-            // Reduced tax amount
-            const evadedTaxAmount = Math.floor(baseTaxAmount * 0.50); // Pay only 50%
- 
-            // Roll for getting caught
-            const caughtRoll = Math.random();
-            const wasCaught = caughtRoll < catchProbability;
- 
-            if (wasCaught) {
-                // CAUGHT EVADING
-                const fineMultiplier = recentCaught > 0 ? 3.0 : 2.0; // 300% for recidivists, 200% first time
-                const fineAmount = Math.floor(baseTaxAmount * fineMultiplier);
- 
-                // Charge fine
-                await billingService.ubService.removeMoney(
-                    interaction.guildId,
-                    targetUser.id,
-                    fineAmount,
-                    '🚨 Multa SAT - Evasión Fiscal Detectada',
-                    'cash'
-                );
- 
-                // Remove evasor role
-                try {
-                    await interaction.member.roles.remove(EVASOR_FISCAL_ROLE_ID);
-                } catch (roleErr) {
-                    console.error('[impuestos] Failed to remove evasor role:', roleErr);
-                }
- 
-                // Log to history
-                await supabase.from('tax_evasion_history').insert({
-                    guild_id: interaction.guildId,
-                    user_id: targetUser.id,
-                    evasion_type: 'caught',
-                    tax_amount: baseTaxAmount,
-                    fine_amount: fineAmount,
-                    suspicion_level: Math.floor(catchProbability * 100)
-                });
- 
-                const embed = new EmbedBuilder()
-                    .setColor('#FF0000')
-                    .setTitle('🚨 ¡AUDITORÍA DEL SAT!')
-                    .setDescription(`**¡FUISTE DESCUBIERTO EVADIENDO IMPUESTOS!**\n\n${recentCaught > 0 ? '⚠️ **REINCIDENTE** - Multa aumentada' : ''}`)
-                    .addFields(
-                        { name: '💸 Impuesto Original', value: `$${baseTaxAmount.toLocaleString()}`, inline: true },
-                        { name: '🚔 Multa Aplicada', value: `$${fineAmount.toLocaleString()}`, inline: true },
-                        { name: '📊 Nivel de Sospecha', value: `${Math.floor(catchProbability * 100)}%`, inline: true },
-                        { name: '❌ Consecuencias', value: `• Rol Evasor Fiscal **removido**\n• Multa del **${fineMultiplier * 100}%**\n• Registro en historial criminal`, inline: false }
-                    )
-                    .setFooter({ text: 'El SAT siempre vigila. Evade con precaución.' })
-                    .setTimestamp();
- 
-                return interaction.editReply({ embeds: [embed] });
- 
-            } else {
-                // SUCCESSFUL EVASION
-                await billingService.ubService.removeMoney(
-                    interaction.guildId,
-                    targetUser.id,
-                    evadedTaxAmount,
-                    '💸 Pago de Impuestos (Evadido)',
-                    'cash'
-                );
- 
-                // Log success
-                await supabase.from('tax_evasion_history').insert({
-                    guild_id: interaction.guildId,
-                    user_id: targetUser.id,
-                    evasion_type: 'success',
-                    tax_amount: baseTaxAmount,
-                    fine_amount: 0,
-                    suspicion_level: Math.floor(catchProbability * 100)
-                });
- 
-                const saved = baseTaxAmount - evadedTaxAmount;
- 
-                const embed = new EmbedBuilder()
-                    .setColor('#00FF00')
-                    .setTitle('🕶️ Evasión Exitosa')
-                    .setDescription('**SAT no sospecha... aún.**\n\nPagaste impuestos reducidos.')
-                    .addFields(
-                        { name: '💸 Impuesto Normal', value: `$${baseTaxAmount.toLocaleString()}`, inline: true },
-                        { name: '✅ Pagado', value: `$${evadedTaxAmount.toLocaleString()}`, inline: true },
-                        { name: '💰 Ahorrado', value: `$${saved.toLocaleString()}`, inline: true },
-                        { name: '⚠️ Nivel de Sospecha', value: `${Math.floor(catchProbability * 100)}%`, inline: true },
-                        { name: '🎲 Probabilidad de Captura', value: `${Math.floor(catchProbability * 100)}% (siguiente vez)`, inline: true },
-                        { name: '📊 Evasiones Recientes', value: `${recentEvasions + 1}`, inline: true }
-                    )
-                    .setFooter({ text: `⚠️ Cada evasión aumenta +5% tu probabilidad de ser atrapado` })
-                    .setTimestamp();
- 
-                return interaction.editReply({ embeds: [embed] });
-            }
+        if (inputMonto.toLowerCase() === 'todo' || inputMonto.toLowerCase() === 'all') {
+            monto = cash;
         } else {
-            // NORMAL TAX PAYMENT
-            await billingService.ubService.removeMoney(
-                interaction.guildId,
-                targetUser.id,
-                baseTaxAmount,
-                '💼 Pago de Impuestos SAT',
-                'cash'
-            );
- 
-            const embed = new EmbedBuilder()
-                .setColor('#FF9800')
-                .setTitle(`💼 Pago de Impuestos`)
-                .setDescription('✅ Impuestos pagados correctamente.')
-                .addFields(
-                    { name: '💵 Efectivo Gravable', value: `$${(cash - TAX_THRESHOLD).toLocaleString()}`, inline: true },
-                    { name: '📈 Tasa de Impuesto', value: `${(BASE_TAX_RATE * 100)}%`, inline: true },
-                    { name: '💸 Impuesto Pagado', value: `$${baseTaxAmount.toLocaleString()}`, inline: false },
-                    { name: '💡 Tip', value: 'Compra el pase **💸 Evasión de Impuestos** en `/tienda` para pagar solo el 50% (con riesgo)', inline: false }
-                )
-                .setFooter({ text: 'Gracias por ser un ciudadano responsable' })
-                .setTimestamp();
- 
-            await interaction.editReply({ embeds: [embed] });
-        }
- 
-    } catch (error) {
-        console.error('[impuestos] Error:', error);
-        await interaction.editReply('❌ Error al procesar impuestos. Contacta a un administrador.');
-    }
- 
-    // Helper function to rename channel based on state
-}
-*/
-
-// NOTE: Taxes are now collected automatically by the billing service
-
-// ===================================================================
-// ECONOMY COMMANDS: Stake, Slots, Fondos
-// ===================================================================
-
-else if (commandName === 'stake') {
-    // DEFER REMOVED BY AUDIT
-    try {
-    } catch (err) {
-        console.error('[ERROR] Failed to defer stake:', err);
-        return;
-    }
-
-    // Helper function to rename channel based on state
-
-    const subcommand = interaction.options.getSubcommand();
-
-    if (subcommand === 'depositar') {
-        const crypto = interaction.options.getString('crypto').toUpperCase();
-        const cantidad = interaction.options.getNumber('cantidad');
-        const dias = interaction.options.getInteger('dias');
-
-        if (!['BTC', 'ETH', 'SOL'].includes(crypto)) {
-            return interaction.editReply('❌ Crypto inválida. Usa: BTC, ETH, SOL');
+            // Remove any non-numeric chars (e.g. $, commas) to be safe
+            const cleanMonto = inputMonto.replace(/[^0-9.]/g, '');
+            // Fix: Enforce floor to avoid floating point issues causing negative balance
+            monto = Math.floor(parseFloat(cleanMonto));
         }
 
-        if (![7, 30, 90].includes(dias)) {
-            return interaction.editReply('❌ Períodos válidos: 7, 30, o 90 días');
+        // Helper function to rename channel based on state
+
+        // Security: Check for NaN, Finite, and positive amount
+        if (isNaN(monto) || !isFinite(monto) || monto <= 0) {
+            return interaction.editReply('❌ Monto inválido. Debes ingresar un número positivo mayor a 0.');
         }
+
+        // Helper function to rename channel based on state
+
 
         try {
-            const { data: portfolio } = await supabase
-                .from('stock_portfolios')
-                .select('*')
-                .eq('discord_user_id', interaction.user.id)
-                .eq('stock_symbol', crypto)
-                .single();
+            // 1. Check Sender CASH (OXXO Logic: You pay with cash)
+            const balance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
+            const cash = balance.cash || 0;
 
-            if (!portfolio || portfolio.shares < cantidad) {
-                return interaction.editReply('❌ No tienes suficiente crypto. Compra primero con `/bolsa comprar`');
+            if (cash < monto) {
+                return interaction.editReply(`❌ No tienes suficiente **efectivo** en mano. Tienes: $${cash.toLocaleString()}`);
             }
 
-            await supabase
-                .from('stock_portfolios')
-                .update({ shares: portfolio.shares - cantidad })
-                .eq('id', portfolio.id);
+            // 2. Check Recipient Debit Card
+            const { data: destCard } = await supabase
+                .from('debit_cards')
+                .select('*')
+                .eq('discord_user_id', destUser.id)
+                .eq('status', 'active')
+                .maybeSingle();
 
-            const stake = await stakingService.createStake(
-                interaction.user.id,
-                crypto,
-                cantidad,
-                dias
-            );
+            if (!destCard) {
+                return interaction.editReply(`❌ El destinatario ${destUser.tag} no tiene una Tarjeta de Débito NMX activa para recibir depósitos.`);
+            }
 
-            const rates = stakingService.rates[crypto];
-            const apy = rates[dias] * 100;
-            const estimatedEarnings = (cantidad * rates[dias] * dias / 365).toFixed(4);
+            // 3. Process Logic
+            // Remove Cash from Sender instantly
+            await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, monto, `Depósito a ${destUser.tag}`, 'cash');
 
-            await interaction.editReply({
-                content: `✅ **Staking Exitoso!**\n\n🔒 **${cantidad}** ${crypto} bloqueado por **${dias} días**\n📊 APY: **${apy.toFixed(1)}%**\n💰 Earnings estimados: **${estimatedEarnings}** ${crypto}\n\n_Usa \`/stake mis-stakes\` para ver todos tus stakes._`
+            // Schedule Pending Transfer (4 Hours Delay)
+            const completionTime = new Date(Date.now() + (4 * 60 * 60 * 1000)); // 4 Hours
+
+            await supabase.from('pending_transfers').insert({
+                sender_id: interaction.user.id,
+                receiver_id: destUser.id,
+                amount: monto,
+                reason: razon,
+                release_date: completionTime.toISOString(),
+                status: 'PENDING'
             });
+
+            // GHOST MODE: Check sender privacy
+            const { data: senderDepositPrivacy } = await supabase
+                .from('privacy_accounts')
+                .select('*')
+                .eq('user_id', interaction.user.id)
+                .eq('level', 'elite')
+                .gt('expires_at', new Date().toISOString())
+                .maybeSingle();
+
+            const depositSenderName = senderDepositPrivacy?.offshore_name || (senderDepositPrivacy ? '🕶️ Anónimo' : interaction.user.tag);
+
+            // 4. Response
+            const embed = new EmbedBuilder()
+                .setTitle('🏪 Depósito Realizado')
+                .setColor(0xFFA500)
+                .setDescription(`Has depositado efectivo a la cuenta de **${destUser.tag}**.`)
+                .addFields(
+                    { name: '💸 Monto', value: `$${monto.toLocaleString()}`, inline: true },
+                    { name: '💳 Destino', value: `Tarjeta NMX *${destCard.card_number.slice(-4)}`, inline: true },
+                    { name: '⏳ Tiempo estimado', value: '4 Horas', inline: false },
+                    { name: '📝 Concepto', value: razon, inline: false },
+                    { name: '👤 Remitente', value: depositSenderName, inline: true }
+                )
+                .setFooter({ text: 'El dinero llegará automáticamente cuando se procese.' })
+                .setTimestamp();
+
+            await interaction.editReply({ embeds: [embed] });
 
         } catch (error) {
             console.error(error);
-            await interaction.editReply('❌ Error creando stake.');
-        }
-    }
-
-    // Helper function to rename channel based on state
-
-    else if (subcommand === 'mis-stakes') {
-        const stakes = await stakingService.getUserStakes(interaction.user.id);
-
-        if (stakes.length === 0) {
-            return interaction.editReply('📊 No tienes stakes activos. Usa `/stake depositar` para empezar.');
+            await interaction.editReply('❌ Error procesando el depósito.');
         }
 
-        const embed = new EmbedBuilder()
-            .setTitle('🔒 Tus Stakes Activos')
-            .setColor(0x00FF00)
-            .setFooter({ text: 'Usa /stake retirar [id] para retirar stakes desbloqueados' });
-
-        stakes.forEach(s => {
-            const endDate = new Date(s.end_date);
-            const isUnlocked = Date.now() > endDate.getTime();
-            const status = isUnlocked ? '🔓 DESBLOQUEADO' : `🔒 Bloqueado hasta ${endDate.toLocaleDateString()}`;
-
-            embed.addFields({
-                name: `${s.crypto_symbol} - ${s.amount} unidades`,
-                value: `APY: ${s.apy}%\n${status}\nID: \`${s.id.substring(0, 8)}\``
-            });
-        });
-
-        await interaction.editReply({ embeds: [embed] });
+        // Helper function to rename channel based on state
     }
 
-    // Helper function to rename channel based on state
 
-    else if (subcommand === 'retirar') {
-        const stakeId = interaction.options.getString('id');
+    else if (commandName === 'giro') {
+        // DEFER REMOVED BY AUDIT // Defer immediately
+
+        const destUser = interaction.options.getUser('destinatario');
+        const inputMonto = interaction.options.getString('monto');
+        const razon = interaction.options.getString('razon') || 'Giro Postal';
+
+        // Fetch balance early
+        const senderBalance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
+
+        let monto = 0;
+        if (inputMonto.toLowerCase() === 'todo' || inputMonto.toLowerCase() === 'all') {
+            monto = senderBalance.cash || 0;
+        } else {
+            // Remove any non-numeric chars
+            const cleanMonto = inputMonto.replace(/[^0-9.]/g, '');
+            monto = parseFloat(cleanMonto);
+        }
+
+        // Helper function to rename channel based on state
+
+        // Security: Check for NaN, Finite, and positive amount
+        if (isNaN(monto) || !isFinite(monto) || monto <= 0) {
+            return interaction.editReply({ content: '❌ Monto inválido. Debes ingresar un número positivo mayor a 0.' });
+        }
+
+        // Helper function to rename channel based on state
+        if (destUser.id === interaction.user.id) return interaction.editReply({ content: '❌ No puedes enviarte un giro a ti mismo.' });
 
         try {
-            const { amount, earnings } = await stakingService.withdrawStake(stakeId, interaction.user.id);
+            // Already fetched balance above.
+            if ((senderBalance.cash || 0) < monto) {
+                return interaction.editReply(`❌ Fondos insuficientes en Efectivo. Tienes $${(senderBalance.cash || 0).toLocaleString()}.`);
+            }
 
-            await interaction.editReply({
-                content: `✅ **Stake Retirado!**\n\n💰 Principal: **${amount}**\n📈 Ganancias: **${earnings.toFixed(4)}**\n🎉 Total: **${(amount + earnings).toFixed(4)}**`
+            // 2. Create Pending Transfer FIRST (24h Delay)
+            const releaseDate = new Date();
+            releaseDate.setHours(releaseDate.getHours() + 24);
+
+            const { error: insertError } = await supabase.from('giro_transfers').insert({
+                sender_id: interaction.user.id,
+                receiver_id: destUser.id,
+                amount: monto,
+                reason: razon,
+                release_date: releaseDate.toISOString(),
+                status: 'pending'
             });
+
+            if (insertError) {
+                console.error('[giro] Error:', insertError);
+                return interaction.editReply(`❌ Error creando giro.\nDetalles: ${insertError.message}`);
+            }
+
+            // 3. Show payment selector
+            // GHOST MODE: Check sender privacy
+            const { data: senderGiroPrivacy } = await supabase
+                .from('privacy_accounts')
+                .select('*')
+                .eq('user_id', interaction.user.id)
+                .eq('level', 'elite')
+                .gt('expires_at', new Date().toISOString())
+                .maybeSingle();
+
+            const giroSenderName = senderGiroPrivacy?.offshore_name || (senderGiroPrivacy ? '🕶️ Anónimo' : interaction.user.tag);
+
+            const pmGiro = await getAvailablePaymentMethods(supabase, interaction.user.id, interaction.guildId);
+            const pbGiro = createPaymentButtons(pmGiro, 'giro_pay');
+            const paymentEmbed = createPaymentEmbed(`📮 Giro a ${destUser.tag} (Entrega 24h)`, monto, pmGiro);
+            paymentEmbed.addFields({ name: '👤 Remitente', value: giroSenderName, inline: true });
+            await interaction.editReply({ embeds: [paymentEmbed], components: [pbGiro] });
+            const fGiro = i => i.user.id === interaction.user.id && i.customId.startsWith('giro_pay_');
+            const cGiro = interaction.channel.createMessageComponentCollector({ filter: fGiro, time: 60000, max: 1 });
+            cGiro.on('collect', async (i) => {
+                await i.deferUpdate();
+                const prGiro = await processPayment(client.services.billing, supabase, i.customId.replace('giro_pay_', ''), interaction.user.id, interaction.guildId, monto, `[Giro] ${destUser.tag}`, pmGiro);
+                if (!prGiro.success) return i.editReply({ content: prGiro.error, components: [] });
+                await i.editReply({ content: `✅ **Giro Enviado** (${prGiro.method})\n\nDestinatario: **${destUser.tag}**\nMonto: **$${monto.toLocaleString()}**\nEntrega: 24 horas`, components: [] });
+            });
+            cGiro.on('end', collected => { if (collected.size === 0) interaction.editReply({ content: '⏱️ Tiempo agotado.', components: [] }); });
 
         } catch (error) {
-            await interaction.editReply(`❌ ${error.message}`);
-        }
-    }
-
-    // Helper function to rename channel based on state
-}
-
-else if (commandName === 'slots') {
-    // DEFER REMOVED BY AUDIT
-    try {
-    } catch (err) {
-        console.error('[ERROR] Failed to defer slots:', err);
-        return;
-    }
-
-    // Helper function to rename channel based on state
-
-    const apuesta = interaction.options.getInteger('apuesta');
-
-    if (apuesta < 100) {
-        return interaction.editReply('❌ Apuesta mínima: $100');
-    }
-
-    // Helper function to rename channel based on state
-
-    try {
-        const card = await getDebitCard(supabase, interaction.user.id);
-        if (!card || card.balance < apuesta) {
-            return interaction.editReply('❌ Saldo insuficiente en tarjeta de débito');
+            console.error(error);
+            await interaction.editReply('❌ Error procesando el giro postal.');
         }
 
-        await supabase
-            .from('debit_cards')
-            .update({ balance: card.balance - apuesta })
-            .eq('id', card.id);
+        // Helper function to rename channel based on state
+    }
 
-        const { result, payout, win, jackpot, jackpotAmount } = await slotsService.spin(
-            interaction.user.id,
-            apuesta
-        );
+    /* DISABLED - Automatic tax collection via background service
+    else if (commandName === 'impuestos') {
+        // DEFER REMOVED BY AUDIT
+     
+        const EVASOR_FISCAL_ROLE_ID = '1449950636371214397';
+        const targetUser = interaction.options.getUser('usuario') || interaction.user;
+        const hasEvasorRole = interaction.member.roles.cache.has(EVASOR_FISCAL_ROLE_ID);
+     
+        try {
+            const balance = await billingService.ubService.getUserBalance(interaction.guildId, targetUser.id);
+            const cash = balance.cash || 0;
+     
+            const TAX_THRESHOLD = 1000000;
+            const BASE_TAX_RATE = 0.05;
+     
+            // Calculate base tax
+            let baseTaxAmount = 0;
+            if (cash > TAX_THRESHOLD) {
+                baseTaxAmount = Math.floor((cash - TAX_THRESHOLD) * BASE_TAX_RATE);
+            }
+     
+            if (baseTaxAmount === 0) {
+                const embed = new EmbedBuilder()
+                    .setColor('#00FF00')
+                    .setTitle(`💼 Estado Fiscal de ${targetUser.username}`)
+                    .setDescription('✅ **EXENTO DE IMPUESTOS**\n\nNo tienes suficiente efectivo gravable.')
+                    .addFields(
+                        { name: '💵 Efectivo Actual', value: `$${cash.toLocaleString()}`, inline: true },
+                        { name: '📊 Umbral Exento', value: `$${TAX_THRESHOLD.toLocaleString()}`, inline: true }
+                    )
+                    .setTimestamp();
+                return interaction.editReply({ embeds: [embed] });
+            }
+     
+            // EVASION MECHANICS
+            if (hasEvasorRole) {
+                // Get evasion history to calculate suspicion
+                const { data: history } = await supabase
+                    .from('tax_evasion_history')
+                    .select('evasion_type')
+                    .eq('guild_id', interaction.guildId)
+                    .eq('user_id', targetUser.id)
+                    .order('created_at', { ascending: false })
+                    .limit(10);
+     
+                const recentEvasions = (history || []).filter(h => h.evasion_type === 'success').length;
+                const recentCaught = (history || []).filter(h => h.evasion_type === 'caught').length;
+     
+                // Calculate catch probability
+                let catchProbability = 0.20; // 20% base
+                catchProbability += recentEvasions * 0.05; // +5% per recent evasion
+                catchProbability = Math.min(catchProbability, 0.60); // Max 60%
+     
+                // Reduced tax amount
+                const evadedTaxAmount = Math.floor(baseTaxAmount * 0.50); // Pay only 50%
+     
+                // Roll for getting caught
+                const caughtRoll = Math.random();
+                const wasCaught = caughtRoll < catchProbability;
+     
+                if (wasCaught) {
+                    // CAUGHT EVADING
+                    const fineMultiplier = recentCaught > 0 ? 3.0 : 2.0; // 300% for recidivists, 200% first time
+                    const fineAmount = Math.floor(baseTaxAmount * fineMultiplier);
+     
+                    // Charge fine
+                    await billingService.ubService.removeMoney(
+                        interaction.guildId,
+                        targetUser.id,
+                        fineAmount,
+                        '🚨 Multa SAT - Evasión Fiscal Detectada',
+                        'cash'
+                    );
+     
+                    // Remove evasor role
+                    try {
+                        await interaction.member.roles.remove(EVASOR_FISCAL_ROLE_ID);
+                    } catch (roleErr) {
+                        console.error('[impuestos] Failed to remove evasor role:', roleErr);
+                    }
+     
+                    // Log to history
+                    await supabase.from('tax_evasion_history').insert({
+                        guild_id: interaction.guildId,
+                        user_id: targetUser.id,
+                        evasion_type: 'caught',
+                        tax_amount: baseTaxAmount,
+                        fine_amount: fineAmount,
+                        suspicion_level: Math.floor(catchProbability * 100)
+                    });
+     
+                    const embed = new EmbedBuilder()
+                        .setColor('#FF0000')
+                        .setTitle('🚨 ¡AUDITORÍA DEL SAT!')
+                        .setDescription(`**¡FUISTE DESCUBIERTO EVADIENDO IMPUESTOS!**\n\n${recentCaught > 0 ? '⚠️ **REINCIDENTE** - Multa aumentada' : ''}`)
+                        .addFields(
+                            { name: '💸 Impuesto Original', value: `$${baseTaxAmount.toLocaleString()}`, inline: true },
+                            { name: '🚔 Multa Aplicada', value: `$${fineAmount.toLocaleString()}`, inline: true },
+                            { name: '📊 Nivel de Sospecha', value: `${Math.floor(catchProbability * 100)}%`, inline: true },
+                            { name: '❌ Consecuencias', value: `• Rol Evasor Fiscal **removido**\n• Multa del **${fineMultiplier * 100}%**\n• Registro en historial criminal`, inline: false }
+                        )
+                        .setFooter({ text: 'El SAT siempre vigila. Evade con precaución.' })
+                        .setTimestamp();
+     
+                    return interaction.editReply({ embeds: [embed] });
+     
+                } else {
+                    // SUCCESSFUL EVASION
+                    await billingService.ubService.removeMoney(
+                        interaction.guildId,
+                        targetUser.id,
+                        evadedTaxAmount,
+                        '💸 Pago de Impuestos (Evadido)',
+                        'cash'
+                    );
+     
+                    // Log success
+                    await supabase.from('tax_evasion_history').insert({
+                        guild_id: interaction.guildId,
+                        user_id: targetUser.id,
+                        evasion_type: 'success',
+                        tax_amount: baseTaxAmount,
+                        fine_amount: 0,
+                        suspicion_level: Math.floor(catchProbability * 100)
+                    });
+     
+                    const saved = baseTaxAmount - evadedTaxAmount;
+     
+                    const embed = new EmbedBuilder()
+                        .setColor('#00FF00')
+                        .setTitle('🕶️ Evasión Exitosa')
+                        .setDescription('**SAT no sospecha... aún.**\n\nPagaste impuestos reducidos.')
+                        .addFields(
+                            { name: '💸 Impuesto Normal', value: `$${baseTaxAmount.toLocaleString()}`, inline: true },
+                            { name: '✅ Pagado', value: `$${evadedTaxAmount.toLocaleString()}`, inline: true },
+                            { name: '💰 Ahorrado', value: `$${saved.toLocaleString()}`, inline: true },
+                            { name: '⚠️ Nivel de Sospecha', value: `${Math.floor(catchProbability * 100)}%`, inline: true },
+                            { name: '🎲 Probabilidad de Captura', value: `${Math.floor(catchProbability * 100)}% (siguiente vez)`, inline: true },
+                            { name: '📊 Evasiones Recientes', value: `${recentEvasions + 1}`, inline: true }
+                        )
+                        .setFooter({ text: `⚠️ Cada evasión aumenta +5% tu probabilidad de ser atrapado` })
+                        .setTimestamp();
+     
+                    return interaction.editReply({ embeds: [embed] });
+                }
+            } else {
+                // NORMAL TAX PAYMENT
+                await billingService.ubService.removeMoney(
+                    interaction.guildId,
+                    targetUser.id,
+                    baseTaxAmount,
+                    '💼 Pago de Impuestos SAT',
+                    'cash'
+                );
+     
+                const embed = new EmbedBuilder()
+                    .setColor('#FF9800')
+                    .setTitle(`💼 Pago de Impuestos`)
+                    .setDescription('✅ Impuestos pagados correctamente.')
+                    .addFields(
+                        { name: '💵 Efectivo Gravable', value: `$${(cash - TAX_THRESHOLD).toLocaleString()}`, inline: true },
+                        { name: '📈 Tasa de Impuesto', value: `${(BASE_TAX_RATE * 100)}%`, inline: true },
+                        { name: '💸 Impuesto Pagado', value: `$${baseTaxAmount.toLocaleString()}`, inline: false },
+                        { name: '💡 Tip', value: 'Compra el pase **💸 Evasión de Impuestos** en `/tienda` para pagar solo el 50% (con riesgo)', inline: false }
+                    )
+                    .setFooter({ text: 'Gracias por ser un ciudadano responsable' })
+                    .setTimestamp();
+     
+                await interaction.editReply({ embeds: [embed] });
+            }
+     
+        } catch (error) {
+            console.error('[impuestos] Error:', error);
+            await interaction.editReply('❌ Error al procesar impuestos. Contacta a un administrador.');
+        }
+     
+        // Helper function to rename channel based on state
+    }
+    */
 
-        if (payout > 0) {
+    // NOTE: Taxes are now collected automatically by the billing service
+
+    // ===================================================================
+    // ECONOMY COMMANDS: Stake, Slots, Fondos
+    // ===================================================================
+
+    else if (commandName === 'stake') {
+        // DEFER REMOVED BY AUDIT
+        try {
+        } catch (err) {
+            console.error('[ERROR] Failed to defer stake:', err);
+            return;
+        }
+
+        // Helper function to rename channel based on state
+
+        const subcommand = interaction.options.getSubcommand();
+
+        if (subcommand === 'depositar') {
+            const crypto = interaction.options.getString('crypto').toUpperCase();
+            const cantidad = interaction.options.getNumber('cantidad');
+            const dias = interaction.options.getInteger('dias');
+
+            if (!['BTC', 'ETH', 'SOL'].includes(crypto)) {
+                return interaction.editReply('❌ Crypto inválida. Usa: BTC, ETH, SOL');
+            }
+
+            if (![7, 30, 90].includes(dias)) {
+                return interaction.editReply('❌ Períodos válidos: 7, 30, o 90 días');
+            }
+
+            try {
+                const { data: portfolio } = await supabase
+                    .from('stock_portfolios')
+                    .select('*')
+                    .eq('discord_user_id', interaction.user.id)
+                    .eq('stock_symbol', crypto)
+                    .single();
+
+                if (!portfolio || portfolio.shares < cantidad) {
+                    return interaction.editReply('❌ No tienes suficiente crypto. Compra primero con `/bolsa comprar`');
+                }
+
+                await supabase
+                    .from('stock_portfolios')
+                    .update({ shares: portfolio.shares - cantidad })
+                    .eq('id', portfolio.id);
+
+                const stake = await stakingService.createStake(
+                    interaction.user.id,
+                    crypto,
+                    cantidad,
+                    dias
+                );
+
+                const rates = stakingService.rates[crypto];
+                const apy = rates[dias] * 100;
+                const estimatedEarnings = (cantidad * rates[dias] * dias / 365).toFixed(4);
+
+                await interaction.editReply({
+                    content: `✅ **Staking Exitoso!**\n\n🔒 **${cantidad}** ${crypto} bloqueado por **${dias} días**\n📊 APY: **${apy.toFixed(1)}%**\n💰 Earnings estimados: **${estimatedEarnings}** ${crypto}\n\n_Usa \`/stake mis-stakes\` para ver todos tus stakes._`
+                });
+
+            } catch (error) {
+                console.error(error);
+                await interaction.editReply('❌ Error creando stake.');
+            }
+        }
+
+        // Helper function to rename channel based on state
+
+        else if (subcommand === 'mis-stakes') {
+            const stakes = await stakingService.getUserStakes(interaction.user.id);
+
+            if (stakes.length === 0) {
+                return interaction.editReply('📊 No tienes stakes activos. Usa `/stake depositar` para empezar.');
+            }
+
+            const embed = new EmbedBuilder()
+                .setTitle('🔒 Tus Stakes Activos')
+                .setColor(0x00FF00)
+                .setFooter({ text: 'Usa /stake retirar [id] para retirar stakes desbloqueados' });
+
+            stakes.forEach(s => {
+                const endDate = new Date(s.end_date);
+                const isUnlocked = Date.now() > endDate.getTime();
+                const status = isUnlocked ? '🔓 DESBLOQUEADO' : `🔒 Bloqueado hasta ${endDate.toLocaleDateString()}`;
+
+                embed.addFields({
+                    name: `${s.crypto_symbol} - ${s.amount} unidades`,
+                    value: `APY: ${s.apy}%\n${status}\nID: \`${s.id.substring(0, 8)}\``
+                });
+            });
+
+            await interaction.editReply({ embeds: [embed] });
+        }
+
+        // Helper function to rename channel based on state
+
+        else if (subcommand === 'retirar') {
+            const stakeId = interaction.options.getString('id');
+
+            try {
+                const { amount, earnings } = await stakingService.withdrawStake(stakeId, interaction.user.id);
+
+                await interaction.editReply({
+                    content: `✅ **Stake Retirado!**\n\n💰 Principal: **${amount}**\n📈 Ganancias: **${earnings.toFixed(4)}**\n🎉 Total: **${(amount + earnings).toFixed(4)}**`
+                });
+
+            } catch (error) {
+                await interaction.editReply(`❌ ${error.message}`);
+            }
+        }
+
+        // Helper function to rename channel based on state
+    }
+
+    else if (commandName === 'slots') {
+        // DEFER REMOVED BY AUDIT
+        try {
+        } catch (err) {
+            console.error('[ERROR] Failed to defer slots:', err);
+            return;
+        }
+
+        // Helper function to rename channel based on state
+
+        const apuesta = interaction.options.getInteger('apuesta');
+
+        if (apuesta < 100) {
+            return interaction.editReply('❌ Apuesta mínima: $100');
+        }
+
+        // Helper function to rename channel based on state
+
+        try {
+            const card = await getDebitCard(supabase, interaction.user.id);
+            if (!card || card.balance < apuesta) {
+                return interaction.editReply('❌ Saldo insuficiente en tarjeta de débito');
+            }
+
             await supabase
                 .from('debit_cards')
-                .update({ balance: card.balance - apuesta + payout })
+                .update({ balance: card.balance - apuesta })
                 .eq('id', card.id);
+
+            const { result, payout, win, jackpot, jackpotAmount } = await slotsService.spin(
+                interaction.user.id,
+                apuesta
+            );
+
+            if (payout > 0) {
+                await supabase
+                    .from('debit_cards')
+                    .update({ balance: card.balance - apuesta + payout })
+                    .eq('id', card.id);
+            }
+
+            const spinning = '🎰 | 🎰 | 🎰';
+            const final = `${result.reel1} | ${result.reel2} | ${result.reel3}`;
+
+            let message = `**SLOT MACHINE** 🎰\n\n${spinning}\n⬇️\n${final}\n\n`;
+
+            if (jackpot) {
+                message += `🎉🎉🎉 **JACKPOT!!!** 🎉🎉🎉\n💰 ¡Ganaste $${jackpotAmount.toLocaleString()} del jackpot!\n`;
+            } else if (win) {
+                const profit = payout - apuesta;
+                message += `✅ **¡GANASTE!** 💰\nPago: $${payout.toLocaleString()} (+$${profit.toLocaleString()})\n`;
+            } else {
+                message += `❌ **Perdiste** $${apuesta.toLocaleString()}\n`;
+            }
+
+            const currentJackpot = await slotsService.getJackpot();
+            message += `\n🏆 Jackpot actual: $${currentJackpot.toLocaleString()}`;
+
+            await interaction.editReply(message);
+
+        } catch (error) {
+            console.error(error);
+            await interaction.editReply('❌ Error en slots');
         }
 
-        const spinning = '🎰 | 🎰 | 🎰';
-        const final = `${result.reel1} | ${result.reel2} | ${result.reel3}`;
-
-        let message = `**SLOT MACHINE** 🎰\n\n${spinning}\n⬇️\n${final}\n\n`;
-
-        if (jackpot) {
-            message += `🎉🎉🎉 **JACKPOT!!!** 🎉🎉🎉\n💰 ¡Ganaste $${jackpotAmount.toLocaleString()} del jackpot!\n`;
-        } else if (win) {
-            const profit = payout - apuesta;
-            message += `✅ **¡GANASTE!** 💰\nPago: $${payout.toLocaleString()} (+$${profit.toLocaleString()})\n`;
-        } else {
-            message += `❌ **Perdiste** $${apuesta.toLocaleString()}\n`;
-        }
-
-        const currentJackpot = await slotsService.getJackpot();
-        message += `\n🏆 Jackpot actual: $${currentJackpot.toLocaleString()}`;
-
-        await interaction.editReply(message);
-
-    } catch (error) {
-        console.error(error);
-        await interaction.editReply('❌ Error en slots');
+        // Helper function to rename channel based on state
     }
 
-    // Helper function to rename channel based on state
-}
-
-else if (commandName === 'fondos') {
-    // DEFER REMOVED BY AUDIT
-    try {
-    } catch (err) {
-        console.error('[ERROR] Failed to defer fondos:', err);
-        return;
-    }
-
-    // Helper function to rename channel based on state
-
-    const subcommand = interaction.options.getSubcommand();
-
-    if (subcommand === 'ver') {
-        const { data: funds } = await supabase
-            .from('investment_funds')
-            .select('*')
-            .eq('active', true)
-            .order('apy');
-
-        const embed = new EmbedBuilder()
-            .setTitle('💼 Fondos de Inversión Disponibles')
-            .setColor(0x00BFFF)
-            .setFooter({ text: 'Usa /fondos invertir [fondo] [monto]' });
-
-        funds.forEach(f => {
-            embed.addFields({
-                name: `${f.name} (${f.risk_level.toUpperCase()})`,
-                value: `📊 APY: ${f.apy}%\n💰 Mín: $${f.min_investment.toLocaleString()}\n📝 ${f.description}`
-            });
-        });
-
-        await interaction.editReply({ embeds: [embed] });
-    }
-
-    // Helper function to rename channel based on state
-
-    else if (subcommand === 'invertir') {
-        const fondoNombre = interaction.options.getString('fondo');
-        const monto = interaction.options.getInteger('monto');
-
-        const { data: fund } = await supabase
-            .from('investment_funds')
-            .select('*')
-            .ilike('name', `%${fondoNombre}%`)
-            .single();
-
-        if (!fund) {
-            return interaction.editReply('❌ Fondo no encontrado. Usa `/fondos ver` para ver opciones.');
+    else if (commandName === 'fondos') {
+        // DEFER REMOVED BY AUDIT
+        try {
+        } catch (err) {
+            console.error('[ERROR] Failed to defer fondos:', err);
+            return;
         }
 
-        if (monto < fund.min_investment) {
-            return interaction.editReply(`❌ Inversión mínima: $${fund.min_investment.toLocaleString()}`);
-        }
+        // Helper function to rename channel based on state
 
-        const card = await getDebitCard(supabase, interaction.user.id);
-        if (!card || card.balance < monto) {
-            return interaction.editReply('❌ Saldo insuficiente');
-        }
+        const subcommand = interaction.options.getSubcommand();
 
-        await supabase
-            .from('debit_cards')
-            .update({ balance: card.balance - monto })
-            .eq('id', card.id);
+        if (subcommand === 'ver') {
+            const { data: funds } = await supabase
+                .from('investment_funds')
+                .select('*')
+                .eq('active', true)
+                .order('apy');
 
-        await supabase
-            .from('fund_investments')
-            .insert({
-                user_id: interaction.user.id,
-                fund_id: fund.id,
-                amount: monto,
-                current_value: monto
+            const embed = new EmbedBuilder()
+                .setTitle('💼 Fondos de Inversión Disponibles')
+                .setColor(0x00BFFF)
+                .setFooter({ text: 'Usa /fondos invertir [fondo] [monto]' });
+
+            funds.forEach(f => {
+                embed.addFields({
+                    name: `${f.name} (${f.risk_level.toUpperCase()})`,
+                    value: `📊 APY: ${f.apy}%\n💰 Mín: $${f.min_investment.toLocaleString()}\n📝 ${f.description}`
+                });
             });
 
-        await interaction.editReply({
-            content: `✅ **Inversión Exitosa!**\n\n💼 Fondo: **${fund.name}**\n💰 Monto: **$${monto.toLocaleString()}**\n📊 APY: **${fund.apy}%**\n⏰ Tus ganancias se calculan diariamente.\n\n_Usa \`/fondos mis-fondos\` para ver tu portafolio._`
-        });
-    }
+            await interaction.editReply({ embeds: [embed] });
+        }
 
-    // Helper function to rename channel based on state
+        // Helper function to rename channel based on state
 
-    else if (subcommand === 'mis-fondos') {
-        const { data: investments } = await supabase
-            .from('fund_investments')
-            .select(`
+        else if (subcommand === 'invertir') {
+            const fondoNombre = interaction.options.getString('fondo');
+            const monto = interaction.options.getInteger('monto');
+
+            const { data: fund } = await supabase
+                .from('investment_funds')
+                .select('*')
+                .ilike('name', `%${fondoNombre}%`)
+                .single();
+
+            if (!fund) {
+                return interaction.editReply('❌ Fondo no encontrado. Usa `/fondos ver` para ver opciones.');
+            }
+
+            if (monto < fund.min_investment) {
+                return interaction.editReply(`❌ Inversión mínima: $${fund.min_investment.toLocaleString()}`);
+            }
+
+            const card = await getDebitCard(supabase, interaction.user.id);
+            if (!card || card.balance < monto) {
+                return interaction.editReply('❌ Saldo insuficiente');
+            }
+
+            await supabase
+                .from('debit_cards')
+                .update({ balance: card.balance - monto })
+                .eq('id', card.id);
+
+            await supabase
+                .from('fund_investments')
+                .insert({
+                    user_id: interaction.user.id,
+                    fund_id: fund.id,
+                    amount: monto,
+                    current_value: monto
+                });
+
+            await interaction.editReply({
+                content: `✅ **Inversión Exitosa!**\n\n💼 Fondo: **${fund.name}**\n💰 Monto: **$${monto.toLocaleString()}**\n📊 APY: **${fund.apy}%**\n⏰ Tus ganancias se calculan diariamente.\n\n_Usa \`/fondos mis-fondos\` para ver tu portafolio._`
+            });
+        }
+
+        // Helper function to rename channel based on state
+
+        else if (subcommand === 'mis-fondos') {
+            const { data: investments } = await supabase
+                .from('fund_investments')
+                .select(`
                     *,
                     investment_funds (name, apy, risk_level)
                 `)
-            .eq('user_id', interaction.user.id)
-            .eq('status', 'active');
+                .eq('user_id', interaction.user.id)
+                .eq('status', 'active');
 
-        if (!investments || investments.length === 0) {
-            return interaction.editReply('📊 No tienes inversiones activas. Usa `/fondos invertir`');
-        }
+            if (!investments || investments.length === 0) {
+                return interaction.editReply('📊 No tienes inversiones activas. Usa `/fondos invertir`');
+            }
 
-        const embed = new EmbedBuilder()
-            .setTitle('💼 Tus Inversiones')
-            .setColor(0x00BFFF);
+            const embed = new EmbedBuilder()
+                .setTitle('💼 Tus Inversiones')
+                .setColor(0x00BFFF);
 
-        investments.forEach(inv => {
-            const fund = inv.investment_funds;
-            embed.addFields({
-                name: fund.name,
-                value: `💰 Invertido: $${inv.amount.toLocaleString()}\n📊 APY: ${fund.apy}%\n📈 Nivel: ${fund.risk_level}`
+            investments.forEach(inv => {
+                const fund = inv.investment_funds;
+                embed.addFields({
+                    name: fund.name,
+                    value: `💰 Invertido: $${inv.amount.toLocaleString()}\n📊 APY: ${fund.apy}%\n📈 Nivel: ${fund.risk_level}`
+                });
             });
-        });
 
-        await interaction.editReply({ embeds: [embed] });
+            await interaction.editReply({ embeds: [embed] });
+        }
+
+        // Helper function to rename channel based on state
     }
 
-    // Helper function to rename channel based on state
-}
+    // PRIVACY SYSTEM HANDLER
+    // Add this to index.js
 
-// PRIVACY SYSTEM HANDLER
-// Add this to index.js
+    else if (commandName === 'privacidad') {
+        // DEFER REMOVED BY AUDIT
+        const subCmd = interaction.options.getSubcommand();
+        const userId = interaction.user.id;
 
-else if (commandName === 'privacidad') {
-    // DEFER REMOVED BY AUDIT
-    const subCmd = interaction.options.getSubcommand();
-    const userId = interaction.user.id;
-
-    // Get current privacy status
-    const { data: privacyData } = await supabase
-        .from('privacy_accounts')
-        .select('*')
-        .eq('user_id', userId)
-        .maybeSingle();
-
-    if (subCmd === 'activar') {
-        const nivel = interaction.options.getString('nivel');
-        const costs = { basico: 50000, vip: 150000, elite: 500000 };
-        const cost = costs[nivel];
-
-        const balance = await billingService.ubService.getUserBalance(interaction.guildId, userId);
-        if ((balance.cash || 0) < cost) {
-            return interaction.editReply(`❌ **Fondos Insuficientes**\nRequieres: $${cost.toLocaleString()}\nTienes: $${(balance.cash || 0).toLocaleString()}`);
-        }
-
-        await billingService.ubService.removeMoney(interaction.guildId, userId, cost, `Activación Privacidad ${nivel}`, 'cash');
-
-        const expiresAt = new Date();
-        expiresAt.setMonth(expiresAt.getMonth() + 1);
-
-        await supabase.from('privacy_accounts').upsert({
-            user_id: userId,
-            level: nivel,
-            expires_at: expiresAt.toISOString(),
-            activated_at: new Date().toISOString()
-        });
-
-        const icons = { basico: '🥉', vip: '🥈', elite: '🥇' };
-        const embed = new EmbedBuilder()
-            .setTitle('🕶️ Privacidad Activada')
-            .setColor('#2F3136')
-            .setDescription(`Nivel: ${icons[nivel]} **${nivel.toUpperCase()}**`)
-            .addFields(
-                { name: 'Costo', value: `$${cost.toLocaleString()}`, inline: true },
-                { name: 'Duración', value: '30 días', inline: true },
-                { name: 'Expira', value: `<t:${Math.floor(expiresAt.getTime() / 1000)}:R>`, inline: true }
-            )
-            .setFooter({ text: 'Tu información bancaria ahora está protegida' });
-
-        return interaction.editReply({ embeds: [embed] });
-    }
-
-    // Helper function to rename channel based on state
-
-    else if (subCmd === 'desactivar') {
-        if (!privacyData) {
-            return interaction.editReply('❌ No tienes privacidad activa');
-        }
-
-        await supabase.from('privacy_accounts').delete().eq('user_id', userId);
-        return interaction.editReply('✅ Privacidad desactivada');
-    }
-
-    // Helper function to rename channel based on state
-
-    else if (subCmd === 'estado') {
-        if (!privacyData) {
-            return interaction.editReply('❌ No tienes privacidad activa\nUsa `/privacidad activar` para protegerte');
-        }
-
-        const icons = { basico: '🥉', vip: '🥈', elite: '🥇' };
-        const now = new Date();
-        const expires = new Date(privacyData.expires_at);
-        const daysLeft = Math.ceil((expires - now) / (1000 * 60 * 60 * 24));
-
-        const embed = new EmbedBuilder()
-            .setTitle('🕶️ Tu Privacidad')
-            .setColor('#2F3136')
-            .setDescription(`Nivel: ${icons[privacyData.level]} **${privacyData.level.toUpperCase()}**`)
-            .addFields(
-                { name: 'Activado', value: `<t:${Math.floor(new Date(privacyData.activated_at).getTime() / 1000)}:R>`, inline: true },
-                { name: 'Expira en', value: `${daysLeft} días`, inline: true },
-                { name: 'Offshore', value: privacyData.offshore_name || 'No configurado', inline: true }
-            );
-
-        if (privacyData.level === 'basico') {
-            embed.addFields({ name: '✅ Beneficios', value: '• Saldo oculto\n• Inmunidad a robos\n• Transacciones privadas' });
-        } else if (privacyData.level === 'vip') {
-            embed.addFields({ name: '✅ Beneficios', value: '• Todo lo de Básico\n• Transferencias anónimas\n• Historial privado\n• Alertas de seguridad' });
-        } else if (privacyData.level === 'elite') {
-            embed.addFields({ name: '✅ Beneficios', value: '• Todo lo de VIP\n• Cuenta Offshore\n• Modo Fantasma\n• Bóveda de Emergencia\n• Anti-Secuestro' });
-        }
-
-        return interaction.editReply({ embeds: [embed] });
-    }
-
-    // Helper function to rename channel based on state
-
-    else if (subCmd === 'upgrade') {
-        if (!privacyData) {
-            return interaction.editReply('❌ Primero activa un nivel con `/privacidad activar`');
-        }
-
-        const newLevel = interaction.options.getString('nuevo_nivel');
-        const costs = { vip: 150000, elite: 500000 };
-        const currentCosts = { basico: 50000, vip: 150000 };
-
-        if (privacyData.level === 'elite') {
-            return interaction.editReply('❌ Ya tienes el nivel máximo');
-        }
-
-        if (privacyData.level === 'vip' && newLevel === 'vip') {
-            return interaction.editReply('❌ Ya tienes este nivel');
-        }
-
-        const upgradeCost = costs[newLevel] - currentCosts[privacyData.level];
-
-        const balance = await billingService.ubService.getUserBalance(interaction.guildId, userId);
-        if ((balance.cash || 0) < upgradeCost) {
-            return interaction.editReply(`❌ **Fondos Insuficientes** para upgrade\nRequieres: $${upgradeCost.toLocaleString()}`);
-        }
-
-        await billingService.ubService.removeMoney(interaction.guildId, userId, upgradeCost, `Upgrade Privacidad a ${newLevel}`, 'cash');
-        await supabase.from('privacy_accounts').update({ level: newLevel }).eq('user_id', userId);
-
-        return interaction.editReply(`✅ Privacidad mejorada a **${newLevel.toUpperCase()}**\nCosto: $${upgradeCost.toLocaleString()}`);
-    }
-
-    // Helper function to rename channel based on state
-
-    else if (subCmd === 'boveda') {
-        if (!privacyData || privacyData.level !== 'elite') {
-            return interaction.editReply('❌ Requiere nivel **Elite**');
-        }
-
-        const accion = interaction.options.getString('accion');
-        const monto = interaction.options.getNumber('monto');
-
-        const { data: vault } = await supabase
-            .from('privacy_vault')
+        // Get current privacy status
+        const { data: privacyData } = await supabase
+            .from('privacy_accounts')
             .select('*')
             .eq('user_id', userId)
             .maybeSingle();
 
-        if (accion === 'depositar') {
-            if (!monto) return interaction.editReply('❌ Especifica un monto');
+        if (subCmd === 'activar') {
+            const nivel = interaction.options.getString('nivel');
+            const costs = { basico: 50000, vip: 150000, elite: 500000 };
+            const cost = costs[nivel];
 
             const balance = await billingService.ubService.getUserBalance(interaction.guildId, userId);
-            if ((balance.cash || 0) < monto) {
-                return interaction.editReply(`❌ Fondos insuficientes`);
+            if ((balance.cash || 0) < cost) {
+                return interaction.editReply(`❌ **Fondos Insuficientes**\nRequieres: $${cost.toLocaleString()}\nTienes: $${(balance.cash || 0).toLocaleString()}`);
             }
 
-            // Remove money first
-            await billingService.ubService.removeMoney(interaction.guildId, userId, monto, 'Depósito Bóveda', 'cash');
+            await billingService.ubService.removeMoney(interaction.guildId, userId, cost, `Activación Privacidad ${nivel}`, 'cash');
 
-            // Now update vault
-            let vaultResult;
-            if (vault) {
-                vaultResult = await supabase.from('privacy_vault').update({
-                    amount: vault.amount + monto,
-                    locked_until: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
-                }).eq('user_id', userId);
-            } else {
-                vaultResult = await supabase.from('privacy_vault').insert({
-                    user_id: userId,
-                    amount: monto,
-                    locked_until: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
-                });
-            }
-
-            // Check if vault operation failed
-            if (vaultResult.error) {
-                console.error('[boveda depositar] Vault error:', vaultResult.error);
-                // ROLLBACK: Return money to user
-                await billingService.ubService.addMoney(interaction.guildId, userId, monto, 'Reembolso - Error depósito bóveda', 'cash');
-                return interaction.editReply(`❌ Error al guardar en bóveda. Tu dinero ha sido devuelto.\nContacta a un administrador.`);
-            }
-
-            return interaction.editReply(`🔒 **Depositado en Bóveda**\n$${monto.toLocaleString()}\nBloqueado por 7 días`);
-        }
-
-        else if (accion === 'retirar') {
-            if (!vault || vault.amount <= 0) {
-                return interaction.editReply('❌ Bóveda vacía');
-            }
-
-            const lockTime = new Date(vault.locked_until);
-            if (lockTime > new Date()) {
-                return interaction.editReply(`🔒 Bóveda bloqueada hasta <t:${Math.floor(lockTime.getTime() / 1000)}:R>`);
-            }
-
-            const amount = monto || vault.amount;
-            if (amount > vault.amount) {
-                return interaction.editReply(`❌ No tienes suficiente en bóveda\nDisponible: $${vault.amount.toLocaleString()}`);
-            }
-
-            // Update vault FIRST to prevent race conditions
-            const vaultResult = await supabase.from('privacy_vault').update({
-                amount: vault.amount - amount
-            }).eq('user_id', userId);
-
-            // Check if vault operation failed
-            if (vaultResult.error) {
-                console.error('[boveda retirar] Vault error:', vaultResult.error);
-                return interaction.editReply(`❌ Error al retirar de bóveda.\nIntenta de nuevo o contacta a un administrador.`);
-            }
-
-            // Now add money safely
-            await billingService.ubService.addMoney(interaction.guildId, userId, amount, 'Retiro Bóveda', 'cash');
-
-            return interaction.editReply(`✅ Retirado de Bóveda: $${amount.toLocaleString()}`);
-        }
-
-        else if (accion === 'ver') {
-            if (!vault) {
-                return interaction.editReply('📭 Bóveda vacía\nUsa `/privacidad boveda depositar` para agregar fondos');
-            }
-
-            const lockTime = new Date(vault.locked_until);
-            const locked = lockTime > new Date();
-
-            return interaction.editReply(`🔒 **Bóveda de Emergencia**\nBalance: $${vault.amount.toLocaleString()}\nEstado: ${locked ? `Bloqueada hasta <t:${Math.floor(lockTime.getTime() / 1000)}:R>` : '🔓 Disponible'}`);
-        }
-    }
-
-    // Helper function to rename channel based on state
-
-    else if (subCmd === 'offshore') {
-        if (!privacyData || privacyData.level !== 'elite') {
-            return interaction.editReply('❌ Requiere nivel **Elite**');
-        }
-
-        const nombre = interaction.options.getString('nombre');
-
-        await supabase.from('privacy_accounts').update({ offshore_name: nombre }).eq('user_id', userId);
-
-        return interaction.editReply(`✅ Nombre Offshore configurado: **${nombre}**\nTus transferencias ahora mostrarán este nombre`);
-    }
-
-    // Helper function to rename channel based on state
-
-    else if (subCmd === 'panico') {
-        if (!privacyData || privacyData.level !== 'elite') {
-            return interaction.editReply('❌ Requiere nivel **Elite**');
-        }
-
-        const pin = interaction.options.getString('pin');
-
-        if (pin.length !== 6 || !/^\d+$/.test(pin)) {
-            return interaction.editReply('❌ El PIN debe ser de 6 dígitos numéricos');
-        }
-
-        // Get current balance
-        const balance = await billingService.ubService.getUserBalance(interaction.guildId, userId);
-        const totalCash = balance.cash || 0;
-        const totalBank = balance.bank || 0;
-        const total = totalCash + totalBank;
-
-        if (total > 0) {
-            // REMOVE money from user accounts
-            if (totalCash > 0) await billingService.ubService.removeMoney(interaction.guildId, userId, totalCash, 'Modo Pánico', 'cash');
-            if (totalBank > 0) await billingService.ubService.removeMoney(interaction.guildId, userId, totalBank, 'Modo Pánico', 'bank');
-
-            // SAVE to vault with breakdown
-            const { data: vault } = await supabase.from('privacy_vault').select('*').eq('user_id', userId).maybeSingle();
-
-            const vaultData = {
-                user_id: userId,
-                amount: total,
-                cash_saved: totalCash,
-                bank_saved: totalBank,
-                locked_until: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
-            };
-
-            if (vault) {
-                await supabase.from('privacy_vault').update(vaultData).eq('user_id', userId);
-            } else {
-                await supabase.from('privacy_vault').insert(vaultData);
-            }
-
-            await supabase.from('privacy_accounts').update({ panic_pin: pin }).eq('user_id', userId);
-
-            return interaction.editReply(`🚨 **MODO PÁNICO ACTIVADO**\n\n💵 Efectivo guardado: $${totalCash.toLocaleString()}\n🏦 Banco guardado: $${totalBank.toLocaleString()}\n✅ Total en bóveda: $${total.toLocaleString()}\n\n**Tus cuentas ahora muestran $0**\nPIN guardado: usa el mismo PIN para recuperar`);
-        } else {
-            return interaction.editReply('❌ No tienes fondos para transferir');
-        }
-    }
-
-    // Helper function to rename channel based on state
-
-    else if (subCmd === 'trial') {
-        if (privacyData && privacyData.trial_used) {
-            return interaction.editReply('❌ Ya usaste tu prueba gratis de 3 días');
-        }
-
-        const { data: existingTrial } = await supabase.from('privacy_accounts').select('trial_used').eq('user_id', userId).maybeSingle();
-
-        if (existingTrial?.trial_used) {
-            return interaction.editReply('❌ Ya usaste tu prueba gratis');
-        }
-
-        const expiresAt = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);
-
-        await supabase.from('privacy_accounts').upsert({
-            user_id: userId,
-            level: 'basico',
-            expires_at: expiresAt.toISOString(),
-            trial_used: true,
-            activated_at: new Date().toISOString()
-        });
-
-        return interaction.editReply(`🎁 **Prueba Gratis Activada!**\n🥉 Privacidad Básica por 3 días\nExpira: <t:${Math.floor(expiresAt.getTime() / 1000)}:R>`);
-    }
-
-    // Helper function to rename channel based on state
-
-    else if (subCmd === 'dashboard') {
-        if (!privacyData) {
-            return interaction.editReply('❌ No tienes privacidad activa');
-        }
-
-        const { data: vault } = await supabase.from('privacy_vault').select('amount').eq('user_id', userId).maybeSingle();
-        const { data: alertsData } = await supabase.from('privacy_alerts').select('id', { count: 'exact', head: true }).eq('user_id', userId).eq('is_read', false);
-
-        const icons = { basico: '🥉', vip: '🥈', elite: '🥇' };
-        const daysLeft = Math.ceil((new Date(privacyData.expires_at) - new Date()) / (1000 * 60 * 60 * 24));
-
-        const embed = new EmbedBuilder()
-            .setTitle('🕶️ Privacy Dashboard')
-            .setColor('#2F3136')
-            .addFields(
-                { name: '🎫 Nivel', value: `${icons[privacyData.level]} ${privacyData.level.toUpperCase()}`, inline: true },
-                { name: '⏰ Expira en', value: `${daysLeft} días`, inline: true },
-                { name: '🔒 Bóveda', value: vault ? `$${vault.amount.toLocaleString()}` : '$0', inline: true }
-            );
-
-        if (privacyData.offshore_name) {
-            embed.addFields({ name: '🏝️ Offshore', value: privacyData.offshore_name, inline: true });
-        }
-
-        if (privacyData.auto_renew) {
-            embed.addFields({ name: '♻️ Auto-Renovación', value: '✅ Activa', inline: true });
-        }
-
-        return interaction.editReply({ embeds: [embed] });
-    }
-
-    // Helper function to rename channel based on state
-
-    else if (subCmd === 'recuperar') {
-        if (!privacyData || privacyData.level !== 'elite') {
-            return interaction.editReply('❌ Solo usuarios Elite pueden tener modo pánico');
-        }
-
-        const pin = interaction.options.getString('pin');
-
-        if (privacyData.panic_pin !== pin) {
-            return interaction.editReply('❌ PIN incorrecto');
-        }
-
-        const { data: vault } = await supabase.from('privacy_vault').select('*').eq('user_id', userId).maybeSingle();
-
-        if (!vault || vault.amount <= 0) {
-            return interaction.editReply('❌ No hay fondos en bóveda');
-        }
-
-        // RESTORE exactly what was saved
-        const cashToRestore = vault.cash_saved || 0;
-        const bankToRestore = vault.bank_saved || 0;
-
-        // Add back the exact amounts
-        if (cashToRestore > 0) {
-            await billingService.ubService.addMoney(interaction.guildId, userId, cashToRestore, 'Recuperación Pánico', 'cash');
-        }
-        if (bankToRestore > 0) {
-            await billingService.ubService.addMoney(interaction.guildId, userId, bankToRestore, 'Recuperación Pánico', 'bank');
-        }
-
-        // Clear vault and PIN
-        await supabase.from('privacy_vault').update({
-            amount: 0,
-            cash_saved: 0,
-            bank_saved: 0
-        }).eq('user_id', userId);
-        await supabase.from('privacy_accounts').update({ panic_pin: null }).eq('user_id', userId);
-
-        return interaction.editReply(`🔓 **Modo Pánico Desactivado**\n\n💵 Efectivo restaurado: $${cashToRestore.toLocaleString()}\n🏦 Banco restaurado: $${bankToRestore.toLocaleString()}\n✅ Total recuperado: $${vault.amount.toLocaleString()}\n\n**Tus cuentas han sido restauradas exactamente como estaban**`);
-    }
-
-    // Helper function to rename channel based on state
-
-    else if (subCmd === 'alertas') {
-        const estado = interaction.options.getString('estado');
-        const enabled = estado === 'on';
-
-        await supabase.from('privacy_accounts').upsert({ user_id: userId, alerts_enabled: enabled }, { onConflict: 'user_id' });
-
-        return interaction.editReply(`🔔 Alertas ${enabled ? '✅ activadas' : '❌ desactivadas'}`);
-    }
-
-    // Helper function to rename channel based on state
-
-    else if (subCmd === 'autorenovar') {
-        if (!privacyData) {
-            return interaction.editReply('❌ Primero activa privacidad');
-        }
-
-        const estado = interaction.options.getString('estado');
-        const enabled = estado === 'on';
-
-        await supabase.from('privacy_accounts').update({ auto_renew: enabled }).eq('user_id', userId);
-
-        return interaction.editReply(`♻️ Auto-renovación ${enabled ? '✅ activada' : '❌ desactivada'}\n${enabled ? 'Se renovará automáticamente cada mes' : 'Deberás renovar manualmente'}`);
-    }
-
-    // Helper function to rename channel based on state
-
-    else if (subCmd === 'viaje') {
-        const horas = interaction.options.getInteger('horas');
-        const costo = 5000 * (horas / 24);
-
-        const balance = await billingService.ubService.getUserBalance(interaction.guildId, userId);
-        if ((balance.cash || 0) < costo) {
-            return interaction.editReply(`❌ Fondos insuficientes\nCosto: $${costo.toLocaleString()}`);
-        }
-
-        await billingService.ubService.removeMoney(interaction.guildId, userId, costo, 'Modo Viaje', 'cash');
-
-        const expiresAt = new Date(Date.now() + horas * 60 * 60 * 1000);
-
-        await supabase.from('privacy_accounts').upsert({
-            user_id: userId,
-            level: 'basico',
-            expires_at: expiresAt.toISOString(),
-            activated_at: new Date().toISOString()
-        });
-
-        return interaction.editReply(`✈️ **Modo Viaje Activado**\n🥉 Privacidad Básica por ${horas}h\nCosto: $${costo.toLocaleString()}\nExpira: <t:${Math.floor(expiresAt.getTime() / 1000)}:R>`);
-    }
-
-    // Helper function to rename channel based on state
-
-    else if (subCmd === 'referir') {
-        const targetUser = interaction.options.getUser('usuario');
-
-        if (targetUser.id === userId) {
-            return interaction.editReply('❌ No puedes referirte a ti mismo');
-        }
-
-        let referralCode = privacyData?.referral_code;
-        if (!referralCode) {
-            referralCode = `PRIV${userId.slice(-6)}`;
-            await supabase.from('privacy_accounts').update({ referral_code: referralCode }).eq('user_id', userId);
-        }
-
-        const { data: existingRef } = await supabase.from('privacy_referrals').select('*').eq('referee_id', targetUser.id).maybeSingle();
-
-        if (existingRef) {
-            return interaction.editReply('❌ Este usuario ya fue referido');
-        }
-
-        await supabase.from('privacy_referrals').insert({ referrer_id: userId, referee_id: targetUser.id });
-
-        try {
-            await targetUser.send(`🎁 **¡${interaction.user.tag} te refirió al Sistema de Privacidad!**\n\nActiva privacidad con código: \`${referralCode}\`\n✅ Ambos recibirán 10% descuento`);
-        } catch (e) { }
-
-        return interaction.editReply(`✅ Referencia enviada a ${targetUser.tag}\nCódigo: \`${referralCode}\`\nAmbos recibirán 10% descuento al suscribirse`);
-    }
-
-    // Helper function to rename channel based on state
-
-    else if (subCmd === 'familia') {
-        if (!privacyData || privacyData.level === 'basico') {
-            return interaction.editReply('❌ Requiere nivel VIP o Elite');
-        }
-
-        const accion = interaction.options.getString('accion');
-
-        if (accion === 'add') {
-            const miembro = interaction.options.getUser('miembro');
-
-            if (!miembro) {
-                return interaction.editReply('❌ Especifica un miembro');
-            }
-
-            const extraCost = privacyData.level === 'vip' ? 75000 : 250000;
-
-            const balance = await billingService.ubService.getUserBalance(interaction.guildId, userId);
-            if ((balance.cash || 0) < extraCost) {
-                return interaction.editReply(`❌ Costo adicional: $${extraCost.toLocaleString()}`);
-            }
-
-            await billingService.ubService.removeMoney(interaction.guildId, userId, extraCost, 'Plan Familiar', 'cash');
-
-            await supabase.from('privacy_family').insert({ owner_id: userId, member_id: miembro.id, status: 'active' });
+            const expiresAt = new Date();
+            expiresAt.setMonth(expiresAt.getMonth() + 1);
 
             await supabase.from('privacy_accounts').upsert({
-                user_id: miembro.id,
-                level: privacyData.level,
-                expires_at: privacyData.expires_at,
+                user_id: userId,
+                level: nivel,
+                expires_at: expiresAt.toISOString(),
                 activated_at: new Date().toISOString()
             });
 
-            return interaction.editReply(`👨‍👩‍👧 **Familia Actualizada**\n✅ ${miembro.tag} agregado\nCosto: $${extraCost.toLocaleString()}\nNivel compartido: ${privacyData.level.toUpperCase()}`);
+            const icons = { basico: '🥉', vip: '🥈', elite: '🥇' };
+            const embed = new EmbedBuilder()
+                .setTitle('🕶️ Privacidad Activada')
+                .setColor('#2F3136')
+                .setDescription(`Nivel: ${icons[nivel]} **${nivel.toUpperCase()}**`)
+                .addFields(
+                    { name: 'Costo', value: `$${cost.toLocaleString()}`, inline: true },
+                    { name: 'Duración', value: '30 días', inline: true },
+                    { name: 'Expira', value: `<t:${Math.floor(expiresAt.getTime() / 1000)}:R>`, inline: true }
+                )
+                .setFooter({ text: 'Tu información bancaria ahora está protegida' });
+
+            return interaction.editReply({ embeds: [embed] });
         }
 
-        else if (accion === 'list') {
-            const { data: family } = await supabase.from('privacy_family').select('member_id').eq('owner_id', userId).eq('status', 'active');
+        // Helper function to rename channel based on state
 
-            if (!family || family.length === 0) {
-                return interaction.editReply('👨‍👩‍👧 No tienes miembros familiares');
+        else if (subCmd === 'desactivar') {
+            if (!privacyData) {
+                return interaction.editReply('❌ No tienes privacidad activa');
             }
 
-            const members = family.map(f => `<@${f.member_id}>`).join(', ');
-            return interaction.editReply(`👨‍👩‍👧 **Tu Familia:**\n${members}\n\nTodos comparten tu nivel: ${privacyData.level.toUpperCase()}`);
+            await supabase.from('privacy_accounts').delete().eq('user_id', userId);
+            return interaction.editReply('✅ Privacidad desactivada');
         }
 
-        else if (accion === 'remove') {
-            const miembro = interaction.options.getUser('miembro');
+        // Helper function to rename channel based on state
 
-            if (!miembro) {
-                return interaction.editReply('❌ Especifica un miembro a remover');
+        else if (subCmd === 'estado') {
+            if (!privacyData) {
+                return interaction.editReply('❌ No tienes privacidad activa\nUsa `/privacidad activar` para protegerte');
             }
 
-            const { data: familyMember } = await supabase
-                .from('privacy_family')
+            const icons = { basico: '🥉', vip: '🥈', elite: '🥇' };
+            const now = new Date();
+            const expires = new Date(privacyData.expires_at);
+            const daysLeft = Math.ceil((expires - now) / (1000 * 60 * 60 * 24));
+
+            const embed = new EmbedBuilder()
+                .setTitle('🕶️ Tu Privacidad')
+                .setColor('#2F3136')
+                .setDescription(`Nivel: ${icons[privacyData.level]} **${privacyData.level.toUpperCase()}**`)
+                .addFields(
+                    { name: 'Activado', value: `<t:${Math.floor(new Date(privacyData.activated_at).getTime() / 1000)}:R>`, inline: true },
+                    { name: 'Expira en', value: `${daysLeft} días`, inline: true },
+                    { name: 'Offshore', value: privacyData.offshore_name || 'No configurado', inline: true }
+                );
+
+            if (privacyData.level === 'basico') {
+                embed.addFields({ name: '✅ Beneficios', value: '• Saldo oculto\n• Inmunidad a robos\n• Transacciones privadas' });
+            } else if (privacyData.level === 'vip') {
+                embed.addFields({ name: '✅ Beneficios', value: '• Todo lo de Básico\n• Transferencias anónimas\n• Historial privado\n• Alertas de seguridad' });
+            } else if (privacyData.level === 'elite') {
+                embed.addFields({ name: '✅ Beneficios', value: '• Todo lo de VIP\n• Cuenta Offshore\n• Modo Fantasma\n• Bóveda de Emergencia\n• Anti-Secuestro' });
+            }
+
+            return interaction.editReply({ embeds: [embed] });
+        }
+
+        // Helper function to rename channel based on state
+
+        else if (subCmd === 'upgrade') {
+            if (!privacyData) {
+                return interaction.editReply('❌ Primero activa un nivel con `/privacidad activar`');
+            }
+
+            const newLevel = interaction.options.getString('nuevo_nivel');
+            const costs = { vip: 150000, elite: 500000 };
+            const currentCosts = { basico: 50000, vip: 150000 };
+
+            if (privacyData.level === 'elite') {
+                return interaction.editReply('❌ Ya tienes el nivel máximo');
+            }
+
+            if (privacyData.level === 'vip' && newLevel === 'vip') {
+                return interaction.editReply('❌ Ya tienes este nivel');
+            }
+
+            const upgradeCost = costs[newLevel] - currentCosts[privacyData.level];
+
+            const balance = await billingService.ubService.getUserBalance(interaction.guildId, userId);
+            if ((balance.cash || 0) < upgradeCost) {
+                return interaction.editReply(`❌ **Fondos Insuficientes** para upgrade\nRequieres: $${upgradeCost.toLocaleString()}`);
+            }
+
+            await billingService.ubService.removeMoney(interaction.guildId, userId, upgradeCost, `Upgrade Privacidad a ${newLevel}`, 'cash');
+            await supabase.from('privacy_accounts').update({ level: newLevel }).eq('user_id', userId);
+
+            return interaction.editReply(`✅ Privacidad mejorada a **${newLevel.toUpperCase()}**\nCosto: $${upgradeCost.toLocaleString()}`);
+        }
+
+        // Helper function to rename channel based on state
+
+        else if (subCmd === 'boveda') {
+            if (!privacyData || privacyData.level !== 'elite') {
+                return interaction.editReply('❌ Requiere nivel **Elite**');
+            }
+
+            const accion = interaction.options.getString('accion');
+            const monto = interaction.options.getNumber('monto');
+
+            const { data: vault } = await supabase
+                .from('privacy_vault')
                 .select('*')
-                .eq('owner_id', userId)
-                .eq('member_id', miembro.id)
+                .eq('user_id', userId)
+                .maybeSingle();
+
+            if (accion === 'depositar') {
+                if (!monto) return interaction.editReply('❌ Especifica un monto');
+
+                const balance = await billingService.ubService.getUserBalance(interaction.guildId, userId);
+                if ((balance.cash || 0) < monto) {
+                    return interaction.editReply(`❌ Fondos insuficientes`);
+                }
+
+                // Remove money first
+                await billingService.ubService.removeMoney(interaction.guildId, userId, monto, 'Depósito Bóveda', 'cash');
+
+                // Now update vault
+                let vaultResult;
+                if (vault) {
+                    vaultResult = await supabase.from('privacy_vault').update({
+                        amount: vault.amount + monto,
+                        locked_until: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+                    }).eq('user_id', userId);
+                } else {
+                    vaultResult = await supabase.from('privacy_vault').insert({
+                        user_id: userId,
+                        amount: monto,
+                        locked_until: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+                    });
+                }
+
+                // Check if vault operation failed
+                if (vaultResult.error) {
+                    console.error('[boveda depositar] Vault error:', vaultResult.error);
+                    // ROLLBACK: Return money to user
+                    await billingService.ubService.addMoney(interaction.guildId, userId, monto, 'Reembolso - Error depósito bóveda', 'cash');
+                    return interaction.editReply(`❌ Error al guardar en bóveda. Tu dinero ha sido devuelto.\nContacta a un administrador.`);
+                }
+
+                return interaction.editReply(`🔒 **Depositado en Bóveda**\n$${monto.toLocaleString()}\nBloqueado por 7 días`);
+            }
+
+            else if (accion === 'retirar') {
+                if (!vault || vault.amount <= 0) {
+                    return interaction.editReply('❌ Bóveda vacía');
+                }
+
+                const lockTime = new Date(vault.locked_until);
+                if (lockTime > new Date()) {
+                    return interaction.editReply(`🔒 Bóveda bloqueada hasta <t:${Math.floor(lockTime.getTime() / 1000)}:R>`);
+                }
+
+                const amount = monto || vault.amount;
+                if (amount > vault.amount) {
+                    return interaction.editReply(`❌ No tienes suficiente en bóveda\nDisponible: $${vault.amount.toLocaleString()}`);
+                }
+
+                // Update vault FIRST to prevent race conditions
+                const vaultResult = await supabase.from('privacy_vault').update({
+                    amount: vault.amount - amount
+                }).eq('user_id', userId);
+
+                // Check if vault operation failed
+                if (vaultResult.error) {
+                    console.error('[boveda retirar] Vault error:', vaultResult.error);
+                    return interaction.editReply(`❌ Error al retirar de bóveda.\nIntenta de nuevo o contacta a un administrador.`);
+                }
+
+                // Now add money safely
+                await billingService.ubService.addMoney(interaction.guildId, userId, amount, 'Retiro Bóveda', 'cash');
+
+                return interaction.editReply(`✅ Retirado de Bóveda: $${amount.toLocaleString()}`);
+            }
+
+            else if (accion === 'ver') {
+                if (!vault) {
+                    return interaction.editReply('📭 Bóveda vacía\nUsa `/privacidad boveda depositar` para agregar fondos');
+                }
+
+                const lockTime = new Date(vault.locked_until);
+                const locked = lockTime > new Date();
+
+                return interaction.editReply(`🔒 **Bóveda de Emergencia**\nBalance: $${vault.amount.toLocaleString()}\nEstado: ${locked ? `Bloqueada hasta <t:${Math.floor(lockTime.getTime() / 1000)}:R>` : '🔓 Disponible'}`);
+            }
+        }
+
+        // Helper function to rename channel based on state
+
+        else if (subCmd === 'offshore') {
+            if (!privacyData || privacyData.level !== 'elite') {
+                return interaction.editReply('❌ Requiere nivel **Elite**');
+            }
+
+            const nombre = interaction.options.getString('nombre');
+
+            await supabase.from('privacy_accounts').update({ offshore_name: nombre }).eq('user_id', userId);
+
+            return interaction.editReply(`✅ Nombre Offshore configurado: **${nombre}**\nTus transferencias ahora mostrarán este nombre`);
+        }
+
+        // Helper function to rename channel based on state
+
+        else if (subCmd === 'panico') {
+            if (!privacyData || privacyData.level !== 'elite') {
+                return interaction.editReply('❌ Requiere nivel **Elite**');
+            }
+
+            const pin = interaction.options.getString('pin');
+
+            if (pin.length !== 6 || !/^\d+$/.test(pin)) {
+                return interaction.editReply('❌ El PIN debe ser de 6 dígitos numéricos');
+            }
+
+            // Get current balance
+            const balance = await billingService.ubService.getUserBalance(interaction.guildId, userId);
+            const totalCash = balance.cash || 0;
+            const totalBank = balance.bank || 0;
+            const total = totalCash + totalBank;
+
+            if (total > 0) {
+                // REMOVE money from user accounts
+                if (totalCash > 0) await billingService.ubService.removeMoney(interaction.guildId, userId, totalCash, 'Modo Pánico', 'cash');
+                if (totalBank > 0) await billingService.ubService.removeMoney(interaction.guildId, userId, totalBank, 'Modo Pánico', 'bank');
+
+                // SAVE to vault with breakdown
+                const { data: vault } = await supabase.from('privacy_vault').select('*').eq('user_id', userId).maybeSingle();
+
+                const vaultData = {
+                    user_id: userId,
+                    amount: total,
+                    cash_saved: totalCash,
+                    bank_saved: totalBank,
+                    locked_until: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+                };
+
+                if (vault) {
+                    await supabase.from('privacy_vault').update(vaultData).eq('user_id', userId);
+                } else {
+                    await supabase.from('privacy_vault').insert(vaultData);
+                }
+
+                await supabase.from('privacy_accounts').update({ panic_pin: pin }).eq('user_id', userId);
+
+                return interaction.editReply(`🚨 **MODO PÁNICO ACTIVADO**\n\n💵 Efectivo guardado: $${totalCash.toLocaleString()}\n🏦 Banco guardado: $${totalBank.toLocaleString()}\n✅ Total en bóveda: $${total.toLocaleString()}\n\n**Tus cuentas ahora muestran $0**\nPIN guardado: usa el mismo PIN para recuperar`);
+            } else {
+                return interaction.editReply('❌ No tienes fondos para transferir');
+            }
+        }
+
+        // Helper function to rename channel based on state
+
+        else if (subCmd === 'trial') {
+            if (privacyData && privacyData.trial_used) {
+                return interaction.editReply('❌ Ya usaste tu prueba gratis de 3 días');
+            }
+
+            const { data: existingTrial } = await supabase.from('privacy_accounts').select('trial_used').eq('user_id', userId).maybeSingle();
+
+            if (existingTrial?.trial_used) {
+                return interaction.editReply('❌ Ya usaste tu prueba gratis');
+            }
+
+            const expiresAt = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);
+
+            await supabase.from('privacy_accounts').upsert({
+                user_id: userId,
+                level: 'basico',
+                expires_at: expiresAt.toISOString(),
+                trial_used: true,
+                activated_at: new Date().toISOString()
+            });
+
+            return interaction.editReply(`🎁 **Prueba Gratis Activada!**\n🥉 Privacidad Básica por 3 días\nExpira: <t:${Math.floor(expiresAt.getTime() / 1000)}:R>`);
+        }
+
+        // Helper function to rename channel based on state
+
+        else if (subCmd === 'dashboard') {
+            if (!privacyData) {
+                return interaction.editReply('❌ No tienes privacidad activa');
+            }
+
+            const { data: vault } = await supabase.from('privacy_vault').select('amount').eq('user_id', userId).maybeSingle();
+            const { data: alertsData } = await supabase.from('privacy_alerts').select('id', { count: 'exact', head: true }).eq('user_id', userId).eq('is_read', false);
+
+            const icons = { basico: '🥉', vip: '🥈', elite: '🥇' };
+            const daysLeft = Math.ceil((new Date(privacyData.expires_at) - new Date()) / (1000 * 60 * 60 * 24));
+
+            const embed = new EmbedBuilder()
+                .setTitle('🕶️ Privacy Dashboard')
+                .setColor('#2F3136')
+                .addFields(
+                    { name: '🎫 Nivel', value: `${icons[privacyData.level]} ${privacyData.level.toUpperCase()}`, inline: true },
+                    { name: '⏰ Expira en', value: `${daysLeft} días`, inline: true },
+                    { name: '🔒 Bóveda', value: vault ? `$${vault.amount.toLocaleString()}` : '$0', inline: true }
+                );
+
+            if (privacyData.offshore_name) {
+                embed.addFields({ name: '🏝️ Offshore', value: privacyData.offshore_name, inline: true });
+            }
+
+            if (privacyData.auto_renew) {
+                embed.addFields({ name: '♻️ Auto-Renovación', value: '✅ Activa', inline: true });
+            }
+
+            return interaction.editReply({ embeds: [embed] });
+        }
+
+        // Helper function to rename channel based on state
+
+        else if (subCmd === 'recuperar') {
+            if (!privacyData || privacyData.level !== 'elite') {
+                return interaction.editReply('❌ Solo usuarios Elite pueden tener modo pánico');
+            }
+
+            const pin = interaction.options.getString('pin');
+
+            if (privacyData.panic_pin !== pin) {
+                return interaction.editReply('❌ PIN incorrecto');
+            }
+
+            const { data: vault } = await supabase.from('privacy_vault').select('*').eq('user_id', userId).maybeSingle();
+
+            if (!vault || vault.amount <= 0) {
+                return interaction.editReply('❌ No hay fondos en bóveda');
+            }
+
+            // RESTORE exactly what was saved
+            const cashToRestore = vault.cash_saved || 0;
+            const bankToRestore = vault.bank_saved || 0;
+
+            // Add back the exact amounts
+            if (cashToRestore > 0) {
+                await billingService.ubService.addMoney(interaction.guildId, userId, cashToRestore, 'Recuperación Pánico', 'cash');
+            }
+            if (bankToRestore > 0) {
+                await billingService.ubService.addMoney(interaction.guildId, userId, bankToRestore, 'Recuperación Pánico', 'bank');
+            }
+
+            // Clear vault and PIN
+            await supabase.from('privacy_vault').update({
+                amount: 0,
+                cash_saved: 0,
+                bank_saved: 0
+            }).eq('user_id', userId);
+            await supabase.from('privacy_accounts').update({ panic_pin: null }).eq('user_id', userId);
+
+            return interaction.editReply(`🔓 **Modo Pánico Desactivado**\n\n💵 Efectivo restaurado: $${cashToRestore.toLocaleString()}\n🏦 Banco restaurado: $${bankToRestore.toLocaleString()}\n✅ Total recuperado: $${vault.amount.toLocaleString()}\n\n**Tus cuentas han sido restauradas exactamente como estaban**`);
+        }
+
+        // Helper function to rename channel based on state
+
+        else if (subCmd === 'alertas') {
+            const estado = interaction.options.getString('estado');
+            const enabled = estado === 'on';
+
+            await supabase.from('privacy_accounts').upsert({ user_id: userId, alerts_enabled: enabled }, { onConflict: 'user_id' });
+
+            return interaction.editReply(`🔔 Alertas ${enabled ? '✅ activadas' : '❌ desactivadas'}`);
+        }
+
+        // Helper function to rename channel based on state
+
+        else if (subCmd === 'autorenovar') {
+            if (!privacyData) {
+                return interaction.editReply('❌ Primero activa privacidad');
+            }
+
+            const estado = interaction.options.getString('estado');
+            const enabled = estado === 'on';
+
+            await supabase.from('privacy_accounts').update({ auto_renew: enabled }).eq('user_id', userId);
+
+            return interaction.editReply(`♻️ Auto-renovación ${enabled ? '✅ activada' : '❌ desactivada'}\n${enabled ? 'Se renovará automáticamente cada mes' : 'Deberás renovar manualmente'}`);
+        }
+
+        // Helper function to rename channel based on state
+
+        else if (subCmd === 'viaje') {
+            const horas = interaction.options.getInteger('horas');
+            const costo = 5000 * (horas / 24);
+
+            const balance = await billingService.ubService.getUserBalance(interaction.guildId, userId);
+            if ((balance.cash || 0) < costo) {
+                return interaction.editReply(`❌ Fondos insuficientes\nCosto: $${costo.toLocaleString()}`);
+            }
+
+            await billingService.ubService.removeMoney(interaction.guildId, userId, costo, 'Modo Viaje', 'cash');
+
+            const expiresAt = new Date(Date.now() + horas * 60 * 60 * 1000);
+
+            await supabase.from('privacy_accounts').upsert({
+                user_id: userId,
+                level: 'basico',
+                expires_at: expiresAt.toISOString(),
+                activated_at: new Date().toISOString()
+            });
+
+            return interaction.editReply(`✈️ **Modo Viaje Activado**\n🥉 Privacidad Básica por ${horas}h\nCosto: $${costo.toLocaleString()}\nExpira: <t:${Math.floor(expiresAt.getTime() / 1000)}:R>`);
+        }
+
+        // Helper function to rename channel based on state
+
+        else if (subCmd === 'referir') {
+            const targetUser = interaction.options.getUser('usuario');
+
+            if (targetUser.id === userId) {
+                return interaction.editReply('❌ No puedes referirte a ti mismo');
+            }
+
+            let referralCode = privacyData?.referral_code;
+            if (!referralCode) {
+                referralCode = `PRIV${userId.slice(-6)}`;
+                await supabase.from('privacy_accounts').update({ referral_code: referralCode }).eq('user_id', userId);
+            }
+
+            const { data: existingRef } = await supabase.from('privacy_referrals').select('*').eq('referee_id', targetUser.id).maybeSingle();
+
+            if (existingRef) {
+                return interaction.editReply('❌ Este usuario ya fue referido');
+            }
+
+            await supabase.from('privacy_referrals').insert({ referrer_id: userId, referee_id: targetUser.id });
+
+            try {
+                await targetUser.send(`🎁 **¡${interaction.user.tag} te refirió al Sistema de Privacidad!**\n\nActiva privacidad con código: \`${referralCode}\`\n✅ Ambos recibirán 10% descuento`);
+            } catch (e) { }
+
+            return interaction.editReply(`✅ Referencia enviada a ${targetUser.tag}\nCódigo: \`${referralCode}\`\nAmbos recibirán 10% descuento al suscribirse`);
+        }
+
+        // Helper function to rename channel based on state
+
+        else if (subCmd === 'familia') {
+            if (!privacyData || privacyData.level === 'basico') {
+                return interaction.editReply('❌ Requiere nivel VIP o Elite');
+            }
+
+            const accion = interaction.options.getString('accion');
+
+            if (accion === 'add') {
+                const miembro = interaction.options.getUser('miembro');
+
+                if (!miembro) {
+                    return interaction.editReply('❌ Especifica un miembro');
+                }
+
+                const extraCost = privacyData.level === 'vip' ? 75000 : 250000;
+
+                const balance = await billingService.ubService.getUserBalance(interaction.guildId, userId);
+                if ((balance.cash || 0) < extraCost) {
+                    return interaction.editReply(`❌ Costo adicional: $${extraCost.toLocaleString()}`);
+                }
+
+                await billingService.ubService.removeMoney(interaction.guildId, userId, extraCost, 'Plan Familiar', 'cash');
+
+                await supabase.from('privacy_family').insert({ owner_id: userId, member_id: miembro.id, status: 'active' });
+
+                await supabase.from('privacy_accounts').upsert({
+                    user_id: miembro.id,
+                    level: privacyData.level,
+                    expires_at: privacyData.expires_at,
+                    activated_at: new Date().toISOString()
+                });
+
+                return interaction.editReply(`👨‍👩‍👧 **Familia Actualizada**\n✅ ${miembro.tag} agregado\nCosto: $${extraCost.toLocaleString()}\nNivel compartido: ${privacyData.level.toUpperCase()}`);
+            }
+
+            else if (accion === 'list') {
+                const { data: family } = await supabase.from('privacy_family').select('member_id').eq('owner_id', userId).eq('status', 'active');
+
+                if (!family || family.length === 0) {
+                    return interaction.editReply('👨‍👩‍👧 No tienes miembros familiares');
+                }
+
+                const members = family.map(f => `<@${f.member_id}>`).join(', ');
+                return interaction.editReply(`👨‍👩‍👧 **Tu Familia:**\n${members}\n\nTodos comparten tu nivel: ${privacyData.level.toUpperCase()}`);
+            }
+
+            else if (accion === 'remove') {
+                const miembro = interaction.options.getUser('miembro');
+
+                if (!miembro) {
+                    return interaction.editReply('❌ Especifica un miembro a remover');
+                }
+
+                const { data: familyMember } = await supabase
+                    .from('privacy_family')
+                    .select('*')
+                    .eq('owner_id', userId)
+                    .eq('member_id', miembro.id)
+                    .eq('status', 'active')
+                    .maybeSingle();
+
+                if (!familyMember) {
+                    return interaction.editReply('❌ Este usuario no está en tu familia');
+                }
+
+                // Remove member from family
+                await supabase
+                    .from('privacy_family')
+                    .update({ status: 'inactive' })
+                    .eq('owner_id', userId)
+                    .eq('member_id', miembro.id);
+
+                // Remove their privacy access
+                await supabase
+                    .from('privacy_accounts')
+                    .delete()
+                    .eq('user_id', miembro.id);
+
+                return interaction.editReply(`👨‍👩‍👧 **Familia Actualizada**\n❌ ${miembro.tag} removido\nSu acceso a privacidad ha sido desactivado.`);
+            }
+        }
+
+        // Helper function to rename channel based on state
+
+        else if (subCmd === 'score') {
+            let score = 0;
+
+            if (privacyData) {
+                if (privacyData.level === 'basico') score += 20;
+                else if (privacyData.level === 'vip') score += 50;
+                else if (privacyData.level === 'elite') score += 80;
+
+                const daysActive = Math.floor((new Date() - new Date(privacyData.activated_at)) / (1000 * 60 * 60 * 24));
+                score += Math.min(daysActive, 15);
+
+                const { data: vault } = await supabase.from('privacy_vault').select('amount').eq('user_id', userId).maybeSingle();
+                if (vault && vault.amount > 0) score += 5;
+
+                if (privacyData.verified) score += 10;
+                if (privacyData.auto_renew) score += 5;
+            }
+
+            let rank = '📈 Principiante';
+            if (score >= 80) rank = '🏆 Elite Master';
+            else if (score >= 60) rank = '⭐ Experto';
+            else if (score >= 40) rank = '🎯 Intermedio';
+
+            const embed = new EmbedBuilder()
+                .setTitle('📊 Privacy Score')
+                .setColor('#2F3136')
+                .setDescription(`Tu puntuación: **${score}/100**\nRango: ${rank}`)
+                .addFields({ name: '💡 Cómo Mejorar', value: '• Mantén privacidad activa\n• Usa la bóveda\n• Activa auto-renovación\n• Completa verificación' });
+
+            return interaction.editReply({ embeds: [embed] });
+        }
+
+        // Helper function to rename channel based on state
+    }
+
+
+
+    // IMPORTANT: Only delegate if interaction was NOT handled above
+    // This prevents duplicate processing causing "Unknown interaction" errors
+    //     if (!interaction.replied && !interaction.deferred) {
+    //         console.log(`[DEBUG] Delegating interaction ${interaction.customId || interaction.commandName} to handleExtraCommands`);
+    // 
+    //         await handleExtraCommands(interaction);
+    //     }
+    // ===== SESION VOTING SYSTEM =====
+    else if (commandName === 'sesion') {
+        // DEFER REMOVED BY AUDIT
+        const subCmd = interaction.options.getSubcommand();
+        const userId = interaction.user.id;
+
+        const juntaDirectivaRoleId = '1412882245735420006';
+
+        if (subCmd === 'crear') {
+            const member = await interaction.guild.members.fetch(userId);
+            if (!member.roles.cache.has(juntaDirectivaRoleId)) {
+                return interaction.editReply('❌ Solo la Junta Directiva puede crear votaciones.');
+            }
+
+            const horario = interaction.options.getString('horario');
+            const minimo = interaction.options.getInteger('minimo') || 8;
+            const imagenUrl = interaction.options.getString('imagen') || 'https://cdn.discordapp.com/attachments/885232074083143741/1453225155634663575/standard1.gif';
+
+            // Check if there's already an active session
+            const { data: existingSession } = await supabase
+                .from('session_votes')
+                .select('*')
                 .eq('status', 'active')
                 .maybeSingle();
 
-            if (!familyMember) {
-                return interaction.editReply('❌ Este usuario no está en tu familia');
+            if (existingSession) {
+                return interaction.editReply('❌ Ya hay una votación activa. Usa `/sesion cancelar` primero.');
             }
 
-            // Remove member from family
-            await supabase
-                .from('privacy_family')
-                .update({ status: 'inactive' })
-                .eq('owner_id', userId)
-                .eq('member_id', miembro.id);
+            // Create session
+            const scheduledTime = new Date();
+            scheduledTime.setHours(scheduledTime.getHours() + 2); // Default 2 hours from now
 
-            // Remove their privacy access
-            await supabase
-                .from('privacy_accounts')
-                .delete()
-                .eq('user_id', miembro.id);
+            const { data: newSession, error } = await supabase
+                .from('session_votes')
+                .insert({
+                    created_by: userId,
+                    scheduled_time: scheduledTime.toISOString(),
+                    minimum_votes: minimo,
+                    image_url: imagenUrl
+                })
+                .select()
+                .single();
 
-            return interaction.editReply(`👨‍👩‍👧 **Familia Actualizada**\n❌ ${miembro.tag} removido\nSu acceso a privacidad ha sido desactivado.`);
-        }
-    }
-
-    // Helper function to rename channel based on state
-
-    else if (subCmd === 'score') {
-        let score = 0;
-
-        if (privacyData) {
-            if (privacyData.level === 'basico') score += 20;
-            else if (privacyData.level === 'vip') score += 50;
-            else if (privacyData.level === 'elite') score += 80;
-
-            const daysActive = Math.floor((new Date() - new Date(privacyData.activated_at)) / (1000 * 60 * 60 * 24));
-            score += Math.min(daysActive, 15);
-
-            const { data: vault } = await supabase.from('privacy_vault').select('amount').eq('user_id', userId).maybeSingle();
-            if (vault && vault.amount > 0) score += 5;
-
-            if (privacyData.verified) score += 10;
-            if (privacyData.auto_renew) score += 5;
-        }
-
-        let rank = '📈 Principiante';
-        if (score >= 80) rank = '🏆 Elite Master';
-        else if (score >= 60) rank = '⭐ Experto';
-        else if (score >= 40) rank = '🎯 Intermedio';
-
-        const embed = new EmbedBuilder()
-            .setTitle('📊 Privacy Score')
-            .setColor('#2F3136')
-            .setDescription(`Tu puntuación: **${score}/100**\nRango: ${rank}`)
-            .addFields({ name: '💡 Cómo Mejorar', value: '• Mantén privacidad activa\n• Usa la bóveda\n• Activa auto-renovación\n• Completa verificación' });
-
-        return interaction.editReply({ embeds: [embed] });
-    }
-
-    // Helper function to rename channel based on state
-}
-
-
-
-// IMPORTANT: Only delegate if interaction was NOT handled above
-// This prevents duplicate processing causing "Unknown interaction" errors
-//     if (!interaction.replied && !interaction.deferred) {
-//         console.log(`[DEBUG] Delegating interaction ${interaction.customId || interaction.commandName} to handleExtraCommands`);
-// 
-//         await handleExtraCommands(interaction);
-//     }
-// ===== SESION VOTING SYSTEM =====
-else if (commandName === 'sesion') {
-    // DEFER REMOVED BY AUDIT
-    const subCmd = interaction.options.getSubcommand();
-    const userId = interaction.user.id;
-
-    const juntaDirectivaRoleId = '1412882245735420006';
-
-    if (subCmd === 'crear') {
-        const member = await interaction.guild.members.fetch(userId);
-        if (!member.roles.cache.has(juntaDirectivaRoleId)) {
-            return interaction.editReply('❌ Solo la Junta Directiva puede crear votaciones.');
-        }
-
-        const horario = interaction.options.getString('horario');
-        const minimo = interaction.options.getInteger('minimo') || 8;
-        const imagenUrl = interaction.options.getString('imagen') || 'https://cdn.discordapp.com/attachments/885232074083143741/1453225155634663575/standard1.gif';
-
-        // Check if there's already an active session
-        const { data: existingSession } = await supabase
-            .from('session_votes')
-            .select('*')
-            .eq('status', 'active')
-            .maybeSingle();
-
-        if (existingSession) {
-            return interaction.editReply('❌ Ya hay una votación activa. Usa `/sesion cancelar` primero.');
-        }
-
-        // Create session
-        const scheduledTime = new Date();
-        scheduledTime.setHours(scheduledTime.getHours() + 2); // Default 2 hours from now
-
-        const { data: newSession, error } = await supabase
-            .from('session_votes')
-            .insert({
-                created_by: userId,
-                scheduled_time: scheduledTime.toISOString(),
-                minimum_votes: minimo,
-                image_url: imagenUrl
-            })
-            .select()
-            .single();
-
-        if (error || !newSession) {
-            console.error('Error creating session:', error);
-            return interaction.editReply('❌ Error creando la votación.');
-        }
-
-        // Create embed
-        const embed = new EmbedBuilder()
-            .setTitle('🗳️ Votacion De Rol')
-            .setColor(0xFFD700)
-            .setDescription('Vota si podrás participar en la sesión de hoy')
-            .addFields(
-                { name: '⏰ Horario de Rol', value: horario, inline: true },
-                { name: '🎯 Votos Necesarios', value: `${minimo}`, inline: true },
-                { name: '\u200B', value: '\u200B' }, // Spacer
-                { name: '✅ Participar en la sesion', value: '0 votos', inline: false },
-                { name: '📋 asistire, pero con retraso', value: '0 votos', inline: false },
-                { name: '❌ No podre asistir', value: '0 votos', inline: false }
-            )
-            .setImage(imagenUrl)
-            .setFooter({ text: `hoy a las ${new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}` })
-            .setTimestamp();
-
-        // Create buttons
-        const row = new ActionRowBuilder()
-            .addComponents(
-                new ButtonBuilder()
-                    .setCustomId(`vote_yes_${newSession.id}`)
-                    .setEmoji('✅')
-                    .setLabel('Participar')
-                    .setStyle(ButtonStyle.Success),
-                new ButtonBuilder()
-                    .setCustomId(`vote_late_${newSession.id}`)
-                    .setEmoji('📋')
-                    .setLabel('Con retraso')
-                    .setStyle(ButtonStyle.Secondary),
-                new ButtonBuilder()
-                    .setCustomId(`vote_no_${newSession.id}`)
-                    .setEmoji('❌')
-                    .setLabel('No podré')
-                    .setStyle(ButtonStyle.Danger)
-            );
-
-        // Post to designated channel with ping
-        const targetChannelId = '1412963363545284680';
-        const pingRoleId = '1412899401000685588';
-
-        try {
-            const targetChannel = await client.channels.fetch(targetChannelId);
-            if (targetChannel) {
-                // Rename channel to voting state
-                await renameChannel(client, targetChannelId, '🗳️・votaciones');
-                const msg = await targetChannel.send({
-                    content: `<@&${pingRoleId}>`,
-                    embeds: [embed],
-                    components: [row]
-                });
-
-                // Update session with message ID
-                await supabase
-                    .from('session_votes')
-                    .update({
-                        message_id: msg.id,
-                        channel_id: targetChannelId
-                    })
-                    .eq('id', newSession.id);
-
-                await interaction.editReply(`✅ Votación creada en <#${targetChannelId}>`);
-
-                await interaction.editReply(`✅ Votación creada en <#${targetChannelId}>`);
-
-                // NOTE: Interaction handling is done via global button handlers (lines ~2160)
-                // This prevents duplicate handling and reference errors.
-            } else {
-                return interaction.editReply('❌ No se encontró el canal de votaciones.');
-            }
-        } catch (channelError) {
-            console.error('Channel error:', channelError);
-            return interaction.editReply('❌ Error al acceder al canal de votaciones.');
-        }
-    }
-
-    // Helper function to rename channel based on state
-
-    else if (subCmd === 'cancelar') {
-        const { data: session } = await supabase
-            .from('session_votes')
-            .select('*')
-            .eq('status', 'active')
-            .maybeSingle();
-
-        if (!session) {
-            return interaction.editReply('❌ No hay votación activa.');
-        }
-
-        // Check if user is JD
-        const member = await interaction.guild.members.fetch(userId);
-        if (!member.roles.cache.has(juntaDirectivaRoleId) && session.created_by !== userId) {
-            return interaction.editReply('❌ Solo la Junta Directiva o el creador pueden cancelar la votación.');
-        }
-
-        await supabase
-            .from('session_votes')
-            .update({ status: 'cancelled' })
-            .eq('id', session.id);
-
-        // Rename channel back to default/closed state
-        await renameChannel(client, session.channel_id || '1412963363545284680', '⏸️・sesiones');
-
-        // Delete ONLY the voting message
-        if (session.message_id && session.channel_id) {
-            try {
-                const channel = await client.channels.fetch(session.channel_id);
-                if (channel) {
-                    const message = await channel.messages.fetch(session.message_id);
-                    if (message) {
-                        await message.delete();
-                    }
-                }
-            } catch (err) {
-                console.log('Error deleting voting message:', err.message);
-            }
-        }
-
-        return interaction.editReply('✅ Votación cancelada y mensaje eliminado.');
-    }
-
-    // Helper function to rename channel based on state
-
-    else if (subCmd === 'forzar') {
-        // Junta Directiva only
-        const member = await interaction.guild.members.fetch(userId);
-        if (!member.roles.cache.has(juntaDirectivaRoleId)) {
-            return interaction.editReply('❌ Solo la Junta Directiva puede forzar la apertura.');
-        }
-
-        const { data: session } = await supabase
-            .from('session_votes')
-            .select('*')
-            .eq('status', 'active')
-            .maybeSingle();
-
-        if (!session) {
-            return interaction.editReply('❌ No hay votación activa.');
-        }
-
-        await supabase
-            .from('session_votes')
-            .update({ status: 'opened' })
-            .eq('id', session.id);
-
-        // Update the original voting message with OPEN embed
-        let embedUpdated = false;
-        try {
-            if (!session.channel_id || !session.message_id) {
-                console.error('Missing channel_id or message_id:', session);
-                return interaction.editReply('❌ No se pudo encontrar el mensaje de votación original.');
+            if (error || !newSession) {
+                console.error('Error creating session:', error);
+                return interaction.editReply('❌ Error creando la votación.');
             }
 
-            const channel = await client.channels.fetch(session.channel_id);
-            if (!channel) {
-                console.error('Channel not found:', session.channel_id);
-                return interaction.editReply('❌ No se encontró el canal de votaciones.');
-            }
-
-            const message = await channel.messages.fetch(session.message_id);
-            if (!message) {
-                console.error('Message not found:', session.message_id);
-                return interaction.editReply('❌ No se encontró el mensaje de votación.');
-            }
-
-            const openEmbed = new EmbedBuilder()
-                .setTitle('✅ SESIÓN CONFIRMADA - SERVIDOR ABIERTO')
-                .setColor(0x00FF00)
-                .setDescription('🎮 **¡El servidor ha sido ABIERTO por la Junta Directiva!**\n\n¡Hora de rolear!')
-                .setImage('https://cdn.discordapp.com/attachments/885232074083143741/1453225155185737749/standard.gif')
-                .setFooter({ text: `Apertura forzada por ${interaction.user.tag}` })
+            // Create embed
+            const embed = new EmbedBuilder()
+                .setTitle('🗳️ Votacion De Rol')
+                .setColor(0xFFD700)
+                .setDescription('Vota si podrás participar en la sesión de hoy')
+                .addFields(
+                    { name: '⏰ Horario de Rol', value: horario, inline: true },
+                    { name: '🎯 Votos Necesarios', value: `${minimo}`, inline: true },
+                    { name: '\u200B', value: '\u200B' }, // Spacer
+                    { name: '✅ Participar en la sesion', value: '0 votos', inline: false },
+                    { name: '📋 asistire, pero con retraso', value: '0 votos', inline: false },
+                    { name: '❌ No podre asistir', value: '0 votos', inline: false }
+                )
+                .setImage(imagenUrl)
+                .setFooter({ text: `hoy a las ${new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}` })
                 .setTimestamp();
 
-            await message.edit({ embeds: [openEmbed], components: [] });
-            embedUpdated = true;
-            console.log('Successfully updated voting embed for session:', session.id);
-        } catch (updateError) {
-            console.error('Error updating voting message:', updateError);
-            return interaction.editReply(`❌ Error actualizando el embed: ${updateError.message}`);
+            // Create buttons
+            const row = new ActionRowBuilder()
+                .addComponents(
+                    new ButtonBuilder()
+                        .setCustomId(`vote_yes_${newSession.id}`)
+                        .setEmoji('✅')
+                        .setLabel('Participar')
+                        .setStyle(ButtonStyle.Success),
+                    new ButtonBuilder()
+                        .setCustomId(`vote_late_${newSession.id}`)
+                        .setEmoji('📋')
+                        .setLabel('Con retraso')
+                        .setStyle(ButtonStyle.Secondary),
+                    new ButtonBuilder()
+                        .setCustomId(`vote_no_${newSession.id}`)
+                        .setEmoji('❌')
+                        .setLabel('No podré')
+                        .setStyle(ButtonStyle.Danger)
+                );
+
+            // Post to designated channel with ping
+            const targetChannelId = '1412963363545284680';
+            const pingRoleId = '1412899401000685588';
+
+            try {
+                const targetChannel = await client.channels.fetch(targetChannelId);
+                if (targetChannel) {
+                    // Rename channel to voting state
+                    await renameChannel(client, targetChannelId, '🗳️・votaciones');
+                    const msg = await targetChannel.send({
+                        content: `<@&${pingRoleId}>`,
+                        embeds: [embed],
+                        components: [row]
+                    });
+
+                    // Update session with message ID
+                    await supabase
+                        .from('session_votes')
+                        .update({
+                            message_id: msg.id,
+                            channel_id: targetChannelId
+                        })
+                        .eq('id', newSession.id);
+
+                    await interaction.editReply(`✅ Votación creada en <#${targetChannelId}>`);
+
+                    await interaction.editReply(`✅ Votación creada en <#${targetChannelId}>`);
+
+                    // NOTE: Interaction handling is done via global button handlers (lines ~2160)
+                    // This prevents duplicate handling and reference errors.
+                } else {
+                    return interaction.editReply('❌ No se encontró el canal de votaciones.');
+                }
+            } catch (channelError) {
+                console.error('Channel error:', channelError);
+                return interaction.editReply('❌ Error al acceder al canal de votaciones.');
+            }
         }
 
-        // Clear ALL messages in the channel
-        const targetChannelId = '1412963363545284680';
-        await clearChannelMessages(client, targetChannelId);
+        // Helper function to rename channel based on state
 
-        // Rename channel to open state
-        await renameChannel(client, targetChannelId, '✅・servidor-abierto');
+        else if (subCmd === 'cancelar') {
+            const { data: session } = await supabase
+                .from('session_votes')
+                .select('*')
+                .eq('status', 'active')
+                .maybeSingle();
 
-        // Send the OPEN embed to the clean channel
-        try {
-            const channel = await client.channels.fetch(targetChannelId);
-            if (channel) {
-                const finalOpenEmbed = new EmbedBuilder()
+            if (!session) {
+                return interaction.editReply('❌ No hay votación activa.');
+            }
+
+            // Check if user is JD
+            const member = await interaction.guild.members.fetch(userId);
+            if (!member.roles.cache.has(juntaDirectivaRoleId) && session.created_by !== userId) {
+                return interaction.editReply('❌ Solo la Junta Directiva o el creador pueden cancelar la votación.');
+            }
+
+            await supabase
+                .from('session_votes')
+                .update({ status: 'cancelled' })
+                .eq('id', session.id);
+
+            // Rename channel back to default/closed state
+            await renameChannel(client, session.channel_id || '1412963363545284680', '⏸️・sesiones');
+
+            // Delete ONLY the voting message
+            if (session.message_id && session.channel_id) {
+                try {
+                    const channel = await client.channels.fetch(session.channel_id);
+                    if (channel) {
+                        const message = await channel.messages.fetch(session.message_id);
+                        if (message) {
+                            await message.delete();
+                        }
+                    }
+                } catch (err) {
+                    console.log('Error deleting voting message:', err.message);
+                }
+            }
+
+            return interaction.editReply('✅ Votación cancelada y mensaje eliminado.');
+        }
+
+        // Helper function to rename channel based on state
+
+        else if (subCmd === 'forzar') {
+            // Junta Directiva only
+            const member = await interaction.guild.members.fetch(userId);
+            if (!member.roles.cache.has(juntaDirectivaRoleId)) {
+                return interaction.editReply('❌ Solo la Junta Directiva puede forzar la apertura.');
+            }
+
+            const { data: session } = await supabase
+                .from('session_votes')
+                .select('*')
+                .eq('status', 'active')
+                .maybeSingle();
+
+            if (!session) {
+                return interaction.editReply('❌ No hay votación activa.');
+            }
+
+            await supabase
+                .from('session_votes')
+                .update({ status: 'opened' })
+                .eq('id', session.id);
+
+            // Update the original voting message with OPEN embed
+            let embedUpdated = false;
+            try {
+                if (!session.channel_id || !session.message_id) {
+                    console.error('Missing channel_id or message_id:', session);
+                    return interaction.editReply('❌ No se pudo encontrar el mensaje de votación original.');
+                }
+
+                const channel = await client.channels.fetch(session.channel_id);
+                if (!channel) {
+                    console.error('Channel not found:', session.channel_id);
+                    return interaction.editReply('❌ No se encontró el canal de votaciones.');
+                }
+
+                const message = await channel.messages.fetch(session.message_id);
+                if (!message) {
+                    console.error('Message not found:', session.message_id);
+                    return interaction.editReply('❌ No se encontró el mensaje de votación.');
+                }
+
+                const openEmbed = new EmbedBuilder()
                     .setTitle('✅ SESIÓN CONFIRMADA - SERVIDOR ABIERTO')
                     .setColor(0x00FF00)
                     .setDescription('🎮 **¡El servidor ha sido ABIERTO por la Junta Directiva!**\n\n¡Hora de rolear!')
@@ -8274,118 +8177,145 @@ else if (commandName === 'sesion') {
                     .setFooter({ text: `Apertura forzada por ${interaction.user.tag}` })
                     .setTimestamp();
 
-                // Create join button
-                const joinButton = new ActionRowBuilder()
-                    .addComponents(
-                        new ButtonBuilder()
-                            .setLabel('🎮 Unirse al Servidor')
-                            .setStyle(ButtonStyle.Link)
-                            .setURL('https://www.roblox.com/games/start?launchData=%7B%22psCode%22%3A%22NACIONMX%22%7D&placeId=2534724415')
-                    );
-
-                await channel.send({ content: '<@&1412899401000685588>', embeds: [finalOpenEmbed], components: [joinButton] });
+                await message.edit({ embeds: [openEmbed], components: [] });
+                embedUpdated = true;
+                console.log('Successfully updated voting embed for session:', session.id);
+            } catch (updateError) {
+                console.error('Error updating voting message:', updateError);
+                return interaction.editReply(`❌ Error actualizando el embed: ${updateError.message}`);
             }
-        } catch (sendError) {
-            console.error('Error sending open embed to clean channel:', sendError);
-        }
 
-        // Notify all voters
-        const { data: allVoters } = await supabase
-            .from('vote_responses')
-            .select('user_id')
-            .eq('session_id', session.id)
-            .in('vote_type', ['yes', 'late']);
+            // Clear ALL messages in the channel
+            const targetChannelId = '1412963363545284680';
+            await clearChannelMessages(client, targetChannelId);
 
-        for (const voter of (allVoters || [])) {
+            // Rename channel to open state
+            await renameChannel(client, targetChannelId, '✅・servidor-abierto');
+
+            // Send the OPEN embed to the clean channel
             try {
-                const user = await client.users.fetch(voter.user_id);
-                await user.send(`🎮 **¡SERVIDOR ABIERTO (Forzado por Junta Directiva)!**\n¡Hora de rolear!`);
-            } catch (e) { }
-        }
+                const channel = await client.channels.fetch(targetChannelId);
+                if (channel) {
+                    const finalOpenEmbed = new EmbedBuilder()
+                        .setTitle('✅ SESIÓN CONFIRMADA - SERVIDOR ABIERTO')
+                        .setColor(0x00FF00)
+                        .setDescription('🎮 **¡El servidor ha sido ABIERTO por la Junta Directiva!**\n\n¡Hora de rolear!')
+                        .setImage('https://cdn.discordapp.com/attachments/885232074083143741/1453225155185737749/standard.gif')
+                        .setFooter({ text: `Apertura forzada por ${interaction.user.tag}` })
+                        .setTimestamp();
 
-        return interaction.editReply('✅ Servidor abierto forzadamente. Embed actualizado y participantes notificados.');
-    }
+                    // Create join button
+                    const joinButton = new ActionRowBuilder()
+                        .addComponents(
+                            new ButtonBuilder()
+                                .setLabel('🎮 Unirse al Servidor')
+                                .setStyle(ButtonStyle.Link)
+                                .setURL('https://www.roblox.com/games/start?launchData=%7B%22psCode%22%3A%22NACIONMX%22%7D&placeId=2534724415')
+                        );
 
-    // Helper function to rename channel based on state
-
-    if (subCmd === 'cerrar') {
-        // Junta Directiva only
-        const member = await interaction.guild.members.fetch(userId);
-        if (!member.roles.cache.has(juntaDirectivaRoleId)) {
-            return interaction.editReply('❌ Solo la Junta Directiva puede cerrar el servidor.');
-        }
-
-        const razon = interaction.options.getString('razon') || 'Sesión finalizada';
-
-        // Close any active/opened session in DB
-        await supabase
-            .from('session_votes')
-            .update({ status: 'cancelled' })
-            .in('status', ['active', 'opened']);
-
-        // Rename channel to closed state
-        const targetChannelId = '1412963363545284680';
-        await renameChannel(client, targetChannelId, '🔴・servidor-cerrado');
-
-        // Clean up channel messages
-        try {
-            const channel = await client.channels.fetch(targetChannelId);
-            if (channel) {
-                const messages = await channel.messages.fetch({ limit: 100 });
-                if (messages.size > 0) {
-                    await channel.bulkDelete(messages, true).catch(err => console.log("Error deleting messages:", err.message));
+                    await channel.send({ content: '<@&1412899401000685588>', embeds: [finalOpenEmbed], components: [joinButton] });
                 }
+            } catch (sendError) {
+                console.error('Error sending open embed to clean channel:', sendError);
             }
-        } catch (cleanupError) {
-            console.log("Channel cleanup warning:", cleanupError.message);
-        }
 
-        const embed = new EmbedBuilder()
-            .setTitle('🔴 SERVIDOR CERRADO')
-            .setColor(0xFF0000)
-            .setImage('https://cdn.discordapp.com/attachments/885232074083143741/1453225156188049458/standard2.gif')
-            .setDescription(`⚠️ **La sesión de rol ha finalizado.**\n\n📝 **Razón:** ${razon}\n\nGracias por participar en **Nación MX**. \n¡Esperamos verlos en la próxima sesión!`)
-            .setFooter({ text: `Cerrado por ${interaction.user.tag}` })
-            .setTimestamp();
+            // Notify all voters
+            const { data: allVoters } = await supabase
+                .from('vote_responses')
+                .select('user_id')
+                .eq('session_id', session.id)
+                .in('vote_type', ['yes', 'late']);
 
-        // Send to the designated channel
-        try {
-            const channel = await client.channels.fetch(targetChannelId);
-            if (channel) {
-                await channel.send({ embeds: [embed] });
+            for (const voter of (allVoters || [])) {
+                try {
+                    const user = await client.users.fetch(voter.user_id);
+                    await user.send(`🎮 **¡SERVIDOR ABIERTO (Forzado por Junta Directiva)!**\n¡Hora de rolear!`);
+                } catch (e) { }
             }
-        } catch (sendError) {
-            console.error('Error sending close embed:', sendError);
+
+            return interaction.editReply('✅ Servidor abierto forzadamente. Embed actualizado y participantes notificados.');
         }
 
-        return interaction.editReply({ content: '✅ Servidor cerrado. Canal limpiado y anuncio enviado.', flags: [64] });
-    }
+        // Helper function to rename channel based on state
 
-    // Helper function to rename channel based on state
+        if (subCmd === 'cerrar') {
+            // Junta Directiva only
+            const member = await interaction.guild.members.fetch(userId);
+            if (!member.roles.cache.has(juntaDirectivaRoleId)) {
+                return interaction.editReply('❌ Solo la Junta Directiva puede cerrar el servidor.');
+            }
 
-    if (subCmd === 'mantenimiento') {
-        // Junta Directiva only
-        const member = await interaction.guild.members.fetch(userId);
-        if (!member.roles.cache.has(juntaDirectivaRoleId)) {
-            return interaction.editReply('❌ Solo la Junta Directiva puede activar mantenimiento.');
+            const razon = interaction.options.getString('razon') || 'Sesión finalizada';
+
+            // Close any active/opened session in DB
+            await supabase
+                .from('session_votes')
+                .update({ status: 'cancelled' })
+                .in('status', ['active', 'opened']);
+
+            // Rename channel to closed state
+            const targetChannelId = '1412963363545284680';
+            await renameChannel(client, targetChannelId, '🔴・servidor-cerrado');
+
+            // Clean up channel messages
+            try {
+                const channel = await client.channels.fetch(targetChannelId);
+                if (channel) {
+                    const messages = await channel.messages.fetch({ limit: 100 });
+                    if (messages.size > 0) {
+                        await channel.bulkDelete(messages, true).catch(err => console.log("Error deleting messages:", err.message));
+                    }
+                }
+            } catch (cleanupError) {
+                console.log("Channel cleanup warning:", cleanupError.message);
+            }
+
+            const embed = new EmbedBuilder()
+                .setTitle('🔴 SERVIDOR CERRADO')
+                .setColor(0xFF0000)
+                .setImage('https://cdn.discordapp.com/attachments/885232074083143741/1453225156188049458/standard2.gif')
+                .setDescription(`⚠️ **La sesión de rol ha finalizado.**\n\n📝 **Razón:** ${razon}\n\nGracias por participar en **Nación MX**. \n¡Esperamos verlos en la próxima sesión!`)
+                .setFooter({ text: `Cerrado por ${interaction.user.tag}` })
+                .setTimestamp();
+
+            // Send to the designated channel
+            try {
+                const channel = await client.channels.fetch(targetChannelId);
+                if (channel) {
+                    await channel.send({ embeds: [embed] });
+                }
+            } catch (sendError) {
+                console.error('Error sending close embed:', sendError);
+            }
+
+            return interaction.editReply({ content: '✅ Servidor cerrado. Canal limpiado y anuncio enviado.', flags: [64] });
         }
 
-        const duracion = interaction.options.getString('duracion') || 'Indefinido';
-        const razon = interaction.options.getString('razon') || 'Mejoras y optimización';
+        // Helper function to rename channel based on state
 
-        const embed = new EmbedBuilder()
-            .setTitle('🛠️ MANTENIMIENTO EN PROCESO')
-            .setColor(0xFFA500)
-            .setDescription(`⚠️ **El servidor se encuentra en mantenimiento.**\n\n⏳ **Duración estimada:** ${duracion}\n📝 **Motivo:** ${razon}`)
-            .setFooter({ text: 'Por favor, no intenten entrar hasta nuevo aviso.' })
-            .setTimestamp();
+        if (subCmd === 'mantenimiento') {
+            // Junta Directiva only
+            const member = await interaction.guild.members.fetch(userId);
+            if (!member.roles.cache.has(juntaDirectivaRoleId)) {
+                return interaction.editReply('❌ Solo la Junta Directiva puede activar mantenimiento.');
+            }
 
-        await interaction.channel.send({ embeds: [embed] });
-        return interaction.editReply({ content: '✅ Anuncio de mantenimiento enviado.', flags: [64] });
+            const duracion = interaction.options.getString('duracion') || 'Indefinido';
+            const razon = interaction.options.getString('razon') || 'Mejoras y optimización';
+
+            const embed = new EmbedBuilder()
+                .setTitle('🛠️ MANTENIMIENTO EN PROCESO')
+                .setColor(0xFFA500)
+                .setDescription(`⚠️ **El servidor se encuentra en mantenimiento.**\n\n⏳ **Duración estimada:** ${duracion}\n📝 **Motivo:** ${razon}`)
+                .setFooter({ text: 'Por favor, no intenten entrar hasta nuevo aviso.' })
+                .setTimestamp();
+
+            await interaction.channel.send({ embeds: [embed] });
+            return interaction.editReply({ content: '✅ Anuncio de mantenimiento enviado.', flags: [64] });
+        }
+
+        // Helper function to rename channel based on state
     }
-
-    // Helper function to rename channel based on state
-}
 }; // End of handler function
 
 module.exports = { handleEconomyLegacy };
