@@ -77,9 +77,8 @@ module.exports = {
             const fechaNacimiento = `${birthYear}-01-01`; // Placeholder date
 
             // Get Discord profile picture
-            const fotoUrl = targetUser.displayAvatarURL({ dynamic: true, size: 512 });
+            const fotoUrl = targetUser.displayAvatarURL({ extension: 'png', size: 512 });
 
-            // Insert DNI
             // Insert DNI
             const { data: newDni, error } = await supabase
                 .from('citizen_dni')
@@ -168,9 +167,13 @@ module.exports = {
             }
 
             try {
-                // Ensure user_tag is present for the image
                 if (!dni.user_tag) {
                     dni.user_tag = targetUser.tag;
+                }
+
+                // Fallback: If no photo in DB, use current Discord Avatar
+                if (!dni.foto_url) {
+                    dni.foto_url = targetUser.displayAvatarURL({ extension: 'png', size: 512 });
                 }
 
                 // Generate Image
