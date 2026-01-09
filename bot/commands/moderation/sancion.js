@@ -680,7 +680,7 @@ module.exports = {
                         }
 
                         await blChannel.send({
-                            content: '@everyone',
+                            content: (tipoBlacklist === 'Blacklist Total') ? '@everyone' : null,
                             embeds: [publicEmbed]
                         });
                         actionResult += `\n📢 **Notificación enviada al canal de Blacklists.**`;
