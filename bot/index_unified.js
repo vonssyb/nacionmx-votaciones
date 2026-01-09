@@ -70,6 +70,29 @@ async function startModerationBot() {
     client.commands = new Collection();
     client.supabase = supabase;
 
+    // --- AUDIT LOGGING ---
+    client.logAudit = async (action, details, moderator, target, color = 0x00AAFF, files = [], channelId = null) => {
+        try {
+            const AUDIT_CHANNEL_ID = channelId || '1456035521141670066'; // Security/Sanctions (Default)
+            const channel = await client.channels.fetch(AUDIT_CHANNEL_ID).catch(() => null);
+            if (channel) {
+                const { EmbedBuilder } = require('discord.js');
+                const embed = new EmbedBuilder()
+                    .setTitle(`🛡️ Auditoría: ${action}`)
+                    .setColor(color)
+                    .addFields(
+                        { name: '👮 Staff', value: `${moderator.tag} (<@${moderator.id}>)`, inline: true },
+                        { name: '👤 Usuario', value: target ? `${target.tag} (<@${target.id}>)` : 'N/A', inline: true },
+                        { name: '📝 Detalles', value: details.length > 1020 ? details.substring(0, 1020) + '...' : details }
+                    )
+                    .setTimestamp();
+                await channel.send({ embeds: [embed], files: files });
+            }
+        } catch (error) {
+            console.error('[MOD] Audit Log Error:', error);
+        }
+    };
+
     // Services
     const SanctionService = require('./services/SanctionService');
     const BillingService = require('./services/BillingService');
