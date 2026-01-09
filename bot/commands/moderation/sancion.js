@@ -404,6 +404,62 @@ module.exports = {
                                     await member.ban({ reason: `Blacklist TOTAL: ${motivo} - Por ${interaction.user.tag}` });
                                     actionResult = '\n🔨 **Usuario Baneado Permanentemente de Discord (Blacklist Total).**';
                                 }
+
+                                // --- ERLC BAN LOGIC FOR BLACKLIST TOTAL ---
+                                try {
+                                    let robloxIdentifierBL = null;
+
+                                    // 1. Try from Input options if provided and valid (though usually this command is run on Discord User)
+                                    if (robloxInput) {
+                                        robloxIdentifierBL = robloxInput.trim();
+                                        // Note: We don't do deep resolution here to save time/complexity, 
+                                        // or we can copy the logic from below if we want to be safe.
+                                    }
+
+                                    // 2. Try from DB (Most likely scenario for Blacklist)
+                                    if (!robloxIdentifierBL) {
+                                        const { data: citizenBL } = await interaction.client.supabase
+                                            .from('citizens')
+                                            .select('roblox_id, roblox_username')
+                                            .eq('discord_id', targetUser.id)
+                                            .maybeSingle();
+
+                                        if (citizenBL) {
+                                            robloxIdentifierBL = citizenBL.roblox_username || citizenBL.roblox_id;
+                                        }
+                                    }
+
+                                    if (robloxIdentifierBL) {
+                                        const ErlcService = require('../../services/ErlcService');
+                                        const erlcKey = process.env.ERLC_API_KEY || 'ARuRfmzZGTqbqUCjMERA-dzEeGLbRfisfjKtiCOXLHATXDedYZsQQEethQMZp';
+
+                                        if (erlcKey) {
+                                            const erlcService = new ErlcService(erlcKey);
+                                            // 999999 hours is effectively permanent in ERLC
+                                            const erlcCommand = `:ban ${robloxIdentifierBL} 999999 Blacklist Total: ${motivo.substring(0, 30)}`;
+
+                                            console.log(`[Sancion-BL] Sending ERLC command: ${erlcCommand}`);
+                                            const result = await erlcService.runCommand(erlcCommand);
+
+                                            if (result) {
+                                                actionResult += `\n🎮 **Usuario Baneado Permanentemente de ERLC** (${robloxIdentifierBL}).`;
+                                            } else {
+                                                // QUEUE IF FAILED
+                                                const ErlcScheduler = require('../../services/ErlcScheduler');
+                                                await ErlcScheduler.queueAction(interaction.client.supabase, erlcCommand, `Blacklist Total: ${motivo}`, { username: robloxIdentifierBL });
+                                                actionResult += `\n⚠️ **Servidor ERLC Inactivo/Error:** Se ha puesto el baneo en **COLA DE ESPERA**. Se aplicará automáticamente cuando el servidor responda.`;
+                                            }
+                                        }
+                                    } else {
+                                        actionResult += `\n⚠️ No se pudo banear en ERLC (No se encontró usuario de Roblox vinculado).`;
+                                    }
+
+                                } catch (erlcErr) {
+                                    console.error('Error executing ERLC Ban for Blacklist:', erlcErr);
+                                    actionResult += `\n⚠️ Error intentando banear en ERLC.`;
+                                }
+                                // ------------------------------------------
+
                             } else {
                                 // Partial Blacklist - Assign Role
                                 const roleIdToAssign = BLACKLIST_ROLES[tipoBlacklist];
@@ -559,7 +615,10 @@ module.exports = {
                                             actionResult = `\n🎮 **Acción ejecutada en ERLC** (${robloxIdentifier})`;
                                         }
                                     } else {
-                                        actionResult = `\n⚠️ Error al ejecutar comando ERLC`;
+                                        // QUEUE NORMAL SANCTIONS TOO
+                                        const ErlcScheduler = require('../../services/ErlcScheduler');
+                                        await ErlcScheduler.queueAction(interaction.client.supabase, erlcCommand, motivo, { username: robloxIdentifier });
+                                        actionResult = `\n⚠️ **Servidor ERLC Inactivo:** La sanción (${accion}) se ha guardado en la **COLA DE ESPERA** y se ejecutará automáticamente.`;
                                     }
                                 } else {
                                     actionResult = '\n⚠️ ERLC API Key no configurada';
