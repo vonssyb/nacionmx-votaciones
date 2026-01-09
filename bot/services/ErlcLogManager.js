@@ -1,15 +1,16 @@
 const { EmbedBuilder } = require('discord.js');
-const fs = require('fs');
-const path = require('path');
+
 
 class ErlcLogManager {
-    constructor(client, erlcService, logChannelId) {
+    constructor(client, supabase, erlcService, logChannelId) {
         this.client = client;
+        this.supabase = supabase;
         this.erlcService = erlcService;
         this.logChannelId = logChannelId;
         this.isRunning = false;
         this.currentInterval = 60000; // Default 1 min
         this.timer = null;
+        this.stateLoaded = false;
 
         // Log State
         this.state = {
@@ -20,50 +21,68 @@ class ErlcLogManager {
             processedCommands: new Set(),
             processedJoins: new Set()
         };
-
-        this.stateFilePath = path.join(__dirname, '../data/erlc_log_state.json');
-        this.loadState();
     }
 
-    loadState() {
-        if (fs.existsSync(this.stateFilePath)) {
-            try {
-                const saved = JSON.parse(fs.readFileSync(this.stateFilePath));
+    async loadState() {
+        try {
+            const { data, error } = await this.supabase
+                .from('erlc_log_state')
+                .select('state_data')
+                .eq('id', 1)
+                .single();
+
+            if (data && data.state_data) {
+                const saved = data.state_data;
                 this.state.lastKill = saved.lastKill || 0;
                 this.state.lastCommand = saved.lastCommand || 0;
                 this.state.lastJoin = saved.lastJoin || 0;
+                // Sets are reconstructed from arrays
                 this.state.processedKills = new Set(saved.processedKills || []);
                 this.state.processedCommands = new Set(saved.processedCommands || []);
                 this.state.processedJoins = new Set(saved.processedJoins || []);
-                console.log(`[ErlcLogManager] Restored state.`);
-            } catch (e) {
-                console.error('[ErlcLogManager] Failed to load state:', e);
+                console.log(`[ErlcLogManager] State restored from Supabase. Last Kill: ${this.state.lastKill}`);
+            } else {
+                console.log('[ErlcLogManager] No saved state found in DB. Starting fresh (0).');
             }
-        } else {
-            // Ensure data directory exists
-            const dataDir = path.dirname(this.stateFilePath);
-            if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
+        } catch (e) {
+            console.error('[ErlcLogManager] Failed to load state:', e);
+        } finally {
+            this.stateLoaded = true;
         }
     }
 
-    saveState() {
+    async saveState() {
         try {
-            fs.writeFileSync(this.stateFilePath, JSON.stringify({
+            // Check if state is loaded to avoid overwriting DB with empty state on race condition
+            if (!this.stateLoaded) return;
+
+            const payload = {
                 lastKill: this.state.lastKill,
                 lastCommand: this.state.lastCommand,
                 lastJoin: this.state.lastJoin,
                 processedKills: Array.from(this.state.processedKills),
                 processedCommands: Array.from(this.state.processedCommands),
                 processedJoins: Array.from(this.state.processedJoins)
-            }));
+            };
+
+            const { error } = await this.supabase
+                .from('erlc_log_state')
+                .upsert({ id: 1, state_data: payload });
+
+            if (error) console.error('[ErlcLogManager] DB Save Error:', error.message);
         } catch (e) {
             console.error('[ErlcLogManager] Failed to save state:', e);
         }
     }
 
-    start() {
+    async start() {
         if (this.isRunning) return;
         this.isRunning = true;
+
+        // Ensure state is loaded BEFORE polling
+        console.log('[ErlcLogManager] Loading state...');
+        await this.loadState();
+
         console.log(`[ErlcLogManager] Started. Initial polling every ${this.currentInterval / 1000}s`);
         this.scheduleNextPoll();
     }

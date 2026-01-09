@@ -91,7 +91,7 @@ async function startModerationBot() {
 
     // Log Channel ID from legacy code: 1457892493310951444
     const ErlcLogManager = require('./services/ErlcLogManager');
-    const erlcLogManager = new ErlcLogManager(client, erlcService, '1457892493310951444');
+    const erlcLogManager = new ErlcLogManager(client, supabase, erlcService, '1457892493310951444');
     erlcLogManager.start();
 
     client.services = {
