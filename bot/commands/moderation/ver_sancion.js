@@ -45,7 +45,7 @@ module.exports = {
                     { name: '👤 Usuario', value: `${offender.username || 'Unknown'} (<@${sanction.discord_user_id}>)`, inline: false },
                     { name: '👮 Moderador', value: `${moderator.username || 'Unknown'} (<@${sanction.moderator_id}>)`, inline: false },
                     { name: '📝 Motivo/Regla', value: sanction.reason || 'Sin especificar', inline: false },
-                    { name: '⚖️ Acción', value: sanction.action_type || 'N/A', inline: True },
+                    { name: '⚖️ Acción', value: sanction.action_type || 'N/A', inline: true },
                     { name: '⏳ Expiración', value: sanction.expires_at ? moment(sanction.expires_at).tz('America/Mexico_City').format('DD/MM/YYYY HH:mm') : 'Permanente/Manual', inline: true }
                 )
                 .setFooter({ text: 'Sistema de Archivos Nación MX' })

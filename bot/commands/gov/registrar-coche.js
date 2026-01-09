@@ -103,19 +103,50 @@ module.exports = {
         }
 
         // 6. Success
-        const embed = new EmbedBuilder()
-            .setTitle('🚗 Vehículo Registrado')
-            .setColor('#2ECC71')
-            .addFields(
-                { name: 'Propietario', value: `<@${interaction.user.id}>`, inline: true },
-                { name: 'Vehículo', value: modelo, inline: true },
-                { name: 'Matrícula', value: `\`${matricula}\``, inline: true },
-                { name: 'Color', value: color, inline: true },
-                { name: 'Tipo', value: tipo, inline: true },
-                { name: 'Costo', value: `$${cost.toLocaleString()}`, inline: true }
-            )
-            .setFooter({ text: 'Nación MX | Secretaría de Finanzas' });
+        // 6. Success & Generate Card
+        const ImageGenerator = require('../../utils/ImageGenerator');
+        try {
+            // We have 'dni' object from step 1 (Check DNI)
+            // We have car info.
+            const carData = {
+                plate: matricula,
+                model: modelo,
+                color: color,
+                type: tipo,
+                created_at: new Date().toISOString()
+            };
 
-        await interaction.editReply({ embeds: [embed] });
+            const cardBuffer = await ImageGenerator.generateCarCard(carData, dni);
+            const attachment = new EmbedBuilder().image // Wait, attachment is separate
+            const { AttachmentBuilder } = require('discord.js');
+            const file = new AttachmentBuilder(cardBuffer, { name: 'tarjeta.png' });
+
+            const embed = new EmbedBuilder()
+                .setTitle('🚗 Vehículo Registrado Correctamente')
+                .setColor('#2ECC71')
+                .setDescription(`Se ha emitido la tarjeta de circulación para el vehículo **${matricula}**.`)
+                .setImage('attachment://tarjeta.png')
+                .setFooter({ text: 'Nación MX | Secretaría de Finanzas' });
+
+            await interaction.editReply({ embeds: [embed], files: [file] });
+
+        } catch (imgError) {
+            console.error('Error generating car card:', imgError);
+            // Fallback to text embed if image fails
+            const embed = new EmbedBuilder()
+                .setTitle('🚗 Vehículo Registrado')
+                .setColor('#2ECC71')
+                .addFields(
+                    { name: 'Propietario', value: `<@${interaction.user.id}>`, inline: true },
+                    { name: 'Vehículo', value: modelo, inline: true },
+                    { name: 'Matrícula', value: `\`${matricula}\``, inline: true },
+                    { name: 'Color', value: color, inline: true },
+                    { name: 'Tipo', value: tipo, inline: true },
+                    { name: 'Costo', value: `$${cost.toLocaleString()}`, inline: true }
+                )
+                .setFooter({ text: 'Nación MX | Secretaría de Finanzas' });
+
+            await interaction.editReply({ embeds: [embed] });
+        }
     }
 };

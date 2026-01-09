@@ -10,7 +10,7 @@ class ErlcScheduler {
     }
 
     start(intervalMs = 2 * 60 * 1000) { // Default: 2 minutes
-        console.log('🕒 [ErlcScheduler] Started. Checking every 2 minutes...');
+        // console.log('🕒 [ErlcScheduler] Started. Checking every 2 minutes...');
         // Run immediately on start
         this.checkPendingActions();
 
@@ -21,7 +21,7 @@ class ErlcScheduler {
 
     stop() {
         if (this.interval) clearInterval(this.interval);
-        console.log('🛑 [ErlcScheduler] Stopped.');
+        // console.log('🛑 [ErlcScheduler] Stopped.');
     }
 
     async checkPendingActions() {
@@ -51,7 +51,7 @@ class ErlcScheduler {
                 return;
             }
 
-            console.log(`[ErlcScheduler] Processing ${actions.length} pending actions...`);
+            // console.log(`[ErlcScheduler] Processing ${actions.length} pending actions...`);
 
             for (const action of actions) {
                 await this.processAction(action);
@@ -66,7 +66,7 @@ class ErlcScheduler {
 
     async processAction(action) {
         try {
-            console.log(`[ErlcScheduler] Retrying Action ID: ${action.id} - ${action.command.substring(0, 50)}...`);
+            // console.log(`[ErlcScheduler] Retrying Action ID: ${action.id} - ${action.command.substring(0, 50)}...`);
 
             // EXECUTE COMMAND
             const success = await this.erlcService.runCommand(action.command);
@@ -82,7 +82,7 @@ class ErlcScheduler {
                     })
                     .eq('id', action.id);
 
-                console.log(`✅ [ErlcScheduler] Action ${action.id} Completed successfully.`);
+                // console.log(`✅ [ErlcScheduler] Action ${action.id} Completed successfully.`);
             } else {
                 // MARK AS FAILED ATTEMPT (Increment count)
                 // If max attempts reached? Maybe retry indefinitely if it's a ban?
@@ -123,7 +123,7 @@ class ErlcScheduler {
                 roblox_id: robloxUser?.id,
                 status: 'pending'
             });
-            console.log(`[ErlcScheduler] Action queued: ${command.substring(0, 30)}...`);
+            // console.log(`[ErlcScheduler] Action queued: ${command.substring(0, 30)}...`);
             return true;
         } catch (e) {
             console.error('[ErlcScheduler] Failed to queue action:', e);
