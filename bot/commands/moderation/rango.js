@@ -499,7 +499,27 @@ module.exports = {
             }
 
             // Log Audit
-            await client.logAudit('Gestión de Staff', `Acción: ${subcommand}\n${changesLog.join('\n')}`, interaction.user, targetUser, color);
+            // Log Audit (Direct Implementation since client.logAudit is missing)
+            try {
+                const LOG_CHANNEL_ID = '1457576874602659921'; // Security/Private Log
+                const logChannel = await client.channels.fetch(LOG_CHANNEL_ID).catch(() => null);
+
+                if (logChannel) {
+                    const auditEmbed = new EmbedBuilder()
+                        .setTitle('Gestión de Staff')
+                        .setDescription(`Acción: **${subcommand.toUpperCase()}**\n\n${changesLog.join('\n') || 'Sin cambios registrados.'}`)
+                        .addFields(
+                            { name: '👮 Ejecutado por', value: `${interaction.user.tag} (<@${interaction.user.id}>)`, inline: true },
+                            { name: '👤 Usuario Objetivo', value: `${targetUser.tag} (<@${targetUser.id}>)`, inline: true }
+                        )
+                        .setColor(color)
+                        .setTimestamp();
+
+                    await logChannel.send({ embeds: [auditEmbed] });
+                }
+            } catch (logErr) {
+                console.error('Failed to send audit log:', logErr);
+            }
 
             // --- TRIGGER SHIFT IF NEEDED ---
             if (releasedBadgeType && releasedBadgeNumber) {
