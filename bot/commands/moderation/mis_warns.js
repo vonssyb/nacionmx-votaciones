@@ -45,7 +45,21 @@ module.exports = {
                     const evidenceLink = s.evidence_url ? ` [📸 Ver Evidencia](${s.evidence_url})` : '';
                     const descriptionText = s.description ? `\n> *${s.description}*` : '';
                     const expiration = s.expires_at ? ` | ⏳ Expira: ${new Date(s.expires_at).toLocaleDateString('es-MX')}` : '';
-                    let line = `**${icon} ${displayType}** [${date}]${evidenceLink} - **Ref:** ${s.reason}${expiration}${descriptionText}\n`;
+                    // Truncate logic to avoid "Invalid string length" (Limit 1024)
+                    // We need enough space for the Ref + Description
+                    let baseLine = `**${icon} ${displayType}** [${date}]${evidenceLink} - **Ref:** ${s.reason}${expiration}`;
+
+                    // Truncate reason if too long
+                    if (baseLine.length > 900) {
+                        baseLine = baseLine.substring(0, 900) + '...';
+                    }
+
+                    let descriptionText = s.description ? `\n> *${s.description}*` : '';
+                    if (descriptionText.length > 100) {
+                        descriptionText = descriptionText.substring(0, 100) + '...*';
+                    }
+
+                    let line = `${baseLine}${descriptionText}\n`;
 
                     if (s.status === 'appealed') {
                         line = `✨ **[APELADA]** ${line}`;

@@ -617,7 +617,15 @@ module.exports = {
 
                 } catch (error) {
                     console.error('Error applying CK:', error);
-                    await i.editReply({ content: `❌ Error al aplicar el CK: ${error.message}` });
+                    // await i.editReply({ content: `❌ Error al aplicar el CK: ${error.message}` });
+                    // Use followUp to avoid "InteractionAlreadyReplied" if editReply was already called in a race condition
+                    try {
+                        if (i.deferred || i.replied) {
+                            await i.followUp({ content: `❌ Error al aplicar el CK: ${error.message}`, ephemeral: true });
+                        } else {
+                            await i.reply({ content: `❌ Error al aplicar el CK: ${error.message}`, ephemeral: true });
+                        }
+                    } catch (e) { console.error('Failed to send error message:', e); }
                 }
 
                 collector.stop();
