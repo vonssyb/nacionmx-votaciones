@@ -29,11 +29,11 @@ class ImageGenerator {
         ctx.fillStyle = '#1a3b5c';
         ctx.font = 'bold 45px sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText('PASAPORTE INTERNACIONAL', width / 2, 60);
+        ctx.fillText('DOCUMENTO DE IDENTIDAD', width / 2, 60);
 
         ctx.font = 'bold 25px sans-serif';
         ctx.fillStyle = '#4a6fa5';
-        ctx.fillText('REPÚBLICA DE LA PERLA', width / 2, 95);
+        ctx.fillText('REPÚBLICA DE NACIÓN MX', width / 2, 95);
 
         // Photo Area (Left)
         const photoSize = 250;
