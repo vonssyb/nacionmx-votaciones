@@ -1519,9 +1519,9 @@ const handleEconomyLegacy = async (interaction, client, supabase) => {
                     .eq('session_id', sessionId);
 
                 if (voteError) {
-                    console.error('[VOTE DEBUG] Error fetching votes:', voteError);
+                    // console.error('[VOTE DEBUG] Error fetching votes:', voteError);
                 } else {
-                    console.log(`[VOTE DEBUG] Votes fetched for ${sessionId}: ${votes?.length || 0}`);
+                    // console.log(`[VOTE DEBUG] Votes fetched for ${sessionId}: ${votes?.length || 0}`);
                 }
 
                 const yesVotes = votes?.filter(v => v.vote_type === 'yes') || [];
@@ -1555,7 +1555,7 @@ const handleEconomyLegacy = async (interaction, client, supabase) => {
                 const requiredStaff = Math.floor(counts.yes / 8);
                 const staffMet = staffYesCount >= requiredStaff;
 
-                console.log('[VOTE DEBUG] Counts:', counts, `Staff: ${staffYesCount}/${requiredStaff}`);
+                // console.log('[VOTE DEBUG] Counts:', counts, `Staff: ${staffYesCount}/${requiredStaff}`);
 
                 // Update the original message
                 if (session.message_id && session.channel_id) {
@@ -1583,7 +1583,7 @@ const handleEconomyLegacy = async (interaction, client, supabase) => {
                         updatedEmbed.setTimestamp();
 
                         await message.edit({ embeds: [updatedEmbed] });
-                        console.log('[VOTE DEBUG] Message edited successfully');
+                        // console.log('[VOTE DEBUG] Message edited successfully');
 
                         // Check if minimum votes reached AND Staff requirement met
                         if (counts.yes >= session.minimum_votes && staffMet && session.status === 'active') {
