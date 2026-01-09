@@ -5325,7 +5325,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
 
                     } catch (error) {
                         console.error('[tienda comprar] Error:', error);
-                        await i.editReply({ content: '❌ Error procesando la compra.', embeds: [], components: [] });
+                        await i.editReply({ content: `❌ Error procesando la compra: ${error.message || 'Desconocido'}`, embeds: [], components: [] });
                     }
                 });
 
@@ -5337,7 +5337,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
 
             } catch (error) {
                 console.error('[tienda comprar] Error:', error);
-                await interaction.editReply('❌ Error procesando la compra.');
+                await interaction.editReply(`❌ Error procesando la compra: ${error.message || 'Desconocido'}`);
             }
         }
 
