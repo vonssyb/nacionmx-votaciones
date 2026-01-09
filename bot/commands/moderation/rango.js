@@ -450,7 +450,15 @@ module.exports = {
 
         } catch (error) {
             console.error('[Rango] Error:', error);
-            await interaction.editReply('❌ Error crítico gestionando rango. Verifica que el bot tenga permisos superiores al rol que intenta asignar.');
+            const botMember = await interaction.guild.members.fetchMe();
+            const botHighest = botMember.roles.highest;
+
+            let extraInfo = '';
+            if (error.code === 50013) { // Missing Permissions
+                extraInfo = `\n📉 **Bot Rank:** ${botHighest.name} (Pos: ${botHighest.position})`;
+            }
+
+            await interaction.editReply(`❌ Error crítico gestionando rango: ${error.message}${extraInfo}\nVerifica que mi rol esté **arriba** del rol que intento asignar en la lista de roles del servidor.`);
         }
     }
 };
