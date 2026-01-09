@@ -1111,6 +1111,9 @@ const handleModerationLegacy = async (interaction, client, supabase) => {
     // Inject services from client
     billingService = client.services.billing; // Global assignment
 
+    // IGNORE CK BUTTONS (Handled by ck.js collector)
+    if (interaction.customId && interaction.customId.startsWith('ck_confirm')) return;
+
     // Deduplicate interactions
     if (processedInteractions.has(interaction.id)) {
         return;
