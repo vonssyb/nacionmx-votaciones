@@ -1,5 +1,5 @@
 require('dotenv').config();
-const { Client, GatewayIntentBits, Partials, Collection } = require('discord.js');
+const { Client, GatewayIntentBits, Partials, Collection, REST, Routes } = require('discord.js');
 const { createClient } = require('@supabase/supabase-js');
 const fs = require('fs');
 const path = require('path');
@@ -356,6 +356,29 @@ async function startGovernmentBot() {
     // Load Commands
     const loader = require('./handlers/commandLoader');
     await loader.loadCommands(client, path.join(__dirname, 'commands'), ['gov', 'utils']);
+
+    // AUTO-REGISTER COMMANDS (On Startup)
+    const GOV_TOKEN = process.env.DISCORD_TOKEN_GOV;
+    const GOV_GUILD_ID = process.env.GUILD_ID;
+
+    if (GOV_TOKEN && GOV_GUILD_ID) {
+        try {
+            console.log('🔄 Auto-registering Gov commands...');
+            const rest = new REST({ version: '10' }).setToken(GOV_TOKEN);
+            const currentUser = await rest.get(Routes.user('@me'));
+            const clientId = currentUser.id;
+
+            const allCommands = Array.from(client.commands.values()).map(cmd => cmd.data.toJSON());
+
+            await rest.put(
+                Routes.applicationGuildCommands(clientId, GOV_GUILD_ID),
+                { body: allCommands }
+            );
+            console.log(`✅ Registered ${allCommands.length} Gov commands via REST.`);
+        } catch (regError) {
+            console.error('❌ Auto-registration failed:', regError);
+        }
+    }
 
     // Events
     client.once('ready', () => {
