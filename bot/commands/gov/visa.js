@@ -506,7 +506,7 @@ They need $${(cost - availableFunds).toLocaleString()} more.`,
                 nombre: dni.nombre,
                 apellido: dni.apellido,
                 nombre_completo: `${dni.nombre} ${dni.apellido}`,
-                foto_url: dni.foto_url
+                foto_url: dni.foto_url || interaction.user.displayAvatarURL({ extension: 'png', size: 512 })
             };
 
             const visaImageBuffer = await ImageGenerator.generateVisa(visaData);

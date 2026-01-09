@@ -30,14 +30,6 @@ module.exports = {
             });
         }
 
-        // Fetch DNI for visual card
-        const { data: ownerDni } = await supabase
-            .from('citizen_dni')
-            .select('*')
-            .eq('guild_id', interaction.guildId)
-            .eq('user_id', targetUser.id)
-            .maybeSingle();
-
         const ImageGenerator = require('../../utils/ImageGenerator');
         const { AttachmentBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType } = require('discord.js');
 
@@ -49,37 +41,46 @@ module.exports = {
             const embeds = [];
             const files = [];
 
+            // Fetch owner DNI data
+            const { data: ownerDni } = await supabase
+                .from('citizen_dni')
+                .select('nombre, apellido, foto_url')
+                .eq('user_id', targetUser.id)
+                .maybeSingle();
+
+            const ownerData = ownerDni || {
+                nombre: targetUser.username,
+                apellido: '',
+                foto_url: targetUser.displayAvatarURL({ extension: 'png', size: 512 })
+            };
+
+            if (ownerData && !ownerData.foto_url) {
+                ownerData.foto_url = targetUser.displayAvatarURL({ extension: 'png', size: 512 });
+            }
+
             // 1. Generate Visual Card
-            if (ownerDni) {
-                try {
-                    const cardBuffer = await ImageGenerator.generateCarCard(vehicle, ownerDni);
-                    // Use index in filename to avoid caching issues on update? Discord handles attachments well usually.
-                    const fileName = `card_${vehicle.plate}_${index}.png`;
-                    files.push(new AttachmentBuilder(cardBuffer, { name: fileName }));
+            try {
+                const cardBuffer = await ImageGenerator.generateCarCard(vehicle, ownerData);
+                const fileName = `card_${vehicle.plate}_${index}.png`;
+                files.push(new AttachmentBuilder(cardBuffer, { name: fileName }));
 
-                    const cardEmbed = new EmbedBuilder()
-                        .setTitle(`🚗 ${vehicle.model} (${vehicle.plate})`)
-                        .setColor('#2ECC71')
-                        .setImage(`attachment://${fileName}`)
-                        .setDescription(`**Propietario:** <@${targetUser.id}>\n**Índice:** ${index + 1} / ${vehicles.length}`)
-                        .addFields(
-                            { name: 'Color', value: vehicle.color || 'N/A', inline: true },
-                            { name: 'Tipo', value: vehicle.type || 'N/A', inline: true },
-                            { name: 'Registro', value: vehicle.created_at ? new Date(vehicle.created_at).toLocaleDateString() : 'N/A', inline: true }
-                        )
-                        .setFooter({ text: 'Sistema de Control Vehicular • Nación MX' });
+                const cardEmbed = new EmbedBuilder()
+                    .setTitle(`🚗 ${vehicle.model} (${vehicle.plate})`)
+                    .setColor('#2ECC71')
+                    .setImage(`attachment://${fileName}`)
+                    .setDescription(`**Propietario:** <@${targetUser.id}>\n**Índice:** ${index + 1} / ${vehicles.length}`)
+                    .addFields(
+                        { name: 'Color', value: vehicle.color || 'N/A', inline: true },
+                        { name: 'Tipo', value: vehicle.type || 'N/A', inline: true },
+                        { name: 'Registro', value: vehicle.created_at ? new Date(vehicle.created_at).toLocaleDateString() : 'N/A', inline: true }
+                    )
+                    .setFooter({ text: 'Sistema de Control Vehicular • Nación MX' });
 
-                    embeds.push(cardEmbed);
+                embeds.push(cardEmbed);
 
-                } catch (e) {
-                    console.error('Error generating car card:', e);
-                    embeds.push(new EmbedBuilder().setDescription('❌ Error generando tarjeta visual.').setColor('Red'));
-                }
-            } else {
-                embeds.push(new EmbedBuilder()
-                    .setTitle(`🚗 ${vehicle.model}`)
-                    .setDescription('⚠️ No se puede generar la tarjeta visual porque el usuario no tiene DNI.')
-                    .setColor('Yellow'));
+            } catch (e) {
+                console.error('Error generating car card:', e);
+                embeds.push(new EmbedBuilder().setDescription('❌ Error generando tarjeta visual.').setColor('Red'));
             }
 
             // 2. Buttons
