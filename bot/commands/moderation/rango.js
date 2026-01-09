@@ -95,7 +95,8 @@ module.exports = {
                 color: 0xE67E22, // Orange
                 main_id: '1458597791906533477',
                 // Tercer al Mando gets: Role + JD Role + Admin Keys + Key Mod + Separators
-                roles: ['1458597791906533477', '1412882245735420006', '1450242210636365886', '1450242319121911848', '1450242487422812251', '1412887167654690908']
+                roles: ['1458597791906533477', '1412882245735420006', '1450242210636365886', '1450242319121911848', '1450242487422812251', '1412887167654690908'],
+                noNumber: true // TR - Name format
             }
         ];
 
@@ -218,6 +219,42 @@ module.exports = {
             // Remove all roles first
             await member.roles.remove(allStaffRoleIds);
 
+            // --- BADGE RELEASE & SHIFT LOGIC ---
+            let releasedBadgeType = null;
+            let releasedBadgeNumber = null;
+
+            if (currentRankIndex >= 0) {
+                const oldRank = RANGOS[currentRankIndex];
+                const nextBadgeType = (newRankIndex >= 0) ? RANGOS[newRankIndex].badge_type : null;
+
+                // Shift if:
+                // 1. User is kicked/removed (newRankIndex < 0)
+                // 2. User moves to a rank with a DIFFERENT badge type (e.g. ST -> AD)
+                // 3. User moves to a noNumber rank (e.g. JD -> TR)
+                // Note: ST->ST (Level 1->2) should NOT shift.
+
+                const isBadgeChange = (oldRank.badge_type !== nextBadgeType) || (newRankIndex >= 0 && RANGOS[newRankIndex].noNumber);
+
+                if (isBadgeChange && !oldRank.noNumber) { // Only shift if old rank HAD a number
+                    const { data: bData } = await supabase.from('staff_badges')
+                        .select('badge_number')
+                        .eq('discord_id', targetUser.id)
+                        .eq('badge_type', oldRank.badge_type)
+                        .maybeSingle();
+
+                    if (bData) {
+                        releasedBadgeType = oldRank.badge_type;
+                        releasedBadgeNumber = bData.badge_number;
+
+                        // Delete from DB immediately to free the slot (logically)
+                        await supabase.from('staff_badges')
+                            .delete()
+                            .eq('discord_id', targetUser.id)
+                            .eq('badge_type', releasedBadgeType);
+                    }
+                }
+            }
+
             let actionDescription = '';
             let color = 0x808080;
             let finalBadge = null;
@@ -303,9 +340,17 @@ module.exports = {
                     }
                 }
 
-                const badgeStr = `${newRank.badge_type}-${String(badgeNumber).padStart(3, '0')}`; // ST-001
+                // Badge Logic for "noNumber" ranks (e.g. TR)
+                let badgeStr = '';
+                if (newRank.noNumber) {
+                    badgeStr = `${newRank.badge_type} -`; // TR - Name
+                } else {
+                    badgeStr = `${newRank.badge_type}-${String(badgeNumber).padStart(3, '0')}`; // ST-001
+                }
+
                 finalBadge = badgeStr;
-                const newNickname = `${badgeStr} | ${cleanName}`;
+                // If noNumber, format is "TR - Name", otherwise "ST-001 | Name"
+                const newNickname = newRank.noNumber ? `${badgeStr} ${cleanName}` : `${badgeStr} | ${cleanName}`;
 
 
                 try {
@@ -455,6 +500,25 @@ module.exports = {
 
             // Log Audit
             await client.logAudit('Gestión de Staff', `Acción: ${subcommand}\n${changesLog.join('\n')}`, interaction.user, targetUser, color);
+
+            // --- TRIGGER SHIFT IF NEEDED ---
+            if (releasedBadgeType && releasedBadgeNumber) {
+                // Determine source for recursion? No, just call it.
+                // We access the function from module.exports if we are inside execute? 
+                // Wait, 'this' context in execute might not be the module.
+                // Best way: define the function outside or use `require` on itself? No that's messy.
+                // We added it to module.exports. checking how to call it...
+                // In standard node export, `execute` is just a function. `this` might be undefined.
+                // Safest: We can implement the helper locally or use a trick. 
+                // Actually, I pasted the helper inside module.exports.
+                // Let's rely on the file structure.
+                try {
+                    const commandModule = require('./rango.js');
+                    if (commandModule.shiftBadges) {
+                        commandModule.shiftBadges(client, supabase, interaction.guild, releasedBadgeType, releasedBadgeNumber);
+                    }
+                } catch (e) { console.error('Shift Hook Error:', e); }
+            }
 
         } catch (error) {
             console.error('[Rango] Error:', error);
