@@ -703,6 +703,7 @@ client.on('interactionCreate', async interaction => {
 
 // 1. Message Delete
 client.on('messageDelete', async message => {
+    return; // DISABLED TO PREVENT DOUBLE LOGS
     if (message.partial) {
         // Partial means we don't have the content cached, so we can't log the content.
         // We can try to fetch it if possible, but usually delete partials are empty.
@@ -790,6 +791,7 @@ client.on('roleDelete', async role => {
 
 // 5. Message Update (Edit)
 client.on('messageUpdate', async (oldMessage, newMessage) => {
+    return; // DISABLED TO PREVENT DOUBLE LOGS
     if (newMessage.partial) {
         try { await newMessage.fetch(); } catch (e) { return; }
     }
@@ -1396,7 +1398,7 @@ setInterval(async () => {
             }
         }
 
-        const logChannel = await client.channels.fetch(LOG_POLICIA).catch(() => null);
+        const logChannel = null; // await client.channels.fetch(LOG_POLICIA).catch(() => null); // DISABLED
         if (logChannel) {
             // 1. Kill Logs
             const kills = await client.services.erlc.getKillLogs();
@@ -1501,7 +1503,7 @@ setInterval(async () => {
                 }));
                 console.log(`[ERLC-LOGS] Saved state: kills=${client.erlcLogState.lastKill}, cmds=${client.erlcLogState.lastCommand}, joins=${client.erlcLogState.lastJoin}`);
             }
-        } else {
+        } else if (false) {
             console.warn(`[ERLC-LOGS] Could not fetch log channel ${LOG_POLICIA}`);
         }
 
