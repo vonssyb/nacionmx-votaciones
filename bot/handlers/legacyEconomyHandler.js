@@ -44,6 +44,15 @@ const createPaymentButtons = (userId, amount, itemKey) => {
 
 const handleEconomyLegacy = async (interaction, client, supabase) => {
     try {
+        // Inject services from client (passed from index_economia.js)
+        const billingService = client.services.billing;
+        const taxService = client.services.tax;
+        const companyService = client.services.company;
+        const levelService = client.services.levels;
+        const achievementService = client.services.achievements;
+        const missionService = client.services.missions;
+        const storeService = client.services.store;
+
         // If it's a button/modal/select, handles specific cases or generic legacy ones
         let commandName = null;
         let subCmd = null;
@@ -149,14 +158,7 @@ const handleEconomyLegacy = async (interaction, client, supabase) => {
     } catch (error) {
         console.error('CMD Error:', error);
     }
-    // Inject services from client (passed from index_economia.js)
-    billingService = client.services.billing;
-    const taxService = client.services.tax;
-    const companyService = client.services.company;
-    const levelService = client.services.levels;
-    const achievementService = client.services.achievements;
-    const missionService = client.services.missions;
-    const storeService = client.services.store;
+
 
     // console.log(`[DEBUG] Handling Legacy Economy: ${interaction.commandName || interaction.customId}`);
 
@@ -5676,7 +5678,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
         if (crimenDniError) {
             console.error('[crimen] DNI query error:', crimenDniError);
             return interaction.editReply({
-                content: '❌ **Error al verificar DNI**\nContacta a un administrador.',
+                content: `❌ **Error al verificar DNI**\nDetalle: ${crimenDniError.message || JSON.stringify(crimenDniError)}\nContacta a un administrador.`,
             });
         }
 
