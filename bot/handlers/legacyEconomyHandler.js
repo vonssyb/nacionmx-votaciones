@@ -42,17 +42,25 @@ const createPaymentButtons = (userId, amount, itemKey) => {
     );
 };
 
-const handleEconomyLegacy = async (interaction, client, supabase) => {
-    try {
-        // Inject services from client (passed from index_economia.js)
-        const billingService = client.services.billing;
-        const taxService = client.services.tax;
-        const companyService = client.services.company;
-        const levelService = client.services.levels;
-        const achievementService = client.services.achievements;
-        const missionService = client.services.missions;
-        const storeService = client.services.store;
+const createPaymentEmbed = (itemName, price, methods) => {
+    return new EmbedBuilder()
+        .setTitle('💳 Confirmar Pago')
+        .setDescription(`Estás a punto de comprar **${itemName}**\n\n💰 **Precio:** $${price.toLocaleString()}\nℹ️ Selecciona un método de pago:`)
+        .addFields({ name: 'Métodos Disponibles', value: methods.length > 0 ? methods.join(', ') : 'Ninguno' })
+        .setColor('#00AAFF');
+};
 
+const handleEconomyLegacy = async (interaction, client, supabase) => {
+    // Inject services from client (passed from index_economia.js) - SCOPED CORRECTLY
+    const billingService = client.services.billing;
+    const taxService = client.services.tax;
+    const companyService = client.services.company;
+    const levelService = client.services.levels;
+    const achievementService = client.services.achievements;
+    const missionService = client.services.missions;
+    const storeService = client.services.store;
+
+    try {
         // If it's a button/modal/select, handles specific cases or generic legacy ones
         let commandName = null;
         let subCmd = null;
