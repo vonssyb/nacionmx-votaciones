@@ -98,7 +98,7 @@ class ImageGenerator {
         currentY += lineHeight + 10;
 
         // Estado Civil & Roblox
-        drawField('Usuario Roblox', data.user_tag || 'Unknown', 0, 0, 420);
+        drawField('Usuario Roblox', data.user_tag || 'N/A', 0, 0, 420);
 
         // Footer
         ctx.font = '14px sans-serif';

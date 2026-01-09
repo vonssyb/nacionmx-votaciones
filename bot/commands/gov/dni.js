@@ -168,6 +168,11 @@ module.exports = {
             }
 
             try {
+                // Ensure user_tag is present for the image
+                if (!dni.user_tag) {
+                    dni.user_tag = targetUser.tag;
+                }
+
                 // Generate Image
                 const dniImageBuffer = await ImageGenerator.generateDNI(dni);
                 const attachment = new AttachmentBuilder(dniImageBuffer, { name: 'dni.png' });
