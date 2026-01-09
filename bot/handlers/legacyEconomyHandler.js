@@ -27,8 +27,18 @@ const formatCurrency = (amount) => `$${amount.toLocaleString()}`;
 
 // --- MAIN HANDLER ---
 // Interaction deduplication cache (Local to module)
+// Interaction deduplication cache (Local to module)
 const processedInteractions = new Set();
 setInterval(() => processedInteractions.clear(), 60000);
+
+// -- LOGGING HELPER (Module Scope) --
+const logToChannel = async (provider, channelId, embed) => {
+    if (!provider) return;
+    try {
+        const channel = await provider.channels.fetch(channelId).catch(() => null);
+        if (channel) await channel.send({ embeds: [embed] });
+    } catch (e) { console.error('Log Error:', e); }
+};
 
 // Global Session Tracking for Cooldowns
 const casinoSessions = {};
@@ -63,16 +73,7 @@ const handleEconomyLegacy = async (interaction, client, supabase) => {
         }
 
 
-        // -- LOGGING HELPER --
-        // -- LOGGING HELPER --
-        const logToChannel = async (guild, channelId, embed) => {
-            try {
-                // Determine channel source: Guild or Client
-                const source = guild || client;
-                const channel = await source.channels.fetch(channelId).catch(() => null);
-                if (channel) await channel.send({ embeds: [embed] });
-            } catch (e) { console.error('Log Error:', e); }
-        };
+        // -- LOGGING HELPER REMOVED (Moved to Module Scope) --
 
         // =========================================================================
         // 🎰 CASINO COMMANDS (Delegated)
