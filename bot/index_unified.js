@@ -79,11 +79,18 @@ async function startModerationBot() {
 
     const sanctionService = new SanctionService(supabase);
     client.missionManager = new DailyMissionManager(supabase);
+
+    // ERLC Scheduler (Offline Queue)
+    const ErlcScheduler = require('./services/ErlcScheduler');
+    const erlcScheduler = new ErlcScheduler(supabase, process.env.ERLC_API_KEY || 'ARuRfmzZGTqbqUCjMERA-dzEeGLbRfisfjKtiCOXLHATXDedYZsQQEethQMZp');
+    erlcScheduler.start(); // Starts the 2-minute interval loop
+
     client.services = {
         sanctions: sanctionService,
         billing: new BillingService(client, supabase),
         casino: new CasinoService(supabase),
-        stocks: new StockService(supabase)
+        stocks: new StockService(supabase),
+        erlcScheduler: erlcScheduler // Expose if needed
     };
 
     // Load Commands
