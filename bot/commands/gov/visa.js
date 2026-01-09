@@ -431,7 +431,7 @@ They need $${(cost - availableFunds).toLocaleString()} more.`,
 
             try {
                 if (bankAmount > 0) {
-                    await BillingService.ubService.removeMoney(
+                    await client.services.billing.ubService.removeMoney(
                         interaction.guildId,
                         targetUser.id,
                         bankAmount,
@@ -440,7 +440,7 @@ They need $${(cost - availableFunds).toLocaleString()} more.`,
                     );
                 }
                 if (cashAmount > 0) {
-                    await BillingService.ubService.removeMoney(
+                    await client.services.billing.ubService.removeMoney(
                         interaction.guildId,
                         targetUser.id,
                         cashAmount,
