@@ -175,6 +175,16 @@ module.exports = {
                     // Demote from Level 1 -> Remove Staff Role
                     newRankIndex = -2; // Special code for removal
                 }
+
+                // REMOVE EXTRA PRIVILEGED ROLES ON DEMOTION
+                const EXTRA_ROLES_TO_STRIP = [
+                    '1456020936229912781', '1451703422800625777', '1454985316292100226',
+                    '1457554145719488687', '1457919110947016879', '1457776641056047115',
+                    '1455654563158954096', '1455654847717048473', '1450938106395234526',
+                    '1456348822296068326', '1450688555503587459', '1454986744004087839',
+                    '1450688588155981976'
+                ];
+                await member.roles.remove(EXTRA_ROLES_TO_STRIP).catch(e => console.error('Failed to strip extra roles:', e));
             } else if (subcommand === 'establecer') {
                 const level = parseInt(interaction.options.getString('nivel'));
                 newRankIndex = level - 1; // 1-based to 0-based
