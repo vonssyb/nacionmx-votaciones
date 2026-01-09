@@ -202,14 +202,57 @@ module.exports = {
         const evidencia = interaction.options.getAttachment('evidencia');
 
         // Protected roles (NOT removed during CK)
+        // Protected roles (NOT removed during CK)
         const protectedRoles = [
-            // USER PROVIDED PROTECTED ROLES
-            '1458506735185825993', '1458506888407810252',
-            '1458507178619965522', '1458507296958316751',
-            '1458507711938564399', '1458507744725176501',
-            '1458513516913758208', '1458515486722625648',
-            // CRITICAL SYSTEM ROLES
-            '1412882248411381872', '1412887079612059660', '1412887167654690908'
+            // USER PROVIDED PROTECTED ROLES (UPDATED LIST)
+            '1412882245735420006', // Junta Directiva
+            '1412882248411381872', // Administrador
+            '1412887079612059660', // Staff ⬆️
+            '1457558479287091417', // Staff en entrenamiento
+            '1412887167654690908', // Staff
+            '1413545285975801918', // Sanciones (separador)
+            '1456028933995630701', // SA 5
+            '1456028797638934704', // SA 4
+            '1456028699718586459', // SA 3
+            '1454636391932756049', // SA 2
+            '1450997809234051122', // SA 1
+            '1412882235547189362', // Roles administrativos (separador)
+            '1450242210636365886', // Key admistrador
+            '1450242319121911848', // Key moderador
+            '1450242487422812251', // 🔐
+            '1456020936229912781', // Encargado de sanciones
+            '1451703422800625777', // Encargado de apelaciones
+            '1454985316292100226', // Encargado de economía
+            '1457919110947016879', // Encargado de política
+            '1457776641056047115', // Encargado del civil
+            '1455654563158954096', // Encargado de postulaciones
+            '1455654847717048473', // Encargado de entrevistas
+            '1450938106395234526', // Encargado de ck
+            '1456348822296068326', // Encargado de facciones
+            '1450688555503587459', // Encargado de empresas
+            '1454986744004087839', // Encargado de eventos
+            '1450688588155981976', // Encargado de banco
+            '1457897953376207021', // Rank locked
+            '1458294156568039536', // Sospechoso de raideo
+            '1449883899051114627', // Sospechoso de cheats
+            '1413709747244240896', // Baneado de 30 días
+            '1413718347052351529', // Baneado de 15 días
+            '1413545369119490089', // Baneado de 7 días
+            '1451860028653834300', // Blacklist moderación
+            '1413714060423200778', // Blacklist facciones policiales
+            '1449930883762225253', // Blacklist cartel
+            '1413714467287470172', // Blacklist política
+            '1413714540834852875', // Blacklist empresas
+            '1412887170267480215', // Roles especiales
+            '1414033620636532849', // UltraPASS
+            '1412887172503175270', // Premium
+            '1423520675158691972', // Booster
+            '1412887176827375768', // Influencer
+            '1437614205393047622', // Diseñador
+            '1412887179281305772', // Gobierno (separador)
+            '1412891685008052276', // Trabajos (separador)
+            '1424534280725463071', // Civil (separador)
+            '1457950212923461632'  // Civil americano
         ];
 
         // License roles to remove
