@@ -5811,9 +5811,8 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
 
                 if (m.content.trim() === crime.cmd) {
                     const pay = Math.floor(Math.random() * (crime.pay[1] - crime.pay[0] + 1)) + crime.pay[0];
-                    // Correct UB Service usage if needed, or stick to provided pattern
-                    const ubService = new UnbelievaBoatService(process.env.UNBELIEVABOAT_TOKEN);
-                    await ubService.addMoney(interaction.guildId, interaction.user.id, pay, 0);
+                    // Correct UB Service usage
+                    await billingService.ubService.addMoney(interaction.guildId, interaction.user.id, pay, `Crimen: ${crime.title}`, 'cash');
                     casinoSessions[crimeKey] = Date.now();
 
                     const successEmbed = new EmbedBuilder()
@@ -5827,8 +5826,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                     await interaction.followUp({ embeds: [successEmbed] });
                 } else {
                     const fine = Math.floor(Math.random() * (crime.fine[1] - crime.fine[0] + 1)) + crime.fine[0];
-                    const ubService = new UnbelievaBoatService(process.env.UNBELIEVABOAT_TOKEN);
-                    await ubService.removeMoney(interaction.guildId, interaction.user.id, fine, 0);
+                    await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, fine, `Multa: ${crime.title}`, 'cash');
                     casinoSessions[crimeKey] = Date.now();
                     await m.react('🚔');
                     await interaction.followUp(`🚨 **ARRESTADO**. Fallaste. Multa: **$${fine.toLocaleString()}**`);
