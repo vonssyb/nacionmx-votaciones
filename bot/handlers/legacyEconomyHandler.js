@@ -30,6 +30,18 @@ const formatCurrency = (amount) => `$${amount.toLocaleString()}`;
 const processedInteractions = new Set();
 setInterval(() => processedInteractions.clear(), 60000);
 
+// Global Session Tracking for Cooldowns
+const casinoSessions = {};
+
+// Helper: Payment Buttons (Missing in previous scope)
+const createPaymentButtons = (userId, amount, itemKey) => {
+    return new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId(`store_pay_cash_${amount}_${itemKey}`).setLabel('💵 Efectivo').setStyle(ButtonStyle.Success),
+        new ButtonBuilder().setCustomId(`store_pay_bank_${amount}_${itemKey}`).setLabel('🏦 Banco').setStyle(ButtonStyle.Primary),
+        new ButtonBuilder().setCustomId(`store_pay_credit_${amount}_${itemKey}`).setLabel('💳 Crédito').setStyle(ButtonStyle.Secondary)
+    );
+};
+
 const handleEconomyLegacy = async (interaction, client, supabase) => {
     try {
         // If it's a button/modal/select, handles specific cases or generic legacy ones
@@ -5657,9 +5669,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
         const { data: crimenDni, error: crimenDniError } = await supabase
             .from('citizen_dni')
             .select('id, nombre, apellido')
-            .eq('guild_original_id', interaction.guildId) // Note: Sometimes it's guild_id or guild_original_id depending on DB schema versions. 
-            // Checking previous code: .eq('guild_id', interaction.guildId) was used. Let's stick to that.
-            .eq('guild_id', interaction.guildId)
+            .eq('guild_id', interaction.guildId) // Fixed: Database uses guild_id
             .eq('user_id', interaction.user.id)
             .maybeSingle();
 
