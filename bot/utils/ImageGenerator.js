@@ -2,10 +2,6 @@ const { createCanvas, GlobalFonts, loadImage } = require('@napi-rs/canvas');
 const path = require('path');
 const fs = require('fs');
 
-// Register a default font if possible, or rely on system fonts
-// For this environment, we'll try to use standard sans-serif if no file provided
-// GlobalFonts.registerFromPath(path.join(__dirname, '../assets/fonts/Roboto-Regular.ttf'), 'Roboto');
-
 class ImageGenerator {
     static async generateDNI(data) {
         const width = 800;
@@ -101,8 +97,7 @@ class ImageGenerator {
         drawField('Fecha Nacimiento', dob, 220, 0, 200);
         currentY += lineHeight + 10;
 
-        // Estado Civil (Default Soltero/a for now as not in DB usually?) & Roblox
-        // We might not have Civil Status in DB, assume Soltero/a or omit if strict
+        // Estado Civil & Roblox
         drawField('Usuario Roblox', data.user_tag || 'Unknown', 0, 0, 420);
 
         // Footer
@@ -120,88 +115,161 @@ class ImageGenerator {
         const canvas = createCanvas(width, height);
         const ctx = canvas.getContext('2d');
 
-        // Background (US Style Blue)
+        // Helper to draw image cover (preserve aspect ratio)
+        const drawImageCover = (img, x, y, w, h) => {
+            const imgRatio = img.width / img.height;
+            const targetRatio = w / h;
+            let sx, sy, sw, sh;
+
+            if (targetRatio > imgRatio) {
+                sw = img.width;
+                sh = img.width / targetRatio;
+                sx = 0;
+                sy = (img.height - sh) / 2;
+            } else {
+                sw = img.height * targetRatio;
+                sh = img.height;
+                sx = (img.width - sw) / 2;
+                sy = 0;
+            }
+            ctx.drawImage(img, sx, sy, sw, sh, x, y, w, h);
+        };
+
+        // Background - Use a clean official document style
+        // Light grey/blueish background
         const grad = ctx.createLinearGradient(0, 0, width, height);
-        grad.addColorStop(0, '#002868'); // Dark Blue
-        grad.addColorStop(1, '#1a4e8a');
+        grad.addColorStop(0, '#f0f4f8');
+        grad.addColorStop(1, '#d9e2ec');
         ctx.fillStyle = grad;
         ctx.fillRect(0, 0, width, height);
 
-        // Header
+        // Header Band (Top)
+        ctx.fillStyle = '#1a3b5c';
+        ctx.fillRect(0, 0, width, 80);
+
+        // Header Text
         ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 45px sans-serif';
+        ctx.font = 'bold 36px sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText('UNITED STATES OF AMERICA', width / 2, 60);
+        ctx.fillText('UNITED STATES OF AMERICA', width / 2, 50);
 
-        ctx.font = 'bold 30px sans-serif';
-        ctx.fillStyle = '#bf0a30'; // Red
-        ctx.fillText('VISA PROOF OF STATUS', width / 2, 100);
+        // Subheader
+        ctx.font = '16px sans-serif';
+        ctx.fillStyle = '#a0aec0';
+        ctx.letterSpacing = '5px'; // Spacer
+        ctx.fillText('VISA / VISA', width / 2, 72);
 
-        // Watermark / Seal placeholder
-        ctx.globalAlpha = 0.1;
-        ctx.beginPath();
-        ctx.arc(width / 2, height / 2, 150, 0, Math.PI * 2);
+        // Layout
+        // Photo left, Fields right
+        const photoX = 50;
+        const photoY = 110;
+        const photoW = 200;
+        const photoH = 260;
+
+        // Photo Border
         ctx.fillStyle = '#ffffff';
-        ctx.fill();
-        ctx.globalAlpha = 1.0;
+        ctx.fillRect(photoX - 5, photoY - 5, photoW + 10, photoH + 10);
+        ctx.strokeStyle = '#cbd5e0';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(photoX - 5, photoY - 5, photoW + 10, photoH + 10);
 
-        // Fields
-        ctx.textAlign = 'left';
-
-        const drawField = (label, value, x, y, size = 30, color = '#ffffff') => {
-            ctx.font = `bold 16px sans-serif`;
-            ctx.fillStyle = '#aaaaaa';
-            ctx.fillText(label.toUpperCase(), x, y);
-
-            ctx.font = `bold ${size}px sans-serif`;
-            ctx.fillStyle = color;
-            ctx.fillText(value || '', x, y + 35);
-        };
-
-        const leftCol = 50;
-        const rightCol = 450;
-        let currentY = 160;
-
-        drawField('Visa Class / Tipo', data.visa_type?.toUpperCase(), leftCol, currentY, 35, '#f1c40f');
-        currentY += 80;
-
-        drawField('Control Number / Número', data.visa_number, leftCol, currentY);
-        currentY += 80;
-
-        drawField('Beneficiary / Beneficiario', data.nombre_completo, leftCol, currentY);
-        currentY += 80;
-
-        drawField('Expiration / Vence', data.expiration_date ? new Date(data.expiration_date).toLocaleDateString() : 'PERMANENT', leftCol, currentY);
-
-        // Right side (Photo placeholder or details)
-        const photoSize = 200;
-        const photoX = rightCol;
-        const photoY = 150;
-
-        ctx.fillStyle = '#ecf0f1';
-        ctx.fillRect(photoX, photoY, photoSize, photoSize);
-        ctx.strokeStyle = '#bf0a30';
-        ctx.lineWidth = 5;
-        ctx.strokeRect(photoX, photoY, photoSize, photoSize);
-
+        // Draw Photo
         try {
             if (data.foto_url) {
                 const avatar = await loadImage(data.foto_url);
-                ctx.drawImage(avatar, photoX + 5, photoY + 5, photoSize - 10, photoSize - 10);
+                drawImageCover(avatar, photoX, photoY, photoW, photoH);
+            } else {
+                // Placeholder
+                ctx.fillStyle = '#e2e8f0';
+                ctx.fillRect(photoX, photoY, photoW, photoH);
             }
         } catch (e) {
             console.error('Error loading avatar for visa:', e);
+            ctx.fillStyle = '#e2e8f0';
+            ctx.fillRect(photoX, photoY, photoW, photoH);
         }
 
-        // Footer
-        ctx.font = 'bold 20px monospace';
-        ctx.fillStyle = '#ffffff';
-        ctx.textAlign = 'center';
-        const machineCode = `V<USA${data.apellido?.substring(0, 5)}<<${data.nombre?.substring(0, 5)}<<<<<<<<<<<<<<\n${data.visa_number}<<<<<<<<<<<<<<<<<<<<<<<<<<`;
+        // Fields Setup
+        const startX = 290;
+        let currentY = 130;
+        const col1 = startX;
+        const col2 = startX + 250;
 
-        // Simple machine readable imitation
-        ctx.fillText(machineCode.split('\n')[0], width / 2, height - 55);
-        ctx.fillText(machineCode.split('\n')[1], width / 2, height - 25);
+        const drawLabel = (text, x, y) => {
+            ctx.font = '12px sans-serif';
+            ctx.fillStyle = '#718096';
+            ctx.textAlign = 'left';
+            ctx.fillText(text.toUpperCase(), x, y);
+        };
+
+        const drawValue = (text, x, y, highlight = false, color = '#2d3748') => {
+            ctx.font = 'bold 22px monospace';
+            ctx.fillStyle = highlight ? '#c53030' : color; // Red if highlight
+            ctx.textAlign = 'left';
+            ctx.fillText(text?.toUpperCase() || '', x, y + 25);
+        };
+
+        // Row 1: Issuing Post & Control Num
+        drawLabel('Issuing Post', col1, currentY);
+        drawValue('USCIS / NACION MX', col1, currentY);
+
+        drawLabel('Control Number', col2, currentY);
+        drawValue(data.visa_number || '00000000', col2, currentY);
+
+        currentY += 60;
+
+        // Row 2: Surname
+        drawLabel('Surname', col1, currentY);
+        drawValue(data.apellido || 'UNKNOWN', col1, currentY);
+        currentY += 60;
+
+        // Row 3: Given Name
+        drawLabel('Given Name', col1, currentY);
+        drawValue(data.nombre || 'UNKNOWN', col1, currentY);
+        currentY += 60;
+
+        // Row 4: Type, Class, Entries
+        drawLabel('Visa Type', col1, currentY);
+        drawValue('R', col1, currentY);
+
+        drawLabel('Class', col1 + 80, currentY);
+        drawValue(data.visa_type?.substring(0, 4) || 'VISA', col1 + 80, currentY);
+
+        drawLabel('Entries', col1 + 180, currentY);
+        drawValue('M', col1 + 180, currentY);
+        currentY += 60;
+
+        // Row 5: Dates
+        // Issue Date (Fake it if missing)
+        const issued = data.issued_date ? new Date(data.issued_date) : new Date();
+        drawLabel('Issue Date', col1, currentY);
+        drawValue(issued.toLocaleDateString('en-GB').toUpperCase(), col1, currentY);
+
+        drawLabel('Expiration Date', col2, currentY);
+        const expires = data.expiration_date ? new Date(data.expiration_date).toLocaleDateString('en-GB').toUpperCase() : 'INDEFINITE';
+        drawValue(expires, col2, currentY, true); // Highlight expiration
+
+        // MRZ Zone
+        const mrzY = height - 50;
+        ctx.fillStyle = '#ffffff';
+        // MRZ Background band (usually white)
+        ctx.fillRect(0, height - 70, width, 70);
+
+        ctx.font = '24px monospace';
+        ctx.fillStyle = '#000000';
+        ctx.textAlign = 'left';
+
+        const surname = (data.apellido || 'UNKNOWN').replace(/[^a-zA-Z]/g, '').padEnd(5, '<').substring(0, 5).toUpperCase();
+        const givenname = (data.nombre || 'UNKNOWN').replace(/[^a-zA-Z]/g, '').padEnd(5, '<').substring(0, 5).toUpperCase();
+        const visaNum = (data.visa_number || '00000').replace(/[^a-zA-Z0-9]/g, '').padEnd(9, '<').substring(0, 9);
+        const country = 'USA';
+
+        // V<USA...
+        const line1 = `V<${country}${surname}<<${givenname}<<<<<<<<<<<<<<<<<`;
+        const line2 = `${visaNum}0${country}9401014M3001018<<<<<<<<<`;
+
+        ctx.fillText(line1, 40, mrzY);
+        ctx.fillText(line2, 40, mrzY + 30);
 
         return canvas.toBuffer('image/png');
     }
