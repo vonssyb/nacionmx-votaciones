@@ -161,9 +161,10 @@ module.exports = {
                 guild_id: guildId,
                 user_id: interaction.user.id,
                 amount: netAmount,
-                commandName: 'colectar',
-                method: 'cash',
-                timestamp: new Date().toISOString(),
+                transaction_type: 'salary_collection',
+                description: `Salario colectado via /colectar`,
+                currency: 'cash'
+                // timestamp usually handled by created_at default
             });
 
             if (historyError) {

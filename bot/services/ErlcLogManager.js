@@ -40,9 +40,9 @@ class ErlcLogManager {
                 this.state.processedKills = new Set(saved.processedKills || []);
                 this.state.processedCommands = new Set(saved.processedCommands || []);
                 this.state.processedJoins = new Set(saved.processedJoins || []);
-                console.log(`[ErlcLogManager] State restored from Supabase. Last Kill: ${this.state.lastKill}`);
+                // console.log(`[ErlcLogManager] State restored from Supabase. Last Kill: ${this.state.lastKill}`);
             } else {
-                console.log('[ErlcLogManager] No saved state found in DB. Starting fresh (0).');
+                // console.log('[ErlcLogManager] No saved state found in DB. Starting fresh (0).');
             }
         } catch (e) {
             console.error('[ErlcLogManager] Failed to load state:', e);
@@ -80,10 +80,10 @@ class ErlcLogManager {
         this.isRunning = true;
 
         // Ensure state is loaded BEFORE polling
-        console.log('[ErlcLogManager] Loading state...');
+        // console.log('[ErlcLogManager] Loading state...');
         await this.loadState();
 
-        console.log(`[ErlcLogManager] Started. Initial polling every ${this.currentInterval / 1000}s`);
+        // console.log(`[ErlcLogManager] Started. Initial polling every ${this.currentInterval / 1000}s`);
         this.scheduleNextPoll();
     }
 
@@ -111,7 +111,7 @@ class ErlcLogManager {
             }
 
             if (newInterval !== this.currentInterval) {
-                console.log(`[ErlcLogManager] Polling interval adjusted: ${this.currentInterval / 1000}s -> ${newInterval / 1000}s (Players: ${players})`);
+                // console.log(`[ErlcLogManager] Polling interval adjusted: ${this.currentInterval / 1000}s -> ${newInterval / 1000}s (Players: ${players})`);
                 this.currentInterval = newInterval;
             }
 

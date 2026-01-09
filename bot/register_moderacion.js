@@ -72,7 +72,7 @@ if (!commands.find(c => c.name === 'status')) {
 }
 
 // TOKEN & CLIENT ID for MODERATION
-const token = process.env.DISCORD_BOT_TOKEN || process.env.DISCORD_TOKEN;
+const token = process.env.DISCORD_TOKEN_MOD || process.env.DISCORD_BOT_TOKEN || process.env.DISCORD_TOKEN;
 let clientId = process.env.CLIENT_ID || process.env.VITE_DISCORD_CLIENT_ID;
 const guildId = process.env.GUILD_ID;
 
