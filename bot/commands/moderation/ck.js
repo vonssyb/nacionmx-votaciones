@@ -141,7 +141,7 @@ module.exports = {
                 const CHANNELS = {
                     PUBLIC: '1412957234824089732',
                     PRIVATE_LOG: '1457576874602659921',
-                    EXPIRED_ITEMS: '1455691472362934475'
+                    EXPIRED_ITEMS: '1455691472362934475' // CK Revert Log
                 };
 
                 // A. Public Log
@@ -169,23 +169,23 @@ module.exports = {
                     });
                 } catch (e) { console.error('[CK Revert] Failed private log:', e); }
 
-                // C. Expired Items Log (Restoration Entry)
-                try {
-                    const expiredChan = await client.channels.fetch(CHANNELS.EXPIRED_ITEMS);
-                    if (expiredChan) {
-                        const restoreEmbed = new EmbedBuilder()
-                            .setTitle('♻️ RESTAURACIÓN ADMIN: CK REVERTIDO')
-                            .setColor('#00FFFF')
-                            .setDescription(`Se ha revertido un CK, restaurando bienes y estado al usuario.`)
-                            .addFields(
-                                { name: 'Usuario', value: `<@${targetUser.id}>`, inline: true },
-                                { name: 'Admin Responsable', value: `<@${interaction.user.id}>`, inline: true },
-                                { name: 'Motivo', value: interaction.options.getString('razon'), inline: false }
-                            )
-                            .setTimestamp();
-                        await expiredChan.send({ embeds: [restoreEmbed] });
-                    }
-                } catch (e) { console.error('[CK Revert] Failed expired log:', e); }
+                // C. Expired Items Log (Restoration Entry) - REMOVED PER USER REQUEST
+                // try {
+                //     const expiredChan = await client.channels.fetch(CHANNELS.EXPIRED_ITEMS);
+                //     if (expiredChan) {
+                //         const restoreEmbed = new EmbedBuilder()
+                //             .setTitle('♻️ RESTAURACIÓN ADMIN: CK REVERTIDO')
+                //             .setColor('#00FFFF')
+                //             .setDescription(`Se ha revertido un CK, restaurando bienes y estado al usuario.`)
+                //             .addFields(
+                //                 { name: 'Usuario', value: `<@${targetUser.id}>`, inline: true },
+                //                 { name: 'Admin Responsable', value: `<@${interaction.user.id}>`, inline: true },
+                //                 { name: 'Motivo', value: interaction.options.getString('razon'), inline: false }
+                //             )
+                //             .setTimestamp();
+                //         await expiredChan.send({ embeds: [restoreEmbed] });
+                //     }
+                // } catch (e) { console.error('[CK Revert] Failed expired log:', e); }
 
             } catch (err) {
                 console.error('[CK Revert] Error:', err);
@@ -495,7 +495,7 @@ module.exports = {
                         const protectedNames = ['Civil Mexicano', 'Roles administrativos', 'Soporte', 'Staff', 'Booster', 'Server Booster'];
                         // Normalize strings for comparison (trim + lowercase)
                         const roleNameLower = role.name.trim().toLowerCase();
-                        const isProtectedByName = protectedNames.some(p => p.trim().toLowerCase() === roleNameLower);
+                        const isProtectedByName = protectedNames.some(p => roleNameLower.includes(p.trim().toLowerCase()));
 
                         const shouldRemove = (!protectedRoles.includes(roleId)
                             && !isProtectedByName

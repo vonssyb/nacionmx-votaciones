@@ -523,7 +523,7 @@ module.exports = {
             // Log Audit
             // Log Audit (Direct Implementation since client.logAudit is missing)
             try {
-                const LOG_CHANNEL_ID = '1457576874602659921'; // Security/Private Log
+                const LOG_CHANNEL_ID = '1456035521141670066'; // Staff Audit Log
                 const logChannel = await client.channels.fetch(LOG_CHANNEL_ID).catch(() => null);
 
                 if (logChannel) {
