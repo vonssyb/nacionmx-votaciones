@@ -27,7 +27,8 @@ module.exports = {
                             { name: 'Nivel 1: Staff en Entrenamiento', value: '1' },
                             { name: 'Nivel 2: Moderador / Staff', value: '2' },
                             { name: 'Nivel 3: Administración', value: '3' },
-                            { name: 'Nivel 4: Junta Directiva', value: '4' }
+                            { name: 'Nivel 4: Junta Directiva', value: '4' },
+                            { name: 'Nivel 5: Tercer al Mando', value: '5' }
                         )
                 ))
         .addSubcommand(subcommand =>
@@ -86,6 +87,15 @@ module.exports = {
                 main_id: '1412882245735420006',
                 // JD gets: JD Role + Admin Keys + Key Mod + Separators
                 roles: ['1412882245735420006', '1450242210636365886', '1450242319121911848', '1450242487422812251', '1412887167654690908']
+            },
+            {
+                name: 'Tercer al Mando',
+                level: 5,
+                badge_type: 'JD',
+                color: 0xE67E22, // Orange
+                main_id: '1458597791906533477',
+                // Tercer al Mando gets: Role + JD Role + Admin Keys + Key Mod + Separators
+                roles: ['1458597791906533477', '1412882245735420006', '1450242210636365886', '1450242319121911848', '1450242487422812251', '1412887167654690908']
             }
         ];
 
@@ -168,13 +178,13 @@ module.exports = {
                     return interaction.editReply(`⚠️ **Error:** ${targetUser.tag} ya está en el rango máximo (${RANGOS[currentRankIndex].name}).`);
                 }
 
-                // RESTRICTION: Higher Rank (Level 4 / Junta Directiva) restricted to specific user
+                // RESTRICTION: Higher Rank (Level 4+ / Junta Directiva & Alto Mando) restricted to specific user
                 // ID: 826637667718266880 (Owner/Head)
-                if (newRankIndex === 3) { // Level 4 index
+                if (newRankIndex >= 3) { // Level 4 (Index 3) and Level 5 (Index 4)
                     const ALLOWED_PROMOTER = '826637667718266880';
                     if (interaction.user.id !== ALLOWED_PROMOTER) {
                         return interaction.editReply({
-                            content: `🛑 **ACCIÓN RESERVADA**\n\nSolo el **Jefe de Staff** (Dueño) puede promover al rango **${RANGOS[newRankIndex].name}**.\nContacta a <@${ALLOWED_PROMOTER}>.`,
+                            content: `🛑 **ACCIÓN RESERVADA**\n\nSolo el **Jefe de Staff** (Dueño) puede promover a rangos directivos (**${RANGOS[newRankIndex].name}**).\nContacta a <@${ALLOWED_PROMOTER}>.`,
                             flags: [64]
                         });
                     }
@@ -398,8 +408,8 @@ module.exports = {
                         const erlcService = new ErlcService(erlcKey);
                         let cmd = '';
 
-                        if (newRankIndex === 3) {
-                            cmd = `:admin ${robloxName}`; // Level 4 JD
+                        if (newRankIndex >= 3) {
+                            cmd = `:admin ${robloxName}`; // Level 4 JD, Level 5 AM
                         } else if (newRankIndex >= 0) {
                             cmd = `:mod ${robloxName}`; // Level 1, 2, 3
                         } else {
