@@ -197,6 +197,7 @@ module.exports = {
         // --- APLICAR LOGIC (Original Flow) ---
         // await interaction.deferReply({});
         const ckTipo = interaction.options.getString('tipo');
+        const targetUser = interaction.options.getUser('usuario');
         const razon = interaction.options.getString('razon');
         const evidencia = interaction.options.getAttachment('evidencia');
 
