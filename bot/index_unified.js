@@ -113,39 +113,112 @@ async function startModerationBot() {
         log('🟢', `[MOD] Logged in as ${client.user.tag}`);
     });
 
-    // Interaction Handler
-    client.on('interactionCreate', async interaction => {
-        if (!interaction.isChatInputCommand()) {
-            try {
-                // FALLBACK TO LEGACY (Handles Buttons, Modals, Menus)
-                await handleModerationLegacy(interaction, client, client.supabase);
-            } catch (e) {
-                console.error('[MOD] Legacy Handler Error:', e);
-            }
-            return;
+});
+
+// --- ENHANCED LOGGING ---
+const LOG_CHANNEL_ID = '1457457209268109516'; // Canal de Logs General
+
+client.on('messageDelete', async message => {
+    if (!message.guild || message.author?.bot) return;
+
+    try {
+        const logChannel = await client.channels.fetch(LOG_CHANNEL_ID).catch(() => null);
+        if (!logChannel) return;
+
+        const { EmbedBuilder, AttachmentBuilder } = require('discord.js');
+        const files = [];
+
+        // Handle Attachments (Re-upload)
+        if (message.attachments.size > 0) {
+            message.attachments.forEach(att => {
+                // Try using proxyURL as it lasts slightly longer, or url
+                files.push(new AttachmentBuilder(att.proxyURL || att.url, { name: att.name }));
+            });
         }
 
-        // GLOBAL SAFE DEFER
-        if (!await safeDefer(interaction)) return;
+        const embed = new EmbedBuilder()
+            .setTitle('🗑️ Mensaje Eliminado')
+            .setColor('#FF0000')
+            .setAuthor({ name: message.author.tag, iconURL: message.author.displayAvatarURL() })
+            .addFields(
+                { name: 'Autor', value: `<@${message.author.id}>`, inline: true },
+                { name: 'Canal', value: `<#${message.channel.id}>`, inline: true },
+                { name: 'Contenido', value: message.content ? message.content.substring(0, 1024) : '*(Sin contenido de texto)*' }
+            )
+            .setFooter({ text: `ID: ${message.id}` })
+            .setTimestamp();
 
-        const command = client.commands.get(interaction.commandName);
-        if (command) {
-            try {
-                await command.execute(interaction, client, supabase);
-            } catch (e) {
-                console.error('[MOD] Command Error:', e);
-                const msg = '❌ Error fatal ejecutando el comando.';
-                if (interaction.replied || interaction.deferred) await interaction.editReply(msg).catch(() => { });
-                else await interaction.reply({ content: msg, ephemeral: true }).catch(() => { });
-            }
+        await logChannel.send({ embeds: [embed], files: files });
+
+    } catch (err) {
+        console.error('[MOD] Error logging delete:', err);
+    }
+});
+
+client.on('messageUpdate', async (oldMessage, newMessage) => {
+    if (!oldMessage.guild || oldMessage.author?.bot) return;
+    if (oldMessage.content === newMessage.content) return; // Ignore embed updates
+
+    try {
+        const logChannel = await client.channels.fetch(LOG_CHANNEL_ID).catch(() => null);
+        if (!logChannel) return;
+
+        const { EmbedBuilder } = require('discord.js');
+
+        const embed = new EmbedBuilder()
+            .setTitle('✏️ Mensaje Editado')
+            .setColor('#FFA500')
+            .setAuthor({ name: oldMessage.author.tag, iconURL: oldMessage.author.displayAvatarURL() })
+            .setDescription(`[Ir al mensaje](${newMessage.url})`)
+            .addFields(
+                { name: 'Autor', value: `<@${oldMessage.author.id}>`, inline: true },
+                { name: 'Canal', value: `<#${oldMessage.channel.id}>`, inline: true },
+                { name: 'Antes', value: oldMessage.content ? oldMessage.content.substring(0, 1024) : '*(Vacío)*' },
+                { name: 'Después', value: newMessage.content ? newMessage.content.substring(0, 1024) : '*(Vacío)*' }
+            )
+            .setFooter({ text: `ID: ${newMessage.id}` })
+            .setTimestamp();
+
+        await logChannel.send({ embeds: [embed] });
+
+    } catch (err) {
+        console.error('[MOD] Error logging update:', err);
+    }
+});
+
+// Interaction Handler
+client.on('interactionCreate', async interaction => {
+    if (!interaction.isChatInputCommand()) {
+        try {
+            // FALLBACK TO LEGACY (Handles Buttons, Modals, Menus)
+            await handleModerationLegacy(interaction, client, client.supabase);
+        } catch (e) {
+            console.error('[MOD] Legacy Handler Error:', e);
         }
-    });
+        return;
+    }
 
-    // Login with Retry
-    const TOKEN = process.env.DISCORD_TOKEN_MOD;
-    if (!TOKEN) return log('❌', '[MOD] No Token Found');
+    // GLOBAL SAFE DEFER
+    if (!await safeDefer(interaction)) return;
 
-    loginWithRetry(client, TOKEN, 'MOD');
+    const command = client.commands.get(interaction.commandName);
+    if (command) {
+        try {
+            await command.execute(interaction, client, supabase);
+        } catch (e) {
+            console.error('[MOD] Command Error:', e);
+            const msg = '❌ Error fatal ejecutando el comando.';
+            if (interaction.replied || interaction.deferred) await interaction.editReply(msg).catch(() => { });
+            else await interaction.reply({ content: msg, ephemeral: true }).catch(() => { });
+        }
+    }
+});
+
+// Login with Retry
+const TOKEN = process.env.DISCORD_TOKEN_MOD;
+if (!TOKEN) return log('❌', '[MOD] No Token Found');
+
+loginWithRetry(client, TOKEN, 'MOD');
 }
 
 // =============================================================================
