@@ -137,12 +137,55 @@ module.exports = {
 
                 await interaction.editReply({ content: '', embeds: [successEmbed] });
 
-                // Log to Private Channel
-                const LOG_PRIVATE_ID = '1457576874602659921';
+                // LOGGING CHANNELS
+                const CHANNELS = {
+                    PUBLIC: '1412957234824089732',
+                    PRIVATE_LOG: '1457576874602659921',
+                    EXPIRED_ITEMS: '1455691472362934475'
+                };
+
+                // A. Public Log
                 try {
-                    const ch = await client.channels.fetch(LOG_PRIVATE_ID);
-                    if (ch) await ch.send({ content: `⚠️ **REVERSIÓN DE CK EJECUTADA**\nAdmin: <@${interaction.user.id}>\nTarget: <@${targetUser.id}>\nRazon: ${interaction.options.getString('razon')}` });
-                } catch (e) { }
+                    const publicChan = await client.channels.fetch(CHANNELS.PUBLIC);
+                    if (publicChan) await publicChan.send({ embeds: [successEmbed] });
+                } catch (e) { console.error('[CK Revert] Failed public log:', e); }
+
+                // B. Private Log (Detailed)
+                try {
+                    const ch = await client.channels.fetch(CHANNELS.PRIVATE_LOG);
+                    if (ch) await ch.send({
+                        content: `⚠️ **REVERSIÓN DE CK EJECUTADA**`,
+                        embeds: [
+                            new EmbedBuilder()
+                                .setColor('#FFFF00')
+                                .addFields(
+                                    { name: 'Admin', value: `<@${interaction.user.id}>`, inline: true },
+                                    { name: 'Target', value: `<@${targetUser.id}>`, inline: true },
+                                    { name: 'Razón Reversión', value: interaction.options.getString('razon'), inline: false },
+                                    { name: 'Datos Restaurados', value: `Dinero: $${(Number(ckRecord.previous_cash) + Number(ckRecord.previous_bank)).toLocaleString()}\nDNI: ${backup.dni ? 'Sí' : 'No'}\nRoles: ${rolesRestoredCount}`, inline: false }
+                                )
+                                .setTimestamp()
+                        ]
+                    });
+                } catch (e) { console.error('[CK Revert] Failed private log:', e); }
+
+                // C. Expired Items Log (Restoration Entry)
+                try {
+                    const expiredChan = await client.channels.fetch(CHANNELS.EXPIRED_ITEMS);
+                    if (expiredChan) {
+                        const restoreEmbed = new EmbedBuilder()
+                            .setTitle('♻️ RESTAURACIÓN ADMIN: CK REVERTIDO')
+                            .setColor('#00FFFF')
+                            .setDescription(`Se ha revertido un CK, restaurando bienes y estado al usuario.`)
+                            .addFields(
+                                { name: 'Usuario', value: `<@${targetUser.id}>`, inline: true },
+                                { name: 'Admin Responsable', value: `<@${interaction.user.id}>`, inline: true },
+                                { name: 'Motivo', value: interaction.options.getString('razon'), inline: false }
+                            )
+                            .setTimestamp();
+                        await expiredChan.send({ embeds: [restoreEmbed] });
+                    }
+                } catch (e) { console.error('[CK Revert] Failed expired log:', e); }
 
             } catch (err) {
                 console.error('[CK Revert] Error:', err);
@@ -236,24 +279,20 @@ module.exports = {
                             // 1. Remove Role
                             await member.roles.remove(ANTI_CK_ROLE);
 
-                            // 2. Consume in DB (using SQL function if available, or manual update)
-                            // We look for the active purchase of 'anti_ck' and expire it
-                            const { data: purchase } = await supabase
-                                .from('user_purchases')
-                                .select('id')
-                                .eq('user_id', targetUser.id)
-                                .eq('item_key', 'anti_ck')
-                                .eq('status', 'active')
-                                .single();
-
+                            // 2a. Expire the DB purchase
                             if (purchase) {
                                 await supabase
                                     .from('user_purchases')
                                     .update({ status: 'consumed', uses_remaining: 0, expiration_date: new Date().toISOString() })
                                     .eq('id', purchase.id);
+
+                                // Remove the Role
+                                if (member.roles.cache.has(ANTI_CK_ROLE)) {
+                                    await member.roles.remove(ANTI_CK_ROLE).catch(e => console.error('Failed to remove Anti-CK role:', e));
+                                }
                             }
 
-                            // 3. Notify with Randomized Message
+                            // 3. Prepare Notification Data
                             const savedMessages = [
                                 "tenía un chaleco antibalas de alta tecnología y sobrevivió milagrosamente.",
                                 "fue atendido rápidamente por los paramédicos y lograron estabilizarlo.",
@@ -264,22 +303,74 @@ module.exports = {
                                 "despertó en el hospital sin recordar nada, pero vivo."
                             ];
                             const randomMsg = savedMessages[Math.floor(Math.random() * savedMessages.length)];
+                            const usageReason = "Uso en enfrentamiento / Situación de riesgo mortal";
 
+                            // Embed for Interaction & Public
                             const savedEmbed = new EmbedBuilder()
-                                .setTitle(`🛡️ VIDA SALVADA`)
+                                .setTitle(`🛡️ VIDA SALVADA - ANTI CK`)
                                 .setColor('#00FF00')
-                                .setDescription(`El usuario **${targetUser.tag}** tenía un **Seguro Anti-CK** activo.\n\n✅ **El CK ha sido CANCELADO.**\n📖 **Roleplay:** El usuario ${randomMsg}\n📉 **El seguro ha sido CONSUMIDO.**`)
-                                .addFields({ name: 'Tipo de CK evitado', value: ckTipo })
+                                .setDescription(`El usuario **${targetUser.tag}** ha sobrevivido a un intento de CK.\n\n✅ **El CK ha sido CANCELADO.**\n📖 **Roleplay:** El usuario ${randomMsg}`)
+                                .addFields(
+                                    { name: '👤 Usuario', value: `<@${targetUser.id}>`, inline: true },
+                                    { name: '🛡️ Item Usado', value: 'Seguro Anti-CK', inline: true },
+                                    { name: '📉 Estado', value: 'Consumido (1/1)', inline: true }
+                                )
+                                .setFooter({ text: 'Nación MX | Sistema de Vida Extra' })
                                 .setTimestamp();
 
+                            // Update Interaction (Origin)
                             await i.editReply({ content: '', embeds: [savedEmbed] });
-                            return; // STOP CK
+
+                            // LOGGING CHANNELS
+                            const CHANNELS = {
+                                PUBLIC: '1412957234824089732',
+                                PRIVATE_LOG: '1457576874602659921',
+                                EXPIRED_ITEMS: '1455691472362934475'
+                            };
+
+                            // A. Log to Public Channel
+                            try {
+                                const publicChan = await client.channels.fetch(CHANNELS.PUBLIC);
+                                if (publicChan) await publicChan.send({ embeds: [savedEmbed] });
+                            } catch (e) { console.error('Failed to log Anti-CK public:', e); }
+
+                            // B. Log to ID Private Log (Security)
+                            try {
+                                const privateEmbed = new EmbedBuilder()
+                                    .setTitle(`🛡️ ANTI-CK ACTIVADO`)
+                                    .setColor('#FFFF00')
+                                    .addFields(
+                                        { name: 'Usuario', value: `<@${targetUser.id}> (${targetUser.id})`, inline: true },
+                                        { name: 'Trigger', value: `Intento de CK por <@${interaction.user.id}>`, inline: true },
+                                        { name: 'Razón Original CK', value: razon, inline: false },
+                                        { name: 'Resultado', value: 'CK Cancelado - Item Consumido', inline: false }
+                                    )
+                                    .setTimestamp();
+                                const privateChan = await client.channels.fetch(CHANNELS.PRIVATE_LOG);
+                                if (privateChan) await privateChan.send({ embeds: [privateEmbed] });
+                            } catch (e) { console.error('Failed to log Anti-CK private:', e); }
+
+                            // C. Log to Expired Items (The specific request)
+                            try {
+                                const expiredEmbed = new EmbedBuilder()
+                                    .setTitle('📉 ITEM CONSUMIDO: SEGURO ANTI-CK')
+                                    .setColor('#FFA500')
+                                    .setDescription(`El usuario **${targetUser.tag}** ha consumido su seguro de vida.`)
+                                    .addFields(
+                                        { name: 'Usuario', value: `<@${targetUser.id}>`, inline: true },
+                                        { name: 'Motivo de Consumo', value: usageReason, inline: false },
+                                        { name: 'Fecha', value: new Date().toLocaleDateString('es-MX'), inline: true }
+                                    )
+                                    .setTimestamp();
+                                const expiredChan = await client.channels.fetch(CHANNELS.EXPIRED_ITEMS);
+                                if (expiredChan) await expiredChan.send({ embeds: [expiredEmbed] });
+                            } catch (e) { console.error('Failed to log Anti-CK expired:', e); }
+
+                            return; // STOP CK EXECUTION
 
                         } catch (err) {
                             console.error('Error consuming insurance:', err);
-                            // If error consuming, proceed with caution or ask admin? 
-                            // Safety: Fail safe -> Don't CK if we saw the role but DB failed.
-                            await i.editReply('❌ Error consumiendo el seguro, pero el usuario TIENE el rol. CK Cancelado por seguridad.');
+                            await i.editReply('❌ Error crítico procesando el seguro Anti-CK. Contacta a soporte.');
                             return;
                         }
                     }
