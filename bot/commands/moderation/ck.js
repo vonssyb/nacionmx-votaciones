@@ -275,14 +275,16 @@ module.exports = {
                     if (hasInsurance && ckTipo !== 'CK Administrativo') {
                         await i.editReply({ content: '🛡️ **¡SEGURO ANTI-CK ACTIVADO!** Verificando...', embeds: [], components: [] });
 
-                        // Fetch Purchase Record
-                        const { data: purchase } = await supabase
+                        // Fetch Purchase Record (Handle potential duplicates gracefully with limit 1)
+                        const { data: purchases } = await supabase
                             .from('user_purchases')
                             .select('*')
                             .eq('user_id', targetUser.id)
                             .eq('item_key', 'anti_ck')
                             .eq('status', 'active')
-                            .maybeSingle();
+                            .limit(1);
+
+                        const purchase = purchases && purchases.length > 0 ? purchases[0] : null;
 
                         // Consume Insurance (Remove role & Update DB)
                         try {

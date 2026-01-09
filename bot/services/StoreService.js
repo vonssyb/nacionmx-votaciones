@@ -93,7 +93,7 @@ class StoreService {
 
         // 2. Check if user already has this item (prevent duplicates for some items)
         const hasActive = await this.hasActivePurchase(userId, itemKey);
-        if (hasActive && !['anti_ck'].includes(itemKey)) {
+        if (hasActive) {
             throw new Error(`Ya tienes un "${item.name}" activo`);
         }
 
