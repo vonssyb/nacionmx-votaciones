@@ -408,7 +408,7 @@ They must create one with \`/dni crear\``,
             }
 
             // Check user balance
-            const balance = await BillingService.ubService.getUserBalance(interaction.guildId, targetUser.id);
+            const balance = await client.services.billing.ubService.getUserBalance(interaction.guildId, targetUser.id);
             const availableFunds = (balance.bank || 0) + (balance.cash || 0);
 
             if (availableFunds < cost) {
