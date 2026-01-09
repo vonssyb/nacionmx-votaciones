@@ -213,6 +213,28 @@ module.exports = {
             }
 
             // --- EXECUTE CHANGES ---
+
+            // CRITICAL: Singleton Check for "Tercer al Mando" (Level 5)
+            // Only ONE user can hold this rank at a time.
+            if (newRankIndex >= 0 && RANGOS[newRankIndex].name === 'Tercer al Mando') {
+                const trRank = RANGOS[newRankIndex];
+                const trRole = interaction.guild.roles.cache.get(trRank.main_id);
+
+                if (trRole) {
+                    // Filter members who have the role but are NOT the target user
+                    // (Allow re-promoting the same user if needed, though redundant)
+                    const existingHolders = trRole.members.filter(m => m.id !== targetUser.id);
+
+                    if (existingHolders.size > 0) {
+                        const holderName = existingHolders.first().user.tag;
+                        return interaction.editReply({
+                            content: `🛑 **ACCIÓN DENEGADA**\n\nEl rango **Tercer al Mando** es único y ya está ocupado por **${holderName}**.\nDebes degradar a esa persona antes de promover a alguien más.`,
+                            flags: [64]
+                        });
+                    }
+                }
+            }
+
             const changesLog = [];
             const allStaffRoleIds = [...new Set(RANGOS.flatMap(r => r.roles))];
 
@@ -548,9 +570,34 @@ module.exports = {
             let extraInfo = '';
             if (error.code === 50013) { // Missing Permissions
                 extraInfo = `\n📉 **Bot Rank:** ${botHighest.name} (Pos: ${botHighest.position})`;
+
+                // HIERARCHY DIAGNOSIS
+                // Check all involved roles (add/remove) against bot position
+                const targetRoleIds = [...(RANGOS[newRankIndex]?.roles || [])];
+                const problemRoles = [];
+
+                for (const rId of targetRoleIds) {
+                    const r = interaction.guild.roles.cache.get(rId);
+                    if (r && r.position >= botHighest.position) {
+                        problemRoles.push(`${r.name} (Pos: ${r.position})`);
+                    }
+                }
+
+                if (problemRoles.length > 0) {
+                    extraInfo += `\n🛑 **ROLES PROBLEMÁTICOS (Están arriba de mí):**\n- ${problemRoles.join('\n- ')}`;
+                } else {
+                    extraInfo += `\n⚠️ No detecté roles superiores explícitos, pero Discord bloqueó la acción. Verifica si el usuario objetivo es el Owner o tiene un rol Admin superior.`;
+                }
             }
 
-            await interaction.editReply(`❌ Error crítico gestionando rango: ${error.message}${extraInfo}\nVerifica que mi rol esté **arriba** del rol que intento asignar en la lista de roles del servidor.`);
+            // check if interaction is still valid to edit
+            try {
+                if (interaction.deferred || interaction.replied) {
+                    await interaction.editReply(`❌ Error crítico gestionando rango: ${error.message}${extraInfo}\n\n**Solución:** Mueve mi rol (${botHighest.name}) por encima de los roles listados en la configuración del servidor.`);
+                } else {
+                    await interaction.reply({ content: `❌ Error crítico: ${error.message}${extraInfo}`, ephemeral: true });
+                }
+            } catch (e) { console.error('Failed to send error response:', e); }
         }
     }
 };
