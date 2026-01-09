@@ -378,11 +378,11 @@ module.exports = {
 
                             return; // STOP CK EXECUTION
 
-                        } catch (err) {
-                            console.error('Error consuming insurance:', err);
-                            await i.editReply('❌ Error crítico procesando el seguro Anti-CK. Contacta a soporte.');
-                            return;
+                        } catch (e) {
+                            console.error('Anti-CK Logic Error:', e);
+                            await i.editReply({ content: `❌ Error procesando el Anti-CK: ${e.message}`, embeds: [], components: [] });
                         }
+                        return; // Stop execution
                     }
 
                     // 1. CAPTURE BACKUP DATA (Snapshot before deletion)
@@ -616,8 +616,8 @@ module.exports = {
                     }
 
                 } catch (error) {
-                    console.error('[CK] Error applying CK:', error);
-                    await i.editReply('❌ Error al aplicar el CK. Revisa los logs.');
+                    console.error('Error applying CK:', error);
+                    await i.editReply({ content: `❌ Error al aplicar el CK: ${error.message}` });
                 }
 
                 collector.stop();
