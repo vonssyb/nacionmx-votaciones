@@ -117,19 +117,17 @@ module.exports = {
 
         try {
             const member = await interaction.guild.members.fetch(targetUser.id);
-            const LOCK_ROLE_NAME = '🔒 Rank Locked';
+            const LOCK_ROLE_ID = '1457897953376207021';
 
-            // Find Lock Role
-            let lockRole = interaction.guild.roles.cache.find(r => r.name === LOCK_ROLE_NAME);
+            // Find Lock Role by ID
+            const lockRole = interaction.guild.roles.cache.get(LOCK_ROLE_ID);
 
             // Handle Lock/Unlock Command Logic
             if (subcommand === 'lock' || subcommand === 'unlock') {
-                if (!lockRole && subcommand === 'lock') {
-                    try {
-                        lockRole = await interaction.guild.roles.create({ name: LOCK_ROLE_NAME, color: 0x000000, reason: 'Rank Lock' });
-                    } catch (e) { return interaction.editReply('❌ Error: No existe el rol "🔒 Rank Locked" y no pude crearlo. Verifica mis permisos.'); }
+                if (!lockRole) {
+                    return interaction.editReply(`❌ Error: No encuentro el rol de bloqueo con ID \`${LOCK_ROLE_ID}\`. Verifica que exista.`);
                 }
-                const isLocked = lockRole && member.roles.cache.has(lockRole.id);
+                const isLocked = member.roles.cache.has(LOCK_ROLE_ID);
                 if (subcommand === 'lock') {
                     if (isLocked) return interaction.editReply(`⚠️ **${targetUser.tag}** ya tiene Rank Lock.`);
                     await member.roles.add(lockRole);
