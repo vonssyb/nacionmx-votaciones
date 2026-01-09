@@ -6,7 +6,7 @@ require('dotenv').config();
 
 // IMPORT NEW SERVICES (Refactored)
 const { BENEFIT_ROLES, CARD_TIERS, applyRoleBenefits, getDebitCard } = require('../services/EconomyHelper');
-const { getAvailablePaymentMethods, processPayment } = require('../utils/economyUtils');
+const { getAvailablePaymentMethods, processPayment, createPaymentButtons, createPaymentEmbed, getAvailableMethodsText } = require('../utils/economyUtils');
 // Note: CasinoService and StockService are accessed via client.services.casino / client.services.stocks
 
 // CONFIGURACIÓN CENTRALIZADA
@@ -33,22 +33,6 @@ setInterval(() => processedInteractions.clear(), 60000);
 // Global Session Tracking for Cooldowns
 const casinoSessions = {};
 
-// Helper: Payment Buttons (Missing in previous scope)
-const createPaymentButtons = (userId, amount, itemKey) => {
-    return new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId(`store_pay_cash_${amount}_${itemKey}`).setLabel('💵 Efectivo').setStyle(ButtonStyle.Success),
-        new ButtonBuilder().setCustomId(`store_pay_bank_${amount}_${itemKey}`).setLabel('🏦 Banco').setStyle(ButtonStyle.Primary),
-        new ButtonBuilder().setCustomId(`store_pay_credit_${amount}_${itemKey}`).setLabel('💳 Crédito').setStyle(ButtonStyle.Secondary)
-    );
-};
-
-const createPaymentEmbed = (itemName, price, methods) => {
-    return new EmbedBuilder()
-        .setTitle('💳 Confirmar Pago')
-        .setDescription(`Estás a punto de comprar **${itemName}**\n\n💰 **Precio:** $${price.toLocaleString()}\nℹ️ Selecciona un método de pago:`)
-        .addFields({ name: 'Métodos Disponibles', value: methods.length > 0 ? methods.join(', ') : 'Ninguno' })
-        .setColor('#00AAFF');
-};
 
 const handleEconomyLegacy = async (interaction, client, supabase) => {
     // Inject services from client (passed from index_economia.js) - SCOPED CORRECTLY
