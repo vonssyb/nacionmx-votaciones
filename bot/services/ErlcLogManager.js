@@ -121,7 +121,7 @@ class ErlcLogManager {
 
             const logChannel = await this.client.channels.fetch(this.logChannelId).catch(() => null);
             if (!logChannel) {
-                console.warn(`[ErlcLogManager] Log channel ${this.logChannelId} not found.`);
+                // console.warn(`[ErlcLogManager] Log channel ${this.logChannelId} not found.`);
                 return;
             }
 

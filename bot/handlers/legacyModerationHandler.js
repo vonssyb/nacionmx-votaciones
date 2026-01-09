@@ -1120,7 +1120,7 @@ const handleModerationLegacy = async (interaction, client, supabase) => {
     }
     processedInteractions.add(interaction.id);
 
-    console.log(`[DEBUG] Handling Legacy Moderation: ${interaction.commandName || interaction.customId}`);
+    // console.log(`[DEBUG] Handling Legacy Moderation: ${interaction.commandName || interaction.customId}`);
 
     // BUTTON: Investment Collection
 
@@ -2473,7 +2473,7 @@ const handleModerationLegacy = async (interaction, client, supabase) => {
                         updatedEmbed.setTimestamp();
 
                         await message.edit({ embeds: [updatedEmbed] });
-                        console.log('[VOTE DEBUG] Message edited successfully');
+                        // console.log('[VOTE DEBUG] Message edited successfully');
 
                         // Check if minimum votes reached AND Staff requirement met
                         if (counts.yes >= session.minimum_votes && staffMet && session.status === 'active') {
