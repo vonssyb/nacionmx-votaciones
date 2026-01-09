@@ -272,8 +272,17 @@ module.exports = {
                     const ANTI_CK_ROLE = '1449950413993410651';
                     const hasInsurance = member.roles.cache.has(ANTI_CK_ROLE);
 
-                    if (hasInsurance && ckTipo !== 'CK Administrativo') { // Admin CK bypasses insurance? Or asks? Let's assume Insurance saves from RP Death (Normal/Auto)
+                    if (hasInsurance && ckTipo !== 'CK Administrativo') {
                         await i.update({ content: '🛡️ **¡SEGURO ANTI-CK ACTIVADO!** Verificando...', embeds: [], components: [] });
+
+                        // Fetch Purchase Record
+                        const { data: purchase } = await supabase
+                            .from('user_purchases')
+                            .select('*')
+                            .eq('user_id', targetUser.id)
+                            .eq('item_key', 'anti_ck')
+                            .eq('status', 'active')
+                            .maybeSingle();
 
                         // Consume Insurance (Remove role & Update DB)
                         try {
