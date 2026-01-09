@@ -273,7 +273,7 @@ module.exports = {
                     const hasInsurance = member.roles.cache.has(ANTI_CK_ROLE);
 
                     if (hasInsurance && ckTipo !== 'CK Administrativo') {
-                        await i.update({ content: '🛡️ **¡SEGURO ANTI-CK ACTIVADO!** Verificando...', embeds: [], components: [] });
+                        await i.editReply({ content: '🛡️ **¡SEGURO ANTI-CK ACTIVADO!** Verificando...', embeds: [], components: [] });
 
                         // Fetch Purchase Record
                         const { data: purchase } = await supabase

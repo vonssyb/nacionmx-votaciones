@@ -54,7 +54,7 @@ module.exports = {
                         baseLine = baseLine.substring(0, 900) + '...';
                     }
 
-                    let descriptionText = s.description ? `\n> *${s.description}*` : '';
+                    descriptionText = s.description ? `\n> *${s.description}*` : '';
                     if (descriptionText.length > 100) {
                         descriptionText = descriptionText.substring(0, 100) + '...*';
                     }
