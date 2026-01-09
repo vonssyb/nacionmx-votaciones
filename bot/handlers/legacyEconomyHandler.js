@@ -64,9 +64,12 @@ const handleEconomyLegacy = async (interaction, client, supabase) => {
 
 
         // -- LOGGING HELPER --
-        const logToChannel = async (channelId, embed) => {
+        // -- LOGGING HELPER --
+        const logToChannel = async (guild, channelId, embed) => {
             try {
-                const channel = await client.channels.fetch(channelId).catch(() => null);
+                // Determine channel source: Guild or Client
+                const source = guild || client;
+                const channel = await source.channels.fetch(channelId).catch(() => null);
                 if (channel) await channel.send({ embeds: [embed] });
             } catch (e) { console.error('Log Error:', e); }
         };
@@ -5447,7 +5450,8 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
 
         } catch (error) {
             console.error('[robar] Error:', error);
-            await interaction.editReply('❌ Error procesando el robo.');
+            console.error('[robar] Error:', error);
+            await interaction.editReply(`❌ Error procesando el robo: ${error.message}`);
         }
 
     }
