@@ -634,6 +634,7 @@ module.exports = {
                 }
             }
 
+
             // Build Template
             if (type === 'general') {
                 const sanctionTitle = (accion === 'Blacklist') ? `BLACKLIST: ${tipoBlacklist}` : accion;
@@ -643,26 +644,6 @@ module.exports = {
                     ruleCode: motivo, description: descripcion, sanctionType: sanctionTitle,
                     duration: durationText, evidenceUrl: evidencia
                 });
-
-                // SPECIAL BLACKLIST NOTIFICATION CHANNEL
-                if (accion === 'Blacklist') {
-                    const blChannelId = '1412957060168945747';
-                    try {
-                        const blChannel = await interaction.client.channels.fetch(blChannelId);
-                        if (blChannel) {
-                            await blChannel.send({
-                                content: '@everyone',
-                                embeds: [embedPayload.embeds[0]]
-                            });
-                            actionResult += `\n📢 **Notificación enviada al canal de Blacklists.**`;
-                        } else {
-                            actionResult += `\n⚠️ No se encontró el canal de Blacklists (${blChannelId}).`;
-                        }
-                    } catch (blError) {
-                        console.error('Error sending blacklist notification:', blError);
-                        actionResult += `\n⚠️ Error al notificar Blacklist: ${blError.message}`;
-                    }
-                }
 
             } else if (type === 'sa') {
                 embedPayload = NotificationTemplates.administrativeSanction({
@@ -676,6 +657,39 @@ module.exports = {
                 });
             }
 
+            // CRITICAL FIX: BLACKLIST NOTIFICATION (Independent of Type)
+            // Blacklist Notification (Independent of Type)
+            if (accion === 'Blacklist') {
+                const blChannelId = '1412957060168945747';
+                try {
+                    const blChannel = await interaction.client.channels.fetch(blChannelId);
+                    if (blChannel) {
+                        // Ensure we have an embed payload for the public log
+                        let publicEmbed = embedPayload?.embeds?.[0];
+
+                        // If type wasn't general, generate a fallback embed
+                        if (type !== 'general' || !publicEmbed) {
+                            const fallbackPayload = NotificationTemplates.officialSanction({
+                                date, time, offender: targetUser, moderator: interaction.user,
+                                ruleCode: motivo, description: descripcion, sanctionType: `BLACKLIST: ${tipoBlacklist}`,
+                                duration: 'Permanente', evidenceUrl: evidencia
+                            });
+                            publicEmbed = fallbackPayload.embeds[0];
+                        }
+
+                        await blChannel.send({
+                            content: '@everyone',
+                            embeds: [publicEmbed]
+                        });
+                        actionResult += `\n📢 **Notificación enviada al canal de Blacklists.**`;
+                    } else {
+                        actionResult += `\n⚠️ No se encontró el canal de Blacklists (${blChannelId}).`;
+                    }
+                } catch (blError) {
+                    console.error('Error sending blacklist notification:', blError);
+                    actionResult += `\n⚠️ Error al notificar Blacklist: ${blError.message}`;
+                }
+            }
             // Send to Context Channel (The one where command was used)
             const mentionEveryone = (type === 'notificacion' && !targetUser);
             await interaction.editReply({

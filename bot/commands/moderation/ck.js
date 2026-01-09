@@ -253,11 +253,22 @@ module.exports = {
                                     .eq('id', purchase.id);
                             }
 
-                            // 3. Notify
+                            // 3. Notify with Randomized Message
+                            const savedMessages = [
+                                "tenía un chaleco antibalas de alta tecnología y sobrevivió milagrosamente.",
+                                "fue atendido rápidamente por los paramédicos y lograron estabilizarlo.",
+                                "tuvo una suerte increíble y las balas no tocaron órganos vitales.",
+                                "fingió su muerte de manera magistral y escapó en el último segundo.",
+                                "llevaba una placa de metal en el pecho que detuvo el impacto fatal.",
+                                "fue rescatado por un equipo de extracción táctica justo a tiempo.",
+                                "despertó en el hospital sin recordar nada, pero vivo."
+                            ];
+                            const randomMsg = savedMessages[Math.floor(Math.random() * savedMessages.length)];
+
                             const savedEmbed = new EmbedBuilder()
                                 .setTitle(`🛡️ VIDA SALVADA`)
                                 .setColor('#00FF00')
-                                .setDescription(`El usuario **${targetUser.tag}** tenía un **Seguro Anti-CK** activo.\n\n✅ **El CK ha sido CANCELADO.**\n📉 **El seguro ha sido CONSUMIDO.**`)
+                                .setDescription(`El usuario **${targetUser.tag}** tenía un **Seguro Anti-CK** activo.\n\n✅ **El CK ha sido CANCELADO.**\n📖 **Roleplay:** El usuario ${randomMsg}\n📉 **El seguro ha sido CONSUMIDO.**`)
                                 .addFields({ name: 'Tipo de CK evitado', value: ckTipo })
                                 .setTimestamp();
 

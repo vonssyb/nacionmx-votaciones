@@ -85,12 +85,23 @@ async function startModerationBot() {
     const erlcScheduler = new ErlcScheduler(supabase, process.env.ERLC_API_KEY || 'ARuRfmzZGTqbqUCjMERA-dzEeGLbRfisfjKtiCOXLHATXDedYZsQQEethQMZp');
     erlcScheduler.start(); // Starts the 2-minute interval loop
 
+    // ERLC Service & Log Manager (Adaptive Polling)
+    const ErlcService = require('./services/ErlcService');
+    const erlcService = new ErlcService(process.env.ERLC_API_KEY || 'ARuRfmzZGTqbqUCjMERA-dzEeGLbRfisfjKtiCOXLHATXDedYZsQQEethQMZp');
+
+    // Log Channel ID from legacy code: 1457892493310951444
+    const ErlcLogManager = require('./services/ErlcLogManager');
+    const erlcLogManager = new ErlcLogManager(client, erlcService, '1457892493310951444');
+    erlcLogManager.start();
+
     client.services = {
         sanctions: sanctionService,
         billing: new BillingService(client, supabase),
         casino: new CasinoService(supabase),
         stocks: new StockService(supabase),
-        erlcScheduler: erlcScheduler // Expose if needed
+        erlcScheduler: erlcScheduler,
+        erlc: erlcService,
+        erlcLogManager: erlcLogManager
     };
 
     // Load Commands
