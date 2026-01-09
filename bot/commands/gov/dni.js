@@ -1,4 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits, AttachmentBuilder } = require('discord.js');
+const ImageGenerator = require('../../utils/ImageGenerator');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -79,7 +80,8 @@ module.exports = {
             const fotoUrl = targetUser.displayAvatarURL({ dynamic: true, size: 512 });
 
             // Insert DNI
-            const { error } = await supabase
+            // Insert DNI
+            const { data: newDni, error } = await supabase
                 .from('citizen_dni')
                 .insert({
                     guild_id: interaction.guildId,
@@ -91,7 +93,9 @@ module.exports = {
                     genero,
                     foto_url: fotoUrl, // Discord avatar
                     created_by: interaction.user.id
-                });
+                })
+                .select()
+                .single();
 
             if (error) {
                 if (error.code === '23505') {
@@ -102,20 +106,18 @@ module.exports = {
                 return interaction.editReply('❌ Error al crear el DNI.');
             }
 
+            // Generate Image
+            const dniImageBuffer = await ImageGenerator.generateDNI(newDni);
+            const attachment = new AttachmentBuilder(dniImageBuffer, { name: 'dni.png' });
+
             const embed = new EmbedBuilder()
                 .setTitle('✅ DNI Creado')
                 .setColor('#00FF00')
-                .addFields(
-                    { name: '👤 Ciudadano', value: `<@${targetUser.id}>`, inline: false },
-                    { name: '📝 Nombre Completo', value: `${nombre} ${apellido}`, inline: true },
-                    { name: '🎂 Edad', value: `${edad} años`, inline: true },
-                    { name: '⚧️ Género', value: genero, inline: true },
-                    { name: '🌍 Nacionalidad', value: 'Mexicana 🇲🇽', inline: true }
-                )
-                .setThumbnail(targetUser.displayAvatarURL({ dynamic: true, size: 256 }))
+                .setDescription(`Se ha creado exitosamente el DNI para <@${targetUser.id}>`)
+                .setImage('attachment://dni.png')
                 .setTimestamp();
 
-            await interaction.editReply({ embeds: [embed] });
+            await interaction.editReply({ embeds: [embed], files: [attachment] });
 
         } else if (subCmd === 'editar') {
             const targetUser = interaction.options.getUser('usuario');
@@ -165,25 +167,19 @@ module.exports = {
                 return interaction.editReply(`❌ ${targetUser.tag} no tiene DNI registrado.`);
             }
 
+            // Generate Image
+            const dniImageBuffer = await ImageGenerator.generateDNI(dni);
+            const attachment = new AttachmentBuilder(dniImageBuffer, { name: 'dni.png' });
+
             const embed = new EmbedBuilder()
                 .setTitle('🪪 Documento Nacional de Identidad')
                 .setColor('#00AAC0')
-                .addFields(
-                    { name: '👤 Ciudadano', value: `<@${targetUser.id}>`, inline: false },
-                    { name: '📝 Nombre Completo', value: `${dni.nombre} ${dni.apellido}`, inline: false },
-                    { name: '🎂 Edad', value: `${dni.edad} años`, inline: true },
-                    { name: '📅 Fecha de Nacimiento', value: new Date(dni.fecha_nacimiento).toLocaleDateString('es-MX'), inline: true },
-                    { name: '⚧️ Género', value: dni.genero, inline: true },
-                    { name: '🌍 Nacionalidad', value: 'Mexicana 🇲🇽', inline: true }
-                )
+                .setDescription(`Documento oficial de identidad de <@${targetUser.id}>`)
+                .setImage('attachment://dni.png')
                 .setFooter({ text: `Registrado: ${new Date(dni.created_at).toLocaleDateString('es-MX')}` })
                 .setTimestamp();
 
-            if (dni.foto_url) {
-                embed.setThumbnail(dni.foto_url);
-            }
-
-            await interaction.editReply({ embeds: [embed] });
+            await interaction.editReply({ embeds: [embed], files: [attachment] });
         }
     }
 };

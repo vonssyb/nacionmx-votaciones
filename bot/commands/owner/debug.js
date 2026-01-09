@@ -66,14 +66,19 @@ module.exports = {
 
         // 3. Database Conection Check (Indirect)
         try {
-            const { error } = await supabase.from('users').select('count').limit(1).maybeSingle();
+            // "users" does not exist in this schema, using "citizens" or "discord_users"
+            const { error } = await supabase.from('citizens').select('count').limit(1).maybeSingle();
             if (error) throw error;
-            info.push('💾 **Base de Datos:** Conectada y respondiendo.');
+            info.push('💾 **Base de Datos:** Conectada y respondiendo (Tabla: `citizens`).');
         } catch (dbErr) {
             issues.push(`🔥 **ERROR CRÍTICO DB:** No hay conexión con Supabase. (${dbErr.message})`);
         }
 
         // 4. ERLC API TOKEN Check
+        // Debug: Log loaded keys to console (safe)
+        console.log('[DEBUG] Loaded Env Keys:', Object.keys(process.env));
+        console.log('[DEBUG] ERLC_API_KEY value:', process.env.ERLC_API_KEY ? 'FOUND' : 'MISSING');
+
         if (!process.env.ERLC_API_KEY) {
             warnings.push('⚠️ **ERLC API:** No configures API Key. Comandos in-game fallarán.');
         } else {

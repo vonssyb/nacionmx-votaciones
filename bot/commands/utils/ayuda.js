@@ -25,7 +25,7 @@ module.exports = {
 
         const row = new ActionRowBuilder().addComponents(mainMenu);
 
-        const response = await interaction.reply({ embeds: [mainEmbed], components: [row] }); // Reply is not deferred here? Check safety.
+        const response = await interaction.editReply({ embeds: [mainEmbed], components: [row] });
 
         const collector = response.createMessageComponentCollector({ componentType: ComponentType.StringSelect, time: 300000 });
 
