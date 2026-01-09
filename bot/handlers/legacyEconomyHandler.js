@@ -5223,7 +5223,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                     .eq('status', 'active')
                     .maybeSingle();
 
-                if (existing) {
+                if (existing && itemKey !== 'anti_ck') {
                     const expiryDate = existing.expiration_date ? `\nExpira: <t:${Math.floor(new Date(existing.expiration_date).getTime() / 1000)}:R>` : '';
                     return interaction.editReply(`⚠️ Ya tienes este item activo.${expiryDate}`);
                 }

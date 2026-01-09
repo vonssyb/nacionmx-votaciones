@@ -75,10 +75,10 @@ class StoreService {
             .eq('item_key', itemKey)
             .eq('status', 'active')
             .gte('expiration_date', new Date().toISOString())
-            .maybeSingle();
+            .limit(1);
 
         if (error) throw error;
-        return data !== null;
+        return data && data.length > 0;
     }
 
     /**

@@ -15,7 +15,7 @@ const commands = [];
 const commandsPath = path.join(__dirname, 'commands');
 
 // ALLOWED CATEGORIES FOR MODERATION BOT (Strict)
-const ALLOWED_CATEGORIES = ['moderation', 'utils'];
+const ALLOWED_CATEGORIES = ['moderation', 'utils', 'owner'];
 
 // 1. DYNAMIC LOADING
 if (fs.existsSync(commandsPath)) {

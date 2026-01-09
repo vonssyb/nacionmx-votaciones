@@ -396,18 +396,36 @@ module.exports = {
                     const { data: bCards } = await supabase.from('credit_cards').select('*').eq('user_id', targetUser.id);
                     backupData.cards = bCards || [];
 
-                    // 1b. Get current balances
-                    const { data: balance } = await supabase
-                        .from('user_balances')
-                        .select('cash, bank')
-                        .eq('guild_id', interaction.guildId)
-                        .eq('user_id', targetUser.id)
-                        .maybeSingle();
+                    // 1b. Get current balances (TRY UNBELIEVABOAT FIRST FOR ACCURACY)
+                    let previousCash = 0;
+                    let previousBank = 0;
 
-                    const previousCash = balance?.cash || 0;
-                    const previousBank = balance?.bank || 0;
+                    if (process.env.UNBELIEVABOAT_TOKEN) {
+                        try {
+                            const UnbelievaBoatService = require('../../services/UnbelievaBoatService');
+                            const ubService = new UnbelievaBoatService(process.env.UNBELIEVABOAT_TOKEN);
+                            const ubBalance = await ubService.getUserBalance(interaction.guildId, targetUser.id);
+                            if (ubBalance) {
+                                previousCash = ubBalance.cash || 0;
+                                previousBank = ubBalance.bank || 0;
+                            }
+                        } catch (e) { console.error('UB Balance Fetch Failed:', e); }
+                    }
 
-                    // 2. Reset all money
+                    // Fallback to Supabase if UB failed or returned 0 (optional logic, usually UB is authority)
+                    if (previousCash === 0 && previousBank === 0) {
+                        const { data: balance } = await supabase
+                            .from('user_balances')
+                            .select('cash, bank')
+                            .eq('guild_id', interaction.guildId)
+                            .eq('user_id', targetUser.id)
+                            .maybeSingle();
+                        if (balance) {
+                            previousCash = balance.cash || 0;
+                            previousBank = balance.bank || 0;
+                        }
+                    }
+
 
                     // 2. Reset Ecosystem (Money)
                     if (process.env.UNBELIEVABOAT_TOKEN) {
@@ -423,7 +441,7 @@ module.exports = {
                             }
                         } catch (ubError) {
                             console.error('[CK] Failed to reset UnbelievaBoat balance:', ubError);
-                            // Non-blocking, continue CK
+                            // Non-blocking
                         }
                     }
 
@@ -473,8 +491,12 @@ module.exports = {
 
                     for (const [roleId, role] of member.roles.cache) {
                         const protectedNames = ['Civil Mexicano', 'Roles administrativos', 'Soporte', 'Staff', 'Booster', 'Server Booster'];
+                        // Normalize strings for comparison (trim + lowercase)
+                        const roleNameLower = role.name.trim().toLowerCase();
+                        const isProtectedByName = protectedNames.some(p => p.trim().toLowerCase() === roleNameLower);
+
                         const shouldRemove = (!protectedRoles.includes(roleId)
-                            && !protectedNames.includes(role.name)
+                            && !isProtectedByName
                             && !role.managed
                             && roleId !== interaction.guildId)
                             || forceRemoveRoles.includes(roleId);

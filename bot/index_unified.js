@@ -106,7 +106,7 @@ async function startModerationBot() {
 
     // Load Commands
     const loader = require('./handlers/commandLoader');
-    await loader.loadCommands(client, path.join(__dirname, 'commands'), ['moderation', 'utils']);
+    await loader.loadCommands(client, path.join(__dirname, 'commands'), ['moderation', 'utils', 'owner']);
 
     // Events
     client.once('ready', () => {
