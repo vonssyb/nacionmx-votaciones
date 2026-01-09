@@ -66,6 +66,7 @@ module.exports = {
                     { name: 'Cartel', value: 'Blacklist Cartel' },
                     { name: 'Política', value: 'Blacklist Politica' },
                     { name: 'Empresas', value: 'Blacklist Empresas' },
+                    { name: 'Influencer', value: 'Blacklist Influencer' },
                     { name: 'TOTAL (Ban Permanente)', value: 'Blacklist Total' }
                 ))
         .addStringOption(option =>
@@ -388,7 +389,8 @@ module.exports = {
                 'Blacklist Facciones Policiales': '1413714060423200778',
                 'Blacklist Cartel': '1449930883762225253',
                 'Blacklist Politica': '1413714467287470172',
-                'Blacklist Empresas': '1413714540834852875'
+                'Blacklist Empresas': '1413714540834852875',
+                'Blacklist Influencer': '1459240544017453238'
             };
 
             if (accion) {

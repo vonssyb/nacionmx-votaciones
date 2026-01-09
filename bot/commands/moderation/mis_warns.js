@@ -43,7 +43,7 @@ module.exports = {
 
                     const date = new Date(s.created_at).toLocaleDateString('es-MX');
                     const evidenceLink = s.evidence_url ? ` [📸 Ver Evidencia](${s.evidence_url})` : '';
-                    const descriptionText = s.description ? `\n> *${s.description}*` : '';
+                    let descriptionText = s.description ? `\n> *${s.description}*` : '';
                     const expiration = s.expires_at ? ` | ⏳ Expira: ${new Date(s.expires_at).toLocaleDateString('es-MX')}` : '';
                     // Truncate logic to avoid "Invalid string length" (Limit 1024)
                     // We need enough space for the Ref + Description
@@ -54,7 +54,6 @@ module.exports = {
                         baseLine = baseLine.substring(0, 900) + '...';
                     }
 
-                    descriptionText = s.description ? `\n> *${s.description}*` : '';
                     if (descriptionText.length > 100) {
                         descriptionText = descriptionText.substring(0, 100) + '...*';
                     }
