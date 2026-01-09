@@ -7,6 +7,7 @@ class StoreService {
         // Channel IDs
         this.CASINO_CHANNEL_ID = '1451398359540826306';
         this.TICKET_CHANNEL_ID = '1398889153919189042';
+        this.STORE_LOG_CHANNEL = '1452499876737978438'; // Correct Store Log Channel
 
         // Role mappings (from store_items table)
         this.ROLE_MAP = {
@@ -79,6 +80,53 @@ class StoreService {
 
         if (error) throw error;
         return data && data.length > 0;
+    }
+
+    /**
+     * Handle Buy Button Interaction
+     */
+    async handleBuyButton(interaction) {
+        await interaction.deferReply({ ephemeral: true });
+
+        // CustomID format: buy_item_{itemKey}
+        const itemKey = interaction.customId.replace('buy_item_', '');
+
+        try {
+            // Purchase logic
+            const result = await this.purchaseItem(interaction.user.id, itemKey, interaction.member);
+
+            // Log to Store Channel
+            const { EmbedBuilder } = require('discord.js');
+            try {
+                const logChannel = await interaction.client.channels.fetch(this.STORE_LOG_CHANNEL).catch(() => null);
+                if (logChannel) {
+                    const logEmbed = new EmbedBuilder()
+                        .setTitle('🛒 Compra Realizada')
+                        .setColor('#00FF00')
+                        .setDescription(`El usuario <@${interaction.user.id}> ha comprado **${result.item.name}**.`)
+                        .addFields(
+                            { name: 'Usuario', value: `\`${interaction.user.tag}\``, inline: true },
+                            { name: 'Item', value: result.item.name, inline: true },
+                            { name: 'Precio', value: `$${result.item.price.toLocaleString()}`, inline: true },
+                            { name: 'Expira', value: result.expirationDate ? `<t:${Math.floor(result.expirationDate.getTime() / 1000)}:R>` : 'Nunca', inline: false }
+                        )
+                        .setTimestamp();
+                    await logChannel.send({ embeds: [logEmbed] });
+                }
+            } catch (logErr) {
+                console.error('[StoreService] Log Error:', logErr);
+            }
+
+            // Success Response
+            await interaction.editReply({
+                content: `✅ **¡Compra Exitosa!**\nHas adquirido **${result.item.name}** por **$${result.item.price.toLocaleString()}**.\n${result.item.role_id ? 'El rol ha sido asignado.' : ''}`,
+                components: []
+            });
+
+        } catch (error) {
+            console.error('[StoreService] Buy Error:', error);
+            await interaction.editReply({ content: `❌ Error: ${error.message}` });
+        }
     }
 
     /**
