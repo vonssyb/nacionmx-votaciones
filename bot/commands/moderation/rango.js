@@ -99,7 +99,7 @@ module.exports = {
         const isManager = interaction.member.roles.cache.some(r => ALLOWED_MANAGERS.includes(r.id)) || interaction.member.permissions.has('Administrator');
 
         if (!isManager) {
-            return interaction.followUp({ content: '⛔ **Acceso Denegado:** Solo Junta Directiva y Encargados pueden gestionar rangos.', flags: [64] });
+            return interaction.editReply({ content: '⛔ **Acceso Denegado:** Solo Junta Directiva y Encargados pueden gestionar rangos.', flags: [64] });
         }
 
         const targetUser = interaction.options.getUser('usuario');
@@ -117,18 +117,18 @@ module.exports = {
                 if (!lockRole && subcommand === 'lock') {
                     try {
                         lockRole = await interaction.guild.roles.create({ name: LOCK_ROLE_NAME, color: 0x000000, reason: 'Rank Lock' });
-                    } catch (e) { return interaction.followUp('❌ Error: No existe el rol "🔒 Rank Locked" y no pude crearlo. Verifica mis permisos.'); }
+                    } catch (e) { return interaction.editReply('❌ Error: No existe el rol "🔒 Rank Locked" y no pude crearlo. Verifica mis permisos.'); }
                 }
                 const isLocked = lockRole && member.roles.cache.has(lockRole.id);
                 if (subcommand === 'lock') {
-                    if (isLocked) return interaction.followUp(`⚠️ **${targetUser.tag}** ya tiene Rank Lock.`);
+                    if (isLocked) return interaction.editReply(`⚠️ **${targetUser.tag}** ya tiene Rank Lock.`);
                     await member.roles.add(lockRole);
-                    return interaction.followUp(`🔒 **RANK LOCK ACTIVADO** para ${targetUser.tag}.\n⛔ Este usuario ya no podrá ser promovido.`);
+                    return interaction.editReply(`🔒 **RANK LOCK ACTIVADO** para ${targetUser.tag}.\n⛔ Este usuario ya no podrá ser promovido.`);
                 }
                 if (subcommand === 'unlock') {
-                    if (!isLocked) return interaction.followUp(`⚠️ **${targetUser.tag}** no tiene Rank Lock.`);
+                    if (!isLocked) return interaction.editReply(`⚠️ **${targetUser.tag}** no tiene Rank Lock.`);
                     await member.roles.remove(lockRole);
-                    return interaction.followUp(`🔓 **RANK LOCK RETIRADO** de ${targetUser.tag}.\n✅ Ahora puede ser promovido nuevamente.`);
+                    return interaction.editReply(`🔓 **RANK LOCK RETIRADO** de ${targetUser.tag}.\n✅ Ahora puede ser promovido nuevamente.`);
                 }
             }
 
@@ -154,7 +154,7 @@ module.exports = {
             } else if (subcommand === 'promover') {
                 // RANK LOCK CHECK
                 if (isLocked) {
-                    return interaction.followUp({
+                    return interaction.editReply({
                         content: `🛑 **ACCIÓN BLOQUEADA**\n\nEl usuario **${targetUser.tag}** tiene un **RANK LOCK** activo.\nNo puede ser promovido hasta que un Directivo le quite el bloqueo con \`/rango unlock\`.`,
                         flags: [64]
                     });
@@ -165,7 +165,7 @@ module.exports = {
                 } else if (currentRankIndex < RANGOS.length - 1) {
                     newRankIndex = currentRankIndex + 1;
                 } else {
-                    return interaction.followUp(`⚠️ **Error:** ${targetUser.tag} ya está en el rango máximo (${RANGOS[currentRankIndex].name}).`);
+                    return interaction.editReply(`⚠️ **Error:** ${targetUser.tag} ya está en el rango máximo (${RANGOS[currentRankIndex].name}).`);
                 }
 
                 // RESTRICTION: Higher Rank (Level 4 / Junta Directiva) restricted to specific user
@@ -173,7 +173,7 @@ module.exports = {
                 if (newRankIndex === 3) { // Level 4 index
                     const ALLOWED_PROMOTER = '826637667718266880';
                     if (interaction.user.id !== ALLOWED_PROMOTER) {
-                        return interaction.followUp({
+                        return interaction.editReply({
                             content: `🛑 **ACCIÓN RESERVADA**\n\nSolo el **Jefe de Staff** (Dueño) puede promover al rango **${RANGOS[newRankIndex].name}**.\nContacta a <@${ALLOWED_PROMOTER}>.`,
                             flags: [64]
                         });
@@ -181,7 +181,7 @@ module.exports = {
                 }
             } else if (subcommand === 'degradar') {
                 if (currentRankIndex === -1) {
-                    return interaction.followUp(`⚠️ **Error:** ${targetUser.tag} no tiene rango de staff.`);
+                    return interaction.editReply(`⚠️ **Error:** ${targetUser.tag} no tiene rango de staff.`);
                 } else if (currentRankIndex > 0) {
                     newRankIndex = currentRankIndex - 1;
                 } else {
@@ -343,7 +343,7 @@ module.exports = {
                 .setThumbnail(targetUser.displayAvatarURL())
                 .setTimestamp();
 
-            await interaction.followUp({ embeds: [embed] });
+            await interaction.editReply({ embeds: [embed] });
 
             // --- ERLC SYNC ---
             let erlcSyncMsg = '';
@@ -450,7 +450,7 @@ module.exports = {
 
         } catch (error) {
             console.error('[Rango] Error:', error);
-            await interaction.followUp('❌ Error crítico gestionando rango. Verifica que el bot tenga permisos superiores al rol que intenta asignar.');
+            await interaction.editReply('❌ Error crítico gestionando rango. Verifica que el bot tenga permisos superiores al rol que intenta asignar.');
         }
     }
 };
