@@ -1,4 +1,5 @@
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, AttachmentBuilder } = require('discord.js');
+const ImageGenerator = require('../../utils/ImageGenerator');
 
 // Visa costs (automatically charged)
 const VISA_COSTS = {
@@ -247,7 +248,7 @@ module.exports = {
             // Find request by ID prefix
             const { data: request } = await supabase
                 .from('visa_requests')
-                .select('*')
+                .select('*, citizen_dni(*)')
                 .eq('guild_id', interaction.guildId)
                 .eq('status', 'pending')
                 .ilike('id', `${requestIdPrefix}%`)
@@ -278,7 +279,7 @@ module.exports = {
             const expirationDate = duration ? new Date(Date.now() + duration * 24 * 60 * 60 * 1000).toISOString() : null;
 
             // 4. Create Visa
-            await supabase.from('us_visas').insert({
+            const { data: newVisa } = await supabase.from('us_visas').insert({
                 guild_id: interaction.guildId,
                 user_id: request.user_id,
                 citizen_dni_id: request.citizen_dni_id,
@@ -288,7 +289,7 @@ module.exports = {
                 approved_by: interaction.user.id,
                 approved_by_tag: interaction.user.tag,
                 notes: notes
-            });
+            }).select().single();
 
             // 5. Update Request
             await supabase.from('visa_requests').update({
@@ -304,18 +305,31 @@ module.exports = {
                 await targetMember.roles.add(AMERICAN_ROLE_ID);
             } catch (e) { }
 
+            // Prepare data for generator
+            const visaData = {
+                ...newVisa,
+                nombre: request.citizen_dni?.nombre || 'Unknown',
+                apellido: request.citizen_dni?.apellido || 'Unknown',
+                nombre_completo: `${request.citizen_dni?.nombre || ''} ${request.citizen_dni?.apellido || ''}`.trim(),
+                foto_url: request.citizen_dni?.foto_url
+            };
+
+            const visaImageBuffer = await ImageGenerator.generateVisa(visaData);
+            const attachment = new AttachmentBuilder(visaImageBuffer, { name: 'visa.png' });
+
             const embed = new EmbedBuilder()
                 .setTitle('✅ Visa Aprobada')
                 .setColor('#2ECC71')
+                .setImage('attachment://visa.png')
                 .addFields(
                     { name: '👤 Usuario', value: `<@${request.user_id}>`, inline: true },
                     { name: '🛂 Tipo', value: visaType.toUpperCase(), inline: true },
-                    { name: '🎫 Número', value: `\`${visaNum || 'GEN-01'}\``, inline: true },
+                    { name: '🎫 Número', value: `\`${visaNum || newVisa.visa_number}\``, inline: true },
                     { name: '💰 Costo Cobrado', value: `$${cost.toLocaleString()}`, inline: true }
                 )
                 .setTimestamp();
 
-            await interaction.editReply({ embeds: [embed] });
+            await interaction.editReply({ embeds: [embed], files: [attachment] });
 
             // DM User
             try {
@@ -378,7 +392,7 @@ Use \`/visa ver\` to check their visa status.`,
             // Check if user has DNI
             const { data: dni } = await supabase
                 .from('citizen_dni')
-                .select('id')
+                .select('id, nombre, apellido, foto_url')
                 .eq('guild_id', interaction.guildId)
                 .eq('user_id', targetUser.id)
                 .maybeSingle();
@@ -486,10 +500,23 @@ They need $${(cost - availableFunds).toLocaleString()} more.`,
                 console.error('[visa otorgar] Role error:', roleError);
             }
 
+            // Prepare data for generator
+            const visaData = {
+                ...newVisa,
+                nombre: dni.nombre,
+                apellido: dni.apellido,
+                nombre_completo: `${dni.nombre} ${dni.apellido}`,
+                foto_url: dni.foto_url
+            };
+
+            const visaImageBuffer = await ImageGenerator.generateVisa(visaData);
+            const attachment = new AttachmentBuilder(visaImageBuffer, { name: 'visa.png' });
+
             const embed = new EmbedBuilder()
                 .setTitle('✅ US Visa Granted')
                 .setColor('#00FF00')
                 .setDescription(`US Visa granted to ${targetUser.tag}`)
+                .setImage('attachment://visa.png')
                 .addFields(
                     { name: '👤 Recipient', value: `<@${targetUser.id}>`, inline: true },
                     { name: '📋 Type', value: visaType.charAt(0).toUpperCase() + visaType.slice(1), inline: true },
@@ -502,7 +529,7 @@ They need $${(cost - availableFunds).toLocaleString()} more.`,
                 .setFooter({ text: 'American role granted • Payment processed' })
                 .setTimestamp();
 
-            await interaction.editReply({ embeds: [embed] });
+            await interaction.editReply({ embeds: [embed], files: [attachment] });
 
             // DM the user
             try {
@@ -530,7 +557,7 @@ They need $${(cost - availableFunds).toLocaleString()} more.`,
         else if (subCmd === 'ver') {
             const { data: visa } = await supabase
                 .from('us_visas')
-                .select('*')
+                .select('*, citizen_dni(*)')
                 .eq('guild_id', interaction.guildId)
                 .eq('user_id', interaction.user.id)
                 .eq('status', 'active')
@@ -547,22 +574,27 @@ Contact USCIS to request one via ticket.`,
                 });
             }
 
+            // Prepare data for generator
+            const visaData = {
+                ...visa,
+                nombre: visa.citizen_dni?.nombre || 'Unknown',
+                apellido: visa.citizen_dni?.apellido || 'Unknown',
+                nombre_completo: `${visa.citizen_dni?.nombre || ''} ${visa.citizen_dni?.apellido || ''}`.trim() || 'Unknown',
+                foto_url: visa.citizen_dni?.foto_url || interaction.user.displayAvatarURL({ extension: 'png' })
+            };
+
+            const visaImageBuffer = await ImageGenerator.generateVisa(visaData);
+            const attachment = new AttachmentBuilder(visaImageBuffer, { name: 'visa.png' });
+
             const embed = new EmbedBuilder()
                 .setTitle('🇺🇸 United States Visa')
                 .setColor('#3C3B6E')
-                .setThumbnail(interaction.user.displayAvatarURL({ dynamic: true }))
-                .addFields(
-                    { name: '👤 Holder', value: `${interaction.user.tag}`, inline: false },
-                    { name: '🎫 Visa Number', value: `\`${visa.visa_number}\``, inline: false },
-                    { name: '📋 Type', value: visa.visa_type.charAt(0).toUpperCase() + visa.visa_type.slice(1), inline: true },
-                    { name: '📅 Issued', value: new Date(visa.issued_date).toLocaleDateString(), inline: true },
-                    { name: '⏰ Expires', value: visa.expiration_date ? new Date(visa.expiration_date).toLocaleDateString() : 'Never (Permanent)', inline: true },
-                    { name: '✅ Status', value: 'Active', inline: true }
-                )
+                .setDescription(`Official US Visa Document for <@${interaction.user.id}>`)
+                .setImage('attachment://visa.png')
                 .setFooter({ text: 'United States of America - USCIS' })
                 .setTimestamp();
 
-            await interaction.editReply({ embeds: [embed] });
+            await interaction.editReply({ embeds: [embed], files: [attachment] });
         }
 
         // LISTAR - List visas
