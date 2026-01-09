@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, AttachmentBuilder } = require('discord.js');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -68,12 +68,40 @@ module.exports = {
                 });
 
                 embed.addFields({ name: '📝 Últimos Registros', value: descriptionList || 'Sin detalles.' });
+
+                // Check for truncation flag
+                // We actually implemented truncation in the loop but didn't track a global flag. 
+                // Let's rely on checking if any part was truncated in a clearer way or just always offer the file if list > 5 or long text?
+                // Cleaner: Generate the file content during the loop.
+
             } else {
                 embed.addFields({ name: '✅ Estado', value: 'No tienes sanciones activas. ¡Sigue así!' });
                 embed.setColor('#00FF00'); // Green for clean
             }
 
-            await interaction.editReply({ embeds: [embed] });
+            // --- FULL TRANSCRIPT GENERATION ---
+            const files = [];
+            // If we have sanctions, generate a full readable report
+            if (sanctions && sanctions.length > 0) {
+                const fullReport = sanctions.map(s => {
+                    const date = new Date(s.created_at).toLocaleDateString('es-MX');
+                    const time = new Date(s.created_at).toLocaleTimeString('es-MX');
+                    const type = s.action_type || s.type;
+                    const evidence = s.evidence_url || 'N/A';
+                    const expiration = s.expires_at ? new Date(s.expires_at).toLocaleDateString('es-MX') : 'Permanente';
+
+                    return `[${date} ${time}] ${type.toUpperCase()}\n----------------------------------------\nRazón: ${s.reason}\nDescripción: ${s.description || 'N/A'}\nEvidencia: ${evidence}\nExpira: ${expiration}\nID Sanción: ${s.id}\n\n`;
+                }).join('');
+
+                // Attach if list is long OR if we truncated stuff (hard to track exact truncation state without var, but safe to just provide it for detailed reading)
+                // Let's always provide it if there are more than 3 items or lengthy text.
+                // For now, let's provide it always if there are *any* sanctions, as "Historial Completo.txt"
+                const buffer = Buffer.from(fullReport, 'utf-8');
+                const attachment = new AttachmentBuilder(buffer, { name: `Historial_Sanciones_${interaction.user.username}.txt` });
+                files.push(attachment);
+            }
+
+            await interaction.editReply({ embeds: [embed], files: files });
 
         } catch (error) {
             console.error(error);
