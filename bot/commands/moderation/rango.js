@@ -46,7 +46,8 @@ module.exports = {
         .setDefaultMemberPermissions(PermissionFlagsBits.ManageRoles),
 
     async execute(interaction, client, supabase) {
-        // Defer reply handled globally by index_moderacion.js
+        // Safe Deferral to prevent "Thinking" hang
+        if (!interaction.deferred && !interaction.replied) await interaction.deferReply();
 
 
         // --- CONFIGURATION ---
@@ -165,6 +166,18 @@ module.exports = {
                     newRankIndex = currentRankIndex + 1;
                 } else {
                     return interaction.followUp(`⚠️ **Error:** ${targetUser.tag} ya está en el rango máximo (${RANGOS[currentRankIndex].name}).`);
+                }
+
+                // RESTRICTION: Higher Rank (Level 4 / Junta Directiva) restricted to specific user
+                // ID: 826637667718266880 (Owner/Head)
+                if (newRankIndex === 3) { // Level 4 index
+                    const ALLOWED_PROMOTER = '826637667718266880';
+                    if (interaction.user.id !== ALLOWED_PROMOTER) {
+                        return interaction.followUp({
+                            content: `🛑 **ACCIÓN RESERVADA**\n\nSolo el **Jefe de Staff** (Dueño) puede promover al rango **${RANGOS[newRankIndex].name}**.\nContacta a <@${ALLOWED_PROMOTER}>.`,
+                            flags: [64]
+                        });
+                    }
                 }
             } else if (subcommand === 'degradar') {
                 if (currentRankIndex === -1) {
