@@ -167,19 +167,24 @@ module.exports = {
                 return interaction.editReply(`❌ ${targetUser.tag} no tiene DNI registrado.`);
             }
 
-            // Generate Image
-            const dniImageBuffer = await ImageGenerator.generateDNI(dni);
-            const attachment = new AttachmentBuilder(dniImageBuffer, { name: 'dni.png' });
+            try {
+                // Generate Image
+                const dniImageBuffer = await ImageGenerator.generateDNI(dni);
+                const attachment = new AttachmentBuilder(dniImageBuffer, { name: 'dni.png' });
 
-            const embed = new EmbedBuilder()
-                .setTitle('🪪 Documento Nacional de Identidad')
-                .setColor('#00AAC0')
-                .setDescription(`Documento oficial de identidad de <@${targetUser.id}>`)
-                .setImage('attachment://dni.png')
-                .setFooter({ text: `Registrado: ${new Date(dni.created_at).toLocaleDateString('es-MX')}` })
-                .setTimestamp();
+                const embed = new EmbedBuilder()
+                    .setTitle('🪪 Documento Nacional de Identidad')
+                    .setColor('#00AAC0')
+                    .setDescription(`Documento oficial de identidad de <@${targetUser.id}>`)
+                    .setImage('attachment://dni.png')
+                    .setFooter({ text: `Registrado: ${new Date(dni.created_at).toLocaleDateString('es-MX')}` })
+                    .setTimestamp();
 
-            await interaction.editReply({ embeds: [embed], files: [attachment] });
+                await interaction.editReply({ embeds: [embed], files: [attachment] });
+            } catch (err) {
+                console.error('DNI Gen Error:', err);
+                await interaction.editReply(`❌ Error generando DNI: ${err.message}\n\`\`\`${err.stack}\`\`\``);
+            }
         }
     }
 };
