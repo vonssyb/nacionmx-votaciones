@@ -166,13 +166,74 @@ router.post('/talk', async (req, res) => {
 
 /**
  * POST /api/erlc/vc
- * Comando para mover usuarios (Staff)
+ * Comando para mover usuarios de canal de voz
  * :log vc [abreviacion]
- * (Implementación futura si se requieren abreviaciones específicas, por ahora placeholder)
+ * Ej: :log vc p1 -> Mueve a Policía 1
  */
 router.post('/vc', async (req, res) => {
-    // Lógica para mover usuarios a soporte etc...
-    res.json({ success: true, message: 'VC command endpoint ready' });
+    const { roblox_username, abbreviation, api_key } = req.body;
+
+    if (api_key !== process.env.ERLC_API_KEY) {
+        return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    if (!roblox_username || !abbreviation) {
+        return res.status(400).json({ error: 'Missing data' });
+    }
+
+    try {
+        const { client, supabase } = req.app.locals;
+
+        // 1. Resolver Canal Destino
+        const targetChannelId = voiceConfig.getIdFromAlias(abbreviation);
+        if (!targetChannelId) {
+            return res.status(400).json({ error: `Canal "${abbreviation}" no encontrado` });
+        }
+
+        // 2. Buscar usuario Discord
+        let { data: link } = await supabase
+            .from('roblox_discord_links')
+            .select('discord_user_id')
+            .eq('roblox_username', roblox_username)
+            .maybeSingle();
+
+        if (!link) {
+            const { data: citizen } = await supabase
+                .from('citizens')
+                .select('discord_id')
+                .eq('roblox_username', roblox_username)
+                .maybeSingle();
+            if (citizen) link = { discord_user_id: citizen.discord_id };
+        }
+
+        if (!link) return res.status(404).json({ error: 'Account not linked' });
+
+        const guild = client.guilds.cache.get(process.env.GUILD_ID || '1398525215134318713');
+        if (!guild) return res.status(500).json({ error: 'Guild not found' });
+
+        const member = await guild.members.fetch(link.discord_user_id).catch(() => null);
+        if (!member) return res.status(404).json({ error: 'Discord member not found' });
+
+        // 3. Mover Usuario
+        if (!member.voice.channelId) {
+            return res.status(400).json({ error: 'Debes estar conectado a un canal de voz primero' });
+        }
+
+        await member.voice.setChannel(targetChannelId);
+
+        const channelName = voiceConfig.CHANNELS[targetChannelId];
+        console.log(`[ERLC VC] Moved ${roblox_username} to ${channelName} (${abbreviation})`);
+
+        res.json({
+            success: true,
+            message: `Movido a ${channelName}`,
+            channel: channelName
+        });
+
+    } catch (err) {
+        console.error('[ERLC VC Error]', err);
+        res.status(500).json({ success: false, error: err.message });
+    }
 });
 
 module.exports = router;
