@@ -59,6 +59,14 @@ const CARD_TIERS = {
         limit: 10000000, interest: 2, cost: 150000, max_balance: Infinity, score: 98, tier: 'Platino Elite', color: 0xE5E4E2,
         benefits: ['10 Millones', 'Cashback 10%', 'Jet privado ilimitado']
     },
+    'NMX Esmeralda': {
+        limit: 15000000, interest: 1.5, cost: 200000, max_balance: Infinity, score: 99, tier: 'Esmeralda', color: 0x50C878,
+        benefits: ['15 Millones', 'Cashback 12%', 'Acceso Presidencial']
+    },
+    'NMX Centurion': {
+        limit: 50000000, interest: 1.0, cost: 500000, max_balance: Infinity, score: 100, tier: 'Centurion', color: 0x000000,
+        benefits: ['Sin límites', 'Concierge 24/7', 'Invitación Solamente']
+    },
 
     // CORPORATE
     'NMX Startup': {
