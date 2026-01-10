@@ -479,3 +479,4 @@ async function loginWithRetry(client, token, botName) {
         console.error('💥 FATAL UNIFIED CRASH:', error);
     }
 })();
+console.log('[SYSTEM] Koyeb Log Test: ERLC Persistence System Active');
