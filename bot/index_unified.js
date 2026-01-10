@@ -160,7 +160,7 @@ async function startModerationBot() {
             }
 
             const embed = new EmbedBuilder()
-                .setTitle('🗑️ Mensaje Eliminado')
+                .setTitle('🗑️ Mensaje Eliminado (U)')
                 .setColor('#FF0000')
                 .setAuthor({ name: message.author.tag, iconURL: message.author.displayAvatarURL() })
                 .addFields(
