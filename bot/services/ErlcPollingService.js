@@ -229,30 +229,46 @@ class ErlcPollingService {
     }
 
     async handleTalk(robloxUser, message) {
-        const member = await this.getDiscordMember(robloxUser);
-        if (!member || !member.voice.channelId) return;
+        try {
+            console.log(`[ERLC Service] 🗣️ Processing Talk Command: ${robloxUser} says "${message}"`);
+            const member = await this.getDiscordMember(robloxUser);
+            if (!member || !member.voice.channelId) {
+                console.log(`[ERLC Service] Talk Ignored: User not in VC`);
+                return;
+            }
 
-        const channelId = member.voice.channelId;
-        const channelInfo = voiceConfig.getChannelInfo(channelId); // Whitelist check
+            const channelId = member.voice.channelId;
+            const channelInfo = voiceConfig.getChannelInfo(channelId); // Whitelist check
 
-        if (!channelInfo) return;
+            if (!channelInfo) {
+                console.log(`[ERLC Service] Talk Ignored: Channel ${channelId} not in whitelist`);
+                return;
+            }
 
-        // TTS Logic
-        const stream = discordTTS.getVoiceStream(`${robloxUser} dice: ${message}`, { lang: 'es' });
-        const resource = createAudioResource(stream);
-        const guild = member.guild;
+            // TTS Logic
+            console.log(`[ERLC Service] Generating TTS Stream...`);
+            const stream = discordTTS.getVoiceStream(`${robloxUser} dice: ${message}`, { lang: 'es' });
 
-        let connection = getVoiceConnection(guild.id);
-        if (!connection || connection.joinConfig.channelId !== channelId) {
-            connection = joinVoiceChannel({
-                channelId: channelId,
-                guildId: guild.id,
-                adapterCreator: guild.voiceAdapterCreator,
-            });
+            console.log(`[ERLC Service] Creating Audio Resource...`);
+            const resource = createAudioResource(stream);
+            const guild = member.guild;
+
+            console.log(`[ERLC Service] Joining Voice Channel ${channelId}...`);
+            let connection = getVoiceConnection(guild.id);
+            if (!connection || connection.joinConfig.channelId !== channelId) {
+                connection = joinVoiceChannel({
+                    channelId: channelId,
+                    guildId: guild.id,
+                    adapterCreator: guild.voiceAdapterCreator,
+                });
+            }
+
+            console.log(`[ERLC Service] Enqueueing Audio...`);
+            this.audioQueue.push({ connection, resource });
+            this.processQueue();
+        } catch (error) {
+            console.error(`❌ [ERLC Service] HandleTalk Crash Prevention:`, error);
         }
-
-        this.audioQueue.push({ connection, resource });
-        this.processQueue();
     }
 
     async handleVC(robloxUser, abbreviation) {
