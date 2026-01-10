@@ -411,6 +411,18 @@ async function startGovernmentBot() {
     });
 
     client.on('interactionCreate', async interaction => {
+        // Handle button interactions
+        if (interaction.isButton() && interaction.customId.startsWith('visa_pay_')) {
+            const visaPaymentHandler = require('./handlers/visaPaymentHandler');
+            try {
+                await visaPaymentHandler.execute(interaction, client, interaction.customId);
+            } catch (error) {
+                console.error('[GOV] Visa Payment Error:', error);
+                await interaction.editReply({ content: '❌ Error processing payment.', components: [] }).catch(() => { });
+            }
+            return;
+        }
+
         if (!interaction.isChatInputCommand()) return;
 
         // GLOBAL SAFE DEFER
