@@ -136,8 +136,8 @@ class ErlcPollingService {
 
     async getDiscordMember(robloxUser) {
         // 1. Check Cache
-        if (this.linkCache.has(robloxUser)) {
-            const id = this.linkCache.get(robloxUser);
+        if (this.linkCache.has(robloxUser.toLowerCase())) {
+            const id = this.linkCache.get(robloxUser.toLowerCase());
             const guild = this.client.guilds.cache.get(process.env.GUILD_ID || '1398525215134318713');
             return await guild.members.fetch(id).catch(() => null);
         }
@@ -149,7 +149,7 @@ class ErlcPollingService {
         const { data: link } = await this.supabase
             .from('roblox_discord_links')
             .select('discord_user_id')
-            .eq('roblox_username', robloxUser)
+            .ilike('roblox_username', robloxUser) // Case insensitive
             .maybeSingle();
 
         if (link) discordId = link.discord_user_id;
@@ -159,13 +159,13 @@ class ErlcPollingService {
             const { data: citizen } = await this.supabase
                 .from('citizens')
                 .select('discord_id')
-                .eq('roblox_username', robloxUser)
+                .ilike('roblox_username', robloxUser) // Case insensitive
                 .maybeSingle();
             if (citizen) discordId = citizen.discord_id;
         }
 
         if (discordId) {
-            this.linkCache.set(robloxUser, discordId);
+            this.linkCache.set(robloxUser.toLowerCase(), discordId);
             const guild = this.client.guilds.cache.get(process.env.GUILD_ID || '1398525215134318713');
             return await guild.members.fetch(discordId).catch(() => null);
         }
