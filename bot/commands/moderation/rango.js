@@ -47,8 +47,13 @@ module.exports = {
         .setDefaultMemberPermissions(PermissionFlagsBits.ManageRoles),
 
     async execute(interaction, client, supabase) {
+        console.log(`[DEBUG] /rango Command Triggered by ${interaction.user.tag} | Subcommand: ${interaction.options.getSubcommand()}`);
+
         // Safe Deferral to prevent "Thinking" hang
-        if (!interaction.deferred && !interaction.replied) await interaction.deferReply();
+        if (!interaction.deferred && !interaction.replied) {
+            await interaction.deferReply();
+            console.log(`[DEBUG] /rango Deferred Successfully`);
+        }
 
 
         // --- CONFIGURATION ---
@@ -433,7 +438,17 @@ module.exports = {
                 } else {
                     // 2. Fallback: Auto-Discovery via Roblox API
                     // Try to find the user on Roblox using their Clean Discord Name
-                    const cleanUser = cleanName.replace(/[^a-zA-Z0-9_]/g, '');
+                    let cleanUser = cleanName.replace(/[^a-zA-Z0-9_]/g, '');
+
+                    // SPECIAL CASE: If nickname has format like "ST-002" or "AD-123", extract just the second part
+                    // This handles staff members who got CK'd or have special prefixes
+                    if (cleanName.includes('-')) {
+                        const parts = cleanName.split('-');
+                        if (parts.length >= 2) {
+                            cleanUser = parts[1].replace(/[^a-zA-Z0-9_]/g, ''); // Take second part (e.g., "002")
+                            console.log(`[DEBUG] Extracted Roblox username from staff nickname: ${cleanName} -> ${cleanUser}`);
+                        }
+                    }
 
                     try {
                         const RobloxService = require('../../services/RobloxService');
@@ -462,6 +477,7 @@ module.exports = {
                     } catch (apiErr) {
                         console.error('Roblox Lookup Failed:', apiErr);
                         robloxName = cleanUser;
+
                     }
                 }
 
