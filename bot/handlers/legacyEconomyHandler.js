@@ -5673,6 +5673,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
     }
     */
 
+    /* MIGRATED TO bot/commands/economy/crimen.js
     else if (commandName === 'crimen') {
         if (!interaction.deferred && !interaction.replied) await interaction.deferReply();
 
@@ -5938,7 +5939,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 }
             });
         }
-    } else if (commandName === 'bolsa') {
+    } */ else if (commandName === 'bolsa') {
         // DEFER REMOVED BY AUDIT
         const subCmd = interaction.options.getSubcommand();
 
