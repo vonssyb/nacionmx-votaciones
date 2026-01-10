@@ -4,7 +4,8 @@ const { joinVoiceChannel, createAudioPlayer, createAudioResource, AudioPlayerSta
 const discordTTS = require('discord-tts');
 
 // Mapeo simple para evitar duplicados. Guardaremos Timestamp del último log procesado.
-let lastTimestamp = Math.floor(Date.now() / 1000); // Iniciar ignorando logs viejos al arrancar
+// Start looking 60 seconds back to catch commands sent during restart/boot
+let lastTimestamp = Math.floor(Date.now() / 1000) - 60;
 
 class ErlcPollingService {
     constructor(client, supabase) {
@@ -24,7 +25,7 @@ class ErlcPollingService {
     }
 
     start() {
-        console.log('🚀 [ERLC Service] Starting Command Log Polling...');
+        console.log(`🚀 [ERLC Service] Starting Command Log Polling... (Filter Time: ${lastTimestamp})`);
         // No fetchLogs user immediately to avoid processing old logs if logic isn't perfect
         this.interval = setInterval(() => this.fetchLogs(), this.pollingRate);
     }
@@ -52,12 +53,23 @@ class ErlcPollingService {
             logs.sort((a, b) => a.Timestamp - b.Timestamp);
 
             let newLogs = [];
+            let debugLogCount = 0;
 
             for (const log of logs) {
                 // Solo procesar logs NUEVOS (Timestamp > lastTimestamp)
                 if (log.Timestamp > lastTimestamp) {
                     newLogs.push(log);
+                } else {
+                    // DEBUG: Loguear solo el primero ignorado para no spam
+                    if (debugLogCount === 0) {
+                        // console.log(`[ERLC DEBUG] Ignored Old Log: ${log.Command} (${log.Timestamp} <= ${lastTimestamp})`);
+                    }
+                    debugLogCount++;
                 }
+            }
+
+            if (newLogs.length > 0) {
+                console.log(`[ERLC Service] Processing ${newLogs.length} new logs...`);
             }
 
             // Procesar nuevos
@@ -84,7 +96,7 @@ class ErlcPollingService {
         // "vonssyb:2482237280" -> "vonssyb"
         const robloxUser = rawPlayer.split(':')[0];
 
-        console.log(`[ERLC Service] New Command: ${robloxUser} -> ${content}`);
+        console.log(`[ERLC Service] 📥 Processing Command: User="${robloxUser}" Cmd="${content}" RawPlayer="${rawPlayer}"`);
 
         if (content.toLowerCase().startsWith(':log talk ')) {
             const message = content.substring(10).trim();
