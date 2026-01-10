@@ -1,6 +1,5 @@
 const { Client, GatewayIntentBits } = require('discord.js');
 const { joinVoiceChannel, createAudioPlayer, createAudioResource, StreamType, AudioPlayerStatus, getVoiceConnection } = require('@discordjs/voice');
-const googleTTS = require('google-tts-api');
 
 class VoiceSwarmService {
     constructor(tokens) {
@@ -103,42 +102,54 @@ class VoiceSwarmService {
     async executeVoiceTask(worker, guildId, channelId, text) {
         worker.busy = true;
         try {
+            console.log(`🐝 [VoiceSwarm] ${worker.tag} - Fetching guild...`);
             const guild = await worker.client.guilds.fetch(guildId).catch(() => null);
             if (!guild) {
                 console.error(`[VoiceSwarm] Worker ${worker.tag} cannot find guild ${guildId}`);
                 return;
             }
 
+            console.log(`🐝 [VoiceSwarm] ${worker.tag} - Connecting to channel ${channelId}...`);
             // Connection Logic (Robust)
             const connection = await this.ensureConnection(worker, guild, channelId);
-            if (!connection) return;
-
-            // Generate TTS
-            const url = googleTTS.getAudioUrl(text, {
-                lang: 'es',
-                slow: false,
-                host: 'https://translate.google.com',
-            });
-            const resource = createAudioResource(url, { inputType: StreamType.Arbitrary });
-            const player = createAudioPlayer();
-
-            // Subscribe
-            const subscription = connection.subscribe(player);
-            if (subscription) {
-                // setTimeout(() => subscription.unsubscribe(), 15_000); // Auto-cleanup subscription?
+            if (!connection) {
+                console.error(`🐝 [VoiceSwarm] ${worker.tag} - Connection failed`);
+                return;
             }
 
+            console.log(`🐝 [VoiceSwarm] ${worker.tag} - Generating TTS for: "${text}"`);
+            // Generate TTS using discord-tts (more reliable than google-tts-api)
+            const discordTTS = require('discord-tts');
+            const stream = discordTTS.getVoiceStream(text, { lang: 'es' });
+            const resource = createAudioResource(stream);
+            const player = createAudioPlayer();
+
+            console.log(`🐝 [VoiceSwarm] ${worker.tag} - Subscribing player to connection...`);
+            // Subscribe
+            const subscription = connection.subscribe(player);
+            if (!subscription) {
+                console.error(`🐝 [VoiceSwarm] ${worker.tag} - Failed to subscribe player`);
+                return;
+            }
+
+            console.log(`🐝 [VoiceSwarm] ${worker.tag} - Playing audio...`);
             player.play(resource);
 
             // Wait for finish
             await new Promise((resolve) => {
-                player.on(AudioPlayerStatus.Idle, () => resolve());
+                player.on(AudioPlayerStatus.Idle, () => {
+                    console.log(`🐝 [VoiceSwarm] ✅ ${worker.tag} - Finished playing`);
+                    resolve();
+                });
                 player.on('error', (err) => {
                     console.error(`[VoiceSwarm] Player error on ${worker.tag}:`, err.message);
                     resolve();
                 });
                 // Safety timeout 10s
-                setTimeout(resolve, 10000);
+                setTimeout(() => {
+                    console.warn(`🐝 [VoiceSwarm] ${worker.tag} - Timeout (10s)`);
+                    resolve();
+                }, 10000);
             });
 
         } catch (error) {
