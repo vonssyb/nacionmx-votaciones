@@ -13,8 +13,18 @@
         "legacy:eco": "node legacy/index_economia.js",
         "legacy:mod": "node legacy/index_moderacion.js"
     },
+    "scripts": {
+        "start": "node index_unified.js",
+        "dev": "nodemon index_unified.js",
+        "deploy:mod": "node register_moderacion.js",
+        "deploy:eco": "node register_economia.js",
+        "deploy:gov": "node register_gobierno.js",
+        "legacy:gov": "node legacy/index_gobierno.js",
+        "legacy:eco": "node legacy/index_economia.js",
+        "legacy:mod": "node legacy/index_moderacion.js"
+    },
     "dependencies": {
-        "@discordjs/voice": "^0.19.0",
+        "@discordjs/voice": "0.17.0",
         "@napi-rs/canvas": "^0.1.88",
         "@supabase/supabase-js": "^2.88.0",
         "axios": "^1.13.2",
