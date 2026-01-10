@@ -11,6 +11,22 @@ const CARD_TIERS = {
         limit: 0, interest: 0, cost: 100, max_balance: 50000, score: 0, tier: 'Débito', color: 0x808080,
         benefits: ['Cuenta básica', 'Transferencias gratis', 'Soporte estándar']
     },
+    'NMX Débito Plus': {
+        limit: 0, interest: 0, cost: 5000, max_balance: 250000, score: 10, tier: 'Débito', color: 0x32CD32,
+        benefits: ['Límite aumentado', 'Retiros gratis', 'Atención preferente']
+    },
+    'NMX Débito Gold': {
+        limit: 0, interest: 0, cost: 20000, max_balance: 1000000, score: 20, tier: 'Débito', color: 0xFFD700,
+        benefits: ['Límite alto', 'Seguro de fondos', 'Concierge básico']
+    },
+    'NMX Start': {
+        limit: 15000, interest: 15, cost: 2000, max_balance: Infinity, score: 30, tier: 'Start', color: 0xCD7F32,
+        benefits: ['Primer crédito', 'Construye historial', 'Sin anualidad']
+    },
+    'NMX Básica': {
+        limit: 30000, interest: 12, cost: 4000, max_balance: Infinity, score: 40, tier: 'Básica', color: 0x4682B4,
+        benefits: ['Crédito personal', 'Interés moderado', 'Descuentos básicos']
+    },
     'NMX Plus': {
         limit: 50000, interest: 10, cost: 6000, max_balance: Infinity, score: 50, tier: 'Plus', color: 0x32CD32,
         benefits: ['Límite superior', 'Cashback 2%', 'Protección de compras']
@@ -22,6 +38,10 @@ const CARD_TIERS = {
     'NMX Oro': {
         limit: 500000, interest: 5, cost: 25000, max_balance: Infinity, score: 75, tier: 'Gold', color: 0xFFD700,
         benefits: ['1 Medio Millón', 'Cashback 5%', 'Seguro de viajes']
+    },
+    'NMX Rubí': {
+        limit: 750000, interest: 4.5, cost: 35000, max_balance: Infinity, score: 80, tier: 'Rubí', color: 0xE0115F,
+        benefits: ['Límite extendido', 'Cashback 5.5%', 'Salas VIP (4/año)']
     },
     'NMX Platino': {
         limit: 1000000, interest: 4, cost: 50000, max_balance: Infinity, score: 85, tier: 'Platinum', color: 0xE5E4E2,
