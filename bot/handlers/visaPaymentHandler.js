@@ -121,14 +121,14 @@ module.exports = {
             const { data: visaNumberResult } = await supabase.rpc('generate_us_visa_number');
             const visaNumber = visaNumberResult;
 
-            // Calculate expiration
+            // Calculate expiration: 30 days for all except residente (null = permanent)
             let expirationDate = null;
-            if (VISA_DURATIONS[visaType]) {
+            if (visaType !== 'residente') {
                 expirationDate = new Date();
-                expirationDate.setDate(expirationDate.getDate() + VISA_DURATIONS[visaType]);
+                expirationDate.setDate(expirationDate.getDate() + 30); // 1 month
             }
 
-            // Create visa
+            // Create visa with renewal information
             const { data: newVisa, error: visaError } = await supabase
                 .from('us_visas')
                 .insert({
@@ -140,7 +140,10 @@ module.exports = {
                     expiration_date: expirationDate,
                     status: 'active',
                     approved_by: interaction.user.id,
-                    approved_by_tag: interaction.user.tag
+                    approved_by_tag: interaction.user.tag,
+                    renewable: true,
+                    renewal_cost: cost, // Renewal costs the same as original
+                    times_renewed: 0
                 })
                 .select()
                 .single();

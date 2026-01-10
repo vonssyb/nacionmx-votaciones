@@ -6,10 +6,15 @@ CREATE TABLE IF NOT EXISTS us_visas (
     citizen_dni_id BIGINT REFERENCES citizen_dni(id) ON DELETE CASCADE,
     visa_type TEXT NOT NULL CHECK (visa_type IN ('turista', 'trabajo', 'estudiante', 'residente')),
     visa_number TEXT UNIQUE NOT NULL,
-    expiration_date TIMESTAMPTZ,
-    status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'revoked', 'expired')),
+    expiration_date TIMESTAMPTZ, -- NULL = indefinido (residente), 1 mes para demás
+    status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'expired', 'revoked')),
     approved_by TEXT,
     approved_by_tag TEXT,
+    renewable BOOLEAN DEFAULT true,
+    renewal_cost BIGINT, -- Costo de renovación (mismo que costo original)
+    times_renewed INT DEFAULT 0,
+    issued_by_company BIGINT, -- ID de empresa que emitió visa de trabajo
+    auto_renew BOOLEAN DEFAULT false,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
     UNIQUE(guild_id, user_id, visa_type)
