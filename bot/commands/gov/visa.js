@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, EmbedBuilder, AttachmentBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, AttachmentBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
 const ImageGenerator = require('../../utils/ImageGenerator');
 
 // Visa costs (automatically charged)
@@ -9,64 +9,16 @@ const VISA_COSTS = {
     residente: 150000
 };
 
-// Visa durations (in days)
-const VISA_DURATIONS = {
-    turista: 90,
-    trabajo: 180,
-    estudiante: 365,
-    residente: null // Permanent
-};
-
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('visa')
-        .setDescription('🇺🇸 US Visa System (USCIS Only)')
-        .addSubcommand(sub => sub
-            .setName('solicitar')
-            .setDescription('Solicitar una Visa de EE.UU. (Requiere DNI Mexicano)')
-            .addStringOption(opt => opt
-                .setName('tipo')
-                .setDescription('Tipo de visa')
-                .setRequired(true)
-                .addChoices(
-                    { name: '🛂 Turista (B-2)', value: 'turista' },
-                    { name: '💼 Trabajo (H-1B)', value: 'trabajo' },
-                    { name: '📚 Estudiante (F-1)', value: 'estudiante' },
-                    { name: '🏠 Residente (Green Card)', value: 'residente' }
-                ))
-            .addStringOption(opt => opt
-                .setName('motivo')
-                .setDescription('¿Por qué solicitas esta visa? (Mín. 10 caracteres)')
-                .setRequired(true)
-                .setMinLength(10)))
+        .setDescription('🇺🇸 US Visa System')
         .addSubcommand(sub => sub
             .setName('ver')
-            .setDescription('Ver tu visa actual o estado de solicitud'))
-        .addSubcommand(sub => sub
-            .setName('aprobar')
-            .setDescription('Aprobar una solicitud de visa - USCIS Only')
-            .addStringOption(opt => opt
-                .setName('id')
-                .setDescription('ID de la solicitud')
-                .setRequired(true))
-            .addStringOption(opt => opt
-                .setName('notas')
-                .setDescription('Notas de aprobación')
-                .setRequired(false)))
-        .addSubcommand(sub => sub
-            .setName('rechazar')
-            .setDescription('Rechazar una solicitud de visa - USCIS Only')
-            .addStringOption(opt => opt
-                .setName('id')
-                .setDescription('ID de la solicitud')
-                .setRequired(true))
-            .addStringOption(opt => opt
-                .setName('motivo')
-                .setDescription('Motivo del rechazo')
-                .setRequired(true)))
+            .setDescription('Ver tu visa actual'))
         .addSubcommand(sub => sub
             .setName('otorgar')
-            .setDescription('Otorgar visa directamente (Saltar solicitud) - USCIS Only')
+            .setDescription('Otorgar visa - USCIS Only')
             .addUserOption(opt => opt
                 .setName('usuario')
                 .setDescription('Usuario a otorgar')
@@ -83,7 +35,7 @@ module.exports = {
                 )))
         .addSubcommand(sub => sub
             .setName('revocar')
-            .setDescription('Revocar una visa - USCIS/Admin only')
+            .setDescription('Revocar una visa - USCIS only')
             .addUserOption(opt => opt
                 .setName('usuario')
                 .setDescription('Usuario a revocar')
@@ -91,300 +43,35 @@ module.exports = {
             .addStringOption(opt => opt
                 .setName('razon')
                 .setDescription('Motivo de revocación')
-                .setRequired(true)))
-        .addSubcommand(sub => sub
-            .setName('solicitudes')
-            .setDescription('Ver solicitudes de visa pendientes - USCIS only')),
+                .setRequired(true))),
 
     async execute(interaction, client, supabase) {
-        // await interaction.deferReply({ flags: [64] });
-
         const subCmd = interaction.options.getSubcommand();
         const AMERICAN_ROLE_ID = process.env.AMERICAN_ROLE_ID || '1457950212923461632';
         const USCIS_ROLE_ID = process.env.USCIS_ROLE_ID || '1457949662181851415';
-        const BillingService = require('../../services/BillingService');
 
-        // Check USCIS permissions for staff commands
+        // Check USCIS permissions (only for otorgar and revocar)
         const isUSCIS = interaction.member.roles.cache.has(USCIS_ROLE_ID) || interaction.member.permissions.has('Administrator');
 
-        if (['aprobar', 'rechazar', 'otorgar', 'revocar', 'solicitudes'].includes(subCmd) && !isUSCIS) {
+        if (['otorgar', 'revocar'].includes(subCmd) && !isUSCIS) {
             return interaction.editReply({
-                content: `❌ **Acceso Denegado**\n\nSolo el personal de USCIS puede usar este comando.`,
+                content: `❌ **Acceso Denegado**\n\nSolo el personal de USCIS (<@&${USCIS_ROLE_ID}>) puede usar este comando.`,
                 flags: [64]
             });
         }
 
-        // SOLICITAR - Create a visa request
-        if (subCmd === 'solicitar') {
-            const visaType = interaction.options.getString('tipo');
-            const reason = interaction.options.getString('motivo');
-
-            // 1. Check if user already has an active visa
-            const { data: activeVisa } = await supabase
-                .from('us_visas')
-                .select('id')
-                .eq('guild_id', interaction.guildId)
-                .eq('user_id', interaction.user.id)
-                .eq('status', 'active')
-                .maybeSingle();
-
-            if (activeVisa) {
-                return interaction.editReply({
-                    content: '❌ **Ya tienes una Visa Activa**\n\nNo puedes solicitar otra mientras tengas una vigente. Usa `/visa ver` para detalles.',
-                    flags: [64]
-                });
-            }
-
-            // 2. Check if user already has a pending request
-            const { data: pendingReq } = await supabase
-                .from('visa_requests')
-                .select('id')
-                .eq('guild_id', interaction.guildId)
-                .eq('user_id', interaction.user.id)
-                .eq('status', 'pending')
-                .maybeSingle();
-
-            if (pendingReq) {
-                return interaction.editReply({
-                    content: '❌ **Solicitud en Trámite**\n\nYa tienes una solicitud de visa pendiente. Por favor espera a que USCIS la revise.',
-                    flags: [64]
-                });
-            }
-
-            // 3. Check for DNI
-            const { data: dni } = await supabase
-                .from('citizen_dni')
-                .select('id')
-                .eq('guild_id', interaction.guildId)
-                .eq('user_id', interaction.user.id)
-                .maybeSingle();
-
-            if (!dni) {
-                return interaction.editReply({
-                    content: '❌ **DNI Requerido**\n\nDebes tener un DNI Mexicano para solicitar una visa de EE.UU. Usa `/dni crear`.',
-                    flags: [64]
-                });
-            }
-
-            // 4. Create request
-            const { error: insertError } = await supabase
-                .from('visa_requests')
-                .insert({
-                    guild_id: interaction.guildId,
-                    user_id: interaction.user.id,
-                    user_tag: interaction.user.tag,
-                    citizen_dni_id: dni.id,
-                    visa_type: visaType,
-                    reason: reason
-                });
-
-            if (insertError) {
-                console.error('[visa solicitar] Error:', insertError);
-                return interaction.editReply('❌ Error al procesar tu solicitud. Intenta de nuevo.');
-            }
-
-            const embed = new EmbedBuilder()
-                .setTitle('🛂 Solicitud de Visa Enviada')
-                .setColor('#002868')
-                .setDescription(`Tu solicitud para una visa de **${visaType.toUpperCase()}** ha sido enviada a USCIS.`)
-                .addFields(
-                    { name: 'Motivo', value: reason },
-                    { name: 'Estado', value: '⏳ Pendiente de revisión' }
-                )
-                .setFooter({ text: 'Nación MX | USCIS Office' })
-                .setTimestamp();
-
-            await interaction.editReply({ embeds: [embed] });
-
-            // Notify staff (Optional: Use special channel if configured)
-            const USCIS_LOGS_CHANNEL = '1457583225085100283'; // Police/Gov logs
-            try {
-                const logs = await client.channels.fetch(USCIS_LOGS_CHANNEL);
-                if (logs) {
-                    await logs.send({
-                        content: `🔔 **NUEVA SOLICITUD DE VISA**\nUsuario: <@${interaction.user.id}> (${interaction.user.tag})\nTipo: \`${visaType}\`\nUsa \`/visa solicitudes\` para gestionar.`
-                    });
-                }
-            } catch (e) { }
-        }
-
-        // SOLICITUDES - List pending requests for staff
-        else if (subCmd === 'solicitudes') {
-            const { data: requests, error } = await supabase
-                .from('pending_visa_requests')
-                .select('*');
-
-            if (error) {
-                return interaction.editReply('❌ Error al obtener solicitudes.');
-            }
-
-            if (!requests || requests.length === 0) {
-                return interaction.editReply('✅ No hay solicitudes de visa pendientes.');
-            }
-
-            const embed = new EmbedBuilder()
-                .setTitle('📋 Solicitudes de Visa Pendientes')
-                .setColor('#002868')
-                .setDescription('Lista de usuarios esperando aprobación de USCIS.');
-
-            requests.slice(0, 10).forEach(req => {
-                embed.addFields({
-                    name: `${req.nombre} ${req.apellido} (@${req.user_tag})`,
-                    value: `**Tipo:** ${req.visa_type.toUpperCase()}\n**Motivo:** ${req.reason}\n**ID:** \`${req.id.substring(0, 8)}\``,
-                    inline: false
-                });
-            });
-
-            embed.setFooter({ text: 'Usa /visa aprobar [id] o /visa rechazar [id]' });
-
-            await interaction.editReply({ embeds: [embed] });
-        }
-
-        // APROBAR - Approve a pending request
-        else if (subCmd === 'aprobar') {
-            const requestIdPrefix = interaction.options.getString('id');
-            const notes = interaction.options.getString('notas') || 'Aprobada por USCIS';
-
-            // Find request by ID prefix
-            const { data: request } = await supabase
-                .from('visa_requests')
-                .select('*, citizen_dni(*)')
-                .eq('guild_id', interaction.guildId)
-                .eq('status', 'pending')
-                .ilike('id', `${requestIdPrefix}%`)
-                .maybeSingle();
-
-            if (!request) {
-                return interaction.editReply(`❌ No se encontró una solicitud pendiente con ID que empiece por \`${requestIdPrefix}\`.`);
-            }
-
-            const targetUser = await client.users.fetch(request.user_id);
-            const targetMember = await interaction.guild.members.fetch(request.user_id);
-            const visaType = request.visa_type;
-            const cost = VISA_COSTS[visaType];
-
-            // 1. Process Payment
-            try {
-                const BillingService = require('../../services/BillingService');
-                await BillingService.charge(interaction.guildId, request.user_id, cost, `Visa Approval: ${visaType}`);
-            } catch (err) {
-                return interaction.editReply(`❌ **Error de Pago:** El usuario no tiene $${cost.toLocaleString()} suficientes.`);
-            }
-
-            // 2. Generate Visa Number
-            const { data: visaNum } = await supabase.rpc('generate_us_visa_number');
-
-            // 3. Calculate Expiration
-            const duration = VISA_DURATIONS[visaType];
-            const expirationDate = duration ? new Date(Date.now() + duration * 24 * 60 * 60 * 1000).toISOString() : null;
-
-            // 4. Create Visa
-            const { data: newVisa } = await supabase.from('us_visas').insert({
-                guild_id: interaction.guildId,
-                user_id: request.user_id,
-                citizen_dni_id: request.citizen_dni_id,
-                visa_type: visaType,
-                visa_number: visaNum || `USA-${Math.floor(Math.random() * 9000) + 1000}-${new Date().getFullYear()}`,
-                expiration_date: expirationDate,
-                approved_by: interaction.user.id,
-                approved_by_tag: interaction.user.tag,
-                notes: notes
-            }).select().single();
-
-            // 5. Update Request
-            await supabase.from('visa_requests').update({
-                status: 'approved',
-                reviewed_by: interaction.user.id,
-                reviewed_by_tag: interaction.user.tag,
-                reviewed_at: new Date().toISOString(),
-                review_notes: notes
-            }).eq('id', request.id);
-
-            // 6. Give American Role
-            try {
-                await targetMember.roles.add(AMERICAN_ROLE_ID);
-            } catch (e) { }
-
-            // Prepare data for generator
-            const visaData = {
-                ...newVisa,
-                nombre: request.citizen_dni?.nombre || 'Unknown',
-                apellido: request.citizen_dni?.apellido || 'Unknown',
-                nombre_completo: `${request.citizen_dni?.nombre || ''} ${request.citizen_dni?.apellido || ''}`.trim(),
-                foto_url: request.citizen_dni?.foto_url
-            };
-
-            const visaImageBuffer = await ImageGenerator.generateVisa(visaData);
-            const attachment = new AttachmentBuilder(visaImageBuffer, { name: 'visa.png' });
-
-            const embed = new EmbedBuilder()
-                .setTitle('✅ Visa Aprobada')
-                .setColor('#2ECC71')
-                .setImage('attachment://visa.png')
-                .addFields(
-                    { name: '👤 Usuario', value: `<@${request.user_id}>`, inline: true },
-                    { name: '🛂 Tipo', value: visaType.toUpperCase(), inline: true },
-                    { name: '🎫 Número', value: `\`${visaNum || newVisa.visa_number}\``, inline: true },
-                    { name: '💰 Costo Cobrado', value: `$${cost.toLocaleString()}`, inline: true }
-                )
-                .setTimestamp();
-
-            await interaction.editReply({ embeds: [embed], files: [attachment] });
-
-            // DM User
-            try {
-                await targetUser.send(`🇺🇸 **¡Tu Visa ha sido aprobada!**\nYa tienes el rol Americano. Usa \`/visa ver\` para detalles.`);
-            } catch (e) { }
-        }
-
-        // RECHAZAR - Reject a pending request
-        else if (subCmd === 'rechazar') {
-            const requestIdPrefix = interaction.options.getString('id');
-            const reason = interaction.options.getString('motivo');
-
-            const { data: request } = await supabase
-                .from('visa_requests')
-                .select('*')
-                .eq('guild_id', interaction.guildId)
-                .eq('status', 'pending')
-                .ilike('id', `${requestIdPrefix}%`)
-                .maybeSingle();
-
-            if (!request) {
-                return interaction.editReply(`❌ No se encontró solicitud con ID \`${requestIdPrefix}\`.`);
-            }
-
-            await supabase.from('visa_requests').update({
-                status: 'rejected',
-                reviewed_by: interaction.user.id,
-                reviewed_by_tag: interaction.user.tag,
-                reviewed_at: new Date().toISOString(),
-                review_notes: reason
-            }).eq('id', request.id);
-
-            await interaction.editReply(`✅ Solicitud de <@${request.user_id}> rechazada por: ${reason}`);
-
-            // DM User
-            try {
-                const targetUser = await client.users.fetch(request.user_id);
-                await targetUser.send(`❌ **Tu solicitud de Visa ha sido rechazada**\nMotivo: ${reason}`);
-            } catch (e) { }
-        }
-
-        // OTORGAR - Grant visa (with automatic payment)
-        else if (subCmd === 'otorgar') {
+        // OTORGAR - Grant visa directly (USCIS Only)
+        if (subCmd === 'otorgar') {
             const targetUser = interaction.options.getUser('usuario');
-            const targetMember = await interaction.guild.members.fetch(targetUser.id);
             const visaType = interaction.options.getString('tipo');
             const cost = VISA_COSTS[visaType];
+
+            const targetMember = await interaction.guild.members.fetch(targetUser.id);
 
             // Check if user already has American role
             if (targetMember.roles.cache.has(AMERICAN_ROLE_ID)) {
                 return interaction.editReply({
-                    content: `❌ **Already American**
-
-${targetUser.tag} already has the American role.
-Use \`/visa ver\` to check their visa status.`,
+                    content: `❌ **Already American**\n\n${targetUser.tag} already has the American role.\nUse \`/visa ver\` to check their visa status.`,
                     flags: [64]
                 });
             }
@@ -399,10 +86,7 @@ Use \`/visa ver\` to check their visa status.`,
 
             if (!dni) {
                 return interaction.editReply({
-                    content: `❌ **DNI Required**
-
-${targetUser.tag} needs a Mexican DNI first.
-They must create one with \`/dni crear\``,
+                    content: `❌ **DNI Required**\n\n${targetUser.tag} needs a Mexican DNI first.\nThey must create one with \`/dni crear\``,
                     flags: [64]
                 });
             }
@@ -421,21 +105,12 @@ They must create one with \`/dni crear\``,
 
             if (totalAvailable < cost) {
                 return interaction.editReply({
-                    content: `❌ **Insufficient Funds**
-
-${targetUser.tag} doesn't have enough money for this visa.
-
-**Required:** $${cost.toLocaleString()}
-**Available:** $${totalAvailable.toLocaleString()} (Bank + Cash + Credit)
-
-They need $${(cost - totalAvailable).toLocaleString()} more.`,
+                    content: `❌ **Insufficient Funds**\n\n${targetUser.tag} doesn't have enough money for this visa.\n\n**Required:** $${cost.toLocaleString()}\n**Available:** $${totalAvailable.toLocaleString()} (Bank + Cash + Credit)\n\nThey need $${(cost - totalAvailable).toLocaleString()} more.`,
                     flags: [64]
                 });
             }
 
             // Show payment method selection
-            const { ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
-
             const paymentButtons = new ActionRowBuilder().addComponents(
                 new ButtonBuilder()
                     .setCustomId(`visa_pay_bank_${targetUser.id}_${visaType}_${cost}`)
@@ -470,7 +145,7 @@ They need $${(cost - totalAvailable).toLocaleString()} more.`,
                         inline: false
                     }
                 )
-                .setFooter({ text: 'Select a payment method • 60 second timeout' })
+                .setFooter({ text: 'Select a payment method • 30 second timeout' })
                 .setTimestamp();
 
             const reply = await interaction.editReply({
@@ -478,15 +153,14 @@ They need $${(cost - totalAvailable).toLocaleString()} more.`,
                 components: [paymentButtons]
             });
 
-            // Collector for button interaction
+            // Collector for button interaction (30 seconds)
             const collector = reply.createMessageComponentCollector({
-                time: 60000,
+                time: 30000,
                 filter: i => i.user.id === interaction.user.id
             });
 
             collector.on('collect', async (buttonInteraction) => {
-                // Payment handling is done in legacyEconomyHandler.js or a new handler
-                // For now, acknowledge the button
+                // Payment handling is done in visaPaymentHandler.js
                 await buttonInteraction.deferUpdate();
             });
 
@@ -505,131 +179,83 @@ They need $${(cost - totalAvailable).toLocaleString()} more.`,
         else if (subCmd === 'ver') {
             const { data: visa } = await supabase
                 .from('us_visas')
-                .select('*, citizen_dni(*)')
-                .eq('guild_id', interaction.guildId)
+                .select('*')
                 .eq('user_id', interaction.user.id)
                 .eq('status', 'active')
                 .maybeSingle();
 
             if (!visa) {
                 return interaction.editReply({
-                    content: `❌ **No Active Visa**
-
-You don't have an active US visa.
-
-Contact USCIS to request one via ticket.`,
+                    content: '❌ **No Active Visa**\n\nYou don\'t have an active US visa.',
                     flags: [64]
                 });
             }
 
-            // Prepare data for generator
+            const { data: dni } = await supabase
+                .from('citizen_dni')
+                .select('nombre, apellido, foto_url')
+                .eq('id', visa.citizen_dni_id)
+                .single();
+
+            // Generate visa image
             const visaData = {
                 ...visa,
-                nombre: visa.citizen_dni?.nombre || 'Unknown',
-                apellido: visa.citizen_dni?.apellido || 'Unknown',
-                nombre_completo: `${visa.citizen_dni?.nombre || ''} ${visa.citizen_dni?.apellido || ''}`.trim() || 'Unknown',
-                foto_url: visa.citizen_dni?.foto_url || interaction.user.displayAvatarURL({ extension: 'png' })
+                nombre: dni.nombre,
+                apellido: dni.apellido,
+                nombre_completo: `${dni.nombre} ${dni.apellido}`,
+                foto_url: dni.foto_url || interaction.user.displayAvatarURL({ extension: 'png', size: 512 })
             };
 
             const visaImageBuffer = await ImageGenerator.generateVisa(visaData);
             const attachment = new AttachmentBuilder(visaImageBuffer, { name: 'visa.png' });
 
             const embed = new EmbedBuilder()
-                .setTitle('🇺🇸 United States Visa')
-                .setColor('#3C3B6E')
-                .setDescription(`Official US Visa Document for <@${interaction.user.id}>`)
+                .setTitle('🇺🇸 Your US Visa')
+                .setColor('#002868')
                 .setImage('attachment://visa.png')
-                .setFooter({ text: 'United States of America - USCIS' })
+                .addFields(
+                    { name: '📋 Type', value: visa.visa_type.charAt(0).toUpperCase() + visa.visa_type.slice(1), inline: true },
+                    { name: '🎫 Visa Number', value: `\`${visa.visa_number}\``, inline: true },
+                    { name: '⏰ Expires', value: visa.expiration_date ? new Date(visa.expiration_date).toLocaleDateString() : 'Permanent', inline: false }
+                )
                 .setTimestamp();
 
             await interaction.editReply({ embeds: [embed], files: [attachment] });
         }
 
-        // LISTAR - List visas
-        else if (subCmd === 'listar') {
-            const { data: visas } = await supabase
-                .from('active_us_visas')
-                .select('*')
-                .eq('guild_id', interaction.guildId)
-                .order('issued_date', { ascending: false })
-                .limit(20);
-
-            if (!visas || visas.length === 0) {
-                return interaction.editReply({
-                    content: `📭 **No Active Visas**
-
-There are no active US visas.`,
-                    flags: [64]
-                });
-            }
-
-            const embed = new EmbedBuilder()
-                .setTitle('📋 Active US Visas')
-                .setColor('#3C3B6E')
-                .setDescription(`Total: **${visas.length}** active visa(s)`)
-                .setTimestamp();
-
-            visas.slice(0, 10).forEach(visa => {
-                const expires = visa.expiration_date ? new Date(visa.expiration_date).toLocaleDateString() : 'Permanent';
-                embed.addFields({
-                    name: `${visa.nombre} ${visa.apellido} - ${visa.visa_type}`,
-                    value: `Visa: \`${visa.visa_number}\`
-Expires: ${expires}
-User: <@${visa.user_id}>`,
-                    inline: false
-                });
-            });
-
-            await interaction.editReply({ embeds: [embed] });
-        }
-
-        // REVOCAR - Revoke visa
+        // REVOCAR - Revoke a visa
         else if (subCmd === 'revocar') {
             const targetUser = interaction.options.getUser('usuario');
-            const targetMember = await interaction.guild.members.fetch(targetUser.id);
             const reason = interaction.options.getString('razon');
 
-            const { data: visa } = await supabase
+            const { data: visa, error: visaError } = await supabase
                 .from('us_visas')
-                .select('*')
-                .eq('guild_id', interaction.guildId)
+                .update({ status: 'revoked' })
                 .eq('user_id', targetUser.id)
                 .eq('status', 'active')
+                .select()
                 .maybeSingle();
 
-            if (!visa) {
-                return interaction.editReply({
-                    content: `❌ **No Active Visa**
-
-${targetUser.tag} doesn't have an active visa to revoke.`,
-                    flags: [64]
-                });
+            if (visaError || !visa) {
+                return interaction.editReply(`❌ ${targetUser.tag} does not have an active visa.`);
             }
-
-            // Revoke visa
-            await supabase
-                .from('us_visas')
-                .update({
-                    status: 'revoked',
-                    revoked_by: interaction.user.id,
-                    revoked_reason: reason,
-                    revoked_at: new Date().toISOString()
-                })
-                .eq('id', visa.id);
 
             // Remove American role
             try {
+                const targetMember = await interaction.guild.members.fetch(targetUser.id);
                 await targetMember.roles.remove(AMERICAN_ROLE_ID);
-            } catch (roleError) {
-                console.error('[visa revocar] Role error:', roleError);
+            } catch (e) {
+                console.error('[visa revocar] Role error:', e);
             }
 
             const embed = new EmbedBuilder()
-                .setTitle('⛔ Visa Revoked')
+                .setTitle('🚫 US Visa Revoked')
                 .setColor('#FF0000')
+                .setDescription(`Visa revoked for ${targetUser.tag}`)
                 .addFields(
                     { name: '👤 User', value: `<@${targetUser.id}>`, inline: true },
                     { name: '🎫 Visa Number', value: `\`${visa.visa_number}\``, inline: true },
+                    { name: '📋 Type', value: visa.visa_type.charAt(0).toUpperCase() + visa.visa_type.slice(1), inline: true },
                     { name: '📝 Reason', value: reason, inline: false },
                     { name: '👮 Revoked By', value: `<@${interaction.user.id}>`, inline: true }
                 )
@@ -641,26 +267,19 @@ ${targetUser.tag} doesn't have an active visa to revoke.`,
             try {
                 await targetUser.send({
                     embeds: [new EmbedBuilder()
-                        .setTitle('⛔ Your US Visa Has Been Revoked')
+                        .setTitle('🚫 Your US Visa Has Been Revoked')
                         .setColor('#FF0000')
-                        .setDescription(`Your US visa (${visa.visa_number}) has been revoked by USCIS.`)
+                        .setDescription(`Your US visa has been revoked by USCIS.`)
                         .addFields(
-                            { name: '📝 Reason', value: reason, inline: false }
+                            { name: '📝 Reason', value: reason },
+                            { name: '🎫 Visa Number', value: `\`${visa.visa_number}\`` }
                         )
-                        .setFooter({ text: 'Contact USCIS for more information' })
                         .setTimestamp()
                     ]
                 });
             } catch (dmError) {
                 // User has DMs disabled
             }
-        }
-
-        else {
-            await interaction.editReply({
-                content: '⚠️ **Unknown Command**',
-                flags: [64]
-            });
         }
     }
 };
