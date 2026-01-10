@@ -90,9 +90,9 @@ module.exports = {
         '1459643198438768873': { name: 'Escenario 6' },
 
         // Soporte
-        '1412956423662469293': { name: 'Soporte 1' },
-        '1412956477789966379': { name: 'Soporte 2' },
-        '1412956507825377343': { name: 'Soporte 3' }
+        '1412956423662469293': { name: 'Soporte 1', requiredRole: 'STAFF' },
+        '1412956477789966379': { name: 'Soporte 2', requiredRole: 'STAFF' },
+        '1412956507825377343': { name: 'Soporte 3', requiredRole: 'STAFF' }
     },
 
     getChannelInfo(channelId) {

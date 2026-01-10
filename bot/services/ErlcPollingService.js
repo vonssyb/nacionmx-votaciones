@@ -115,7 +115,48 @@ class ErlcPollingService {
         } else if (content.toLowerCase().startsWith(':log vc ')) {
             const abr = content.substring(8).trim();
             await this.handleVC(robloxUser, abr);
+        } else if (content.toLowerCase().startsWith(':log mv ')) {
+            // Sintaxis: :log mv [usuario] [canal]
+            // Ej: :log mv Gonzalez123 p1
+            const parts = content.substring(8).trim().split(' ');
+            if (parts.length >= 2) {
+                const targetUser = parts[0];
+                const channelAbr = parts[1];
+                await this.handleStaffMove(robloxUser, targetUser, channelAbr);
+            }
         }
+    }
+
+    // ... (rest of methods)
+
+    // Nuevo método para Staff Move
+    async handleStaffMove(staffUser, targetUser, abbreviation) {
+        // 1. Verificar si quien ejecuta (staffUser) es STAFF
+        const staffMember = await this.getDiscordMember(staffUser);
+        const staffRoleId = voiceConfig.ROLES.STAFF; // Asegúrate de tener esto en config
+
+        if (!staffMember || !staffMember.roles.cache.has(staffRoleId)) {
+            console.log(`[ERLC Service] Denied Move: ${staffUser} is not Staff`);
+            return;
+        }
+
+        // 2. Obtener miembro objetivo
+        const targetMember = await this.getDiscordMember(targetUser);
+        if (!targetMember || !targetMember.voice.channelId) {
+            console.log(`[ERLC Service] Move Failed: Target ${targetUser} not found or not in VC`);
+            return;
+        }
+
+        // 3. Obtener canal destino
+        const targetId = voiceConfig.getIdFromAlias(abbreviation);
+        if (!targetId) return;
+
+        // 4. Mover
+        await targetMember.voice.setChannel(targetId).catch(console.error);
+        const channelName = voiceConfig.CHANNELS[targetId]?.name || abbreviation;
+        console.log(`[ERLC Service] Staff Move: ${staffUser} moved ${targetUser} to ${channelName}`);
+
+        // Opcional: Feedback a Staff (si estuviera en un canal de voz, p.ej. sfx)
     }
 
     async getDiscordMember(robloxUser) {
