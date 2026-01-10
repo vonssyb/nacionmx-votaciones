@@ -1622,6 +1622,15 @@ const handleEconomyLegacy = async (interaction, client, supabase) => {
                                 .eq('session_id', sessionId)
                                 .eq('vote_type', 'yes');
 
+                            // --- TRIGGER PENDING ERLC ACTIONS (QUEUE FLUSH) ---
+                            // This ensures any /rango commands queued while offline are executed NOW.
+                            if (client.services.erlcScheduler) {
+                                console.log('[Server Open] Triggering ERLC Scheduler to process pending actions...');
+                                // Don't await this to prevent blocking the main flow
+                                client.services.erlcScheduler.checkPendingActions().catch(e => console.error('Scheduler Trigger Error:', e));
+                            }
+                            // --------------------------------------------------
+
                             if (votersData && votersData.length > 0) {
                                 console.log(`[Server Open] Granting permissions to ${votersData.length} voters...`);
 
