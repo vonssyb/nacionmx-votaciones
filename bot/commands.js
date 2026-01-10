@@ -765,6 +765,13 @@ const commands = [
         ]
     },
     {
+        name: 'balanza-admin',
+        description: '🕵️ Admin: Ver patrimonio detallado de cualquier usuario',
+        options: [
+            { name: 'usuario', description: 'El usuario a investigar', type: 6, required: true }
+        ]
+    },
+    {
         name: 'rango',
         description: '⚙️ Gestión de Rangos de Staff',
         options: [
