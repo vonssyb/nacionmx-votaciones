@@ -208,12 +208,32 @@ class ImageGenerator {
 
         // Expiration
         // Format date to US format: MM/DD/YYYY
-        let expires = 'INDEFINITE';
+        let expires = 'PERMANENT'; // Shortened from 'INDEFINITE' to fit in box
         if (data.expiration_date) {
             const d = new Date(data.expiration_date);
             expires = `${(d.getMonth() + 1).toString().padStart(2, '0')}/${d.getDate().toString().padStart(2, '0')}/${d.getFullYear()}`;
         }
-        drawField('Expiration Date', expires, 0, 0, 420);
+
+        // Custom draw for expiration to handle long text
+        ctx.textAlign = 'left';
+        ctx.font = `bold ${labelSize}px sans-serif`;
+        ctx.fillStyle = '#7f8c8d';
+        ctx.fillText('EXPIRATION DATE', startX, currentY);
+
+        const fieldWidth = 420;
+        const fieldHeight = 40;
+        const boxY = currentY + 10;
+
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.roundRect(startX, boxY, fieldWidth, fieldHeight, 8);
+        ctx.fill();
+
+        // Use smaller font for PERMANENT to fit in box
+        const expirationFontSize = expires === 'PERMANENT' ? 24 : 28;
+        ctx.font = `bold ${expirationFontSize}px sans-serif`;
+        ctx.fillStyle = '#2c3e50';
+        ctx.fillText(expires, startX + 10, boxY + 30);
 
         // Footer
         ctx.font = '14px sans-serif';
