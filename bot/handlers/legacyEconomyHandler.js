@@ -4796,23 +4796,36 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             return; // Exit early if defer fails
         }
 
-        // Helper function to rename channel based on state
-
         try {
-            const cashBalance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
-            console.log(`[DEBUG] /balanza User: ${interaction.user.id} Balance Raw:`, cashBalance); // DEBUG LOG
+            // Get target user (self or specified user if admin)
+            const targetUser = interaction.options.getUser('usuario') || interaction.user;
+            const isOwnBalance = targetUser.id === interaction.user.id;
+
+            // Check permissions if viewing another user
+            if (!isOwnBalance) {
+                const isAdmin = interaction.member.permissions.has('Administrator');
+                if (!isAdmin) {
+                    return interaction.editReply({
+                        content: '❌ Solo administradores pueden ver el balance de otros usuarios.',
+                        flags: [64]
+                    });
+                }
+            }
+
+            const cashBalance = await billingService.ubService.getUserBalance(interaction.guildId, targetUser.id);
+            console.log(`[DEBUG] /balanza User: ${targetUser.id} Balance Raw:`, cashBalance); // DEBUG LOG
 
             // Resolve Citizen ID for robust lookup
-            const { data: citizen } = await supabase.from('citizens').select('id').eq('discord_id', interaction.user.id).maybeSingle();
+            const { data: citizen } = await supabase.from('citizens').select('id').eq('discord_id', targetUser.id).maybeSingle();
 
-            const { data: debitCard } = await supabase.from('debit_cards').select('balance').eq('discord_user_id', interaction.user.id).eq('status', 'active').maybeSingle();
+            const { data: debitCard } = await supabase.from('debit_cards').select('balance').eq('discord_user_id', targetUser.id).eq('status', 'active').maybeSingle();
 
             // Fetch Credit Cards via Citizen ID if available, else Discord ID
             let creditQuery = supabase.from('credit_cards').select('*').eq('status', 'active');
             if (citizen) {
                 creditQuery = creditQuery.eq('citizen_id', citizen.id);
             } else {
-                creditQuery = creditQuery.eq('discord_user_id', interaction.user.id);
+                creditQuery = creditQuery.eq('discord_user_id', targetUser.id);
             }
             const { data: creditCards } = await creditQuery;
 
@@ -4839,7 +4852,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             const totalLiquid = cash + bank + creditAvailable;
 
             const embed = new EmbedBuilder()
-                .setTitle('💰 TU BALANZA FINANCIERA')
+                .setTitle(isOwnBalance ? '💰 TU BALANZA FINANCIERA' : `💰 BALANZA DE ${targetUser.tag}`)
                 .setColor(0x00D26A)
                 .addFields(
                     { name: '💵 EFECTIVO', value: `\`\`\`$${cash.toLocaleString()}\`\`\``, inline: true },
@@ -4847,13 +4860,13 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                     { name: '💳 CRÉDITO', value: `\`\`\`Disponible: $${creditAvailable.toLocaleString()}\nDeuda: $${creditDebt.toLocaleString()}\`\`\``, inline: false },
                     { name: '📊 PATRIMONIO TOTAL', value: `\`\`\`diff\n+ $${totalLiquid.toLocaleString()}\n\`\`\``, inline: false }
                 )
-                .setFooter({ text: 'Banco Nacional' })
+                .setFooter({ text: isOwnBalance ? 'Banco Nacional' : `Solicitado por ${interaction.user.tag}` })
                 .setTimestamp();
 
             await interaction.editReply({ embeds: [embed] });
         } catch (error) {
             console.error(error);
-            await interaction.editReply('❌ Error obteniendo tu balanza.');
+            await interaction.editReply('❌ Error obteniendo la balanza.');
         }
 
         // Helper function to rename channel based on state

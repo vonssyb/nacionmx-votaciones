@@ -760,7 +760,9 @@ const commands = [
     {
         name: 'balanza',
         description: '💰 Ver tu patrimonio total (Efectivo + Banco + Crédito)',
-        type: 1
+        options: [
+            { name: 'usuario', description: 'Ver balance de otro usuario (Admin only)', type: 6, required: false }
+        ]
     },
     {
         name: 'rango',
