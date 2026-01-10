@@ -60,12 +60,14 @@ async function safeDefer(interaction) {
 // =============================================================================
 async function startModerationBot() {
     log('👮‍♂️', 'Starting Moderation Bot...');
+    const ErlcPollingService = require('./services/ErlcPollingService');
     const client = new Client({
         intents: [
             GatewayIntentBits.Guilds,
             GatewayIntentBits.GuildMessages,
             GatewayIntentBits.MessageContent,
-            GatewayIntentBits.GuildMembers
+            GatewayIntentBits.GuildMembers,
+            GatewayIntentBits.GuildVoiceStates // REQUIRED for voice
         ]
     });
 
