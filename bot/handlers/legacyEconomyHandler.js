@@ -1872,6 +1872,11 @@ const handleEconomyLegacy = async (interaction, client, supabase) => {
             // CARD STATS MAP (Global)
             const stats = CARD_TIERS[cardType || 'NMX Start'] || CARD_TIERS['NMX Start'];
 
+            if (!stats) {
+                console.error(`[CRITICAL] Card Tier NOT FOUND: "${cardType}". Available: ${Object.keys(CARD_TIERS).join(', ')}`);
+                return interaction.editReply(`❌ **Error Interno:** La tarjeta "${cardType}" no está definida en el sistema. Contacta a soporte.`);
+            }
+
             // 2. Find Citizen (Optional check, but we need to link it eventually. If not found, create one?)
             // I'll search for citizen by Discord ID. If not found, I will create one using the provided Name.
             let { data: citizen } = await supabase.from('citizens').select('id, full_name, dni').eq('discord_id', targetUser.id).limit(1).maybeSingle();
