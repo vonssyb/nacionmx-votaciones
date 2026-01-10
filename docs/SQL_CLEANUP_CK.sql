@@ -26,8 +26,9 @@ DELETE FROM debit_cards
 WHERE discord_user_id NOT IN (SELECT user_id FROM citizen_dni);
 
 -- 3. (Opcional) Eliminar Saldos Locales (Si se usa user_balances)
-DELETE FROM user_balances
-WHERE user_id NOT IN (SELECT user_id FROM citizen_dni);
+-- Comentado porque la tabla puede no existir en este entorno
+-- DELETE FROM user_balances
+-- WHERE user_id NOT IN (SELECT user_id FROM citizen_dni);
 
 COMMIT;
 
