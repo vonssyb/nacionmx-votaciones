@@ -372,21 +372,49 @@ module.exports = {
                 inline: true
             });
 
-            // Economy Section - Enhanced Display
-            let economyText = `💵 **EFECTIVO:** $${cash.toLocaleString()}\n`;
-            economyText += `🏦 **BANCO / DÉBITO:** $${bank.toLocaleString()}`;
+            // Economy Section - Enhanced Display with USD support
+            let economyText = `💵 **EFECTIVO (MXN):** $${cash.toLocaleString()}\n`;
+            economyText += `🏦 **BANCO / DÉBITO (MXN):** $${bank.toLocaleString()}`;
 
             if (creditCard) {
                 const available = creditCard.available_limit || 0;
                 const used = creditCard.used_limit || 0;
-                const creditTotal = total + available;
 
-                economyText += `\n💳 **CRÉDITO:** Disponible $${available.toLocaleString()}`;
-
-                embed.addFields({ name: '💼 Finanzas', value: economyText, inline: false });
-            } else {
-                embed.addFields({ name: '💼 Finanzas', value: economyText, inline: false });
+                economyText += `\n💳 **CRÉDITO (MXN):** Disponible $${available.toLocaleString()}`;
             }
+
+            // Fetch USD data
+            const { data: usdStats } = await supabase
+                .from('user_stats')
+                .select('usd_cash')
+                .eq('user_id', targetUser.id)
+                .maybeSingle();
+
+            const { data: usdCards } = await supabase
+                .from('us_credit_cards')
+                .select('credit_limit, current_balance')
+                .eq('user_id', targetUser.id)
+                .eq('status', 'active');
+
+            const usdCash = usdStats?.usd_cash || 0;
+            let usdCreditAvailable = 0;
+            if (usdCards && usdCards.length > 0) {
+                usdCards.forEach(c => {
+                    const limit = c.credit_limit || 0;
+                    const debt = c.current_balance || 0;
+                    usdCreditAvailable += (limit - debt);
+                });
+            }
+
+            // Only show USD if user has any
+            if (usdCash > 0 || usdCreditAvailable > 0) {
+                economyText += `\n\n💵 **EFECTIVO (USD):** $${usdCash.toLocaleString()} USD`;
+                if (usdCreditAvailable > 0) {
+                    economyText += `\n💳 **CRÉDITO US:** Disponible $${usdCreditAvailable.toLocaleString()} USD`;
+                }
+            }
+
+            embed.addFields({ name: '💼 Finanzas', value: economyText, inline: false });
 
             // Licenses Section
             if (licenses.length > 0) {
