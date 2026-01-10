@@ -502,11 +502,11 @@ module.exports = {
                             cmd = `:mod ${robloxName}`; // Level 1 Training, Level 2 Staff
                         } else {
                             // Removing Staff
-                            // If they were previously receiving :admin (Index >= 2), removeadmin.
+                            // If they were previously receiving :admin (Index >= 2), unadmin.
                             if (currentRankIndex >= 2) {
-                                cmd = `:removeadmin ${robloxName}`;
+                                cmd = `:unadmin ${robloxName}`;
                             } else {
-                                cmd = `:removemod ${robloxName}`;
+                                cmd = `:unmod ${robloxName}`;
                             }
                         }
 
