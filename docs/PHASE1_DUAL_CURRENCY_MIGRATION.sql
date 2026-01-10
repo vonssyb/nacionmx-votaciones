@@ -21,8 +21,33 @@ DO $$
 BEGIN
     -- Si la tabla existe, intentar agregar columnas faltantes
     IF EXISTS (SELECT FROM pg_tables WHERE tablename = 'exchange_rates') THEN
-        -- Hacer guild_id nullable (las tasas son globales, no por guild)
+        RAISE NOTICE 'exchange_rates: Tabla existente detectada, actualizando...';
+        
+        -- Si guild_id es parte de la PK, tenemos que reconstruir la constraint
+        -- Primero, verificar si hay una PK que incluya guild_id
+        IF EXISTS (
+            SELECT 1 
+            FROM pg_constraint 
+            WHERE conrelid = 'exchange_rates'::regclass 
+            AND contype = 'p'
+        ) THEN
+            -- Guardar constraint name
+            DECLARE
+                pk_name TEXT;
+            BEGIN
+                SELECT conname INTO pk_name
+                FROM pg_constraint
+                WHERE conrelid = 'exchange_rates'::regclass AND contype = 'p';
+                
+                -- Eliminar la PK existente
+                EXECUTE format('ALTER TABLE exchange_rates DROP CONSTRAINT %I', pk_name);
+                RAISE NOTICE 'exchange_rates: Primary Key eliminada';
+            END;
+        END IF;
+        
+        -- Ahora podemos hacer guild_id nullable
         ALTER TABLE exchange_rates ALTER COLUMN guild_id DROP NOT NULL;
+        RAISE NOTICE 'exchange_rates: guild_id ahora es nullable';
         
         -- Agregar columnas si no existen
         ALTER TABLE exchange_rates ADD COLUMN IF NOT EXISTS rate_usd_to_mxn NUMERIC(10,2);
@@ -30,6 +55,12 @@ BEGIN
         ALTER TABLE exchange_rates ADD COLUMN IF NOT EXISTS set_by_admin TEXT;
         ALTER TABLE exchange_rates ADD COLUMN IF NOT EXISTS is_manual BOOLEAN DEFAULT false;
         ALTER TABLE exchange_rates ADD COLUMN IF NOT EXISTS created_timestamp TIMESTAMPTZ DEFAULT NOW();
+        
+        -- Crear nueva PK solo con id (asumiendo que existe)
+        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='exchange_rates' AND column_name='id') THEN
+            ALTER TABLE exchange_rates ADD PRIMARY KEY (id);
+            RAISE NOTICE 'exchange_rates: Nueva Primary Key creada solo con id';
+        END IF;
         
         -- Agregar constraint UNIQUE si no existe
         BEGIN
