@@ -14,7 +14,7 @@
         "legacy:mod": "node legacy/index_moderacion.js"
     },
     "dependencies": {
-        "@discordjs/voice": "0.17.0",
+        "@discordjs/voice": "0.18.0",
         "@napi-rs/canvas": "^0.1.88",
         "@supabase/supabase-js": "^2.88.0",
         "axios": "^1.13.2",
