@@ -186,18 +186,38 @@ class ErlcPollingService {
             return await guild.members.fetch(discordId).catch(() => null);
         }
 
-        // 3. Fallback: Search by Discord Username (Exact Match)
-        // Useful for owners/admins who use the same name but aren't in the DB
+        // 3. Fallback: Search by Discord Username OR Nickname (Ignoring Tags)
         try {
             const guild = this.client.guilds.cache.get(process.env.GUILD_ID || '1398525215134318713');
             if (guild) {
-                // Search via API to be sure
-                const results = await guild.members.search({ query: robloxUser, limit: 1 });
-                const member = results.first();
+                // Search via API (Handles both username and nickname)
+                const results = await guild.members.search({ query: robloxUser, limit: 10 });
 
-                if (member && member.user.username.toLowerCase() === robloxUser.toLowerCase()) {
-                    console.log(`[ERLC Service] 🔗 Auto-Linked via Username Match: ${robloxUser} -> ${member.user.tag}`);
-                    this.linkCache.set(robloxUser.toLowerCase(), member.id); // Cache it
+                // Helper to clean nickname (remove [Tag], 123 | , emojis)
+                const cleanName = (name) => {
+                    return name
+                        .replace(/\[.*?\]/g, '') // Remove [Tags]
+                        .replace(/\(.*?\)/g, '') // Remove (Tags)
+                        .replace(/^\d+\s*\|\s*/, '') // Remove "123 | " prefix
+                        .replace(/\s*\|\s*.*$/, '') // Remove " | Suffix"
+                        .trim()
+                        .toLowerCase();
+                };
+
+                const target = robloxUser.toLowerCase();
+
+                const member = results.find(m => {
+                    const username = m.user.username.toLowerCase();
+                    const nickname = cleanName(m.displayName);
+
+                    // console.log(`[ERLC Debug] Checking: ${m.user.tag} | Nick: "${m.displayName}" -> Clean: "${nickname}" vs Target: "${target}"`);
+
+                    return username === target || nickname === target;
+                });
+
+                if (member) {
+                    console.log(`[ERLC Service] 🔗 Auto-Linked via Fuzzy Match: ${robloxUser} -> ${member.user.tag} (Nick: ${member.displayName})`);
+                    this.linkCache.set(robloxUser.toLowerCase(), member.id);
                     return member;
                 }
             }
