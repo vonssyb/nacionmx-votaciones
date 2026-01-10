@@ -122,12 +122,18 @@ class ErlcPollingService {
 
     // Nuevo método para Staff Move
     async handleStaffMove(staffUser, targetUser, abbreviation) {
-        // 1. Verificar si quien ejecuta (staffUser) es STAFF
+        // 1. Verificar si quien ejecuta (staffUser) es STAFF o JUNTA DIRECTIVA
         const staffMember = await this.getDiscordMember(staffUser);
-        const staffRoleId = voiceConfig.ROLES.STAFF; // Asegúrate de tener esto en config
+        const staffRoleId = voiceConfig.ROLES.STAFF;
+        const jdRoleId = voiceConfig.ROLES.JUNTA_DIRECTIVA;
 
-        if (!staffMember || !staffMember.roles.cache.has(staffRoleId)) {
-            console.log(`[ERLC Service] Denied Move: ${staffUser} is not Staff`);
+        if (!staffMember) return;
+
+        const isStaff = staffMember.roles.cache.has(staffRoleId);
+        const isJD = staffMember.roles.cache.has(jdRoleId);
+
+        if (!isStaff && !isJD) {
+            console.log(`[ERLC Service] Denied Move: ${staffUser} is not Staff/JD`);
             return;
         }
 
