@@ -30,12 +30,10 @@ class SingleInstanceLock {
             const lastHeartbeat = new Date(currentLock.last_heartbeat);
             const diffMs = now - lastHeartbeat;
 
-            // If lock exists and is fresh (less than 1.5 mins old), and it's NOT us
-            if (diffMs < 90000 && currentLock.instance_id !== this.instanceId) {
-                console.error(`🛑 [Lock] ACTIVE INSTANCE DETECTED! (${currentLock.instance_id})`);
-                console.error(`🛑 [Lock] Last heartbeat: ${diffMs / 1000}s ago.`);
-                console.error(`🛑 [Lock] Shutting down to prevent duplication.`);
-                return false; // ABORT STARTUP
+            // If lock exists and is fresh (less than 60s old), and it's NOT us
+            if (diffMs < 60000 && currentLock.instance_id !== this.instanceId) {
+                console.log(`🔒 [Lock] Active instance detected: ${currentLock.instance_id} (Heartbeat: ${diffMs / 1000}s ago)`);
+                return false; // Lock held, retry later
             }
         }
 
