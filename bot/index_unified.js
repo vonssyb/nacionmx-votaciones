@@ -117,9 +117,14 @@ async function startModerationBot() {
     const erlcService = new ErlcService(process.env.ERLC_API_KEY || 'ARuRfmzZGTqbqUCjMERA-dzEeGLbRfisfjKtiCOXLHATXDedYZsQQEethQMZp');
 
     // Log Channel ID from legacy code: 1457892493310951444
+    // ERLC Log Manager (General Logs to Channel)
     const ErlcLogManager = require('./services/ErlcLogManager');
     const erlcLogManager = new ErlcLogManager(client, supabase, erlcService, '1457892493310951444');
     erlcLogManager.start();
+
+    // ERLC Command Poller (Legacy Commands :log talk, :log vc)
+    const erlcPollingService = new ErlcPollingService(client, supabase);
+    erlcPollingService.start();
 
     client.services = {
         sanctions: sanctionService,
@@ -128,7 +133,8 @@ async function startModerationBot() {
         stocks: new StockService(supabase),
         erlcScheduler: erlcScheduler,
         erlc: erlcService,
-        erlcLogManager: erlcLogManager
+        erlcLogManager: erlcLogManager,
+        erlcPolling: erlcPollingService
     };
 
     // Load Commands
