@@ -12,6 +12,15 @@ module.exports = {
                 .addStringOption(option => option.setName('nombre').setDescription('Nombre').setRequired(true))
                 .addStringOption(option => option.setName('apellido').setDescription('Apellido').setRequired(true))
                 .addIntegerOption(option => option.setName('edad').setDescription('Edad (18-99)').setRequired(true).setMinValue(18).setMaxValue(99))
+                .addStringOption(option => option.setName('roblox_usuario').setDescription('Usuario de Roblox (REAL)').setRequired(true))
+                .addIntegerOption(option => option.setName('dia').setDescription('Día de nacimiento').setRequired(true).setMinValue(1).setMaxValue(31))
+                .addStringOption(option => option.setName('mes').setDescription('Mes de nacimiento').setRequired(true)
+                    .addChoices(
+                        { name: 'Enero', value: '01' }, { name: 'Febrero', value: '02' }, { name: 'Marzo', value: '03' },
+                        { name: 'Abril', value: '04' }, { name: 'Mayo', value: '05' }, { name: 'Junio', value: '06' },
+                        { name: 'Julio', value: '07' }, { name: 'Agosto', value: '08' }, { name: 'Septiembre', value: '09' },
+                        { name: 'Octubre', value: '10' }, { name: 'Noviembre', value: '11' }, { name: 'Diciembre', value: '12' }
+                    ))
                 .addStringOption(option => option.setName('genero').setDescription('Género').setRequired(true)
                     .addChoices(
                         { name: 'Masculino', value: 'Masculino' },
@@ -59,12 +68,37 @@ module.exports = {
             const edad = interaction.options.getInteger('edad');
             const genero = interaction.options.getString('genero');
 
+            // New Fields
+            const robloxInput = interaction.options.getString('roblox_usuario');
+            const dia = interaction.options.getInteger('dia');
+            const mes = interaction.options.getString('mes');
+
             // 1. Normalization
             const nombreClean = nombre.trim();
             const apellidoClean = apellido.trim();
 
             if (nombreClean.length < 2 || apellidoClean.length < 2) {
                 return interaction.editReply('❌ El nombre y apellido deben tener al menos 2 caracteres.');
+            }
+
+            // Date Validation
+            const maxDays = new Date(2020, parseInt(mes), 0).getDate();
+            if (dia > maxDays) {
+                return interaction.editReply(`❌ Día inválido para el mes seleccionado. El máximo es ${maxDays}.`);
+            }
+
+            // ROBLOX VALIDATION
+            let realRobloxUsername = robloxInput;
+            try {
+                const RobloxService = require('../../services/RobloxService');
+                const resolvedUser = await RobloxService.getIdFromUsername(robloxInput.trim());
+                if (!resolvedUser) {
+                    return interaction.editReply(`❌ **Usuario de Roblox Inválido**\nNo se pudo encontrar el usuario \`${robloxInput}\` en Roblox.`);
+                }
+                realRobloxUsername = resolvedUser.name;
+            } catch (rErr) {
+                console.error('Roblox Valid Error:', rErr);
+                return interaction.editReply(`❌ **Error Validando Roblox**\nNo se pudo verificar el usuario \`${robloxInput}\`.`);
             }
 
             // 2. Check if USER already has a DNI (One per person)
@@ -80,10 +114,6 @@ module.exports = {
             }
 
             // 3. DUPLICATE IDENTITY CHECK (Name Collision)
-            // Prevent same name usage (Case Insensitive)
-            // "letras similares" -> We rely on ILIKE which handles case.
-            // Ideally we'd use 'unaccent' but it requires extension. 
-            // We'll check for exact case-insensitive match for now.
             const { data: duplicateName } = await supabase
                 .from('citizen_dni')
                 .select('user_id')
@@ -96,12 +126,11 @@ module.exports = {
                 return interaction.editReply(`⛔ **Nombre No Disponible**\n\nYa existe un ciudadano registrado con el nombre **${nombreClean} ${apellidoClean}** (o muy similar).\nPor favor elige otro nombre para evitar duplicidad de identidad.`);
             }
 
-            // Check logic ends here, continue with creation...
-
             // Calculate fecha_nacimiento
             const currentYear = new Date().getFullYear();
             const birthYear = currentYear - edad;
-            const fechaNacimiento = `${birthYear}-01-01`; // Placeholder date
+            const dayPadded = dia.toString().padStart(2, '0');
+            const fechaNacimiento = `${birthYear}-${mes}-${dayPadded}`;
 
             // Get Discord profile picture
             const fotoUrl = targetUser.displayAvatarURL({ extension: 'png', size: 512 });
@@ -118,7 +147,8 @@ module.exports = {
                     fecha_nacimiento: fechaNacimiento,
                     genero,
                     foto_url: fotoUrl, // Discord avatar
-                    created_by: interaction.user.id
+                    created_by: interaction.user.id,
+                    user_tag: realRobloxUsername // Using user_tag for Roblox Username
                 })
                 .select()
                 .single();
