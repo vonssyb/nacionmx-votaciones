@@ -6,88 +6,98 @@ const BENEFIT_ROLES = {
 };
 
 const CARD_TIERS = {
-    // DEBIT CARDS
+    // --- TARJETAS DE DÉBITO ---
     'NMX Débito': {
         limit: 0, interest: 0, cost: 100, max_balance: 50000, score: 0, tier: 'Débito', color: 0x808080,
         benefits: ['Cuenta básica', 'Transferencias gratis', 'Soporte estándar']
     },
     'NMX Débito Plus': {
-        limit: 0, interest: 0, cost: 5000, max_balance: 250000, score: 10, tier: 'Débito', color: 0x32CD32,
+        limit: 0, interest: 0, cost: 500, max_balance: 250000, score: 10, tier: 'Débito', color: 0x32CD32,
         benefits: ['Límite aumentado', 'Retiros gratis', 'Atención preferente']
     },
     'NMX Débito Gold': {
-        limit: 0, interest: 0, cost: 20000, max_balance: 1000000, score: 20, tier: 'Débito', color: 0xFFD700,
-        benefits: ['Límite alto', 'Seguro de fondos', 'Concierge básico']
-    },
-    'NMX Start': {
-        limit: 15000, interest: 15, cost: 2000, max_balance: Infinity, score: 30, tier: 'Start', color: 0xCD7F32,
-        benefits: ['Primer crédito', 'Construye historial', 'Sin anualidad']
-    },
-    'NMX Básica': {
-        limit: 30000, interest: 12, cost: 4000, max_balance: Infinity, score: 40, tier: 'Básica', color: 0x4682B4,
-        benefits: ['Crédito personal', 'Interés moderado', 'Descuentos básicos']
-    },
-    'NMX Plus': {
-        limit: 50000, interest: 10, cost: 6000, max_balance: Infinity, score: 50, tier: 'Plus', color: 0x32CD32,
-        benefits: ['Límite superior', 'Cashback 2%', 'Protección de compras']
-    },
-    'NMX Plata': {
-        limit: 100000, interest: 8, cost: 10000, max_balance: Infinity, score: 60, tier: 'Premium', color: 0xC0C0C0,
-        benefits: ['Límite alto', 'Cashback 3%', 'Acceso salas VIP (2/año)']
-    },
-    'NMX Oro': {
-        limit: 500000, interest: 5, cost: 25000, max_balance: Infinity, score: 75, tier: 'Gold', color: 0xFFD700,
-        benefits: ['1 Medio Millón', 'Cashback 5%', 'Seguro de viajes']
-    },
-    'NMX Rubí': {
-        limit: 750000, interest: 4.5, cost: 35000, max_balance: Infinity, score: 80, tier: 'Rubí', color: 0xE0115F,
-        benefits: ['Límite extendido', 'Cashback 5.5%', 'Salas VIP (4/año)']
-    },
-    'NMX Platino': {
-        limit: 1000000, interest: 4, cost: 50000, max_balance: Infinity, score: 85, tier: 'Platinum', color: 0xE5E4E2,
-        benefits: ['1 Millón', 'Cashback 6%', 'Concierge personal']
-    },
-    'NMX Diamante': {
-        limit: 2000000, interest: 3, cost: 80000, max_balance: Infinity, score: 90, tier: 'Diamond', color: 0xB9F2FF,
-        benefits: ['2 Millones', 'Cashback 7%', 'Eventos exclusivos']
-    },
-    'NMX Zafiro': {
-        limit: 5000000, interest: 2.5, cost: 100000, max_balance: Infinity, score: 95, tier: 'Zafiro', color: 0x0F52BA,
-        benefits: ['5 Millones', 'Cashback 8%', 'Jet privado (-50%)']
-    },
-    'NMX Platino Elite': {
-        limit: 10000000, interest: 2, cost: 150000, max_balance: Infinity, score: 98, tier: 'Platino Elite', color: 0xE5E4E2,
-        benefits: ['10 Millones', 'Cashback 10%', 'Jet privado ilimitado']
-    },
-    'NMX Esmeralda': {
-        limit: 15000000, interest: 1.5, cost: 200000, max_balance: Infinity, score: 99, tier: 'Esmeralda', color: 0x50C878,
-        benefits: ['15 Millones', 'Cashback 12%', 'Acceso Presidencial']
-    },
-    'NMX Centurion': {
-        limit: 50000000, interest: 1.0, cost: 500000, max_balance: Infinity, score: 100, tier: 'Centurion', color: 0x000000,
-        benefits: ['Sin límites', 'Concierge 24/7', 'Invitación Solamente']
+        limit: 0, interest: 0, cost: 1000, max_balance: Infinity, score: 20, tier: 'Débito', color: 0xFFD700,
+        benefits: ['Sin límites', 'Cashback en compras', 'Atención VIP']
     },
 
-    // CORPORATE
-    'NMX Startup': {
-        limit: 500000, interest: 0.8, cost: 20000, max_balance: Infinity, score: 80, tier: 'Corporate', color: 0x008080,
-        benefits: ['PYMES', 'Nómina', 'Terminal TPV']
+    // --- TARJETAS DE CRÉDITO PERSONALES ---
+    'NMX Start': {
+        limit: 15000, interest: 15, cost: 2000, max_balance: Infinity, score: 30, tier: 'Personal', color: 0xCD7F32,
+        benefits: ['Límite $15k', 'Construye historial', 'Sin anualidad']
+    },
+    'NMX Básica': {
+        limit: 30000, interest: 12, cost: 4000, max_balance: Infinity, score: 40, tier: 'Personal', color: 0x4682B4,
+        benefits: ['Límite $30k', 'Crédito personal', 'Interés moderado']
+    },
+    'NMX Plus': {
+        limit: 50000, interest: 10, cost: 6000, max_balance: Infinity, score: 50, tier: 'Personal', color: 0x32CD32,
+        benefits: ['Límite $50k', 'Cashback 2%', 'Protección compras']
+    },
+    'NMX Plata': {
+        limit: 100000, interest: 8, cost: 10000, max_balance: Infinity, score: 60, tier: 'Personal', color: 0xC0C0C0,
+        benefits: ['Límite $100k', 'Cashback 3%', 'Acceso salas VIP (2/año)']
+    },
+    'NMX Oro': {
+        limit: 250000, interest: 7, cost: 15000, max_balance: Infinity, score: 75, tier: 'Personal', color: 0xFFD700,
+        benefits: ['Límite $250k', 'Cashback 5%', 'Seguro viajes']
+    },
+    'NMX Rubí': {
+        limit: 500000, interest: 6, cost: 25000, max_balance: Infinity, score: 80, tier: 'Personal', color: 0xE0115F,
+        benefits: ['Límite $500k', 'Cashback 5.5%', 'Salas VIP (4/año)']
+    },
+    'NMX Black': { // PERSONAL (User list puts it before Diamante)
+        limit: 1000000, interest: 5, cost: 40000, max_balance: Infinity, score: 85, tier: 'Personal', color: 0x000000,
+        benefits: ['Límite $1M', 'Cashback 6%', 'Concierge personal']
+    },
+    'NMX Diamante': {
+        limit: 2000000, interest: 3, cost: 60000, max_balance: Infinity, score: 90, tier: 'Personal', color: 0xB9F2FF,
+        benefits: ['Límite $2M', 'Cashback 7%', 'Eventos exclusivos']
+    },
+    'NMX Zafiro': {
+        limit: 5000000, interest: 2.5, cost: 100000, max_balance: Infinity, score: 95, tier: 'Personal', color: 0x0F52BA,
+        benefits: ['Límite $5M', 'Cashback 8%', 'Jet privado (-50%)']
+    },
+    'NMX Platino Elite': {
+        limit: 10000000, interest: 2, cost: 150000, max_balance: Infinity, score: 98, tier: 'Personal', color: 0xE5E4E2,
+        benefits: ['Límite $10M', 'Cashback 10%', 'Jet privado ilimitado']
+    },
+
+    // --- TARJETAS EMPRESARIALES ---
+    'Business Start': {
+        limit: 50000, interest: 2, cost: 8000, max_balance: Infinity, score: 80, tier: 'Business', color: 0xCD7F32,
+        benefits: ['Emprendedores', 'Crédito renovable', 'Reportes mensuales']
+    },
+    'Business Gold': {
+        limit: 100000, interest: 1.5, cost: 15000, max_balance: Infinity, score: 85, tier: 'Business', color: 0xFFD700,
+        benefits: ['Pymes', 'Mejor rendimiento', 'Cashback 1%']
+    },
+    'Business Platinum': {
+        limit: 200000, interest: 1.2, cost: 20000, max_balance: Infinity, score: 88, tier: 'Business', color: 0xE5E4E2,
+        benefits: ['Expansión', 'Acceso prioritario', 'Sin comisiones intl']
+    },
+    'Business Elite': {
+        limit: 500000, interest: 1, cost: 35000, max_balance: Infinity, score: 90, tier: 'Business', color: 0x0F52BA,
+        benefits: ['Corporativo', 'Línea flexible', 'Seguro viajes']
     },
     'NMX Corporate': {
-        limit: 1000000, interest: 0.7, cost: 50000, max_balance: Infinity, score: 90, tier: 'Corporate', color: 0x800020,
+        limit: 1000000, interest: 0.7, cost: 50000, max_balance: Infinity, score: 92, tier: 'Corporate', color: 0x800020,
         benefits: ['Industrias', 'Beneficio fiscal', 'Asesor dedicado']
     },
-    'NMX Corporate Plus': {
-        limit: 5000000, interest: 0.5, cost: 100000, max_balance: Infinity, score: 92, tier: 'Corporate', color: 0xCD7F32,
-        benefits: ['Grandes Corps', 'Financiamiento proyectos', 'Líneas extra']
+    'Corporate Plus': {
+        limit: 5000000, interest: 0.5, cost: 100000, max_balance: Infinity, score: 94, tier: 'Corporate', color: 0x000000,
+        benefits: ['Corporativos grandes', 'Financiamiento', 'Líneas extra']
     },
-    'NMX Black': {
-        limit: 10000000, interest: 0.4, cost: 200000, max_balance: Infinity, score: 97, tier: 'Black', color: 0x000000,
-        benefits: ['Global Corp', 'Sin límites', 'Auditoría gratuita']
+    'Enterprise': {
+        limit: 10000000, interest: 0.4, cost: 200000, max_balance: Infinity, score: 96, tier: 'Corporate', color: 0x003366,
+        benefits: ['Transnacionales', 'Global Corp', 'Auditoría gratuita']
     },
-    'NMX Supreme': {
-        limit: 50000000, interest: 0.2, cost: 500000, max_balance: Infinity, score: 99, tier: 'Supreme', color: 0xFFFFFF,
-        benefits: ['Top Tier', 'Mercado capitales', 'Todo incluido']
+    'Conglomerate': {
+        limit: 25000000, interest: 0.3, cost: 350000, max_balance: Infinity, score: 98, tier: 'Corporate', color: 0x660066,
+        benefits: ['Conglomerados', 'Sin límites', 'Todo incluido']
+    },
+    'Supreme': {
+        limit: 50000000, interest: 0.2, cost: 500000, max_balance: Infinity, score: 99, tier: 'Corporate', color: 0xFFFFFF,
+        benefits: ['Top Tier', 'Mercado capitales', 'Rey de los negocios']
     }
 };
 
