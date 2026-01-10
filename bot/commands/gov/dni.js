@@ -98,6 +98,16 @@ module.exports = {
             if (potentialRobloxName.includes('[')) potentialRobloxName = potentialRobloxName.split('[')[0].trim();
             if (potentialRobloxName.includes('(')) potentialRobloxName = potentialRobloxName.split('(')[0].trim();
 
+            // SPECIAL CASE: Handle staff nicknames like "ST-002" or "AD-123"
+            // This handles staff members who got CK'd or have special prefixes
+            if (potentialRobloxName.includes('-')) {
+                const parts = potentialRobloxName.split('-');
+                if (parts.length >= 2) {
+                    potentialRobloxName = parts[1].trim(); // Take second part (e.g., "002")
+                    console.log(`[DEBUG] [DNI] Extracted Roblox username from staff nickname: ${interaction.member.nickname} -> ${potentialRobloxName}`);
+                }
+            }
+
             let realRobloxUsername = potentialRobloxName;
 
             try {
@@ -112,6 +122,7 @@ module.exports = {
                 // Fallback to strict? If fails, stop.
                 return interaction.editReply(`❌ **Error verificando usuario de Roblox.**\nIntenta nuevamente más tarde.`);
             }
+
 
             // 2. Check if USER already has a DNI (One per person)
             const { data: existingUser } = await supabase
