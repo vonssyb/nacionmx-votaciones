@@ -191,7 +191,7 @@ async function startModerationBot() {
             const { EmbedBuilder } = require('discord.js');
 
             const embed = new EmbedBuilder()
-                .setTitle('✏️ Mensaje Editado')
+                .setTitle(`✏️ Mensaje Editado [${INSTANCE_ID}]`)
                 .setColor('#FFA500')
                 .setAuthor({ name: oldMessage.author.tag, iconURL: oldMessage.author.displayAvatarURL() })
                 .setDescription(`[Ir al mensaje](${newMessage.url})`)
