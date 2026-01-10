@@ -1,28 +1,38 @@
 // Mapeo completo de Canales de Voz para ERLC
-// ID Canal -> Nombre Human Readable y Abreviación
+// ID Canal -> Nombre Human Readable, Abreviación y ROLES REQUERIDOS
 module.exports = {
+    // ROLES CONFIG (Reemplazar con IDs reales)
+    ROLES: {
+        JUNTA_DIRECTIVA: '1412882245735420006', // Junta Directiva Role ID
+        STAFF: '1412887167654690908',          // Staff Role ID (Base)
+        POLICIA: '1459648900221370428',        // Rol Policia
+        CARTEL: '1459649033222684702'          // Rol Cartel
+    },
+
     // ABREVIACIONES FÁCILES
-    // [abr]: canal_id
     ALIASES: {
-        // ESPERA
-        'espera': '1459640433297588401', // Canal de Espera
-        'staff': '1449891847961841775',  // Espera Staff
+        // JUNTA DIRECTIVA
+        'jd': '1412956722469011657',
+
+        // STAFF
+        'staff': '1412956666512543751',
+        'espera': '1459640433297588401', // Cualquiera
 
         // POLICIA (p1-p4)
-        'pg': '1459646170476314765', // Policia General
+        'pg': '1459646170476314765',
         'p1': '1459645796256317617',
         'p2': '1459646124079054929',
         'p3': '1459646138498945368',
         'p4': '1459646153619669165',
 
         // CARTEL (c1-c4)
-        'cg': '1459646308145955019', // Cartel General
+        'cg': '1459646308145955019',
         'c1': '1459646253746098409',
         'c2': '1459646266630996009',
         'c3': '1459646277766611049',
         'c4': '1459646293264826723',
 
-        // AMBIENTES (a1-a4)
+        // AMBIENTES (a1-a4) - Sin restricción especial
         'a1': '1412966846273163396',
         'a2': '1459642544441786521',
         'a3': '1459642568756297951',
@@ -42,48 +52,51 @@ module.exports = {
         's3': '1412956507825377343'
     },
 
-    // Mapa inverso para logs y validación (ID -> Nombre)
+    // Configuración de Permisos por Canal
     CHANNELS: {
-        '1459640433297588401': 'Canal de Espera',
-        '1449891847961841775': 'Espera Staff',
+        // Junta Directiva
+        '1412956722469011657': { name: 'Junta Directiva', requiredRole: 'JUNTA_DIRECTIVA' },
 
-        // Policia
-        '1459646170476314765': 'Policía General',
-        '1459645796256317617': 'Policía 1',
-        '1459646124079054929': 'Policía 2',
-        '1459646138498945368': 'Policía 3',
-        '1459646153619669165': 'Policía 4',
+        // Staff
+        '1412956666512543751': { name: 'Staff', requiredRole: 'STAFF' },
+        '1459640433297588401': { name: 'Canal de Espera', requiredRole: null },
+
+        // Policía
+        '1459646170476314765': { name: 'Policía General', requiredRole: 'POLICIA' },
+        '1459645796256317617': { name: 'Policía 1', requiredRole: 'POLICIA' },
+        '1459646124079054929': { name: 'Policía 2', requiredRole: 'POLICIA' },
+        '1459646138498945368': { name: 'Policía 3', requiredRole: 'POLICIA' },
+        '1459646153619669165': { name: 'Policía 4', requiredRole: 'POLICIA' },
 
         // Cartel
-        '1459646308145955019': 'Cartel General',
-        '1459646253746098409': 'Cartel 1',
-        '1459646266630996009': 'Cartel 2',
-        '1459646277766611049': 'Cartel 3',
-        '1459646293264826723': 'Cartel 4',
+        '1459646308145955019': { name: 'Cartel General', requiredRole: 'CARTEL' },
+        '1459646253746098409': { name: 'Cartel 1', requiredRole: 'CARTEL' },
+        '1459646266630996009': { name: 'Cartel 2', requiredRole: 'CARTEL' },
+        '1459646277766611049': { name: 'Cartel 3', requiredRole: 'CARTEL' },
+        '1459646293264826723': { name: 'Cartel 4', requiredRole: 'CARTEL' },
 
         // Ambientes
-        '1412966846273163396': 'Ambiente 1',
-        '1459642544441786521': 'Ambiente 2',
-        '1459642568756297951': 'Ambiente 3',
-        '1459643217996943683': 'Ambiente 4',
+        '1412966846273163396': { name: 'Ambiente 1' },
+        '1459642544441786521': { name: 'Ambiente 2' },
+        '1459642568756297951': { name: 'Ambiente 3' },
+        '1459643217996943683': { name: 'Ambiente 4' },
 
         // Escenarios
-        '1459642733097652235': 'Escenario 1',
-        '1459643100157841640': 'Escenario 2',
-        '1459643138728792074': 'Escenario 3',
-        '1459643117929238550': 'Escenario 4',
-        '1459643177056080049': 'Escenario 5',
-        '1459643198438768873': 'Escenario 6',
+        '1459642733097652235': { name: 'Escenario 1' },
+        '1459643100157841640': { name: 'Escenario 2' },
+        '1459643138728792074': { name: 'Escenario 3' },
+        '1459643117929238550': { name: 'Escenario 4' },
+        '1459643177056080049': { name: 'Escenario 5' },
+        '1459643198438768873': { name: 'Escenario 6' },
 
         // Soporte
-        '1412956423662469293': 'Soporte 1',
-        '1412956477789966379': 'Soporte 2',
-        '1412956507825377343': 'Soporte 3'
+        '1412956423662469293': { name: 'Soporte 1' },
+        '1412956477789966379': { name: 'Soporte 2' },
+        '1412956507825377343': { name: 'Soporte 3' }
     },
 
     getChannelInfo(channelId) {
-        const name = this.CHANNELS[channelId];
-        return name ? { id: channelId, name } : null;
+        return this.CHANNELS[channelId] || null;
     },
 
     getIdFromAlias(alias) {

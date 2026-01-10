@@ -191,6 +191,19 @@ class ErlcPollingService {
         const targetId = voiceConfig.getIdFromAlias(abbreviation);
         if (!targetId) return;
 
+        // VERIFICAR PERMISOS
+        const channelInfo = voiceConfig.getChannelInfo(targetId);
+        if (channelInfo && channelInfo.requiredRole) {
+            const roleKey = channelInfo.requiredRole;
+            const roleId = voiceConfig.ROLES[roleKey];
+
+            if (roleId && !member.roles.cache.has(roleId)) {
+                console.log(`[ERLC Service] Access Denied: ${robloxUser} tried to enter ${channelInfo.name} without role`);
+                // Opcional: Mandar mensaje de error al usuario
+                return;
+            }
+        }
+
         await member.voice.setChannel(targetId).catch(console.error);
         console.log(`[ERLC Service] Moved ${robloxUser} to ${abbreviation}`);
     }
