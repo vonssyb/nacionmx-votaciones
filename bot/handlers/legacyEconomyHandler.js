@@ -5457,7 +5457,9 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
 
     }
 
+    /* MIGRATED TO bot/commands/economy/trabajar.js
     else if (commandName === 'trabajar') {
+
         if (!interaction.deferred && !interaction.replied) await interaction.deferReply();
 
         // DNI Check
@@ -5669,6 +5671,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             });
         }
     }
+    */
 
     else if (commandName === 'crimen') {
         if (!interaction.deferred && !interaction.replied) await interaction.deferReply();
