@@ -92,21 +92,21 @@ module.exports = {
             // Let's try to extract the first part if validation fails on full nickname.
             let potentialRobloxName = interaction.member.nickname || interaction.user.username;
 
-            // Clean common patterns (e.g. "Name | Rank", "Name [Rank]")
-            // Split by common separators if present
-            if (potentialRobloxName.includes('|')) potentialRobloxName = potentialRobloxName.split('|')[0].trim();
+            // Clean common patterns for staff: \"ST-002 | USERNAME\" -> extract USERNAME (after pipe)
+            // For non-staff: \"Username | Rank\" or \"Username [Rank]\" -> extract Username (before separator)
+            // Staff pattern takes precedence
+            if (potentialRobloxName.includes('|')) {
+                const parts = potentialRobloxName.split('|');
+                // If first part looks like a badge (contains dash), take second part
+                if (parts[0].includes('-')) {
+                    potentialRobloxName = parts[1].trim(); // Staff: "ST-002 | USERNAME" -> "USERNAME"
+                } else {
+                    potentialRobloxName = parts[0].trim(); // Regular: "USERNAME | Rank" -> "USERNAME"
+                }
+            }
             if (potentialRobloxName.includes('[')) potentialRobloxName = potentialRobloxName.split('[')[0].trim();
             if (potentialRobloxName.includes('(')) potentialRobloxName = potentialRobloxName.split('(')[0].trim();
 
-            // SPECIAL CASE: Handle staff nicknames like "ST-002" or "AD-123"
-            // This handles staff members who got CK'd or have special prefixes
-            if (potentialRobloxName.includes('-')) {
-                const parts = potentialRobloxName.split('-');
-                if (parts.length >= 2) {
-                    potentialRobloxName = parts[1].trim(); // Take second part (e.g., "002")
-                    console.log(`[DEBUG] [DNI] Extracted Roblox username from staff nickname: ${interaction.member.nickname} -> ${potentialRobloxName}`);
-                }
-            }
 
             let realRobloxUsername = potentialRobloxName;
 

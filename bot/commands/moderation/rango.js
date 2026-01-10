@@ -437,18 +437,23 @@ module.exports = {
                     robloxName = citizen.roblox_username;
                 } else {
                     // 2. Fallback: Auto-Discovery via Roblox API
-                    // Try to find the user on Roblox using their Clean Discord Name
-                    let cleanUser = cleanName.replace(/[^a-zA-Z0-9_]/g, '');
+                    // Handle staff nickname format: "ST-002 | USERNAME" -> extract USERNAME (after pipe)
+                    // Handle non-staff format: "USERNAME | Rank" -> extract USERNAME (before pipe)
+                    let cleanUser = cleanName;
 
-                    // SPECIAL CASE: If nickname has format like "ST-002" or "AD-123", extract just the second part
-                    // This handles staff members who got CK'd or have special prefixes
-                    if (cleanName.includes('-')) {
-                        const parts = cleanName.split('-');
-                        if (parts.length >= 2) {
-                            cleanUser = parts[1].replace(/[^a-zA-Z0-9_]/g, ''); // Take second part (e.g., "002")
-                            console.log(`[DEBUG] Extracted Roblox username from staff nickname: ${cleanName} -> ${cleanUser}`);
+                    if (cleanName.includes('|')) {
+                        const parts = cleanName.split('|');
+                        // If first part looks like a badge (contains dash), take second part
+                        if (parts[0].includes('-')) {
+                            cleanUser = parts[1].trim(); // Staff: "ST-002 | USERNAME" -> "USERNAME"
+                            console.log(`[DEBUG] [Rango] Extracted Roblox username from staff nickname: ${cleanName} -> ${cleanUser}`);
+                        } else {
+                            cleanUser = parts[0].trim(); // Regular: "USERNAME | Rank" -> "USERNAME"
                         }
                     }
+
+                    // Clean any remaining special characters
+                    cleanUser = cleanUser.replace(/[^a-zA-Z0-9_]/g, '');
 
                     try {
                         const RobloxService = require('../../services/RobloxService');
