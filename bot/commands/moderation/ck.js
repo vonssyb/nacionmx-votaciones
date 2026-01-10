@@ -559,25 +559,26 @@ module.exports = {
                     }
 
                     // Fallback: Delete Debit Cards by discord_user_id (Debit often has this col)
-                    await supabase
+                    // Fallback: Delete Debit Cards by discord_user_id (Debit often has this col)
+                    const { error: dErr1 } = await supabase
                         .from('debit_cards')
                         .delete()
-                        .eq('discord_user_id', targetUser.id) // Correct column name is usually discord_user_id
-                        .catch(e => console.log('Debit delete by discord_user_id failed/skipped'));
+                        .eq('discord_user_id', targetUser.id);
+                    if (dErr1) console.log('Debit delete by discord_user_id failed/skipped');
 
                     // Also try 'discord_id' just in case schema differs
-                    await supabase
+                    const { error: dErr2 } = await supabase
                         .from('debit_cards')
                         .delete()
-                        .eq('discord_id', targetUser.id)
-                        .catch(() => { });
+                        .eq('discord_id', targetUser.id);
+                    if (dErr2) console.log('Debit delete by discord_id failed/skipped');
 
                     // Also try 'user_id' for credit_cards just in case
-                    await supabase
+                    const { error: cErr1 } = await supabase
                         .from('credit_cards')
                         .delete()
-                        .eq('user_id', targetUser.id)
-                        .catch(() => { });
+                        .eq('user_id', targetUser.id);
+                    if (cErr1) console.log('Credit delete by user_id failed/skipped');
 
                     // 4. Remove roles (except protected)
                     // Additional role to ALWAYS remove regardless
