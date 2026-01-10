@@ -1611,6 +1611,59 @@ const handleEconomyLegacy = async (interaction, client, supabase) => {
                                     .setURL(`https://share.roblox.com/v1/games/start?placeId=18787103515&launchData=${encodeURIComponent(JSON.stringify({ psCode: 'nmx' }))}`)
                             );
 
+                            // --- GRANT ERLC PERMISSIONS (AUTO-MOD/ADMIN) ---
+                            const JUNTA_DIRECTIVA_ROLE = '1412882245735420006';
+                            const STAFF_ROLE_ID = '1412882245735420006'; // Assuming same ID for now based on user context; adjust if needed.
+
+                            // Fetch all 'yes' voters
+                            const { data: votersData } = await supabase
+                                .from('session_vote_participants')
+                                .select('user_id')
+                                .eq('session_id', sessionId)
+                                .eq('vote_type', 'yes');
+
+                            if (votersData && votersData.length > 0) {
+                                console.log(`[Server Open] Granting permissions to ${votersData.length} voters...`);
+
+                                for (const voter of votersData) {
+                                    try {
+                                        // 1. Get Discord Member to check roles
+                                        const member = await interaction.guild.members.fetch(voter.user_id).catch(() => null);
+                                        if (!member) continue;
+
+                                        // 2. Determine Rank
+                                        let rankCommand = null;
+                                        if (member.roles.cache.has(JUNTA_DIRECTIVA_ROLE)) {
+                                            rankCommand = 'admin';
+                                        } else if (member.roles.cache.has(STAFF_ROLE_ID)) {
+                                            rankCommand = 'mod';
+                                        }
+
+                                        if (rankCommand) {
+                                            // 3. Get Roblox Username
+                                            const { data: citizen } = await supabase
+                                                .from('citizens')
+                                                .select('roblox_username')
+                                                .eq('discord_id', voter.user_id)
+                                                .maybeSingle();
+
+                                            if (citizen && citizen.roblox_username) {
+                                                // 4. Run Command
+                                                const cmd = `:${rankCommand} ${citizen.roblox_username}`;
+                                                console.log(`[Server Open] Executing: ${cmd}`);
+                                                // Execute via service
+                                                await client.services.erlc.runCommand(cmd);
+                                            } else {
+                                                console.log(`[Server Open] User <@${voter.user_id}> has no linked Roblox username.`);
+                                            }
+                                        }
+                                    } catch (permErr) {
+                                        console.error(`[Server Open] Failed to grant perms to ${voter.user_id}:`, permErr);
+                                    }
+                                }
+                            }
+                            // ----------------------------------------------------
+
                             const PING_ROLE_ID = '1412899401000685588';
                             await channel.send({ content: `<@&${PING_ROLE_ID}> 🚨 ¡SERVIDOR ABIERTO! 🚨`, embeds: [openEmbed], components: [joinButton] });
                         }
