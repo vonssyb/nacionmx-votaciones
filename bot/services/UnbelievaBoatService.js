@@ -140,6 +140,34 @@ class UnbelievableBoatService {
     }
 
     /**
+     * Set user balance (Reset or absolute set)
+     */
+    async setBalance(guildId, userId, { cash, bank }, reason = "Reset Balance") {
+        const result = await this.retryWithBackoff(async () => {
+            try {
+                const payload = { reason: reason };
+                if (cash !== undefined) payload.cash = cash;
+                if (bank !== undefined) payload.bank = bank;
+
+                // PUT sets the balance absolutely
+                const response = await this.client.put(`/guilds/${guildId}/users/${userId}`, payload);
+                const newData = response.data;
+
+                // Log Transaction
+                this.logTransaction(guildId, userId, 0, 'set_balance', reason, newData.total, 'both');
+
+                return { success: true, newBalance: newData };
+            } catch (error) {
+                logger.errorWithContext('Failed to set user balance', error, { guildId, userId });
+                throw new Error(error.response?.data?.message || error.message);
+            }
+        });
+
+        this.balanceCache.del(`balance:${guildId}:${userId}`);
+        return result;
+    }
+
+    /**
      * Add money to user balance
      */
     async addMoney(guildId, userId, amount, reason = "Préstamo Banco NMX", type = 'bank') {

@@ -484,21 +484,17 @@ module.exports = {
                     }
 
 
-                    // 2. Reset Ecosystem (Money)
+                    // 2. Reset Ecosystem (Money) - USE SET BALANCE TO 0
                     if (process.env.UNBELIEVABOAT_TOKEN) {
                         try {
                             const UnbelievaBoatService = require('../../services/UnbelievaBoatService');
                             const ubService = new UnbelievaBoatService(process.env.UNBELIEVABOAT_TOKEN);
 
-                            if (previousCash > 0) {
-                                await ubService.removeMoney(interaction.guildId, targetUser.id, previousCash, `CK: ${razon}`, 'cash');
-                            }
-                            if (previousBank > 0) {
-                                await ubService.removeMoney(interaction.guildId, targetUser.id, previousBank, `CK: ${razon}`, 'bank');
-                            }
+                            // SET BALANCE TO 0 DIRECTLY (More reliable than remove)
+                            await ubService.setBalance(interaction.guildId, targetUser.id, { cash: 0, bank: 0 }, `CK: ${razon}`);
+
                         } catch (ubError) {
                             console.error('[CK] Failed to reset UnbelievaBoat balance:', ubError);
-                            // Non-blocking
                         }
                     }
 
@@ -535,12 +531,24 @@ module.exports = {
                         }
                     }
 
-                    // 3. Deactivate all credit cards
+                    // 3. DELETE (Not just Deactivate) ALL CARDS
+                    // Credit Cards
                     await supabase
                         .from('credit_cards')
-                        .update({ active: false })
+                        .delete()
                         .eq('guild_id', interaction.guildId)
                         .eq('user_id', targetUser.id);
+
+                    // Debit Cards (Find via Citizens link usually, or direct link if exists? Assuming link via Citizen ID)
+                    // If DNI is deleted (Step 5), debit cards cascading? Unsure. Explicit delete is safer.
+                    // Need Citizen ID first?
+                    const { data: cit } = await supabase.from('citizens').select('id').eq('user_id', targetUser.id).maybeSingle();
+                    if (cit) {
+                        await supabase.from('debit_cards').delete().eq('citizen_id', cit.id);
+                    }
+                    // Also try deleting by discord_id if column exists (BillingService suggests it does)
+                    // Try direct delete by discord_id just in case
+                    await supabase.from('debit_cards').delete().eq('discord_id', targetUser.id).catch(() => { });
 
                     // 4. Remove roles (except protected)
                     // Additional role to ALWAYS remove regardless

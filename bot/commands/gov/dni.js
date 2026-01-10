@@ -12,7 +12,6 @@ module.exports = {
                 .addStringOption(option => option.setName('nombre').setDescription('Nombre').setRequired(true))
                 .addStringOption(option => option.setName('apellido').setDescription('Apellido').setRequired(true))
                 .addIntegerOption(option => option.setName('edad').setDescription('Edad (18-99)').setRequired(true).setMinValue(18).setMaxValue(99))
-                .addStringOption(option => option.setName('roblox_usuario').setDescription('Usuario de Roblox (REAL)').setRequired(true))
                 .addIntegerOption(option => option.setName('dia').setDescription('Día de nacimiento').setRequired(true).setMinValue(1).setMaxValue(31))
                 .addStringOption(option => option.setName('mes').setDescription('Mes de nacimiento').setRequired(true)
                     .addChoices(
@@ -68,8 +67,7 @@ module.exports = {
             const edad = interaction.options.getInteger('edad');
             const genero = interaction.options.getString('genero');
 
-            // New Fields
-            const robloxInput = interaction.options.getString('roblox_usuario');
+            // New Fields (DIA/MES Only)
             const dia = interaction.options.getInteger('dia');
             const mes = interaction.options.getString('mes');
 
@@ -87,18 +85,32 @@ module.exports = {
                 return interaction.editReply(`❌ Día inválido para el mes seleccionado. El máximo es ${maxDays}.`);
             }
 
-            // ROBLOX VALIDATION
-            let realRobloxUsername = robloxInput;
+            // ROBLOX AUTO-DETECTION (Nickname)
+            // User requested: "Usa el apodo o el que se uso para verificarse"
+            // We use Nickname as primary source. Remove non-alphanumeric if needed? 
+            // Usually Verification bots set nickname to "Username" or "Username | Rank"
+            // Let's try to extract the first part if validation fails on full nickname.
+            let potentialRobloxName = interaction.member.nickname || interaction.user.username;
+
+            // Clean common patterns (e.g. "Name | Rank", "Name [Rank]")
+            // Split by common separators if present
+            if (potentialRobloxName.includes('|')) potentialRobloxName = potentialRobloxName.split('|')[0].trim();
+            if (potentialRobloxName.includes('[')) potentialRobloxName = potentialRobloxName.split('[')[0].trim();
+            if (potentialRobloxName.includes('(')) potentialRobloxName = potentialRobloxName.split('(')[0].trim();
+
+            let realRobloxUsername = potentialRobloxName;
+
             try {
                 const RobloxService = require('../../services/RobloxService');
-                const resolvedUser = await RobloxService.getIdFromUsername(robloxInput.trim());
+                const resolvedUser = await RobloxService.getIdFromUsername(potentialRobloxName);
                 if (!resolvedUser) {
-                    return interaction.editReply(`❌ **Usuario de Roblox Inválido**\nNo se pudo encontrar el usuario \`${robloxInput}\` en Roblox.`);
+                    return interaction.editReply(`❌ **No pudimos verificar tu usuario de Roblox.**\nIntentamos usar tu apodo del servidor: \`${potentialRobloxName}\`.\nPor favor asegúrate de estar verificado correctamente o cambiar tu apodo al de Roblox.`);
                 }
-                realRobloxUsername = resolvedUser.name;
+                realRobloxUsername = resolvedUser.name; // Use confirmed casing
             } catch (rErr) {
                 console.error('Roblox Valid Error:', rErr);
-                return interaction.editReply(`❌ **Error Validando Roblox**\nNo se pudo verificar el usuario \`${robloxInput}\`.`);
+                // Fallback to strict? If fails, stop.
+                return interaction.editReply(`❌ **Error verificando usuario de Roblox.**\nIntenta nuevamente más tarde.`);
             }
 
             // 2. Check if USER already has a DNI (One per person)
@@ -148,7 +160,7 @@ module.exports = {
                     genero,
                     foto_url: fotoUrl, // Discord avatar
                     created_by: interaction.user.id,
-                    user_tag: realRobloxUsername // Using user_tag for Roblox Username
+                    user_tag: realRobloxUsername // Using auto-detected Roblox Name
                 })
                 .select()
                 .single();
