@@ -132,8 +132,15 @@ async function startModerationBot() {
     const erlcLogManager = new ErlcLogManager(client, supabase, erlcService, '1457892493310951444');
     erlcLogManager.start();
 
-    // ERLC Command Poller (Legacy Commands :log talk, :log vc)
-    const erlcPollingService = new ErlcPollingService(client, supabase);
+    // ERLC Command Poller (Voice Swarm Enabler)
+    const VoiceSwarmService = require('./services/VoiceSwarmService');
+    const swarmTokens = process.env.VOICE_SWARM_TOKENS ? process.env.VOICE_SWARM_TOKENS.split(',') : [];
+
+    // Initialize Swarm
+    const swarmService = new VoiceSwarmService(swarmTokens);
+    swarmService.init().catch(err => console.error('❌ [Swarm] Init Failed:', err));
+
+    const erlcPollingService = new ErlcPollingService(supabase, client, swarmService);
     erlcPollingService.start();
 
     client.services = {
@@ -144,7 +151,8 @@ async function startModerationBot() {
         erlcScheduler: erlcScheduler,
         erlc: erlcService,
         erlcLogManager: erlcLogManager,
-        erlcPolling: erlcPollingService
+        erlcPolling: erlcPollingService,
+        swarm: swarmService
     };
 
     // Load Commands
