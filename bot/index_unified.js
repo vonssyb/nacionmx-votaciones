@@ -301,7 +301,7 @@ async function startEconomyBot() {
 
     // Load Commands
     const loader = require('./handlers/commandLoader');
-    await loader.loadCommands(client, path.join(__dirname, 'commands'), ['economy', 'business', 'games', 'utils']);
+    await loader.loadCommands(client, path.join(__dirname, 'commands'), ['economy', 'business', 'games']);
 
     // Legacy Support
     const { handleEconomyLegacy } = require('./handlers/legacyEconomyHandler');
@@ -380,7 +380,7 @@ async function startGovernmentBot() {
 
     // Load Commands
     const loader = require('./handlers/commandLoader');
-    await loader.loadCommands(client, path.join(__dirname, 'commands'), ['gov', 'utils']);
+    await loader.loadCommands(client, path.join(__dirname, 'commands'), ['gov']);
 
     // AUTO-REGISTER COMMANDS (On Startup)
     const GOV_TOKEN = process.env.DISCORD_TOKEN_GOV;
