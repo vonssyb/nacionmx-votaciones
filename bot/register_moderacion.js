@@ -95,6 +95,13 @@ const rest = new REST({ version: '10' }).setToken(token);
 
         console.log(`🚀 [MOD] Registrando ${commands.length} comandos...`);
 
+        // 0. CLEANUP GLOBAL COMMANDS (Fix for duplicates)
+        try {
+            console.log('🧹 Limpiando comandos GLOBALES antiguos...');
+            await rest.put(Routes.applicationCommands(clientId), { body: [] });
+            console.log('✅ Comandos globales eliminados.');
+        } catch (e) { console.error('⚠️ Warning cleaning globals:', e.message); }
+
         const data = await rest.put(
             Routes.applicationGuildCommands(clientId, guildId),
             { body: commands }

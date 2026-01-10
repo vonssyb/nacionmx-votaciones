@@ -67,6 +67,15 @@ async function registerEconomyCommands() {
     console.log(`📡 Guild ID: ${GUILD_ID}`);
     console.log(`🤖 Client ID: ${CLIENT_ID}`);
 
+    // 0. CLEANUP GLOBAL COMMANDS (Fix for duplicates)
+    try {
+        console.log('🧹 Limpiando comandos GLOBALES antiguos...');
+        await rest.put(Routes.applicationCommands(CLIENT_ID), { body: [] });
+        console.log('✅ Comandos globales eliminados.');
+    } catch (e) {
+        console.error('⚠️ Warning cleaning globals:', e.message);
+    }
+
     try {
         const data = await rest.put(
             Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID),
