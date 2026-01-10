@@ -485,10 +485,10 @@ They need $${(cost - availableFunds).toLocaleString()} more.`,
                 console.error('[visa otorgar] Error:', visaError);
                 // Refund if visa creation failed
                 if (bankAmount > 0) {
-                    await BillingService.ubService.addMoney(interaction.guildId, targetUser.id, bankAmount, 'Visa refund', 'bank');
+                    await client.services.billing.ubService.addMoney(interaction.guildId, targetUser.id, bankAmount, 'Visa refund', 'bank');
                 }
                 if (cashAmount > 0) {
-                    await BillingService.ubService.addMoney(interaction.guildId, targetUser.id, cashAmount, 'Visa refund', 'cash');
+                    await client.services.billing.ubService.addMoney(interaction.guildId, targetUser.id, cashAmount, 'Visa refund', 'cash');
                 }
                 return interaction.editReply('❌ Error creating visa. Payment refunded.');
             }
