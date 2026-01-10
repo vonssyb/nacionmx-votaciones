@@ -1,5 +1,24 @@
 const commands = [
     {
+        name: 'divisa',
+        description: '💱 Gestión de Tasa de Cambio Peso/Dólar',
+        options: [
+            {
+                name: 'tasa',
+                description: '📈 Ver la tasa de cambio actual (USD → MXN)',
+                type: 1
+            },
+            {
+                name: 'set-tasa',
+                description: '⚙️ Admin: Establecer manualmente la tasa del día',
+                type: 1,
+                options: [
+                    { name: 'valor', description: 'Nuevo precio del dólar (Ej. 19.50)', type: 10, required: true }
+                ]
+            }
+        ]
+    },
+    {
         name: 'ping',
         description: 'Comprueba si el bot está vivo'
     },
