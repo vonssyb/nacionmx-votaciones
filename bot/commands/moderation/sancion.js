@@ -582,8 +582,9 @@ module.exports = {
                                     if (accion === 'Kick ERLC') {
                                         erlcCommand = `:kick ${robloxIdentifier} ${motivo.substring(0, 50)}`;
                                     } else if (accion === 'Ban Temporal ERLC') {
-                                        const hours = durationMs ? Math.ceil(durationMs / (1000 * 60 * 60)) : 24;
-                                        erlcCommand = `:ban ${robloxIdentifier} ${hours} ${motivo.substring(0, 50)}`;
+                                        // ERLC doesn't support time-based bans, so we just ban permanently
+                                        // Bot manages temporal aspect via DB and auto-unban
+                                        erlcCommand = `:ban ${robloxIdentifier} ${motivo.substring(0, 50)}`;
 
                                         // Save to DB for auto-unban
                                         const expiresAt = new Date(Date.now() + durationMs);
@@ -603,7 +604,7 @@ module.exports = {
                                                 roblox_username: !robloxIdentifier.match(/^\d+$/) ? robloxIdentifier : null
                                             });
                                     } else if (accion === 'Ban Permanente ERLC') {
-                                        erlcCommand = `:ban ${robloxIdentifier} 999999 ${motivo.substring(0, 50)}`;
+                                        erlcCommand = `:ban ${robloxIdentifier} ${motivo.substring(0, 50)}`;
                                     }
 
                                     console.log(`[Sancion] Sending ERLC command: ${erlcCommand}`);
