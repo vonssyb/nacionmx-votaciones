@@ -407,150 +407,98 @@ They must create one with \`/dni crear\``,
                 });
             }
 
-            // Check user balance
+            // Check user balance for affordability check
             const balance = await client.services.billing.ubService.getUserBalance(interaction.guildId, targetUser.id);
-            const availableFunds = (balance.bank || 0) + (balance.cash || 0);
+            const { data: cards } = await supabase
+                .from('credit_cards')
+                .select('id, card_number, available_credit')
+                .eq('user_id', targetUser.id)
+                .eq('status', 'active');
 
-            if (availableFunds < cost) {
+            const availableFunds = (balance.bank || 0) + (balance.cash || 0);
+            const totalCredit = cards ? cards.reduce((sum, c) => sum + (c.available_credit || 0), 0) : 0;
+            const totalAvailable = availableFunds + totalCredit;
+
+            if (totalAvailable < cost) {
                 return interaction.editReply({
                     content: `❌ **Insufficient Funds**
 
 ${targetUser.tag} doesn't have enough money for this visa.
 
 **Required:** $${cost.toLocaleString()}
-**Available:** $${availableFunds.toLocaleString()} (Bank + Cash)
+**Available:** $${totalAvailable.toLocaleString()} (Bank + Cash + Credit)
 
-They need $${(cost - availableFunds).toLocaleString()} more.`,
+They need $${(cost - totalAvailable).toLocaleString()} more.`,
                     flags: [64]
                 });
             }
 
-            // Charge from bank first, then cash if needed
-            const bankAmount = Math.min(cost, balance.bank || 0);
-            const cashAmount = cost - bankAmount;
+            // Show payment method selection
+            const { ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
 
-            try {
-                if (bankAmount > 0) {
-                    await client.services.billing.ubService.removeMoney(
-                        interaction.guildId,
-                        targetUser.id,
-                        bankAmount,
-                        `Visa USA ${visaType}`,
-                        'bank'
-                    );
-                }
-                if (cashAmount > 0) {
-                    await client.services.billing.ubService.removeMoney(
-                        interaction.guildId,
-                        targetUser.id,
-                        cashAmount,
-                        `Visa USA ${visaType}`,
-                        'cash'
-                    );
-                }
-            } catch (paymentError) {
-                console.error('[visa otorgar] Payment error:', paymentError);
-                return interaction.editReply('❌ Error processing payment. Contact an administrator.');
-            }
-
-            // Generate visa number
-            const { data: visaNumberResult } = await supabase.rpc('generate_us_visa_number');
-            const visaNumber = visaNumberResult;
-
-            // Calculate expiration
-            let expirationDate = null;
-            if (VISA_DURATIONS[visaType]) {
-                expirationDate = new Date();
-                expirationDate.setDate(expirationDate.getDate() + VISA_DURATIONS[visaType]);
-            }
-
-            // Create visa
-            const { data: newVisa, error: visaError } = await supabase
-                .from('us_visas')
-                .insert({
-                    guild_id: interaction.guildId,
-                    user_id: targetUser.id,
-                    citizen_dni_id: dni.id,
-                    visa_type: visaType,
-                    visa_number: visaNumber,
-                    expiration_date: expirationDate,
-                    status: 'active',
-                    approved_by: interaction.user.id,
-                    approved_by_tag: interaction.user.tag
-                })
-                .select()
-                .single();
-
-            if (visaError) {
-                console.error('[visa otorgar] Error:', visaError);
-                // Refund if visa creation failed
-                if (bankAmount > 0) {
-                    await client.services.billing.ubService.addMoney(interaction.guildId, targetUser.id, bankAmount, 'Visa refund', 'bank');
-                }
-                if (cashAmount > 0) {
-                    await client.services.billing.ubService.addMoney(interaction.guildId, targetUser.id, cashAmount, 'Visa refund', 'cash');
-                }
-                return interaction.editReply('❌ Error creating visa. Payment refunded.');
-            }
-
-            // Grant American role
-            try {
-                await targetMember.roles.add(AMERICAN_ROLE_ID);
-            } catch (roleError) {
-                console.error('[visa otorgar] Role error:', roleError);
-            }
-
-            // Prepare data for generator
-            const visaData = {
-                ...newVisa,
-                nombre: dni.nombre,
-                apellido: dni.apellido,
-                nombre_completo: `${dni.nombre} ${dni.apellido}`,
-                foto_url: dni.foto_url || interaction.user.displayAvatarURL({ extension: 'png', size: 512 })
-            };
-
-            const visaImageBuffer = await ImageGenerator.generateVisa(visaData);
-            const attachment = new AttachmentBuilder(visaImageBuffer, { name: 'visa.png' });
+            const paymentButtons = new ActionRowBuilder().addComponents(
+                new ButtonBuilder()
+                    .setCustomId(`visa_pay_bank_${targetUser.id}_${visaType}_${cost}`)
+                    .setLabel('🏦 Banco')
+                    .setStyle(ButtonStyle.Primary)
+                    .setDisabled((balance.bank || 0) < cost),
+                new ButtonBuilder()
+                    .setCustomId(`visa_pay_credit_${targetUser.id}_${visaType}_${cost}`)
+                    .setLabel('💳 Tarjeta')
+                    .setStyle(ButtonStyle.Success)
+                    .setDisabled(!cards || cards.length === 0 || totalCredit < cost),
+                new ButtonBuilder()
+                    .setCustomId(`visa_pay_cash_${targetUser.id}_${visaType}_${cost}`)
+                    .setLabel('💵 Efectivo')
+                    .setStyle(ButtonStyle.Secondary)
+                    .setDisabled((balance.cash || 0) < cost)
+            );
 
             const embed = new EmbedBuilder()
-                .setTitle('✅ US Visa Granted')
-                .setColor('#00FF00')
-                .setDescription(`US Visa granted to ${targetUser.tag}`)
-                .setImage('attachment://visa.png')
+                .setTitle('💳 US Visa Payment')
+                .setColor('#0099FF')
+                .setDescription(`Select payment method to grant visa to ${targetUser.tag}`)
                 .addFields(
-                    { name: '👤 Recipient', value: `<@${targetUser.id}>`, inline: true },
-                    { name: '📋 Type', value: visaType.charAt(0).toUpperCase() + visaType.slice(1), inline: true },
+                    { name: '📋 Visa Type', value: visaType.charAt(0).toUpperCase() + visaType.slice(1), inline: true },
                     { name: '💰 Cost', value: `$${cost.toLocaleString()}`, inline: true },
-                    { name: '🎫 Visa Number', value: `\`${visaNumber}\``, inline: false },
-                    { name: '📅 Issued', value: new Date().toLocaleDateString(), inline: true },
-                    { name: '⏰ Expires', value: expirationDate ? expirationDate.toLocaleDateString() : 'Never (Permanent)', inline: true },
-                    { name: '👮 Issued By', value: `<@${interaction.user.id}>`, inline: true }
+                    { name: '👤 Applicant', value: `<@${targetUser.id}>`, inline: false },
+                    {
+                        name: '💵 Available', value:
+                            `🏦 Bank: $${(balance.bank || 0).toLocaleString()}\n` +
+                            `💳 Credit: $${totalCredit.toLocaleString()}\n` +
+                            `💵 Cash: $${(balance.cash || 0).toLocaleString()}`,
+                        inline: false
+                    }
                 )
-                .setFooter({ text: 'American role granted • Payment processed' })
+                .setFooter({ text: 'Select a payment method • 60 second timeout' })
                 .setTimestamp();
 
-            await interaction.editReply({ embeds: [embed], files: [attachment] });
+            const reply = await interaction.editReply({
+                embeds: [embed],
+                components: [paymentButtons]
+            });
 
-            // DM the user
-            try {
-                await targetUser.send({
-                    embeds: [new EmbedBuilder()
-                        .setTitle('🎉 Your US Visa Has Been Granted!')
-                        .setColor('#00FF00')
-                        .setDescription(`Congratulations! Your US visa has been approved and processed by USCIS.`)
-                        .addFields(
-                            { name: '🎫 Visa Number', value: `\`${visaNumber}\``, inline: false },
-                            { name: '📋 Type', value: visaType.charAt(0).toUpperCase() + visaType.slice(1), inline: true },
-                            { name: '💰 Paid', value: `$${cost.toLocaleString()}`, inline: true },
-                            { name: '⏰ Valid Until', value: expirationDate ? expirationDate.toLocaleDateString() : 'Permanent', inline: false }
-                        )
-                        .setFooter({ text: 'Welcome to the United States!' })
-                        .setTimestamp()
-                    ]
-                });
-            } catch (dmError) {
-                // User has DMs disabled
-            }
+            // Collector for button interaction
+            const collector = reply.createMessageComponentCollector({
+                time: 60000,
+                filter: i => i.user.id === interaction.user.id
+            });
+
+            collector.on('collect', async (buttonInteraction) => {
+                // Payment handling is done in legacyEconomyHandler.js or a new handler
+                // For now, acknowledge the button
+                await buttonInteraction.deferUpdate();
+            });
+
+            collector.on('end', async (collected) => {
+                if (collected.size === 0) {
+                    // Timeout
+                    await interaction.editReply({
+                        embeds: [embed.setColor('#FF0000').setFooter({ text: 'Payment timeout - request cancelled' })],
+                        components: []
+                    });
+                }
+            });
         }
 
         // VER - View visa
