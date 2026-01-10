@@ -260,13 +260,11 @@ class ErlcPollingService {
             const guild = member.guild;
 
             console.log(`[ERLC Service] Joining Voice Channel ${channelId}...`);
-            let connection = getVoiceConnection(guild.id);
-            if (!connection || connection.joinConfig.channelId !== channelId) {
-                connection = joinVoiceChannel({
-                    channelId: channelId,
-                    guildId: guild.id,
-                    adapterCreator: guild.voiceAdapterCreator,
-                });
+            const connection = await this.ensureConnection(guild, channelId);
+
+            if (!connection) {
+                console.error('[ERLC Service] Failed to establish voice connection.');
+                return;
             }
 
             console.log(`[ERLC Service] Enqueueing Audio...`);
@@ -274,6 +272,49 @@ class ErlcPollingService {
             this.processQueue();
         } catch (error) {
             console.error(`❌ [ERLC Service] HandleTalk Crash Prevention:`, error);
+        }
+    }
+
+    async ensureConnection(guild, channelId) {
+        let connection = getVoiceConnection(guild.id);
+
+        try {
+            // If connection exists but is in bad state, destroy it
+            if (connection) {
+                const status = connection.state.status;
+                if (status === 'disconnected' || status === 'destroyed') {
+                    console.log(`[ERLC Service] Connection in bad state (${status}). Recreating...`);
+                    connection.destroy();
+                    connection = null;
+                } else if (connection.joinConfig.channelId !== channelId) {
+                    console.log(`[ERLC Service] Switching channels...`);
+                    // Just rejoin, joinVoiceChannel handles the switch
+                }
+            }
+
+            if (!connection) {
+                connection = joinVoiceChannel({
+                    channelId: channelId,
+                    guildId: guild.id,
+                    adapterCreator: guild.voiceAdapterCreator,
+                });
+            }
+
+            // ATTACH ERROR HANDLERS (Vital for preventing crashes)
+            if (connection.listenerCount('error') === 0) {
+                connection.on('error', (error) => {
+                    console.warn(`⚠️ [ERLC Service] Connection Error (Ignored):`, error.message);
+                });
+            }
+
+            // Re-verify it's not destroyed
+            if (connection.state.status === 'destroyed') return null;
+
+            return connection;
+
+        } catch (e) {
+            console.error('[ERLC Service] EnsureConnection Error:', e);
+            return null;
         }
     }
 
