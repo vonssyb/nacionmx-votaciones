@@ -472,26 +472,33 @@ async function loginWithRetry(client, token, botName) {
 // =============================================================================
 (async () => {
     try {
-        // --- SINGLE INSTANCE LOCK DISABED AS REQUESTED ---
-        // const SingleInstanceLock = require('./services/SingleInstanceLock');
-        // const locker = new SingleInstanceLock(supabase, INSTANCE_ID);
+        // --- SINGLE INSTANCE LOCK ---
+        const SingleInstanceLock = require('./services/SingleInstanceLock');
+        const locker = new SingleInstanceLock(supabase, INSTANCE_ID);
 
         // WAIT FOR LOCK (Do not exit, as that fails Health Checks)
-        // let acquired = await locker.acquireLock();
+        let acquired = await locker.acquireLock();
+        let attempts = 0;
+        const MAX_ATTEMPTS = 24; // 24 * 5s = 120s (2 Minutes)
 
-        // if (!acquired) {
-        //     console.log(`⏳ [Startup] Another instance is active. Waiting for lock to be released...`);
-        //     console.log(`   (This allows Zero-Downtime Deployment to pass Health Checks while waiting for the old instance to stop)`);
+        if (!acquired) {
+            console.log(`⏳ [Startup] Another instance is active. Waiting for lock... (Max 2 min)`);
 
-        //     while (!acquired) {
-        //         await new Promise(resolve => setTimeout(resolve, 5000)); // Wait 5 seconds
-        //         acquired = await locker.acquireLock();
-        //         if (acquired) console.log(`🔓 [Startup] Lock acquired! Starting bots...`);
-        //     }
-        // }
+            while (!acquired && attempts < MAX_ATTEMPTS) {
+                await new Promise(resolve => setTimeout(resolve, 5000)); // Wait 5s
+                acquired = await locker.acquireLock();
+                attempts++;
 
-        // Lock acquired, proceed
-        console.log('🔓 [Startup] Lock system disabled. Starting immediately...');
+                if (acquired) {
+                    console.log(`🔓 [Startup] Lock acquired! Starting bots...`);
+                    break;
+                }
+            }
+
+            if (!acquired) {
+                console.warn(`⚠️ [Startup] Lock TIMEOUT (${MAX_ATTEMPTS * 5}s). Force starting anyway...`);
+            }
+        }
 
         // Lock acquired, proceed
         await startModerationBot();
