@@ -145,6 +145,32 @@ class StoreService {
             throw new Error(`Ya tienes un "${item.name}" activo`);
         }
 
+        // 2b. ANTI-CK COOLDOWN CHECK
+        // If they recently consumed an Anti-CK, they cannot buy another one for 14 days.
+        if (itemKey === 'anti_ck') {
+            const { data: lastConsumed } = await this.supabase
+                .from('user_purchases')
+                .select('expiration_date')
+                .eq('user_id', userId)
+                .eq('item_key', 'anti_ck')
+                .eq('status', 'consumed') // CK process sets status to 'consumed' and expiration_date to used_at
+                .order('expiration_date', { ascending: false })
+                .limit(1)
+                .maybeSingle();
+
+            if (lastConsumed) {
+                const consumedDate = new Date(lastConsumed.expiration_date);
+                const now = new Date();
+                const diffTime = Math.abs(now - consumedDate);
+                const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)); // Full days elapsed
+                const COOLDOWN_DAYS = 14;
+
+                if (diffDays < COOLDOWN_DAYS) {
+                    throw new Error(`🛡️ **Enfriamiento Activado:** Usaste un Seguro Anti-CK hace ${diffDays} días.\nDebes esperar **${COOLDOWN_DAYS - diffDays} días más** para comprar otro.`);
+                }
+            }
+        }
+
         // 3. Check user balance
         const { data: card } = await this.supabase
             .from('debit_cards')

@@ -546,6 +546,17 @@ module.exports = {
                     // Additional role to ALWAYS remove regardless
                     const forceRemoveRoles = ['1449942943648714902']; // Autock role
 
+                    const removedRoleIds = []; // For Database Cooldowns
+
+                    // Roles that are removed but NOT blocked (Licenses, Passes)
+                    const COOLDOWN_EXEMPT_ROLES = [
+                        '1413541379803578431', '1413543907110682784', '1413543909761614005', // Licencias
+                        '1449947645383675939', '1449948475935424583', '1449949468517470285', // Pases/Items
+                        '1449949722050691132', '1449949914154012878', '1449950079887605880',
+                        '1449950535166726317', '1449950636371214397', '1449950778499268619',
+                        '1449951345611378841'
+                    ];
+
                     for (const [roleId, role] of member.roles.cache) {
                         const protectedNames = ['Civil Mexicano', 'Roles administrativos', 'Soporte', 'Staff', 'Booster', 'Server Booster'];
                         // Normalize strings for comparison (trim + lowercase)
@@ -561,7 +572,12 @@ module.exports = {
                         if (shouldRemove) {
                             try {
                                 await member.roles.remove(roleId);
-                                removedRoles.push(role.name); // Use name, not mention
+                                removedRoles.push(role.name); // Keep for logs
+
+                                // Only add to Cooldown DB if NOT exempt
+                                if (!COOLDOWN_EXEMPT_ROLES.includes(roleId)) {
+                                    removedRoleIds.push({ id: roleId, name: role.name });
+                                }
                             } catch (e) {
                                 console.log(`Could not remove role ${role.name}:`, e.message);
                             }
@@ -574,6 +590,22 @@ module.exports = {
                         .delete()
                         .eq('guild_id', interaction.guildId)
                         .eq('user_id', targetUser.id);
+
+                    // 5b. INSERT ROLE COOLDOWNS (2 Weeks)
+                    const cooldownExpiry = new Date();
+                    cooldownExpiry.setDate(cooldownExpiry.getDate() + 14); // 2 Weeks
+
+                    if (removedRoleIds.length > 0) {
+                        const cooldownInserts = removedRoleIds.map(r => ({
+                            user_id: targetUser.id,
+                            role_id: r.id,
+                            role_name: r.name,
+                            expires_at: cooldownExpiry.toISOString()
+                        }));
+
+                        const { error: cdError } = await supabase.from('role_cooldowns').upsert(cooldownInserts, { onConflict: 'user_id,role_id' });
+                        if (cdError) console.error('[CK] Failed to insert role cooldowns:', cdError);
+                    }
 
                     // 6. Log to CK registry
                     await supabase

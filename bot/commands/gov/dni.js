@@ -59,17 +59,44 @@ module.exports = {
             const edad = interaction.options.getInteger('edad');
             const genero = interaction.options.getString('genero');
 
-            // Check if DNI already exists
-            const { data: existing } = await supabase
+            // 1. Normalization
+            const nombreClean = nombre.trim();
+            const apellidoClean = apellido.trim();
+
+            if (nombreClean.length < 2 || apellidoClean.length < 2) {
+                return interaction.editReply('❌ El nombre y apellido deben tener al menos 2 caracteres.');
+            }
+
+            // 2. Check if USER already has a DNI (One per person)
+            const { data: existingUser } = await supabase
                 .from('citizen_dni')
                 .select('id')
                 .eq('guild_id', interaction.guildId)
                 .eq('user_id', targetUser.id)
                 .maybeSingle();
 
-            if (existing) {
+            if (existingUser) {
                 return interaction.editReply(`❌ ${targetUser.tag} ya tiene un DNI registrado. Usa \`/dni editar\` para modificarlo.`);
             }
+
+            // 3. DUPLICATE IDENTITY CHECK (Name Collision)
+            // Prevent same name usage (Case Insensitive)
+            // "letras similares" -> We rely on ILIKE which handles case.
+            // Ideally we'd use 'unaccent' but it requires extension. 
+            // We'll check for exact case-insensitive match for now.
+            const { data: duplicateName } = await supabase
+                .from('citizen_dni')
+                .select('user_id')
+                .ilike('nombre', nombreClean)
+                .ilike('apellido', apellidoClean)
+                .neq('user_id', targetUser.id) // Should be implied since user has no DNI, but safe check
+                .maybeSingle();
+
+            if (duplicateName) {
+                return interaction.editReply(`⛔ **Nombre No Disponible**\n\nYa existe un ciudadano registrado con el nombre **${nombreClean} ${apellidoClean}** (o muy similar).\nPor favor elige otro nombre para evitar duplicidad de identidad.`);
+            }
+
+            // Check logic ends here, continue with creation...
 
             // Calculate fecha_nacimiento
             const currentYear = new Date().getFullYear();

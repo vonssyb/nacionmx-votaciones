@@ -38,6 +38,20 @@ module.exports = {
                 return interaction.editReply(`⚠️ ${targetUser.tag} ya tiene el rol ${role.name}.`);
             }
 
+            // --- CK ROLE COOLDOWN CHECK ---
+            const { data: cooldown } = await interaction.client.supabase
+                .from('role_cooldowns')
+                .select('*')
+                .eq('user_id', targetUser.id)
+                .eq('role_id', role.id)
+                .gt('expires_at', new Date().toISOString())
+                .maybeSingle();
+
+            if (cooldown) {
+                const expiresDate = new Date(cooldown.expires_at).toLocaleDateString('es-MX');
+                return interaction.editReply(`⛔ **Rol Bloqueado por CK**\nEste usuario tiene restringido el rol **${role.name}** debido a un CK reciente.\n\n📅 Desbloqueo: **${expiresDate}**`);
+            }
+
             // Add role
             await member.roles.add(role);
 
