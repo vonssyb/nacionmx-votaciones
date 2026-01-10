@@ -5649,13 +5649,18 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                     const member = await interaction.guild.members.fetch(interaction.user.id);
                     const { finalAmount, appliedRole } = applyRoleBenefits(member, basePay, 'job');
                     // ...
+                    if (isNaN(finalAmount) || finalAmount < 1) {
+                        console.error('[Job Payout] Invalid Amount:', { basePay, finalAmount, jobPay: job.pay });
+                        return i.editReply({ content: `⚠️ **¡Error Interno!** El pago calculado es inválido ($${finalAmount}). Reporta esto.`, embeds: [], components: [] });
+                    }
+
                     try {
                         await billingService.ubService.addMoney(interaction.guildId, interaction.user.id, finalAmount, `Trabajo: ${job.title}`, 'cash');
                         casinoSessions[jobKey] = Date.now();
                         await i.editReply({ content: `✅ **¡Excelente!** Ganaste **$${finalAmount.toLocaleString()}**.`, embeds: [], components: [] });
                     } catch (payError) {
-                        console.error('Payment Error (Trabajar):', payError);
-                        await i.editReply({ content: `⚠️ **¡Bien hecho!** Pero hubo un error procesando tu pago: ${payError.message}. Contacta a soporte.`, embeds: [], components: [] });
+                        console.error('Payment Error (Trabajar):', payError.response?.data || payError.message);
+                        await i.editReply({ content: `⚠️ **¡Bien hecho!** Pero hubo un error procesando tu pago: ${payError.response?.data?.message || payError.message}. Contacta a soporte.`, embeds: [], components: [] });
                     }
                 } else {
                     casinoSessions[jobKey] = Date.now();
