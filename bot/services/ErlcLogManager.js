@@ -182,11 +182,18 @@ class ErlcLogManager {
                         .setTimestamp(j.Timestamp * 1000);
                     await logChannel.send({ embeds: [embed] });
 
+                    // ✨ NEW: Trigger pending ERLC actions when someone joins
+                    if (j.Join && this.client.services?.erlcScheduler) {
+                        console.log(`[ErlcLogManager] Player joined: ${j.Player}. Checking pending ERLC actions...`);
+                        await this.client.services.erlcScheduler.checkPendingActions();
+                    }
+
                     this.state.processedJoins.add(logId);
                     this.state.lastJoin = Math.max(this.state.lastJoin, j.Timestamp);
                 }
                 this.cleanupSet(this.state.processedJoins);
             }
+
 
             this.saveState();
 
