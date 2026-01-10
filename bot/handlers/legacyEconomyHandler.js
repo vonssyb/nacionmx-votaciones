@@ -8327,6 +8327,82 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
 
             const razon = interaction.options.getString('razon') || 'Sesión finalizada';
 
+            // --- REVOKE ERLC PERMISSIONS (AUTO-UNMOD/UNADMIN) ---
+            const JUNTA_DIRECTIVA_ROLE = '1412882245735420006';
+            const STAFF_ROLE_ID = '1412882245735420006';
+
+            try {
+                // 1. Find the ACTIVE session being closed
+                const { data: activeSession } = await supabase
+                    .from('session_votes')
+                    .select('id')
+                    .eq('status', 'opened') // Only revoke for OPENED sessions
+                    .order('created_at', { ascending: false })
+                    .limit(1)
+                    .maybeSingle();
+
+                if (activeSession) {
+                    // 2. Fetch voters who were granted perms
+                    const { data: votersData } = await supabase
+                        .from('session_vote_participants')
+                        .select('user_id')
+                        .eq('session_id', activeSession.id)
+                        .eq('vote_type', 'yes');
+
+                    if (votersData && votersData.length > 0) {
+                        console.log(`[Server Close] Revoking permissions from ${votersData.length} users...`);
+
+                        for (const voter of votersData) {
+                            try {
+                                const { data: citizen } = await supabase
+                                    .from('citizens')
+                                    .select('roblox_username')
+                                    .eq('discord_id', voter.user_id)
+                                    .maybeSingle();
+
+                                if (citizen && citizen.roblox_username) {
+                                    // We attempt to remove BOTH roles to be safe/clean
+                                    // Or check Discord role to know which one they had.
+                                    // Let's check Discord role for precision, or just blast unmod/unadmin.
+                                    // Safer to check roles.
+
+                                    const member = await interaction.guild.members.fetch(voter.user_id).catch(() => null);
+                                    let revokeCmd = null;
+
+                                    if (member) {
+                                        if (member.roles.cache.has(JUNTA_DIRECTIVA_ROLE)) {
+                                            revokeCmd = `:unadmin ${citizen.roblox_username}`;
+                                        } else if (member.roles.cache.has(STAFF_ROLE_ID)) {
+                                            revokeCmd = `:unmod ${citizen.roblox_username}`;
+                                        }
+                                    } else {
+                                        // If member left, we can't check roles. Fallback to trying unadmin (higher covers lower?) 
+                                        // or just unmod + unadmin?
+                                        // Let's default to unmod as safety, actually unadmin is safer to remove high privileges.
+                                        revokeCmd = `:unadmin ${citizen.roblox_username}`;
+                                    }
+
+                                    if (revokeCmd) {
+                                        console.log(`[Server Close] Executing: ${revokeCmd}`);
+                                        await client.services.erlc.runCommand(revokeCmd);
+                                        // Also try unmod if unadmin doesn't cover it? Usually they are separate.
+                                        // Let's run both for Junta just in case.
+                                        if (revokeCmd.includes('unadmin')) {
+                                            await client.services.erlc.runCommand(`:unmod ${citizen.roblox_username}`);
+                                        }
+                                    }
+                                }
+                            } catch (revErr) {
+                                console.error(`[Server Close] Failed to revoke perms for ${voter.user_id}`, revErr);
+                            }
+                        }
+                    }
+                }
+            } catch (closeErr) {
+                console.error('[Server Close] Error in revocation logic:', closeErr);
+            }
+            // -------------------------------------------------------
+
             // Close any active/opened session in DB
             await supabase
                 .from('session_votes')
