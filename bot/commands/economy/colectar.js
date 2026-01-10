@@ -45,12 +45,10 @@ module.exports = {
                 const now = moment();
 
                 if (now.isBefore(nextAvailable)) {
-                    const timeLeft = moment.duration(nextAvailable.diff(now));
-                    const hoursLeft = Math.floor(timeLeft.asHours());
-                    const minutesLeft = timeLeft.minutes();
+                    const unixTime = Math.floor(nextAvailable.valueOf() / 1000);
 
                     return interaction.editReply({
-                        content: `⏰ **Cooldown Activo**\n\nYa colectaste tu salario semanal recientemente.\n\n**Próxima colecta disponible:**\n🕐 En ${hoursLeft}h ${minutesLeft}m\n📅 ${nextAvailable.format('DD/MM/YYYY HH:mm')}`,
+                        content: `⏰ **Cooldown Activo**\n\nYa colectaste tu salario semanal recientemente.\n\n**Próxima colecta disponible:**\n⏳ <t:${unixTime}:R>\n📅 <t:${unixTime}:F>`,
                         flags: [64]
                     });
                 }
@@ -201,7 +199,7 @@ module.exports = {
                     { name: '👤 Ciudadano', value: `<@${userId}>`, inline: false },
                     { name: '💚 Neto Depositado', value: `**$${netAmount.toLocaleString()}**`, inline: true },
                     { name: '💵 Nuevo Balance en Efectivo', value: `$${newCashBalance.toLocaleString()}`, inline: false },
-                    { name: '⏰ Próxima Colecta', value: moment().add(72, 'hours').format('DD/MM/YYYY HH:mm'), inline: false }
+                    { name: '⏰ Próxima Colecta', value: `<t:${Math.floor(moment().add(72, 'hours').valueOf() / 1000)}:R>`, inline: false }
                 )
                 .setFooter({ text: 'Nación MX | Sistema de Nómina (Multiempleo)' })
                 .setTimestamp();

@@ -523,7 +523,7 @@ module.exports = {
                                             expires_at: expiresAt.toISOString()
                                         });
 
-                                    actionResult = `\n🔨 **Usuario Baneado TEMPORALMENTE** del Discord por **${durationText}**.\n✅ **Auto-Unban:** Se desbaneará automáticamente ${expiresAt.toLocaleString('es-MX', { timeZone: 'America/Mexico_City' })}`;
+                                    actionResult = `\n🔨 **Usuario Baneado TEMPORALMENTE** del Discord por **${durationText}**.\n✅ **Auto-Unban:** <t:${Math.floor(expiresAt / 1000)}:R>`;
                                 } else {
                                     actionResult = '\n🔨 **Usuario Baneado PERMANENTEMENTE** del Discord.';
                                 }
@@ -612,7 +612,7 @@ module.exports = {
                                     if (result) {
                                         if (accion === 'Ban Temporal ERLC') {
                                             const expiresAt = new Date(Date.now() + durationMs);
-                                            actionResult = `\n🎮 **Ban Temporal ejecutado en ERLC** (${robloxIdentifier} por ${durationText})\n✅ **Auto-Unban:** Se desbaneará automáticamente ${expiresAt.toLocaleString('es-MX', { timeZone: 'America/Mexico_City' })}`;
+                                            actionResult = `\n🎮 **Ban Temporal ejecutado en ERLC** (${robloxIdentifier} por ${durationText})\n✅ **Auto-Unban:** <t:${Math.floor(expiresAt / 1000)}:R>`;
                                         } else {
                                             actionResult = `\n🎮 **Acción ejecutada en ERLC** (${robloxIdentifier})`;
                                         }

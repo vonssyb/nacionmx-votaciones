@@ -77,7 +77,7 @@ module.exports = {
                 { name: 'Usuario', value: `<@${targetUser.id}>`, inline: true },
                 { name: 'Rol', value: `<@&${role.id}>`, inline: true },
                 { name: 'Duración', value: timeString, inline: true },
-                { name: 'Expira', value: expiresAt.format('DD/MM/YYYY HH:mm'), inline: false }
+                { name: 'Expira', value: `<t:${Math.floor(expiresAt.valueOf() / 1000)}:R>`, inline: false }
             );
 
         await interaction.editReply({ embeds: [embed] });

@@ -267,7 +267,7 @@ module.exports = {
                     .setDescription('⚠️ **IMPORTANTE:** No puedes realizar roleplay durante tu arresto.\nSi roleas mientras estás arrestado, serás sancionado.')
                     .addFields(
                         { name: '⏰ Tiempo de Arresto', value: `${finalTime} minutos (${(finalTime / 60).toFixed(1)} hrs)`, inline: true },
-                        { name: '📅 Liberación', value: releaseTime.format('DD/MM/YYYY HH:mm'), inline: true },
+                        { name: '📅 Liberación', value: `<t:${Math.floor(releaseTime.valueOf() / 1000)}:R>`, inline: true },
                         { name: '📜 Artículos/Cargos', value: articleText, inline: false },
                         { name: '💰 Multa Total', value: hasPremium ? `~~$${originalFine.toLocaleString()}~~ **$${fineAmount.toLocaleString()}**` : `$${fineAmount.toLocaleString()}`, inline: true },
                         { name: '⚖️ Fianza', value: sentence.noBail ? '**DENEGADA** (Delito Grave)' : 'Permitida', inline: true }
@@ -290,7 +290,7 @@ module.exports = {
                     { name: '👮 Oficial', value: `<@${interaction.user.id}>`, inline: true },
                     { name: '📜 Cargos', value: articleText, inline: false },
                     { name: '⏰ Tiempo', value: `${finalTime} min (${(finalTime / 300).toFixed(1)} años RP)`, inline: true },
-                    { name: '📅 Liberación', value: releaseTime.format('DD/MM/YYYY HH:mm'), inline: true },
+                    { name: '📅 Liberación', value: `<t:${Math.floor(releaseTime.valueOf() / 1000)}:R>`, inline: true },
                     { name: '💰 Multa', value: hasPremium ? `~~$${originalFine.toLocaleString()}~~ **$${fineAmount.toLocaleString()}** (50% OFF)` : `$${fineAmount.toLocaleString()}`, inline: true }
                 )
                 .setImage(evidencia.url)
