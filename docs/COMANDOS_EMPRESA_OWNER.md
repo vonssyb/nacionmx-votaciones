@@ -170,72 +170,72 @@ Remover un socio/co-dueño de la empresa.
 
 ---
 
-### `/empresa transferir`
-Transferir la propiedad completa de la empresa.
+    ### `/empresa transferir`
+    Transferir la propiedad completa de la empresa.
 
-**Uso:**
-```
-/empresa transferir nuevo_dueño:@comprador
-```
+    **Uso:**
+    ```
+    /empresa transferir nuevo_dueño:@comprador
+    ```
 
-**Importante:**
-- ⚠️ **Transferencia TOTAL:** Reemplaza TODOS los dueños
-- El dueño anterior pierde todos los permisos
-- Útil para vender o ceder empresa completamente
+    **Importante:**
+    - ⚠️ **Transferencia TOTAL:** Reemplaza TODOS los dueños
+    - El dueño anterior pierde todos los permisos
+    - Útil para vender o ceder empresa completamente
 
-**Resultado:**
-```
-🔄 Empresa Transferida
-🏢 Empresa: Pemex
-👤 Antiguo Dueño: @vendedor
-👤 Nuevo Dueño: @comprador
-```
+    **Resultado:**
+    ```
+    🔄 Empresa Transferida
+    🏢 Empresa: Pemex
+    👤 Antiguo Dueño: @vendedor
+    👤 Nuevo Dueño: @comprador
+    ```
 
----
+    ---
 
-## 📊 Información General
+    ## 📊 Información General
 
-### `/perfil`
-Ver información completa, incluyendo empresas.
+    ### `/perfil`
+    Ver información completa, incluyendo empresas.
 
-**Uso:**
-```
-/perfil
-```
+    **Uso:**
+    ```
+    /perfil
+    ```
 
-**Si eres dueño, muestra:**
-```
-🏢 Empresas Propias
-🏢 Pemex - Balance: $15,000
-🏢 Staff Nacion MX - Balance: $8,500
-```
+    **Si eres dueño, muestra:**
+    ```
+    🏢 Empresas Propias
+    🏢 Pemex - Balance: $15,000
+    🏢 Staff Nacion MX - Balance: $8,500
+    ```
 
----
+    ---
 
-## 💡 Tips y Mejores Prácticas
+    ## 💡 Tips y Mejores Prácticas
 
-### 📈 Gestión Financiera
-- Revisa `/empresa reporte` regularmente
-- Retira fondos solo cuando sea necesario
-- Registra todos tus cobros con conceptos claros
+    ### 📈 Gestión Financiera
+    - Revisa `/empresa reporte` regularmente
+    - Retira fondos solo cuando sea necesario
+    - Registra todos tus cobros con conceptos claros
 
-### 👥 Gestión de Personal
-- Ajusta salarios según desempeño
-- Revisa `/empresa empleados` periódicamente
-- Comunica con tu equipo antes de despedir
+    ### 👥 Gestión de Personal
+    - Ajusta salarios según desempeño
+    - Revisa `/empresa empleados` periódicamente
+    - Comunica con tu equipo antes de despedir
 
-### 🔐 Seguridad
-- No compartas propiedad con desconocidos
-- Usa `/empresa transferir` solo cuando vendas
-- Confirma antes de remover socios
+    ### 🔐 Seguridad
+    - No compartas propiedad con desconocidos
+    - Usa `/empresa transferir` solo cuando vendas
+    - Confirma antes de remover socios
 
----
+    ---
 
-## 🆘 Soporte
+    ## 🆘 Soporte
 
-Si tienes problemas con algún comando:
-1. Verifica que eres dueño de la empresa
-2. Revisa los permisos del bot
-3. Contacta al equipo de desarrollo
+    Si tienes problemas con algún comando:
+    1. Verifica que eres dueño de la empresa
+    2. Revisa los permisos del bot
+    3. Contacta al equipo de desarrollo
 
-**Canal de soporte:** `#soporte-economia`
+    **Canal de soporte:** `#soporte-economia`
