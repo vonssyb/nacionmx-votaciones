@@ -10,6 +10,8 @@ const { handleModerationLegacy } = require('./handlers/legacyModerationHandler')
 const log = (prefix, msg) => console.log(`${prefix} ${msg}`);
 
 // --- CONFIGURATION ---
+const INSTANCE_ID = Math.random().toString(36).substring(7).toUpperCase();
+console.log(`🆔 BOT INSTANCE STARTED: ${INSTANCE_ID}`);
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -160,7 +162,7 @@ async function startModerationBot() {
             }
 
             const embed = new EmbedBuilder()
-                .setTitle('🗑️ Mensaje Eliminado (U)')
+                .setTitle(`🗑️ Mensaje Eliminado [${INSTANCE_ID}]`)
                 .setColor('#FF0000')
                 .setAuthor({ name: message.author.tag, iconURL: message.author.displayAvatarURL() })
                 .addFields(
