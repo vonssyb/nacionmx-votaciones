@@ -21,6 +21,9 @@ DO $$
 BEGIN
     -- Si la tabla existe, intentar agregar columnas faltantes
     IF EXISTS (SELECT FROM pg_tables WHERE tablename = 'exchange_rates') THEN
+        -- Hacer guild_id nullable (las tasas son globales, no por guild)
+        ALTER TABLE exchange_rates ALTER COLUMN guild_id DROP NOT NULL;
+        
         -- Agregar columnas si no existen
         ALTER TABLE exchange_rates ADD COLUMN IF NOT EXISTS rate_usd_to_mxn NUMERIC(10,2);
         ALTER TABLE exchange_rates ADD COLUMN IF NOT EXISTS rate_date DATE;

@@ -4820,7 +4820,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
 
             const { data: debitCard } = await supabase.from('debit_cards').select('balance').eq('discord_user_id', targetUser.id).eq('status', 'active').maybeSingle();
 
-            // Fetch Credit Cards via Citizen ID if available, else Discord ID
+            // Fetch MXN Credit Cards via Citizen ID if available, else Discord ID
             let creditQuery = supabase.from('credit_cards').select('*').eq('status', 'active');
             if (citizen) {
                 creditQuery = creditQuery.eq('citizen_id', citizen.id);
@@ -4828,6 +4828,19 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 creditQuery = creditQuery.eq('discord_user_id', targetUser.id);
             }
             const { data: creditCards } = await creditQuery;
+
+            // Fetch USD data
+            const { data: usdStats } = await supabase
+                .from('user_stats')
+                .select('usd_cash')
+                .eq('user_id', targetUser.id)
+                .maybeSingle();
+
+            const { data: usdCards } = await supabase
+                .from('us_credit_cards')
+                .select('credit_limit, current_balance')
+                .eq('user_id', targetUser.id)
+                .eq('status', 'active');
 
             const cash = cashBalance.cash || 0;
             const bank = cashBalance.bank || 0;
@@ -4848,19 +4861,43 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 });
             }
 
+            // USD calculations
+            const usdCash = usdStats?.usd_cash || 0;
+            let usdCreditAvailable = 0;
+            let usdCreditDebt = 0;
+            if (usdCards && usdCards.length > 0) {
+                usdCards.forEach(c => {
+                    const limit = c.credit_limit || 0;
+                    const debt = c.current_balance || 0;
+                    usdCreditAvailable += (limit - debt);
+                    usdCreditDebt += debt;
+                });
+            }
+
             // Total Liquid is Cash + Bank (Debit is same as Bank) + Avail Credit
-            const totalLiquid = cash + bank + creditAvailable;
+            const totalLiquidMxn = cash + bank + creditAvailable;
+            const totalLiquidUsd = usdCash + usdCreditAvailable;
 
             const embed = new EmbedBuilder()
                 .setTitle(isOwnBalance ? '💰 TU BALANZA FINANCIERA' : `💰 BALANZA DE ${targetUser.tag}`)
                 .setColor(0x00D26A)
                 .addFields(
-                    { name: '💵 EFECTIVO', value: `\`\`\`$${cash.toLocaleString()}\`\`\``, inline: true },
-                    { name: '🏦 BANCO / DÉBITO', value: `\`\`\`$${bank.toLocaleString()}\`\`\`\n${hasDebit ? '✅ Tarjeta Débito' : '📋 Cuenta Bancaria'}`, inline: true },
-                    { name: '💳 CRÉDITO', value: `\`\`\`Disponible: $${creditAvailable.toLocaleString()}\nDeuda: $${creditDebt.toLocaleString()}\`\`\``, inline: false },
-                    { name: '📊 PATRIMONIO TOTAL', value: `\`\`\`diff\n+ $${totalLiquid.toLocaleString()}\n\`\`\``, inline: false }
-                )
-                .setFooter({ text: isOwnBalance ? 'Banco Nacional' : `Solicitado por ${interaction.user.tag}` })
+                    { name: '💵 EFECTIVO (MXN)', value: `\`\`\`$${cash.toLocaleString()}\`\`\``, inline: true },
+                    { name: '🏦 BANCO / DÉBITO (MXN)', value: `\`\`\`$${bank.toLocaleString()}\`\`\`\n${hasDebit ? '✅ Tarjeta Débito' : '📋 Cuenta Bancaria'}`, inline: true },
+                    { name: '💳 CRÉDITO (MXN)', value: `\`\`\`Disponible: $${creditAvailable.toLocaleString()}\nDeuda: $${creditDebt.toLocaleString()}\`\`\``, inline: false },
+                    { name: '📊 PATRIMONIO TOTAL MXN', value: `\`\`\`diff\n+ $${totalLiquidMxn.toLocaleString()}\n\`\`\``, inline: false }
+                );
+
+            // Only show USD if user has any
+            if (totalLiquidUsd > 0) {
+                embed.addFields(
+                    { name: '💵 EFECTIVO (USD)', value: `\`\`\`$${usdCash.toLocaleString()} USD\`\`\``, inline: true },
+                    { name: '💳 CRÉDITO US', value: `\`\`\`Disponible: $${usdCreditAvailable.toLocaleString()} USD\nDeuda: $${usdCreditDebt.toLocaleString()} USD\`\`\``, inline: true },
+                    { name: '🇺🇸 PATRIMONIO TOTAL USD', value: `\`\`\`diff\n+ $${totalLiquidUsd.toLocaleString()} USD\n\`\`\``, inline: false }
+                );
+            }
+
+            embed.setFooter({ text: isOwnBalance ? 'Banco Nacional' : `Solicitado por ${interaction.user.tag}` })
                 .setTimestamp();
 
             await interaction.editReply({ embeds: [embed] });
@@ -4871,6 +4908,8 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
 
         // Helper function to rename channel based on state
     }
+
+
 
 
     else if (commandName === 'top-ricos') {
