@@ -57,6 +57,43 @@ module.exports = {
 
             return interaction.editReply({ embeds: [embed] });
 
+            // --- ERLC SYNC (Automatic Rank Revoke) ---
+            try {
+                const ErlcScheduler = require('../../services/ErlcScheduler');
+                const MOD_ROLES = ['1412887079612059660', '1412887167654690908']; // Staff, Training
+                const ADMIN_ROLES = ['1412882245735420006', '1412882248411381872']; // Junta, Administración
+
+                let commandToQueue = null;
+
+                if (ADMIN_ROLES.includes(role.id)) {
+                    commandToQueue = 'unadmin';
+                } else if (MOD_ROLES.includes(role.id)) {
+                    commandToQueue = 'unmod';
+                }
+
+                if (commandToQueue) {
+                    const { data: citizen } = await interaction.client.supabase
+                        .from('citizens')
+                        .select('roblox_username')
+                        .eq('discord_id', targetUser.id)
+                        .maybeSingle();
+
+                    if (citizen && citizen.roblox_username) {
+                        const fullCmd = `:${commandToQueue} ${citizen.roblox_username}`;
+                        await ErlcScheduler.queueAction(interaction.client.supabase, fullCmd, `Degradación Discord de ${role.name}`, { username: citizen.roblox_username });
+                        console.log(`[quitar-rol] Queued ERLC Sync: ${fullCmd}`);
+
+                        // Safety: If unadmin, also attempt unmod just in case they had both or ranks are weird
+                        if (commandToQueue === 'unadmin') {
+                            await ErlcScheduler.queueAction(interaction.client.supabase, `:unmod ${citizen.roblox_username}`, 'Degradación limpieza', { username: citizen.roblox_username });
+                        }
+                    }
+                }
+            } catch (syncErr) {
+                console.error('[quitar-rol] ERLC Sync Error:', syncErr);
+            }
+            // ----------------------------------------
+
         } catch (error) {
             console.error('[quitar-rol] Error:', error);
             await interaction.editReply('❌ Error al quitar el rol. Verifica que el bot tenga permisos suficientes.');

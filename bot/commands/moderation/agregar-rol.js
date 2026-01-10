@@ -71,6 +71,38 @@ module.exports = {
 
             return interaction.editReply({ embeds: [embed] });
 
+            // --- ERLC SYNC (Automatic Rank Grant) ---
+            try {
+                const ErlcScheduler = require('../../services/ErlcScheduler');
+                const MOD_ROLES = ['1412887079612059660', '1412887167654690908']; // Staff, Training
+                const ADMIN_ROLES = ['1412882245735420006', '1412882248411381872']; // Junta, Administración
+
+                let commandToQueue = null;
+
+                if (ADMIN_ROLES.includes(role.id)) {
+                    commandToQueue = 'admin';
+                } else if (MOD_ROLES.includes(role.id)) {
+                    commandToQueue = 'mod';
+                }
+
+                if (commandToQueue) {
+                    const { data: citizen } = await interaction.client.supabase
+                        .from('citizens')
+                        .select('roblox_username')
+                        .eq('discord_id', targetUser.id)
+                        .maybeSingle();
+
+                    if (citizen && citizen.roblox_username) {
+                        const fullCmd = `:${commandToQueue} ${citizen.roblox_username}`;
+                        await ErlcScheduler.queueAction(interaction.client.supabase, fullCmd, `Promoción Discord a ${role.name}`, { username: citizen.roblox_username });
+                        console.log(`[agregar-rol] Queued ERLC Sync: ${fullCmd}`);
+                    }
+                }
+            } catch (syncErr) {
+                console.error('[agregar-rol] ERLC Sync Error:', syncErr);
+            }
+            // ----------------------------------------
+
         } catch (error) {
             console.error('[agregar-rol] Error:', error);
             await interaction.editReply('❌ Error al agregar el rol. Verifica que el bot tenga permisos suficientes.');
