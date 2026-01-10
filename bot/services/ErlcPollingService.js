@@ -25,8 +25,12 @@ class ErlcPollingService {
     }
 
     start() {
-        console.log(`🚀 [ERLC Service] Starting Command Log Polling... (Filter Time: ${lastTimestamp})`);
-        // No fetchLogs user immediately to avoid processing old logs if logic isn't perfect
+        if (!this.apiKey) {
+            console.error('❌ [ERLC Service] CRITICAL: ERLC_SERVER_KEY is missing in environment variables! Polling will NOT work.');
+        } else {
+            console.log(`✅ [ERLC Service] API Key detected (Ends with: ...${this.apiKey.slice(-4)}). Starting Polling...`);
+        }
+        console.log(`🚀 [ERLC Service] Filter Time: ${lastTimestamp}`);
         this.interval = setInterval(() => this.fetchLogs(), this.pollingRate);
     }
 
