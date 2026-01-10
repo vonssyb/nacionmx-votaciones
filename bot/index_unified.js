@@ -298,7 +298,9 @@ async function startEconomyBot() {
 
     // Services
     const CasinoService = require('./services/CasinoService');
+    const CasinoService = require('./services/CasinoService');
     const StockService = require('./services/StockService');
+    const ExchangeRateService = require('./services/ExchangeRateService');
 
     const casinoService = new CasinoService(supabase);
     const stockService = new StockService(supabase);
@@ -314,7 +316,10 @@ async function startEconomyBot() {
         missions: missionService,
         store: storeService,
         casino: casinoService,
-        stocks: stockService
+        store: storeService,
+        casino: casinoService,
+        stocks: stockService,
+        exchangeRate: new ExchangeRateService(supabase)
     };
 
     // Load Commands
