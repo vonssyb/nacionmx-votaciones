@@ -1796,6 +1796,8 @@ const handleEconomyLegacy = async (interaction, client, supabase) => {
         // DEFER REMOVED BY AUDIT
 
         try {
+            // SAFEGUARD: Wrap entire command in try/catch to prevent process crash
+            console.log(`[DEBUG] /registrar-tarjeta invoked by ${interaction.user.tag}`);
             // === ROLE-BASED AUTHORIZATION ===
             const BANKER_ROLES = {
                 REGULAR: '1450591546524307689',      // Banquero
