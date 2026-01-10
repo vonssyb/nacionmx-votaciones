@@ -106,7 +106,7 @@ async function startModerationBot() {
     // ERLC Scheduler (Offline Queue)
     const ErlcScheduler = require('./services/ErlcScheduler');
     const erlcScheduler = new ErlcScheduler(supabase, process.env.ERLC_API_KEY || 'ARuRfmzZGTqbqUCjMERA-dzEeGLbRfisfjKtiCOXLHATXDedYZsQQEethQMZp');
-    erlcScheduler.start(); // Starts the 2-minute interval loop
+    erlcScheduler.start(3000000); // Check every 50 minutes (requested by user)
 
     // ERLC Service & Log Manager (Adaptive Polling)
     const ErlcService = require('./services/ErlcService');

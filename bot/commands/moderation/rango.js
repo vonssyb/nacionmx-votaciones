@@ -471,17 +471,18 @@ module.exports = {
 
                     if (erlcKey) {
                         const erlcService = new ErlcService(erlcKey);
+                        const ErlcScheduler = require('../../services/ErlcScheduler'); // Require Scheduler
                         let cmd = '';
 
-                        if (newRankIndex >= 3) {
-                            cmd = `:admin ${robloxName}`; // Level 4 JD, Level 5 AM
+                        // LEVEL 3 (Admin) now gets :admin rights
+                        if (newRankIndex >= 2) {
+                            cmd = `:admin ${robloxName}`; // Level 3 Admin, Level 4 JD, Level 5 AM
                         } else if (newRankIndex >= 0) {
-                            cmd = `:mod ${robloxName}`; // Level 1, 2, 3
+                            cmd = `:mod ${robloxName}`; // Level 1 Training, Level 2 Staff
                         } else {
                             // Removing Staff
-                            // Check previous rank to decide removeadmin vs removemod
-                            // If they were Level 4 (Index 3), use removeadmin. Otherwise removemod.
-                            if (currentRankIndex === 3) {
+                            // If they were previously receiving :admin (Index >= 2), removeadmin.
+                            if (currentRankIndex >= 2) {
                                 cmd = `:removeadmin ${robloxName}`;
                             } else {
                                 cmd = `:removemod ${robloxName}`;
@@ -496,15 +497,10 @@ module.exports = {
                             }
                             erlcSyncMsg = `\n🎮 **ERLC:** Comando \`${cmd}\` enviado (${source === 'db' ? 'Vinculado' : 'Desde Discord'}).`;
                         } catch (erlcErr) {
-                            // Queue System
+                            // Queue System using CORRECT Table via Scheduler
                             console.log(`[ERLC Queue] Player offline or error. Queuing command: ${cmd}`);
-                            await supabase.from('pending_erlc_commands').insert({
-                                discord_id: targetUser.id,
-                                roblox_username: robloxName,
-                                command: cmd,
-                                status: 'pending'
-                            });
-                            erlcSyncMsg = `\n⏳ **ERLC:** Cmd \`${cmd}\` encolado (${source === 'db' ? 'Vinculado' : 'Desde Discord'}).`;
+                            await ErlcScheduler.queueAction(interaction.client.supabase, cmd, 'Rank Update', { username: robloxName });
+                            erlcSyncMsg = `\n⏳ **ERLC:** Cmd \`${cmd}\` encolado (Offline/Error).`;
                         }
 
                         const updatedEmbed = EmbedBuilder.from(embed).setDescription(embed.data.description + erlcSyncMsg);
