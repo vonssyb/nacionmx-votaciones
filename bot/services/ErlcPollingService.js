@@ -218,10 +218,22 @@ class ErlcPollingService {
 
     async handleVC(robloxUser, abbreviation) {
         const member = await this.getDiscordMember(robloxUser);
-        if (!member || !member.voice.channelId) return; // Must be in VC to move
+
+        if (!member) {
+            console.log(`[ERLC Service] Move Error: User ${robloxUser} not linked or not found in Discord`);
+            return;
+        }
+
+        if (!member.voice.channelId) {
+            console.log(`[ERLC Service] Move Error: User ${robloxUser} (Discord: ${member.user.tag}) is NOT in a voice channel.`);
+            return;
+        }
 
         const targetId = voiceConfig.getIdFromAlias(abbreviation);
-        if (!targetId) return;
+        if (!targetId) {
+            console.log(`[ERLC Service] Move Error: Alias '${abbreviation}' not found in config.`);
+            return;
+        }
 
         // VERIFICAR PERMISOS
         const channelInfo = voiceConfig.getChannelInfo(targetId);
@@ -236,8 +248,12 @@ class ErlcPollingService {
             }
         }
 
-        await member.voice.setChannel(targetId).catch(console.error);
-        console.log(`[ERLC Service] Moved ${robloxUser} to ${abbreviation}`);
+        try {
+            await member.voice.setChannel(targetId);
+            console.log(`✅ [ERLC Service] SUCCESS: Moved ${robloxUser} to ${targetId} (${abbreviation})`);
+        } catch (error) {
+            console.error(`❌ [ERLC Service] Move Failed (Discord API Error):`, error.message);
+        }
     }
 
     processQueue() {
