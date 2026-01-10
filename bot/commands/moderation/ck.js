@@ -532,23 +532,52 @@ module.exports = {
                     }
 
                     // 3. DELETE (Not just Deactivate) ALL CARDS
-                    // Credit Cards
+
+                    // Fetch Citizen ID first (Credit Cards are linked to citizen_id)
+                    const { data: citizenData } = await supabase
+                        .from('citizens')
+                        .select('id')
+                        .eq('discord_id', targetUser.id)
+                        .maybeSingle();
+
+                    if (citizenData && citizenData.id) {
+                        try {
+                            // Delete Credit Cards
+                            await supabase
+                                .from('credit_cards')
+                                .delete()
+                                .eq('citizen_id', citizenData.id);
+
+                            // Delete Debit Cards (If linked by citizen_id)
+                            await supabase
+                                .from('debit_cards')
+                                .delete()
+                                .eq('citizen_id', citizenData.id);
+                        } catch (cardErr) {
+                            console.error('[CK] Error deleting cards by ID:', cardErr);
+                        }
+                    }
+
+                    // Fallback: Delete Debit Cards by discord_user_id (Debit often has this col)
+                    await supabase
+                        .from('debit_cards')
+                        .delete()
+                        .eq('discord_user_id', targetUser.id) // Correct column name is usually discord_user_id
+                        .catch(e => console.log('Debit delete by discord_user_id failed/skipped'));
+
+                    // Also try 'discord_id' just in case schema differs
+                    await supabase
+                        .from('debit_cards')
+                        .delete()
+                        .eq('discord_id', targetUser.id)
+                        .catch(() => { });
+
+                    // Also try 'user_id' for credit_cards just in case
                     await supabase
                         .from('credit_cards')
                         .delete()
-                        .eq('guild_id', interaction.guildId)
-                        .eq('user_id', targetUser.id);
-
-                    // Debit Cards (Find via Citizens link usually, or direct link if exists? Assuming link via Citizen ID)
-                    // If DNI is deleted (Step 5), debit cards cascading? Unsure. Explicit delete is safer.
-                    // Need Citizen ID first?
-                    const { data: cit } = await supabase.from('citizens').select('id').eq('user_id', targetUser.id).maybeSingle();
-                    if (cit) {
-                        await supabase.from('debit_cards').delete().eq('citizen_id', cit.id);
-                    }
-                    // Also try deleting by discord_id if column exists (BillingService suggests it does)
-                    // Try direct delete by discord_id just in case
-                    await supabase.from('debit_cards').delete().eq('discord_id', targetUser.id).catch(() => { });
+                        .eq('user_id', targetUser.id)
+                        .catch(() => { });
 
                     // 4. Remove roles (except protected)
                     // Additional role to ALWAYS remove regardless
