@@ -306,6 +306,8 @@ async function startEconomyBot() {
 
     // Exchange Rate Service
     const ExchangeRateService = require('./services/ExchangeRateService');
+    const CasinoService = require('./services/CasinoService');
+    const StockService = require('./services/StockService');
 
     const casinoService = new CasinoService(supabase);
     const stockService = new StockService(supabase);
