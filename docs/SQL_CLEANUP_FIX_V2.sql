@@ -5,20 +5,23 @@
 BEGIN;
 
 -- 1. Eliminar Tarjetas de Crédito "Muertas" (Creadas ANTES del último CK del usuario)
+-- CORRECCION: credit_cards usa citizen_id, no user_id. Hacemos JOIN via citizens.
 DELETE FROM credit_cards
 WHERE id IN (
     SELECT cc.id
     FROM credit_cards cc
-    JOIN ck_registry ck ON cc.user_id = ck.user_id  -- Usamos user_id (Discord ID) para relacionar
-    WHERE cc.created_at < ck.created_at -- La tarjeta es más vieja que la muerte
+    JOIN citizens c ON cc.citizen_id = c.id
+    JOIN ck_registry ck ON c.discord_id = ck.user_id
+    WHERE cc.created_at < ck.created_at
 );
 
 -- 2. Eliminar Tarjetas de Débito "Muertas"
+-- CORRECCION: debit_cards usa discord_user_id (generalmente).
 DELETE FROM debit_cards
 WHERE id IN (
     SELECT dc.id
     FROM debit_cards dc
-    JOIN ck_registry ck ON dc.discord_user_id = ck.user_id -- Usar columna correcta de Discord ID en debit_cards
+    JOIN ck_registry ck ON dc.discord_user_id = ck.user_id 
     WHERE dc.created_at < ck.created_at
 );
 
