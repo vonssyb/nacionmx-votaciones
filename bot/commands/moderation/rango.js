@@ -539,6 +539,46 @@ module.exports = {
                 console.error('Failed to send audit log:', logErr);
             }
 
+            // --- PUBLIC LOGS (Ascensos / Descensos) ---
+            try {
+                const CHANNEL_ASCENSOS = '1398892202503049358';
+                const CHANNEL_DESCENSOS = '1424126099192807546';
+                let publicChannelId = null;
+                let publicTitle = '';
+                let publicColor = color;
+                // Determine channel
+                if (subcommand === 'promover') {
+                    publicChannelId = CHANNEL_ASCENSOS;
+                    publicTitle = '🎉 ¡ASCENSO DE STAFF!';
+                } else if (subcommand === 'degradar' || subcommand === 'expulsar') {
+                    publicChannelId = CHANNEL_DESCENSOS;
+                    publicTitle = subcommand === 'expulsar' ? '🚨 EXPULSIÓN DE STAFF' : '⚠️ DEGRADACIÓN DE STAFF';
+                }
+
+                if (publicChannelId) {
+                    const publicChannel = await client.channels.fetch(publicChannelId).catch(() => null);
+                    if (publicChannel) {
+                        const publicEmbed = new EmbedBuilder()
+                            .setTitle(publicTitle)
+                            .setColor(publicColor)
+                            .setDescription(`👤 **Usuario:** ${targetUser} (${targetUser.tag})\n\n${changesLog.join('\n')}`)
+                            .setThumbnail(targetUser.displayAvatarURL())
+                            .setFooter({ text: `Gestionado por ${interaction.user.tag}`, iconURL: interaction.user.displayAvatarURL() })
+                            .setTimestamp();
+
+                        await publicChannel.send({ embeds: [publicEmbed] });
+                    }
+                }
+            } catch (pubLogErr) {
+                console.error('Failed to send public log:', pubLogErr);
+            }
+
+            // --- FEEDBACK UPDATE ---
+            // Add note about ERLC/DB application
+            const feedbackMsg = `\n\n📌 **Nota:** Los cambios de rango se han registrado en la base de datos y se aplicarán en ERLC (si el servidor está activo). Si el usuario está offline, el comando se encolará.`;
+            const finalEmbed = EmbedBuilder.from(embed).setDescription(embed.data.description + erlcSyncMsg + feedbackMsg);
+            await interaction.editReply({ embeds: [finalEmbed] });
+
             // --- TRIGGER SHIFT IF NEEDED ---
             if (releasedBadgeType && releasedBadgeNumber) {
                 // Determine source for recursion? No, just call it.
