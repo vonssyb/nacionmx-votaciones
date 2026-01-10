@@ -4833,7 +4833,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             const { data: usdStats } = await supabase
                 .from('user_stats')
                 .select('usd_cash')
-                .eq('user_id', targetUser.id)
+                .eq('discord_user_id', targetUser.id)
                 .maybeSingle();
 
             const { data: usdCards } = await supabase

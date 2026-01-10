@@ -10,7 +10,11 @@ module.exports = {
                 .setRequired(false)),
 
     async execute(interaction, client, supabase) {
-        // Note: deferReply is handled automatically by index_economia.js monkey-patch
+        // Explicitly defer to prevent "Application not responding"
+        if (!interaction.deferred && !interaction.replied) {
+            await interaction.deferReply();
+        }
+
         const targetUser = interaction.options.getUser('usuario') || interaction.user;
         const isOwnProfile = targetUser.id === interaction.user.id;
 
@@ -387,7 +391,7 @@ module.exports = {
             const { data: usdStats } = await supabase
                 .from('user_stats')
                 .select('usd_cash')
-                .eq('user_id', targetUser.id)
+                .eq('discord_user_id', targetUser.id)
                 .maybeSingle();
 
             const { data: usdCards } = await supabase
