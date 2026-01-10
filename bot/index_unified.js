@@ -304,10 +304,7 @@ async function startEconomyBot() {
     let billingService;
     try { billingService = new BillingService(client, supabase); } catch (e) { console.error('Eco Billing Error:', e); }
 
-    // Services
-    const CasinoService = require('./services/CasinoService');
-    const CasinoService = require('./services/CasinoService');
-    const StockService = require('./services/StockService');
+    // Exchange Rate Service
     const ExchangeRateService = require('./services/ExchangeRateService');
 
     const casinoService = new CasinoService(supabase);
@@ -322,8 +319,6 @@ async function startEconomyBot() {
         levels: levelService,
         achievements: achievementService,
         missions: missionService,
-        store: storeService,
-        casino: casinoService,
         store: storeService,
         casino: casinoService,
         stocks: stockService,
