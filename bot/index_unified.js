@@ -447,8 +447,22 @@ async function loginWithRetry(client, token, botName) {
 // =============================================================================
 // 🚀 LAUNCH ALL
 // =============================================================================
+// =============================================================================
+// 🚀 LAUNCH ALL
+// =============================================================================
 (async () => {
     try {
+        // --- SINGLE INSTANCE LOCK ---
+        const SingleInstanceLock = require('./services/SingleInstanceLock');
+        const locker = new SingleInstanceLock(supabase, INSTANCE_ID);
+
+        const acquired = await locker.acquireLock();
+        if (!acquired) {
+            console.error(`🛑 [Startup] Could not acquire lock. Another instance is active. Exiting.`);
+            process.exit(0); // Exit cleanly
+        }
+
+        // Lock acquired, proceed
         await startModerationBot();
         await startEconomyBot();
         await startGovernmentBot();
