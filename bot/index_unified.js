@@ -456,10 +456,18 @@ async function loginWithRetry(client, token, botName) {
         const SingleInstanceLock = require('./services/SingleInstanceLock');
         const locker = new SingleInstanceLock(supabase, INSTANCE_ID);
 
-        const acquired = await locker.acquireLock();
+        // WAIT FOR LOCK (Do not exit, as that fails Health Checks)
+        let acquired = await locker.acquireLock();
+
         if (!acquired) {
-            console.error(`🛑 [Startup] Could not acquire lock. Another instance is active. Exiting.`);
-            process.exit(0); // Exit cleanly
+            console.log(`⏳ [Startup] Another instance is active. Waiting for lock to be released...`);
+            console.log(`   (This allows Zero-Downtime Deployment to pass Health Checks while waiting for the old instance to stop)`);
+
+            while (!acquired) {
+                await new Promise(resolve => setTimeout(resolve, 5000)); // Wait 5 seconds
+                acquired = await locker.acquireLock();
+                if (acquired) console.log(`🔓 [Startup] Lock acquired! Starting bots...`);
+            }
         }
 
         // Lock acquired, proceed
