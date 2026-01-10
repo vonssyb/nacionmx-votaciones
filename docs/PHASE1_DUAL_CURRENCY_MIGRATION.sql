@@ -28,6 +28,15 @@ BEGIN
         ALTER TABLE exchange_rates ADD COLUMN IF NOT EXISTS is_manual BOOLEAN DEFAULT false;
         ALTER TABLE exchange_rates ADD COLUMN IF NOT EXISTS created_timestamp TIMESTAMPTZ DEFAULT NOW();
         
+        -- Agregar constraint UNIQUE si no existe
+        BEGIN
+            ALTER TABLE exchange_rates ADD CONSTRAINT exchange_rates_rate_date_unique UNIQUE (rate_date);
+            RAISE NOTICE 'exchange_rates: UNIQUE constraint agregado en rate_date';
+        EXCEPTION
+            WHEN duplicate_table THEN
+                RAISE NOTICE 'exchange_rates: UNIQUE constraint ya existe';
+        END;
+        
         RAISE NOTICE 'exchange_rates: Columnas agregadas/verificadas';
     ELSE
         -- Si no existe, crearla
@@ -44,10 +53,10 @@ BEGIN
     END IF;
 END $$;
 
--- Insertar tasa inicial si no existe
+-- Insertar tasa inicial solo si no hay datos
 INSERT INTO exchange_rates (rate_usd_to_mxn, rate_date, is_manual) 
-VALUES (18.50, CURRENT_DATE, false)
-ON CONFLICT (rate_date) DO NOTHING;
+SELECT 18.50, CURRENT_DATE, false
+WHERE NOT EXISTS (SELECT 1 FROM exchange_rates WHERE rate_date = CURRENT_DATE);
 
 COMMENT ON TABLE exchange_rates IS 'Historial de tasas de cambio USD/MXN (actualización diaria)';
 
