@@ -58,14 +58,47 @@ router.post('/talk', async (req, res) => {
         const { client, supabase } = req.app.locals;
 
         // 2. Buscar usuario Discord vinculado
-        const { data: link } = await supabase
+        // PRIORITY 1: Manual Link (roblox_discord_links)
+        let { data: link } = await supabase
             .from('roblox_discord_links')
             .select('discord_user_id')
             .eq('roblox_username', roblox_username)
             .maybeSingle();
 
+        // PRIORITY 2: Auto-Detect from Citizens Table (Economy System)
         if (!link) {
-            return res.status(404).json({ error: 'Account not linked' });
+            const { data: citizen } = await supabase
+                .from('citizens')
+                .select('discord_id')
+                .eq('roblox_username', roblox_username)
+                .maybeSingle();
+
+            if (citizen) {
+                link = { discord_user_id: citizen.discord_id };
+                console.log(`[ERLC] Found auto-link for ${roblox_username} in citizens table`);
+            }
+        }
+
+        // PRIORITY 3: Nickname Search (Last Resort - Expensive & Less Accurate)
+        if (!link) {
+            const guild = client.guilds.cache.get(process.env.GUILD_ID || '1398525215134318713');
+            if (guild) {
+                // Try to find member by nickname matching roblox username
+                // Cuidado: Esto puede ser lento en servidores grandes
+                // Simplificación: Solo buscar si no hay link
+                /* 
+                const member = guild.members.cache.find(m => 
+                    m.nickname === roblox_username || 
+                    m.user.username === roblox_username ||
+                    (m.nickname && m.nickname.includes(roblox_username))
+                );
+                if (member) link = { discord_user_id: member.id };
+                */
+            }
+        }
+
+        if (!link) {
+            return res.status(404).json({ error: 'Account not linked. Register in economy or use /vincular-roblox' });
         }
 
         const guild = client.guilds.cache.get(process.env.GUILD_ID || '1398525215134318713');
