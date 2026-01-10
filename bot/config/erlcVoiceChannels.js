@@ -59,7 +59,7 @@ module.exports = {
 
         // Staff
         '1412956666512543751': { name: 'Staff', requiredRole: 'STAFF' },
-        '1459640433297588401': { name: 'Canal de Espera', requiredRole: null },
+        '1459640433297588401': { name: 'Canal de Espera', requiredRole: null, noTTS: true },
 
         // Policía
         '1459646170476314765': { name: 'Policía General', requiredRole: 'POLICIA' },
