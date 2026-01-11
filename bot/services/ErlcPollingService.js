@@ -1,5 +1,6 @@
 const axios = require('axios');
 const voiceConfig = require('../config/erlcVoiceChannels');
+const config = require('../config/erlcEconomyEmergency');
 // Voice dependencies removed, handled by VoiceSwarmService
 
 class ErlcPollingService {
