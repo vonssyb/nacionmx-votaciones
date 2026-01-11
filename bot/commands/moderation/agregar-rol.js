@@ -9,8 +9,8 @@ module.exports = {
         .addStringOption(option => option.setName('razon').setDescription('Razón del cambio').setRequired(false)),
 
     async execute(interaction) {
-        // Deferral handled globally by index_moderacion.js
-        // // await interaction.deferReply();
+        // Explicit defer to prevent timeout
+        await interaction.deferReply();
 
         // Staff role check
         const ALLOWED_ROLES = [
