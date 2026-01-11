@@ -141,14 +141,63 @@ class ErlcPollingService {
         const isJD = staffMember.roles.cache.has(voiceConfig.ROLES.JUNTA_DIRECTIVA);
         if (!isStaff && !isJD) return;
 
-        const targetMember = await this.getDiscordMember(targetUser);
+        // Resolve partial username
+        const resolvedTarget = await this.resolvePartialUsername(targetUser);
+        if (!resolvedTarget) {
+            console.log(`[ERLC Service] ❌ Could not resolve "${targetUser}".`);
+            return;
+        }
+
+        const targetMember = await this.getDiscordMember(resolvedTarget);
         if (!targetMember || !targetMember.voice.channelId) return;
 
         const targetId = voiceConfig.getIdFromAlias(abbreviation);
         if (!targetId) return;
 
         await targetMember.voice.setChannel(targetId).catch(console.error);
-        console.log(`[ERLC Service] Staff Move: ${staffUser} moved ${targetUser}`);
+        console.log(`[ERLC Service] Staff Move: ${staffUser} moved ${resolvedTarget} (from "${targetUser}")`);
+    }
+
+    async resolvePartialUsername(partial) {
+        // 1. Check exact match first
+        const exactCheck = await this.getDiscordMember(partial);
+        if (exactCheck) return partial;
+
+        // 2. Search for partial matches in database
+        const search = `%${partial}%`;
+
+        // Search in roblox_discord_links
+        const { data: links } = await this.supabase
+            .from('roblox_discord_links')
+            .select('roblox_username')
+            .ilike('roblox_username', search);
+
+        // Search in citizens
+        const { data: citizens } = await this.supabase
+            .from('citizens')
+            .select('roblox_username')
+            .ilike('roblox_username', search)
+            .not('roblox_username', 'is', null);
+
+        // Combine and deduplicate results
+        const allMatches = new Set();
+        links?.forEach(l => l.roblox_username && allMatches.add(l.roblox_username.toLowerCase()));
+        citizens?.forEach(c => c.roblox_username && allMatches.add(c.roblox_username.toLowerCase()));
+
+        const matches = Array.from(allMatches);
+
+        if (matches.length === 1) {
+            // Unique match found!
+            const resolved = matches[0];
+            console.log(`[ERLC Service] ✅ Partial Username Resolved: "${partial}" → "${resolved}"`);
+            return resolved;
+        } else if (matches.length > 1) {
+            console.log(`[ERLC Service] ⚠️ Multiple matches for "${partial}":`, matches.slice(0, 5));
+            return null; // Ambiguous
+        } else {
+            console.log(`[ERLC Service] ❌ No matches for "${partial}"`);
+            return null; // Not found
+        }
     }
 
     async getDiscordMember(robloxUser) {
