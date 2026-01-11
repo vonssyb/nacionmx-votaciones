@@ -32,6 +32,26 @@ class ErlcPollingService {
         if (this.interval) clearInterval(this.interval);
     }
 
+    /**
+     * Send a private message to a Roblox user in ERLC
+     * @param {string} robloxUser - Roblox username (without user ID)
+     * @param {string} message - Message to send
+     */
+    async sendPM(robloxUser, message) {
+        if (!this.SERVER_KEY) return;
+
+        try {
+            await axios.post(
+                'https://api.policeroleplay.community/v1/server/command',
+                { command: `:pm ${robloxUser} ${message}` },
+                { headers: { 'Server-Key': this.SERVER_KEY } }
+            );
+            console.log(`[ERLC Service] 📨 Sent PM to ${robloxUser}: "${message}"`);
+        } catch (error) {
+            console.error(`[ERLC Service] Failed to send PM to ${robloxUser}:`, error.message);
+        }
+    }
+
     async fetchLogs() {
         if (!this.SERVER_KEY) return;
 
@@ -135,26 +155,45 @@ class ErlcPollingService {
 
     async handleStaffMove(staffUser, targetUser, abbreviation) {
         const staffMember = await this.getDiscordMember(staffUser);
-        if (!staffMember) return;
+        if (!staffMember) {
+            await this.sendPM(staffUser, '❌ No estás vinculado. Usa /fichar vincular en Discord.');
+            return;
+        }
 
         const isStaff = staffMember.roles.cache.has(voiceConfig.ROLES.STAFF);
         const isJD = staffMember.roles.cache.has(voiceConfig.ROLES.JUNTA_DIRECTIVA);
-        if (!isStaff && !isJD) return;
+        if (!isStaff && !isJD) {
+            await this.sendPM(staffUser, '⛔ No tienes permisos de Staff.');
+            return;
+        }
 
         // Resolve partial username
         const resolvedTarget = await this.resolvePartialUsername(targetUser);
         if (!resolvedTarget) {
-            console.log(`[ERLC Service] ❌ Could not resolve "${targetUser}".`);
+            await this.sendPM(staffUser, `❌ No encontré "${targetUser}" o hay múltiples coincidencias. Sé más específico.`);
             return;
         }
 
         const targetMember = await this.getDiscordMember(resolvedTarget);
-        if (!targetMember || !targetMember.voice.channelId) return;
+        if (!targetMember) {
+            await this.sendPM(staffUser, `❌ ${resolvedTarget} no está vinculado en Discord.`);
+            return;
+        }
+
+        if (!targetMember.voice.channelId) {
+            await this.sendPM(staffUser, `❌ ${resolvedTarget} no está en un canal de voz.`);
+            return;
+        }
 
         const targetId = voiceConfig.getIdFromAlias(abbreviation);
-        if (!targetId) return;
+        if (!targetId) {
+            await this.sendPM(staffUser, `❌ Canal "${abbreviation}" no encontrado.`);
+            return;
+        }
 
+        const channelInfo = voiceConfig.getChannelInfo(targetId);
         await targetMember.voice.setChannel(targetId).catch(console.error);
+        await this.sendPM(staffUser, `✅ Moví a ${resolvedTarget} al canal ${channelInfo?.name || abbreviation}`);
         console.log(`[ERLC Service] Staff Move: ${staffUser} moved ${resolvedTarget} (from "${targetUser}")`);
     }
 
