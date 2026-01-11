@@ -81,6 +81,20 @@ class VoiceSwarmService {
         await this.executeVoiceTask(worker, guildId, channelId, text);
     }
 
+    async dispatchAudioFile(channelId, audioFilePath, guildId = process.env.GUILD_ID || '1398525215134318713') {
+        // Same worker selection logic as TTS
+        let worker = this.findWorkerInChannel(guildId, channelId);
+        if (!worker) {
+            worker = this.getFreeWorker();
+        }
+        if (!worker) {
+            worker = this.workers[Math.floor(Math.random() * this.workers.length)];
+        }
+
+        console.log(`🐝 [VoiceSwarm] Dispatching audio file to ${worker.tag} -> Channel ${channelId}`);
+        await this.executeAudioFileTask(worker, guildId, channelId, audioFilePath);
+    }
+
     findWorkerInChannel(guildId, channelId) {
         for (const worker of this.workers) {
             const guild = worker.client.guilds.cache.get(guildId);
@@ -154,6 +168,62 @@ class VoiceSwarmService {
 
         } catch (error) {
             console.error(`[VoiceSwarm] Error executing task on ${worker.tag}:`, error);
+        } finally {
+            worker.busy = false;
+        }
+    }
+
+    async executeAudioFileTask(worker, guildId, channelId, audioFilePath) {
+        worker.busy = true;
+        try {
+            const fs = require('fs');
+            const { createAudioResource, StreamType } = require('@discordjs/voice');
+
+            console.log(`🐝 [VoiceSwarm] ${worker.tag} - Fetching guild...`);
+            const guild = await worker.client.guilds.fetch(guildId).catch(() => null);
+            if (!guild) {
+                console.error(`[VoiceSwarm] Worker ${worker.tag} cannot find guild ${guildId}`);
+                return;
+            }
+
+            console.log(`🐝 [VoiceSwarm] ${worker.tag} - Connecting to channel ${channelId}...`);
+            const connection = await this.ensureConnection(worker, guild, channelId);
+            if (!connection) {
+                console.error(`🐝 [VoiceSwarm] ${worker.tag} - Connection failed`);
+                return;
+            }
+
+            console.log(`🐝 [VoiceSwarm] ${worker.tag} - Creating audio resource from file: ${audioFilePath}`);
+            const audioResource = createAudioResource(fs.createReadStream(audioFilePath), {
+                inputType: StreamType.Arbitrary
+            });
+
+            console.log(`🐝 [VoiceSwarm] ${worker.tag} - Subscribing player to connection...`);
+            const player = createAudioPlayer();
+            connection.subscribe(player);
+
+            console.log(`🐝 [VoiceSwarm] ${worker.tag} - Playing audio file...`);
+            player.play(audioResource);
+
+            // Wait for audio to finish
+            await new Promise((resolve) => {
+                player.on(AudioPlayerStatus.Idle, () => {
+                    console.log(`🐝 [VoiceSwarm] ✅ ${worker.tag} - Finished playing audio file`);
+                    resolve();
+                });
+                player.on('error', (err) => {
+                    console.error(`[VoiceSwarm] Audio player error on ${worker.tag}:`, err.message);
+                    resolve();
+                });
+                // Safety timeout 10s for audio file
+                setTimeout(() => {
+                    console.warn(`🐝 [VoiceSwarm] ${worker.tag} - Audio playback timeout (10s)`);
+                    resolve();
+                }, 10000);
+            });
+
+        } catch (error) {
+            console.error(`[VoiceSwarm] Error executing audio task on ${worker.tag}:`, error);
         } finally {
             worker.busy = false;
         }
