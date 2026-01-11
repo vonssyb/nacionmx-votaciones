@@ -18,7 +18,7 @@ class ErlcPollingService {
         this.isPolling = false;
         this.lastLogTimestamp = Math.floor(Date.now() / 1000) - 60;
         this.SERVER_KEY = process.env.ERLC_SERVER_KEY;
-        this.pollingRate = 3000;
+        this.pollingRate = 5000; // Reduced to 5s to save API quota
         this.linkCache = new Map();
 
         // Command deduplication cache
@@ -30,7 +30,7 @@ class ErlcPollingService {
         if (!this.SERVER_KEY) {
             console.error('❌ [ERLC Service] CRITICAL: ERLC_SERVER_KEY is missing!');
         } else {
-            console.log(`✅ [ERLC Service] API Key detected. Starting Polling...`);
+            console.log(`✅ [ERLC Service] API Key detected. Starting Polling (5s)...`);
         }
         this.interval = setInterval(() => this.fetchLogs(), this.pollingRate);
         this.cleanupInterval = setInterval(() => this.cleanupDedupCache(), 60000);
@@ -62,22 +62,14 @@ class ErlcPollingService {
 
     /**
      * Send a private message to a Roblox user in ERLC
-     * @param {string} robloxUser - Roblox username (without user ID)
-     * @param {string} message - Message to send
+     * Now uses the centralized command queue in erlcService
      */
     async sendPM(robloxUser, message) {
-        if (!this.SERVER_KEY) return;
+        if (!this.erlcService) return;
 
-        try {
-            await axios.post(
-                'https://api.policeroleplay.community/v1/server/command',
-                { command: `:pm ${robloxUser} ${message}` },
-                { headers: { 'Server-Key': this.SERVER_KEY } }
-            );
-            console.log(`[ERLC Service] 📨 Sent PM to ${robloxUser}: "${message}"`);
-        } catch (error) {
-            console.error(`[ERLC Service] Failed to send PM to ${robloxUser}:`, error.message);
-        }
+        // Sanitize message to avoid command injection or issues
+        const cleanMsg = message.replace(/[:]/g, '');
+        await this.erlcService.runCommand(`:pm ${robloxUser} ${cleanMsg}`);
     }
 
     async fetchLogs() {
