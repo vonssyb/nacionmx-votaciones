@@ -26,45 +26,47 @@ module.exports = {
 
     // ABREVIACIONES FÁCILES
     ALIASES: {
-        // JUNTA DIRECTIVA
+        // 👑 ADMINISTRACIÓN
         'jd': '1412956722469011657',
-
-        // STAFF
         'staff': '1412956666512543751',
-        'espera': '1459640433297588401', // Cualquiera
+        'espera': '1459640433297588401',
 
-        // POLICIA (p1-p4)
+        // 👮 POLICÍA
         'pg': '1459646170476314765',
         'p1': '1459645796256317617',
         'p2': '1459646124079054929',
         'p3': '1459646138498945368',
         'p4': '1459646153619669165',
 
-        // CARTEL (c1-c4)
+        // 🚑 MÉDICO / 🚒 BOMBEROS (Extra addition based on context)
+        'mg': '1459948822024159262', // Médico General
+        'bg': '1459948849601712381', // Bomberos General
+
+        // 💀 CARTEL
         'cg': '1459646308145955019',
         'c1': '1459646253746098409',
         'c2': '1459646266630996009',
         'c3': '1459646277766611049',
         'c4': '1459646293264826723',
 
-        // AMBIENTES (a1-a4) - Sin restricción especial
+        // 🆘 SOPORTE (Requiere Staff)
+        's1': '1412956423662469293',
+        's2': '1412956477789966379',
+        's3': '1412956507825377343',
+
+        // 🎭 ROL - AMBIENTES
         'a1': '1412966846273163396',
         'a2': '1459642544441786521',
         'a3': '1459642568756297951',
         'a4': '1459643217996943683',
 
-        // ESCENARIOS (e1-e6)
+        // 🎭 ROL - ESCENARIOS
         'e1': '1459642733097652235',
         'e2': '1459643100157841640',
         'e3': '1459643138728792074',
         'e4': '1459643117929238550',
         'e5': '1459643177056080049',
-        'e6': '1459643198438768873',
-
-        // SOPORTE (s1-s3)
-        's1': '1412956423662469293',
-        's2': '1412956477789966379',
-        's3': '1412956507825377343'
+        'e6': '1459643198438768873'
     },
 
     // Configuración de Permisos por Canal
@@ -82,6 +84,10 @@ module.exports = {
         '1459646124079054929': { name: 'Policía 2', requiredRole: 'POLICIA' },
         '1459646138498945368': { name: 'Policía 3', requiredRole: 'POLICIA' },
         '1459646153619669165': { name: 'Policía 4', requiredRole: 'POLICIA' },
+
+        // Emergencias
+        '1459948822024159262': { name: 'Médico General', requiredRole: null },
+        '1459948849601712381': { name: 'Bomberos General', requiredRole: null },
 
         // Cartel
         '1459646308145955019': { name: 'Cartel General', requiredRole: 'CARTEL' },
