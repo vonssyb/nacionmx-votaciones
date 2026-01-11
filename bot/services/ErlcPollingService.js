@@ -133,21 +133,21 @@ class ErlcPollingService {
                 const channelAbr = parts[1];
                 await this.handleStaffMove(robloxUser, targetUser, channelAbr);
             }
-        } else if (content.toLowerCase().startsWith(':911 ')) {
-            const parts = content.substring(5).trim().split(' ');
+        } else if (content.toLowerCase().startsWith(':log 911 ')) {
+            const parts = content.substring(9).trim().split(' ');
             const location = parts[0];
             const description = parts.slice(1).join(' ');
             await this.handle911(robloxUser, location, description);
-        } else if (content.toLowerCase().startsWith(':pagar ')) {
-            const parts = content.substring(7).trim().split(' ');
+        } else if (content.toLowerCase().startsWith(':log pagar ')) {
+            const parts = content.substring(11).trim().split(' ');
             if (parts.length >= 3) {
                 const targetUser = parts[0];
                 const amount = parseInt(parts[1]);
                 const concept = parts.slice(2).join(' ');
                 await this.handlePagar(robloxUser, targetUser, amount, concept);
             }
-        } else if (content.toLowerCase().startsWith(':cobrar ')) {
-            const parts = content.substring(8).trim().split(' ');
+        } else if (content.toLowerCase().startsWith(':log cobrar ')) {
+            const parts = content.substring(12).trim().split(' ');
             if (parts.length >= 3) {
                 const targetUser = parts[0];
                 const amount = parseInt(parts[1]);
