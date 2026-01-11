@@ -689,9 +689,9 @@ class ErlcPollingService {
             return;
         }
 
-        // 1. Roblox Announcement (:h) - IMMEDIATE & NON-BLOCKING (with Priority)
+        // 1. Roblox Announcement (:m) - IMMEDIATE & NON-BLOCKING (with Priority)
         if (this.erlcService) {
-            this.erlcService.runCommand(`:h ${announcement}`, true).catch(e =>
+            this.erlcService.runCommand(`:m ${announcement}`, true).catch(e =>
                 console.error('[ERLC Service] Non-blocking Roblox error:', e.message)
             );
         }
@@ -699,18 +699,23 @@ class ErlcPollingService {
         // 2. INSTANT Channel Discovery (using VoiceStates cache)
         const excludeKeywords = ['Staff', 'Soporte', 'Junta Directiva', 'Canal de Espera'];
 
-        // Find all unique channel IDs where actual humans are currently connected
-        const activeVoiceChannelIds = [...new Set(
-            member.guild.voiceStates.cache
-                .filter(vs => vs.channelId && !vs.member?.user.bot)
-                .map(vs => vs.channelId)
-        )];
+        // Find all unique humans connected
+        const humanVoiceStates = member.guild.voiceStates.cache.filter(vs => vs.channelId && !vs.member?.user.bot);
+        const activeVoiceChannelIds = [...new Set(humanVoiceStates.map(vs => vs.channelId))];
+
+        console.log(`[ERLC Polling] Discovery: Found ${humanVoiceStates.size} humans in ${activeVoiceChannelIds.length} unique channels.`);
 
         // Filter out excluded channels
         const channelsToNotify = activeVoiceChannelIds.filter(channelId => {
             const channel = member.guild.channels.cache.get(channelId);
             if (!channel) return false;
-            return !excludeKeywords.some(keyword => channel.name.includes(keyword));
+            const isExcluded = excludeKeywords.some(keyword => channel.name.includes(keyword));
+            if (isExcluded) {
+                console.log(`[ERLC Polling] Skipping excluded channel: ${channel.name} (${channelId})`);
+                return false;
+            }
+            console.log(`[ERLC Polling] Including channel: ${channel.name} (${channelId})`);
+            return true;
         });
 
         await this.sendPM(robloxUser, `⚡ Iniciando anuncio ultra-rápido en Roblox y ${channelsToNotify.length} canales activos...`);
@@ -727,7 +732,7 @@ class ErlcPollingService {
 
         await Promise.all(broadcastPromises);
 
-        await this.sendPM(robloxUser, `✅ Anuncio emitido en voice channels y Roblox (:h).`);
+        await this.sendPM(robloxUser, `✅ Anuncio emitido en voice channels y Roblox (:m).`);
         console.log(`[ERLC Service] 📢 Broadcast by ${robloxUser}: "${message}"`);
     }
 
