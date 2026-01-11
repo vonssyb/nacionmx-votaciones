@@ -74,22 +74,22 @@ class VoiceSwarmService {
     async waitForWorker(guildId, channelId) {
         return new Promise((resolve) => {
             const check = () => {
-                // 1. Find a worker already in this channel
+                // 1. Find a worker already in this channel who is NOT busy
                 let worker = this.findWorkerInChannel(guildId, channelId);
-                if (worker) {
+                if (worker && !worker.busy) {
                     worker.busy = true; // ATOMIC RESERVE
                     return resolve(worker);
                 }
 
-                // 2. Find a free worker
+                // 2. Find ANY free worker (even if they have to move channels)
                 worker = this.getFreeWorker();
                 if (worker) {
                     worker.busy = true; // ATOMIC RESERVE
                     return resolve(worker);
                 }
 
-                // 3. Retry shortly
-                setTimeout(check, 50); // Faster check (50ms)
+                // 3. If nobody is free, wait 100ms and try again (Queueing)
+                setTimeout(check, 100);
             };
             check();
         });
