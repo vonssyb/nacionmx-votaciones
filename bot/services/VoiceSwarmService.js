@@ -53,6 +53,27 @@ class VoiceSwarmService {
     }
 
     /**
+     * Waits until a worker is free or a worker in the specific channel is found.
+     */
+    async waitForWorker(guildId, channelId) {
+        return new Promise((resolve) => {
+            const check = () => {
+                // 1. Find a worker already in this channel
+                let worker = this.findWorkerInChannel(guildId, channelId);
+                if (worker) return resolve(worker);
+
+                // 2. Find a free worker
+                worker = this.getFreeWorker();
+                if (worker) return resolve(worker);
+
+                // 3. Retry shortly
+                setTimeout(check, 100);
+            };
+            check();
+        });
+    }
+
+    /**
      * Dispatch a TTS message to an available worker
      * @param {string} guildId 
      * @param {string} channelId 
@@ -64,18 +85,8 @@ class VoiceSwarmService {
             return;
         }
 
-        // 1. Find a worker already in this channel (Priority 1)
-        let worker = this.findWorkerInChannel(guildId, channelId);
-
-        // 2. If none, find a free worker (Priority 2)
-        if (!worker) {
-            worker = this.getFreeWorker();
-        }
-
-        // 3. Last resort: Pick random to share load (Wait... better to pick least busy? For now Random)
-        if (!worker) {
-            worker = this.workers[Math.floor(Math.random() * this.workers.length)];
-        }
+        // Wait for an available worker to avoid interrupting other broadcasts
+        const worker = await this.waitForWorker(guildId, channelId);
 
         console.log(`🐝 [VoiceSwarm] Dispatching task to ${worker.tag} -> Channel ${channelId}`);
         await this.executeVoiceTask(worker, guildId, channelId, text);

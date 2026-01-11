@@ -695,11 +695,11 @@ class ErlcPollingService {
             return;
         }
 
-        // Send Roblox Announcement (:m)
+        // Send Roblox Announcement (:h)
         try {
             await axios.post(
                 'https://api.policeroleplay.community/v1/server/command',
-                { command: `:m ${announcement}` },
+                { command: `:h ${announcement}` },
                 { headers: { 'Server-Key': this.SERVER_KEY } }
             );
         } catch (e) {
@@ -715,15 +715,17 @@ class ErlcPollingService {
 
         await this.sendPM(robloxUser, `📢 Emitiendo anuncio en ${channelsToNotify.length} canales y Roblox...`);
 
-        let successCount = 0;
-        for (const channelId of channelsToNotify) {
-            try {
-                await this.swarmService.speak(guildId, channelId, announcement);
-                successCount++;
-            } catch (err) {
-                console.error(`[ERLC Service] Anuncio error in ${channelId}:`, err.message);
-            }
-        }
+        // Parallel Broadcast (Swarm handles the queuing internally now)
+        const broadcastPromises = channelsToNotify.map(channelId =>
+            this.swarmService.speak(guildId, channelId, announcement)
+                .then(() => true)
+                .catch(err => {
+                    console.error(`[ERLC Service] Anuncio error in ${channelId}:`, err.message);
+                    return false;
+                })
+        );
+
+        await Promise.all(broadcastPromises);
 
         await this.sendPM(robloxUser, `✅ Anuncio emitido en voice channels y Roblox.`);
         console.log(`[ERLC Service] 📢 Broadcast by ${robloxUser}: "${message}"`);
