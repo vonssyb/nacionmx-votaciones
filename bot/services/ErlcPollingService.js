@@ -367,6 +367,19 @@ class ErlcPollingService {
             // Ping emergency roles
             const rolesToPing = config.EMERGENCY_CATEGORIES.todos.map(roleKey => `<@&${config.EMERGENCY_ROLES[roleKey]}>`).join(' ');
 
+            // Send alert sound first (if available)
+            const soundPath = require('path').join(__dirname, '../assets/sounds/911_alert.mp4');
+            const fs = require('fs');
+
+            if (fs.existsSync(soundPath)) {
+                await channel.send({
+                    files: [{
+                        attachment: soundPath,
+                        name: '911_alert.mp4'
+                    }]
+                });
+            }
+
             const message = await channel.send({
                 content: `${rolesToPing}\n🚨 **EMERGENCIA ACTIVA**`,
                 embeds: [embed],
