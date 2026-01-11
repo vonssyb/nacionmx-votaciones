@@ -101,16 +101,16 @@ const CARD_TIERS = {
 };
 
 const RP_RANK_ROLES = [
-    { id: '1460050867473612840', name: 'Novato', salary: 1.0, shop: 1.0, license: 1.0, casino: 0.10, stocks: 0.10, score: 0, limit: 1.0, sanction_reduction: 0, appeal_priority: 0 },
-    { id: '1460050977246679164', name: 'Habitante', salary: 1.05, shop: 0.95, license: 1.0, casino: 0.10, stocks: 0.10, score: 5, limit: 1.0, sanction_reduction: 0, appeal_priority: 0 },
-    { id: '1460051059568545884', name: 'Ciudadano', salary: 1.10, shop: 0.92, license: 1.0, casino: 0.05, stocks: 0.10, score: 10, limit: 1.0, sanction_reduction: 0, appeal_priority: 0 },
-    { id: '1460051141071995104', name: 'Residente', salary: 1.15, shop: 0.90, license: 1.0, casino: 0.05, stocks: 0.10, score: 15, limit: 1.05, sanction_reduction: 0.05, appeal_priority: 1 },
-    { id: '1460051219186843670', name: 'Experimentado', salary: 1.20, shop: 0.88, license: 1.0, casino: 0.05, stocks: 0.08, score: 20, limit: 1.05, sanction_reduction: 0.10, appeal_priority: 1 },
-    { id: '1460051350199996640', name: 'Veterano', salary: 1.25, shop: 0.85, license: 1.0, casino: 0.03, stocks: 0.08, score: 25, limit: 1.10, sanction_reduction: 0.15, appeal_priority: 2 },
-    { id: '1460051433331232893', name: 'Profesional', salary: 1.35, shop: 0.80, license: 0.80, casino: 0.03, stocks: 0.05, score: 30, limit: 1.10, sanction_reduction: 0.20, appeal_priority: 2 },
-    { id: '1460051534053380219', name: 'Elite', salary: 1.45, shop: 0.75, license: 0.80, casino: 0.03, stocks: 0.05, score: 50, limit: 1.15, sanction_reduction: 0.30, appeal_priority: 3 },
-    { id: '1460051629184385146', name: 'Leyenda', salary: 1.60, shop: 0.65, license: 0.70, casino: 0.02, stocks: 0.0, score: 75, limit: 1.20, sanction_reduction: 0.40, appeal_priority: 3 },
-    { id: '1460051693092995174', name: 'Icono de Nación', salary: 1.80, shop: 0.50, license: 0.50, casino: 0.0, stocks: 0.0, score: 100, limit: 1.30, sanction_reduction: 0.50, appeal_priority: 4 }
+    { id: '1460050867473612840', name: 'Novato', salary: 1.0, shop: 1.0, license: 1.0, casino: 0.10, stocks: 0.10, score: 0, limit: 1.0, sanction_reduction: 0, appeal_priority: 0, fine_discount: 0, jail_reduction: 0 },
+    { id: '1460050977246679164', name: 'Habitante', salary: 1.05, shop: 0.95, license: 1.0, casino: 0.10, stocks: 0.10, score: 5, limit: 1.0, sanction_reduction: 0, appeal_priority: 0, fine_discount: 0, jail_reduction: 0 },
+    { id: '1460051059568545884', name: 'Ciudadano', salary: 1.10, shop: 0.92, license: 1.0, casino: 0.05, stocks: 0.10, score: 10, limit: 1.0, sanction_reduction: 0, appeal_priority: 0, fine_discount: 0, jail_reduction: 0 },
+    { id: '1460051141071995104', name: 'Residente', salary: 1.15, shop: 0.90, license: 1.0, casino: 0.05, stocks: 0.10, score: 15, limit: 1.05, sanction_reduction: 0.05, appeal_priority: 1, fine_discount: 0.05, jail_reduction: 0.05 },
+    { id: '1460051219186843670', name: 'Experimentado', salary: 1.20, shop: 0.88, license: 1.0, casino: 0.05, stocks: 0.08, score: 20, limit: 1.05, sanction_reduction: 0.10, appeal_priority: 1, fine_discount: 0.10, jail_reduction: 0.10 },
+    { id: '1460051350199996640', name: 'Veterano', salary: 1.25, shop: 0.85, license: 1.0, casino: 0.03, stocks: 0.08, score: 25, limit: 1.10, sanction_reduction: 0.15, appeal_priority: 2, fine_discount: 0.15, jail_reduction: 0.15 },
+    { id: '1460051433331232893', name: 'Profesional', salary: 1.35, shop: 0.80, license: 0.80, casino: 0.03, stocks: 0.05, score: 30, limit: 1.10, sanction_reduction: 0.20, appeal_priority: 2, fine_discount: 0.25, jail_reduction: 0.20 },
+    { id: '1460051534053380219', name: 'Elite', salary: 1.45, shop: 0.75, license: 0.80, casino: 0.03, stocks: 0.05, score: 50, limit: 1.15, sanction_reduction: 0.30, appeal_priority: 3, fine_discount: 0.35, jail_reduction: 0.30 },
+    { id: '1460051629184385146', name: 'Leyenda', salary: 1.60, shop: 0.65, license: 0.70, casino: 0.02, stocks: 0.0, score: 75, limit: 1.20, sanction_reduction: 0.40, appeal_priority: 3, fine_discount: 0.45, jail_reduction: 0.40 },
+    { id: '1460051693092995174', name: 'Icono de Nación', salary: 1.80, shop: 0.50, license: 0.50, casino: 0.0, stocks: 0.0, score: 100, limit: 1.30, sanction_reduction: 0.50, appeal_priority: 4, fine_discount: 0.60, jail_reduction: 0.50 }
 ].reverse();
 
 function applyRoleBenefits(member, baseAmount, type) {
@@ -159,6 +159,16 @@ function applyRoleBenefits(member, baseAmount, type) {
             finalAmount = userRank.appeal_priority || 0;
             if (userRank.appeal_priority > 0) perks.push(`[${userRank.name}] Prioridad de Apelación Nivel ${userRank.appeal_priority}`);
         }
+        if (type === 'fine_discount') {
+            finalAmount = userRank.fine_discount;
+            if (baseAmount > 0) finalAmount = Math.floor(baseAmount * (1 - userRank.fine_discount));
+            if (userRank.fine_discount > 0) perks.push(`[${userRank.name}] -${userRank.fine_discount * 100}% Multas`);
+        }
+        if (type === 'jail_reduction') {
+            finalAmount = userRank.jail_reduction;
+            if (baseAmount > 0) finalAmount = Math.floor(baseAmount * (1 - userRank.jail_reduction));
+            if (userRank.jail_reduction > 0) perks.push(`[${userRank.name}] -${userRank.jail_reduction * 100}% Tiempo Cárcel`);
+        }
     }
 
     // 2. STACKABLE BENEFITS (Premium, Booster, UltraPass)
@@ -175,12 +185,16 @@ function applyRoleBenefits(member, baseAmount, type) {
         }
     }
 
-    // Tienda/Business (Cumulative)
-    if (type === 'business_create' || type === 'shop') {
+    // Tienda/Business/Justicia (Cumulative)
+    if (type === 'business_create' || type === 'shop' || type === 'fine_discount') {
         const stackDiscount = isUltraPass ? 0.50 : isBooster ? 0.20 : isPremium ? 0.10 : 0;
-        if (stackDiscount > 0) {
-            finalAmount = Math.floor(finalAmount * (1 - stackDiscount));
-            perks.push(`[Stack] -${stackDiscount * 100}% Desc. Extra`);
+
+        // Special case: Legacy fine discount was 50% for all premium tiers
+        let justiceStack = (type === 'fine_discount' && (isUltraPass || isBooster || isPremium)) ? 0.50 : stackDiscount;
+
+        if (justiceStack > 0) {
+            finalAmount = Math.floor(finalAmount * (1 - justiceStack));
+            perks.push(`[Stack] -${justiceStack * 100}% Desc. Extra`);
         }
     }
 
