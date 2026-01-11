@@ -101,6 +101,27 @@ class ErlcPollingService {
                 const channelAbr = parts[1];
                 await this.handleStaffMove(robloxUser, targetUser, channelAbr);
             }
+        } else if (content.toLowerCase().startsWith(':911 ')) {
+            const parts = content.substring(5).trim().split(' ');
+            const location = parts[0];
+            const description = parts.slice(1).join(' ');
+            await this.handle911(robloxUser, location, description);
+        } else if (content.toLowerCase().startsWith(':pagar ')) {
+            const parts = content.substring(7).trim().split(' ');
+            if (parts.length >= 3) {
+                const targetUser = parts[0];
+                const amount = parseInt(parts[1]);
+                const concept = parts.slice(2).join(' ');
+                await this.handlePagar(robloxUser, targetUser, amount, concept);
+            }
+        } else if (content.toLowerCase().startsWith(':cobrar ')) {
+            const parts = content.substring(8).trim().split(' ');
+            if (parts.length >= 3) {
+                const targetUser = parts[0];
+                const amount = parseInt(parts[1]);
+                const concept = parts.slice(2).join(' ');
+                await this.handleCobrar(robloxUser, targetUser, amount, concept);
+            }
         }
     }
 
@@ -293,6 +314,237 @@ class ErlcPollingService {
             console.error('[ERLC Service] Username Fallback Error:', e.message);
         }
         return null;
+    }
+
+    // ==============================================
+    // EMERGENCY & ECONOMY HANDLERS
+    // ==============================================
+
+    async handle911(caller, location, description) {
+        const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+        const config = require('../config/erlcEconomyEmergency');
+
+        try {
+            const callerMember = await this.getDiscordMember(caller);
+            const callerDiscordId = callerMember?.id || null;
+
+            // Create emergency record in DB
+            const { data: emergency, error } = await this.supabase
+                .from('emergency_calls')
+                .insert({
+                    caller_roblox: caller,
+                    caller_discord_id: callerDiscordId,
+                    location: location,
+                    emergency_description: description
+                })
+                .select()
+                .single();
+
+            if (error) throw error;
+
+            // Create embed
+            const guild = this.client.guilds.cache.get(process.env.GUILD_ID || '1398525215134318713');
+            const channel = await guild.channels.fetch(config.CHANNELS.EMERGENCY_911);
+
+            const embed = new EmbedBuilder()
+                .setTitle('🚨 **EMERGENCIA 911**')
+                .setColor('#FF0000')
+                .setDescription(`**📍 Ubicación:** ${location}\n**📝 Descripción:** ${description}`)
+                .addFields(
+                    { name: '👤 Reportante', value: callerMember ? `<@${callerDiscordId}> (${caller})` : caller, inline: true },
+                    { name: '🕐 Timestamp', value: `<t:${Math.floor(Date.now() / 1000)}:R>`, inline: true }
+                )
+                .setFooter({ text: `ID Emergencia: ${emergency.id}` })
+                .setTimestamp();
+
+            const row = new ActionRowBuilder().addComponents(
+                new ButtonBuilder()
+                    .setCustomId(`emergency_respond_${emergency.id}`)
+                    .setLabel('✅ Atendiendo')
+                    .setStyle(ButtonStyle.Success)
+            );
+
+            // Ping emergency roles
+            const rolesToPing = config.EMERGENCY_CATEGORIES.todos.map(roleKey => `<@&${config.EMERGENCY_ROLES[roleKey]}>`).join(' ');
+
+            const message = await channel.send({
+                content: `${rolesToPing}\n🚨 **EMERGENCIA ACTIVA**`,
+                embeds: [embed],
+                components: [row]
+            });
+
+            // Update DB with message ID
+            await this.supabase
+                .from('emergency_calls')
+                .update({ message_id: message.id, channel_id: channel.id })
+                .eq('id', emergency.id);
+
+            // Confirm to caller
+            await this.sendPM(caller, `✅ Tu emergencia ha sido reportada. ID: ${emergency.id}. Los servicios de emergencia han sido notificados.`);
+
+            console.log(`[ERLC Service] 🚨 Emergency ${emergency.id} created by ${caller}`);
+
+        } catch (error) {
+            console.error('[ERLC Service] handle911 Error:', error);
+            await this.sendPM(caller, '❌ Error reportando emergencia. Intenta de nuevo.');
+        }
+    }
+
+    async handlePagar(sender, targetUser, amount, concept) {
+        const config = require('../config/erlcEconomyEmergency');
+
+        try {
+            // Validate amount
+            if (isNaN(amount) || amount < config.TRANSACTION_LIMITS.MIN_AMOUNT || amount > config.TRANSACTION_LIMITS.MAX_AMOUNT) {
+                return await this.sendPM(sender, `❌ Cantidad inválida. Rango: $${config.TRANSACTION_LIMITS.MIN_AMOUNT} - $${config.TRANSACTION_LIMITS.MAX_AMOUNT}`);
+            }
+
+            // Resolve target user
+            const resolvedTarget = await this.resolvePartialUsername(targetUser);
+            if (!resolvedTarget) {
+                return await this.sendPM(sender, `❌ No encontré "${targetUser}" o hay múltiples coincidencias.`);
+            }
+
+            // Get both members
+            const senderMember = await this.getDiscordMember(sender);
+            const targetMember = await this.getDiscordMember(resolvedTarget);
+
+            if (!senderMember) {
+                return await this.sendPM(sender, '❌ No estás vinculado. Usa /fichar vincular en Discord.');
+            }
+
+            if (!targetMember) {
+                return await this.sendPM(sender, `❌ ${resolvedTarget} no está vinculado en Discord.`);
+            }
+
+            // Check sender balance
+            const billingService = this.client.services.billing;
+            const senderBalance = await billingService.ubService.getUserBalance(process.env.GUILD_ID, senderMember.id);
+
+            if ((senderBalance.cash || 0) < amount) {
+                return await this.sendPM(sender, `❌ Fondos insuficientes. Tienes: $${(senderBalance.cash || 0).toLocaleString()}, necesitas: $${amount.toLocaleString()}`);
+            }
+
+            // Execute transaction
+            await billingService.ubService.removeMoney(process.env.GUILD_ID, senderMember.id, amount, `[ERLC Pago] ${concept}`, 'cash');
+            await billingService.ubService.addMoney(process.env.GUILD_ID, targetMember.id, amount, `[ERLC Pago] De ${sender}`, 'cash');
+
+            // Log transaction
+            await this.supabase.from('erlc_transactions').insert({
+                transaction_type: 'payment',
+                sender_roblox: sender,
+                sender_discord_id: senderMember.id,
+                receiver_roblox: resolvedTarget,
+                receiver_discord_id: targetMember.id,
+                amount: amount,
+                concept: concept
+            });
+
+            // Confirmations
+            await this.sendPM(sender, `✅ Pagaste $${amount.toLocaleString()} a ${resolvedTarget}. Concepto: ${concept}`);
+            await this.sendPM(resolvedTarget, `💰 Recibiste $${amount.toLocaleString()} de ${sender}. Concepto: ${concept}`);
+
+            console.log(`[ERLC Service] 💵 Payment: ${sender} → ${resolvedTarget} ($${amount})`);
+
+        } catch (error) {
+            console.error('[ERLC Service] handlePagar Error:', error);
+            await this.sendPM(sender, '❌ Error procesando pago.');
+        }
+    }
+
+    async handleCobrar(requester, targetUser, amount, concept) {
+        const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+        const config = require('../config/erlcEconomyEmergency');
+
+        try {
+            // Validate amount
+            if (isNaN(amount) || amount < config.TRANSACTION_LIMITS.MIN_AMOUNT || amount > config.TRANSACTION_LIMITS.MAX_AMOUNT) {
+                return await this.sendPM(requester, `❌ Cantidad inválida. Rango: $${config.TRANSACTION_LIMITS.MIN_AMOUNT} - $${config.TRANSACTION_LIMITS.MAX_AMOUNT}`);
+            }
+
+            // Resolve target user
+            const resolvedTarget = await this.resolvePartialUsername(targetUser);
+            if (!resolvedTarget) {
+                return await this.sendPM(requester, `❌ No encontré "${targetUser}" o hay múltiples coincidencias.`);
+            }
+
+            // Get both members
+            const requesterMember = await this.getDiscordMember(requester);
+            const debtorMember = await this.getDiscordMember(resolvedTarget);
+
+            if (!requesterMember) {
+                return await this.sendPM(requester, '❌ No estás vinculado. Usa /fichar vincular en Discord.');
+            }
+
+            if (!debtorMember) {
+                return await this.sendPM(requester, `❌ ${resolvedTarget} no está vinculado en Discord.`);
+            }
+
+            // Create payment request in DB
+            const { data: request, error } = await this.supabase
+                .from('payment_requests')
+                .insert({
+                    requester_roblox: requester,
+                    requester_discord_id: requesterMember.id,
+                    debtor_roblox: resolvedTarget,
+                    debtor_discord_id: debtorMember.id,
+                    amount: amount,
+                    concept: concept
+                })
+                .select()
+                .single();
+
+            if (error) throw error;
+
+            // Create embed with buttons
+            const guild = this.client.guilds.cache.get(process.env.GUILD_ID || '1398525215134318713');
+            const channel = await guild.channels.fetch(config.CHANNELS.PAYMENT_REQUESTS);
+
+            const embed = new EmbedBuilder()
+                .setTitle('💰 Solicitud de Cobro')
+                .setColor('#FFD700')
+                .setDescription(`**${requester}** está cobrando a **${resolvedTarget}**`)
+                .addFields(
+                    { name: '💵 Monto', value: `$${amount.toLocaleString()}`, inline: true },
+                    { name: '📝 Concepto', value: concept || 'Sin especificar', inline: true },
+                    { name: '⏰ Expira', value: '<t:' + Math.floor((Date.now() + 300000) / 1000) + ':R>', inline: true }
+                )
+                .setFooter({ text: `ID: ${request.id} | ${resolvedTarget}, tienes 5 minutos para responder` })
+                .setTimestamp();
+
+            const row = new ActionRowBuilder().addComponents(
+                new ButtonBuilder()
+                    .setCustomId(`payment_accept_${request.id}`)
+                    .setLabel(`✅ Aceptar Pago ($${amount.toLocaleString()})`)
+                    .setStyle(ButtonStyle.Success),
+                new ButtonBuilder()
+                    .setCustomId(`payment_reject_${request.id}`)
+                    .setLabel('❌ Rechazar')
+                    .setStyle(ButtonStyle.Danger)
+            );
+
+            const message = await channel.send({
+                content: `<@${debtorMember.id}> tienes una solicitud de cobro`,
+                embeds: [embed],
+                components: [row]
+            });
+
+            // Update DB with message ID
+            await this.supabase
+                .from('payment_requests')
+                .update({ message_id: message.id, channel_id: channel.id })
+                .eq('id', request.id);
+
+            // Confirmations
+            await this.sendPM(requester, `✅ Solicitud de cobro enviada a ${resolvedTarget} por $${amount.toLocaleString()}`);
+            await this.sendPM(resolvedTarget, `💰 ${requester} te está cobrando $${amount.toLocaleString()}. Concepto: ${concept}. Ve a Discord para aceptar/rechazar.`);
+
+            console.log(`[ERLC Service] 💳 Charge request ${request.id}: ${requester} → ${resolvedTarget} ($${amount})`);
+
+        } catch (error) {
+            console.error('[ERLC Service] handleCobrar Error:', error);
+            await this.sendPM(requester, '❌ Error creando solicitud de cobro.');
+        }
     }
 }
 
