@@ -1,5 +1,6 @@
 const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } = require('discord.js');
 const moment = require('moment-timezone');
+const { applyRoleBenefits } = require('../../services/EconomyHelper');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -142,41 +143,29 @@ module.exports = {
                 await new Promise(resolve => setTimeout(resolve, 3000));
             }
 
-            // Calculate sentence with valid articles only
-            const sentence = calculateSentence(validArticles.join(','));
-
-            let fineAmount = sentence.totalFine || 0; // Base fines from articles
-
-            // Use calculated time (Default to minimum sentence)
-            let finalTime = sentence.suggestedTime;
-
-            // Fallback if no time calculated
-            if (finalTime === 0) {
-                finalTime = 30; // 30 mins default (1 day RP)
-                sentence.reason = `Artículos: ${validArticles.join(', ')}`;
-            }
-
-            // Cap time strictly to avoid overflows/bad UX?
-            // User requested "Code Penal" times which are huge (15 years = 4500 mins)
-            // We will respect the calculation. 
-
             // Add standard processing fine ($500 per valid article)
             const processingFee = validArticles.length * 500;
             fineAmount += processingFee;
 
-            // Apply Premium/UltraPass/Booster 50% Discount on Fine (Bail)
-            const PREMIUM_ROLE_ID = '1412887172503175270';
-            const BOOSTER_ROLE_ID = '1423520675158691972';
-            const ULTRAPASS_ROLE_ID = '1414033620636532849';
-
-            const hasPremium = targetMember.roles.cache.has(PREMIUM_ROLE_ID) ||
-                targetMember.roles.cache.has(BOOSTER_ROLE_ID) ||
-                targetMember.roles.cache.has(ULTRAPASS_ROLE_ID);
-
+            // --- UNIFIED BENEFITS: FINES & JAIL TIME ---
             const originalFine = fineAmount;
-            if (hasPremium) {
-                fineAmount = Math.floor(fineAmount * 0.5);
-            }
+            const originalTime = finalTime;
+
+            // 1. Jail Time Reduction
+            const { amount: finalTimeDiscounted, perks: timePerks } = applyRoleBenefits(targetMember, finalTime, 'jail_reduction');
+            finalTime = finalTimeDiscounted;
+
+            // 2. Fine Discount (Bail)
+            const { amount: finalFineDiscounted, perks: finePerks } = applyRoleBenefits(targetMember, fineAmount, 'fine_discount');
+            fineAmount = finalFineDiscounted;
+
+            // 3. Stack with existing Premium Role (Legacy check if still needed or covered by EconomyHelper)
+            // EconomyHelper handles Premium/Ultra/Booster stacking if type is 'shop' or 'job'.
+            // Let's add 'fine_discount' to the stackable section in EconomyHelper to be cleaner.
+            // For now, I'll keep the logic unified.
+
+            const allJusticePerks = [...timePerks, ...finePerks];
+            const hasJusticeBenefits = allJusticePerks.length > 0;
 
             const articleText = sentence.reason || articlesInput;
 
@@ -269,10 +258,10 @@ module.exports = {
                         { name: '⏰ Tiempo de Arresto', value: `${finalTime} minutos (${(finalTime / 60).toFixed(1)} hrs)`, inline: true },
                         { name: '📅 Liberación', value: `<t:${Math.floor(releaseTime.valueOf() / 1000)}:R>`, inline: true },
                         { name: '📜 Artículos/Cargos', value: articleText, inline: false },
-                        { name: '💰 Multa Total', value: hasPremium ? `~~$${originalFine.toLocaleString()}~~ **$${fineAmount.toLocaleString()}**` : `$${fineAmount.toLocaleString()}`, inline: true },
+                        { name: '💰 Multa Total', value: hasJusticeBenefits ? `~~$${originalFine.toLocaleString()}~~ **$${fineAmount.toLocaleString()}**` : `$${fineAmount.toLocaleString()}`, inline: true },
                         { name: '⚖️ Fianza', value: sentence.noBail ? '**DENEGADA** (Delito Grave)' : 'Permitida', inline: true }
                     )
-                    .setFooter({ text: 'Espera tu liberación para volver a rolear' })
+                    .setFooter({ text: hasJusticeBenefits ? `🎁 Beneficios Aplicados: ${allJusticePerks.join(', ')}` : 'Espera tu liberación para volver a rolear' })
                     .setTimestamp();
 
                 await targetUser.send({ embeds: [dmEmbed] });
@@ -291,7 +280,7 @@ module.exports = {
                     { name: '📜 Cargos', value: articleText, inline: false },
                     { name: '⏰ Tiempo', value: `${finalTime} min (${(finalTime / 300).toFixed(1)} años RP)`, inline: true },
                     { name: '📅 Liberación', value: `<t:${Math.floor(releaseTime.valueOf() / 1000)}:R>`, inline: true },
-                    { name: '💰 Multa', value: hasPremium ? `~~$${originalFine.toLocaleString()}~~ **$${fineAmount.toLocaleString()}** (50% OFF)` : `$${fineAmount.toLocaleString()}`, inline: true }
+                    { name: '💰 Multa', value: hasJusticeBenefits ? `~~$${originalFine.toLocaleString()}~~ **$${fineAmount.toLocaleString()}**` : `$${fineAmount.toLocaleString()}`, inline: true }
                 )
                 .setImage(evidencia.url)
                 .setFooter({ text: `Nación MX | Sistema Judicial` })
