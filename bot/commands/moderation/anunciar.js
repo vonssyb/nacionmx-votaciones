@@ -40,47 +40,42 @@ module.exports = {
 
         await interaction.editReply({ content: `⚡ Iniciando anuncio ultra-rápido en Roblox y canales de voz...` });
 
-        // 2. INSTANT Channel Discovery (using VoiceStates cache)
-        const excludeKeywords = ['Canal de Espera', 'Junta Directiva']; // Loosened for debugging
+        // 2. INSTANT Channel Discovery (using Channel Members)
+        const excludeKeywords = ['Canal de Espera', 'Junta Directiva', 'Staff', 'Soporte'];
+        const targetIds = ['1459640433297588401', '1412967056730755143', '1412967017639575562', '1412927576879661207', '1398525215675252872'];
 
-        // DEEP DEBUG: Log every voice state in the cache
-        const allStates = interaction.guild.voiceStates.cache;
-        console.log(`[Anunciar] Deep Audit: ${allStates.size} total states in cache.`);
+        console.log(`[Anunciar] --- START VOICE DISCOVERY AUDIT ---`);
 
-        const channelsWithPeople = new Map();
-        allStates.forEach(vs => {
-            if (!vs.channelId) return;
-            const chan = interaction.guild.channels.cache.get(vs.channelId);
-            const isBot = vs.member?.user.bot || false;
-            const userName = vs.member?.user.tag || `UID:${vs.id}`;
+        const allVoiceChannels = interaction.guild.channels.cache.filter(c => c.isVoiceBased());
+        console.log(`[Anunciar] Total Voice Channels Visible: ${allVoiceChannels.size}`);
 
-            if (!channelsWithPeople.has(vs.channelId)) {
-                channelsWithPeople.set(vs.channelId, { name: chan?.name || 'Unknown', humans: 0, bots: 0 });
+        const channelsToNotify = [];
+
+        allVoiceChannels.forEach(channel => {
+            const humans = channel.members.filter(m => !m.user.bot);
+            const isExcluded = excludeKeywords.some(keyword => channel.name.includes(keyword));
+            const isTarget = targetIds.includes(channel.id);
+
+            if (isTarget || humans.size > 0) {
+                const canView = channel.viewable;
+                const canConnect = channel.joinable;
+                console.log(`[Anunciar] Audit VC: ${channel.name} (${channel.id}) | Humans: ${humans.size} | Excluded: ${isExcluded} | Viewable: ${canView} | Joinable: ${canConnect}`);
+
+                if (isTarget && humans.size === 0) {
+                    console.log(`[Anunciar] ⚠️ Target channel ${channel.name} is EMPTY according to bot cache.`);
+                }
+                if (isTarget && !canConnect) {
+                    console.log(`[Anunciar] ❌ Bot CANNOT CONNECT to target channel ${channel.name}. Check permissions.`);
+                }
             }
-            const stats = channelsWithPeople.get(vs.channelId);
-            if (isBot) stats.bots++; else stats.humans++;
 
-            console.log(`[Anunciar] VC Audit: User=${userName}, Bot=${isBot}, Channel=${chan?.name || 'Unknown'} (${vs.channelId})`);
+            if (humans.size > 0 && !isExcluded) {
+                console.log(`[Anunciar] ✅ Including: ${channel.name}`);
+                channelsToNotify.push(channel.id);
+            }
         });
 
-        // Unique channels with at least one human
-        const activeVoiceChannelIds = [...channelsWithPeople.entries()]
-            .filter(([id, stats]) => stats.humans > 0)
-            .map(([id, stats]) => id);
-
-        console.log(`[Anunciar] Discovery Summary: Found ${activeVoiceChannelIds.length} unique channels with humans.`);
-
-        // Filter out excluded channels based on their names
-        const channelsToNotify = activeVoiceChannelIds.filter(channelId => {
-            const stats = channelsWithPeople.get(channelId);
-            const isExcluded = excludeKeywords.some(keyword => stats.name.includes(keyword));
-            if (isExcluded) {
-                console.log(`[Anunciar] Skipping excluded channel: ${stats.name} (${channelId})`);
-                return false;
-            }
-            console.log(`[Anunciar] Including channel: ${stats.name} (${channelId})`);
-            return true;
-        });
+        console.log(`[Anunciar] --- END VOICE DISCOVERY AUDIT (Total: ${channelsToNotify.length}) ---`);
 
         if (channelsToNotify.length === 0) {
             console.log(`[Anunciar] No valid channels found after filtering.`);
@@ -88,8 +83,6 @@ module.exports = {
                 content: `✅ Roblox actualizado (:h). No hay usuarios en canales de voz públicos para anunciar.`
             });
         }
-
-        console.log(`[Anunciar] Discovery Total: channels=${channelsToNotify.length}`);
 
         // 3. Parallel Broadcast (Optimized for 8+ drones)
         const broadcastPromises = channelsToNotify.map(channelId =>

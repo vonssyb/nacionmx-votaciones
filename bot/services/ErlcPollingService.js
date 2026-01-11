@@ -696,47 +696,42 @@ class ErlcPollingService {
             );
         }
 
-        // 2. INSTANT Channel Discovery (using VoiceStates cache)
-        const excludeKeywords = ['Canal de Espera', 'Junta Directiva']; // Loosened for debugging
+        // 2. INSTANT Channel Discovery (using Channel Members)
+        const excludeKeywords = ['Canal de Espera', 'Junta Directiva', 'Staff', 'Soporte'];
+        const targetIds = ['1459640433297588401', '1412967056730755143', '1412967017639575562', '1412927576879661207', '1398525215675252872'];
 
-        // DEEP DEBUG: Log every voice state
-        const allStates = member.guild.voiceStates.cache;
-        console.log(`[ERLC Polling] Deep Audit: ${allStates.size} total states in cache.`);
+        console.log(`[ERLC Polling] --- START VOICE DISCOVERY AUDIT ---`);
 
-        const channelsWithPeople = new Map();
-        allStates.forEach(vs => {
-            if (!vs.channelId) return;
-            const chan = member.guild.channels.cache.get(vs.channelId);
-            const isBot = vs.member?.user.bot || false;
-            const userName = vs.member?.user.tag || `UID:${vs.id}`;
+        const allVoiceChannels = member.guild.channels.cache.filter(c => c.isVoiceBased());
+        console.log(`[ERLC Polling] Total Voice Channels Visible: ${allVoiceChannels.size}`);
 
-            if (!channelsWithPeople.has(vs.channelId)) {
-                channelsWithPeople.set(vs.channelId, { name: chan?.name || 'Unknown', humans: 0, bots: 0 });
+        const channelsToNotify = [];
+
+        allVoiceChannels.forEach(channel => {
+            const humans = channel.members.filter(m => !m.user.bot);
+            const isExcluded = excludeKeywords.some(keyword => channel.name.includes(keyword));
+            const isTarget = targetIds.includes(channel.id);
+
+            if (isTarget || humans.size > 0) {
+                const canView = channel.viewable;
+                const canConnect = channel.joinable;
+                console.log(`[ERLC Polling] Audit VC: ${channel.name} (${channel.id}) | Humans: ${humans.size} | Excluded: ${isExcluded} | Viewable: ${canView} | Joinable: ${canConnect}`);
+
+                if (isTarget && humans.size === 0) {
+                    console.log(`[ERLC Polling] ⚠️ Target channel ${channel.name} is EMPTY according to bot cache.`);
+                }
+                if (isTarget && !canConnect) {
+                    console.log(`[ERLC Polling] ❌ Bot CANNOT CONNECT to target channel ${channel.name}. Check permissions.`);
+                }
             }
-            const stats = channelsWithPeople.get(vs.channelId);
-            if (isBot) stats.bots++; else stats.humans++;
 
-            console.log(`[ERLC Polling] VC Audit: User=${userName}, Bot=${isBot}, Channel=${chan?.name || 'Unknown'} (${vs.channelId})`);
+            if (humans.size > 0 && !isExcluded) {
+                console.log(`[ERLC Polling] ✅ Including: ${channel.name}`);
+                channelsToNotify.push(channel.id);
+            }
         });
 
-        // Unique channels with at least one human
-        const activeVoiceChannelIds = [...channelsWithPeople.entries()]
-            .filter(([id, stats]) => stats.humans > 0)
-            .map(([id, stats]) => id);
-
-        console.log(`[ERLC Polling] Discovery Summary: Found ${activeVoiceChannelIds.length} unique channels with humans.`);
-
-        // Filter out excluded channels
-        const channelsToNotify = activeVoiceChannelIds.filter(channelId => {
-            const stats = channelsWithPeople.get(channelId);
-            const isExcluded = excludeKeywords.some(keyword => stats.name.includes(keyword));
-            if (isExcluded) {
-                console.log(`[ERLC Polling] Skipping excluded channel: ${stats.name} (${channelId})`);
-                return false;
-            }
-            console.log(`[ERLC Polling] Including channel: ${stats.name} (${channelId})`);
-            return true;
-        });
+        console.log(`[ERLC Polling] --- END VOICE DISCOVERY AUDIT (Total: ${channelsToNotify.length}) ---`);
 
         if (channelsToNotify.length === 0) {
             console.warn('[ERLC Polling] NO active channels found for announcement!');
