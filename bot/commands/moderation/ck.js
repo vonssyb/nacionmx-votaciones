@@ -622,11 +622,10 @@ module.exports = {
                         }
                     }
 
-                    // 5. Reset DNI (optional - set to null or delete)
+                    // 5. Reset DNI (Delete by user_id only - guild_id may not exist on all records)
                     await supabase
                         .from('citizen_dni')
                         .delete()
-                        .eq('guild_id', interaction.guildId)
                         .eq('user_id', targetUser.id);
 
                     // 5b. INSERT ROLE COOLDOWNS (2 Weeks)
