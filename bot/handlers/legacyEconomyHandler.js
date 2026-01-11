@@ -5976,63 +5976,34 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                     const basePay = Math.floor(Math.random() * (crime.pay[1] - crime.pay[0] + 1)) + crime.pay[0];
 
                     // Detect Premium Roles
-                    const PREMIUM_ROLE_ID = '1412887172503175270';
-                    const BOOSTER_ROLE_ID = '1423520675158691972';
-                    const ULTRAPASS_ROLE_ID = '1414033620636532849';
-                    const EVASOR_FISCAL_ROLE_ID = '1449950636371214397';
+                    // const PREMIUM_ROLE_ID = '1412887172503175270';
+                    // const BOOSTER_ROLE_ID = '1423520675158691972';
+                    // const ULTRAPASS_ROLE_ID = '1414033620636532849';
+                    // const EVASOR_FISCAL_ROLE_ID = '1449950636371214397';
 
                     const member = await interaction.guild.members.fetch(interaction.user.id);
-                    const isPremium = member.roles.cache.has(PREMIUM_ROLE_ID);
-                    const isBooster = member.roles.cache.has(BOOSTER_ROLE_ID);
-                    const isUltraPass = member.roles.cache.has(ULTRAPASS_ROLE_ID);
-                    const hasEvasorRole = member.roles.cache.has(EVASOR_FISCAL_ROLE_ID);
+                    // const isPremium = member.roles.cache.has(PREMIUM_ROLE_ID);
+                    // const isBooster = member.roles.cache.has(BOOSTER_ROLE_ID);
+                    // const isUltraPass = member.roles.cache.has(ULTRAPASS_ROLE_ID);
+                    // const hasEvasorRole = member.roles.cache.has(EVASOR_FISCAL_ROLE_ID);
 
                     // Apply +10% bonus for Premium/Booster/UltraPass
-                    let bonusMultiplier = 1.0;
-                    let bonusLabel = '';
-                    if (isUltraPass) {
-                        bonusMultiplier = 1.10;
-                        bonusLabel = '👑 UltraPass +10%';
-                    } else if (isPremium) {
-                        bonusMultiplier = 1.10;
-                        bonusLabel = '⭐ Premium +10%';
-                    } else if (isBooster) {
-                        bonusMultiplier = 1.10;
-                        bonusLabel = '🚀 Booster +10%';
-                    }
+                    // let bonusMultiplier = 1.0;
+                    // let bonusLabel = '';
+                    // if (isUltraPass) {
+                    //     bonusMultiplier = 1.10;
+                    //     bonusLabel = '👑 UltraPass +10%';
+                    // } else if (isPremium) {
+                    //     bonusMultiplier = 1.10;
+                    //     bonusLabel = '⭐ Premium +10%';
+                    // } else if (isBooster) {
+                    //     bonusMultiplier = 1.10;
+                    //     bonusLabel = '🚀 Booster +10%';
+                    // }
 
-                    const grossPay = Math.floor(basePay * bonusMultiplier);
+                    // const grossPay = Math.floor(basePay * bonusMultiplier);
 
                     // Tax rates based on role
-                    let taxRate = 0.08; // Default 8%
-                    if (isUltraPass || hasEvasorRole) {
-                        taxRate = 0.04; // UltraPass or Evasor: 4%
-                    } else if (isPremium || isBooster) {
-                        taxRate = 0.06; // Premium/Booster: 6%
-                    }
-
-                    const taxAmount = Math.floor(grossPay * taxRate);
-                    const netPay = grossPay - taxAmount;
-
-                    await billingService.ubService.addMoney(interaction.guildId, interaction.user.id, netPay, `Crimen: ${crime.title}`, 'cash');
-                    casinoSessions[crimeKey] = Date.now();
-
-                    const fields = [
-                        { name: '💰 Botín Base', value: `$${basePay.toLocaleString()}`, inline: true }
-                    ];
-
-                    if (bonusLabel) {
-                        const bonusAmount = grossPay - basePay;
-                        fields.push({ name: '⭐ Bonus', value: `+$${bonusAmount.toLocaleString()} (${bonusLabel})`, inline: true });
-                    }
-
-                    fields.push(
-                        { name: '💸 Impuesto SAT', value: `-$${taxAmount.toLocaleString()} (${taxRate * 100}%)`, inline: true },
-                        { name: '✅ Botín Neto', value: `$${netPay.toLocaleString()}`, inline: false }
-                    );
-
-                    const successEmbed = new EmbedBuilder()
-                        .setTitle('💸 ¡ÉXITO CRIMINAL!')
                         .setColor(0x00FF00)
                         .setDescription(`Completaste: **${crime.title}**`)
                         .addFields(fields)
@@ -6257,7 +6228,12 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
 
             const price = getStockPrice(symbol);
             const totalVal = price * qty;
-            const valWithFee = Math.floor(totalVal * 0.98); // 2% Broker Fee
+
+            // Apply Stock Commission (Rank Benefit)
+            const member = await interaction.guild.members.fetch(interaction.user.id);
+            const { amount: feeRate, perks } = applyRoleBenefits(member, 0.02, 'stock_commission'); // Default fee 2%
+            const feeAmount = Math.floor(totalVal * feeRate);
+            const valWithFee = totalVal - feeAmount;
 
             const newShares = current.shares - qty;
             if (newShares <= 0) {
@@ -6267,7 +6243,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             }
 
             await billingService.ubService.addMoney(interaction.guildId, interaction.user.id, valWithFee, `Venta acciones ${symbol}`, 'bank');
-            return interaction.editReply(`✅ **Venta Exitosa**\nHas vendido **${qty}** de **${symbol}** a $${price}.\nRecibido: $${valWithFee.toLocaleString()}`);
+            return interaction.editReply(`✅ **Venta Exitosa**\nHas vendido **${qty}** de **${symbol}** a $${price}.\nRecibido: $${valWithFee.toLocaleString()}` + (perks.length > 0 ? `\n🎁 ${perks[0]}` : ''));
         }
 
         // Helper function to rename channel based on state
@@ -6641,7 +6617,14 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
 
                     if (dealerScore > 21 || playerScore > dealerScore) {
                         result = 'WIN';
-                        payout = bet * 2;
+                        const rawPayout = bet * 2;
+
+                        // Apply Casino Commission (Fee reduction)
+                        const member = await interaction.guild.members.fetch(interaction.user.id);
+                        const { amount: feeRate } = applyRoleBenefits(member, 0.10, 'casino_fee'); // Default fee is 10%
+                        const feeAmount = Math.floor(rawPayout * feeRate);
+                        payout = rawPayout - feeAmount;
+
                         await billingService.ubService.addMoney(interaction.guildId, interaction.user.id, payout, 'Blackjack Win', 'cash');
                     } else if (playerScore === dealerScore) {
                         result = 'PUSH';
@@ -6692,9 +6675,16 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                     .setTimestamp();
 
                 if (win) {
-                    const payout = bet * multiplier;
+                    const rawPayout = bet * multiplier;
+
+                    // Apply Casino Commission (Fee reduction)
+                    const member = await interaction.guild.members.fetch(interaction.user.id);
+                    const { amount: feeRate, perks } = applyRoleBenefits(member, 0.10, 'casino_fee');
+                    const feeAmount = Math.floor(rawPayout * feeRate);
+                    const payout = rawPayout - feeAmount;
+
                     await billingService.ubService.addMoney(interaction.guildId, interaction.user.id, payout, 'Ruleta Win', 'cash');
-                    embed.setDescription(`🎉 **¡GANASTE!**\nRecibes: **$${payout.toLocaleString()}**`);
+                    embed.setDescription(`🎉 **¡GANASTE!**\nRecibes: **$${payout.toLocaleString()}**` + (perks.length > 0 ? `\n🎁 ${perks[0]}` : ''));
                 } else {
                     embed.setDescription(`❌ **Perdiste.**\nLa casa gana.`);
                 }

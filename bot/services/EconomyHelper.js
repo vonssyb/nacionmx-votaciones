@@ -1,140 +1,68 @@
-
-const BENEFIT_ROLES = {
-    PREMIUM: '1412887172503175270',
-    BOOSTER: '1423520675158691972',
-    ULTRAPASS: '1414033620636532849'
-};
-
-const CARD_TIERS = {
-    // --- TARJETAS DE DÉBITO ---
-    'NMX Débito': {
-        limit: 0, interest: 0, cost: 100, max_balance: 50000, score: 0, tier: 'Débito', color: 0x808080,
-        benefits: ['Cuenta básica', 'Transferencias gratis', 'Soporte estándar']
-    },
-    'NMX Débito Plus': {
-        limit: 0, interest: 0, cost: 500, max_balance: 250000, score: 10, tier: 'Débito', color: 0x32CD32,
-        benefits: ['Límite aumentado', 'Retiros gratis', 'Atención preferente']
-    },
-    'NMX Débito Gold': {
-        limit: 0, interest: 0, cost: 1000, max_balance: Infinity, score: 20, tier: 'Débito', color: 0xFFD700,
-        benefits: ['Sin límites', 'Cashback en compras', 'Atención VIP']
-    },
-
-    // --- TARJETAS DE CRÉDITO PERSONALES ---
-    'NMX Start': {
-        limit: 15000, interest: 15, cost: 2000, max_balance: Infinity, score: 30, tier: 'Personal', color: 0xCD7F32,
-        benefits: ['Límite $15k', 'Construye historial', 'Sin anualidad']
-    },
-    'NMX Básica': {
-        limit: 30000, interest: 12, cost: 4000, max_balance: Infinity, score: 40, tier: 'Personal', color: 0x4682B4,
-        benefits: ['Límite $30k', 'Crédito personal', 'Interés moderado']
-    },
-    'NMX Plus': {
-        limit: 50000, interest: 10, cost: 6000, max_balance: Infinity, score: 50, tier: 'Personal', color: 0x32CD32,
-        benefits: ['Límite $50k', 'Cashback 2%', 'Protección compras']
-    },
-    'NMX Plata': {
-        limit: 100000, interest: 8, cost: 10000, max_balance: Infinity, score: 60, tier: 'Personal', color: 0xC0C0C0,
-        benefits: ['Límite $100k', 'Cashback 3%', 'Acceso salas VIP (2/año)']
-    },
-    'NMX Oro': {
-        limit: 250000, interest: 7, cost: 15000, max_balance: Infinity, score: 75, tier: 'Personal', color: 0xFFD700,
-        benefits: ['Límite $250k', 'Cashback 5%', 'Seguro viajes']
-    },
-    'NMX Rubí': {
-        limit: 500000, interest: 6, cost: 25000, max_balance: Infinity, score: 80, tier: 'Personal', color: 0xE0115F,
-        benefits: ['Límite $500k', 'Cashback 5.5%', 'Salas VIP (4/año)']
-    },
-    'NMX Black': { // PERSONAL (User list puts it before Diamante)
-        limit: 1000000, interest: 5, cost: 40000, max_balance: Infinity, score: 85, tier: 'Personal', color: 0x000000,
-        benefits: ['Límite $1M', 'Cashback 6%', 'Concierge personal']
-    },
-    'NMX Diamante': {
-        limit: 2000000, interest: 3, cost: 60000, max_balance: Infinity, score: 90, tier: 'Personal', color: 0xB9F2FF,
-        benefits: ['Límite $2M', 'Cashback 7%', 'Eventos exclusivos']
-    },
-    'NMX Zafiro': {
-        limit: 5000000, interest: 2.5, cost: 100000, max_balance: Infinity, score: 95, tier: 'Personal', color: 0x0F52BA,
-        benefits: ['Límite $5M', 'Cashback 8%', 'Jet privado (-50%)']
-    },
-    'NMX Platino Elite': {
-        limit: 10000000, interest: 2, cost: 150000, max_balance: Infinity, score: 98, tier: 'Personal', color: 0xE5E4E2,
-        benefits: ['Límite $10M', 'Cashback 10%', 'Jet privado ilimitado']
-    },
-
-    // --- TARJETAS EMPRESARIALES ---
-    'Business Start': {
-        limit: 50000, interest: 2, cost: 8000, max_balance: Infinity, score: 80, tier: 'Business', color: 0xCD7F32,
-        benefits: ['Emprendedores', 'Crédito renovable', 'Reportes mensuales']
-    },
-    'Business Gold': {
-        limit: 100000, interest: 1.5, cost: 15000, max_balance: Infinity, score: 85, tier: 'Business', color: 0xFFD700,
-        benefits: ['Pymes', 'Mejor rendimiento', 'Cashback 1%']
-    },
-    'Business Platinum': {
-        limit: 200000, interest: 1.2, cost: 20000, max_balance: Infinity, score: 88, tier: 'Business', color: 0xE5E4E2,
-        benefits: ['Expansión', 'Acceso prioritario', 'Sin comisiones intl']
-    },
-    'Business Elite': {
-        limit: 500000, interest: 1, cost: 35000, max_balance: Infinity, score: 90, tier: 'Business', color: 0x0F52BA,
-        benefits: ['Corporativo', 'Línea flexible', 'Seguro viajes']
-    },
-    'NMX Corporate': {
-        limit: 1000000, interest: 0.7, cost: 50000, max_balance: Infinity, score: 92, tier: 'Corporate', color: 0x800020,
-        benefits: ['Industrias', 'Beneficio fiscal', 'Asesor dedicado']
-    },
-    'Corporate Plus': {
-        limit: 5000000, interest: 0.5, cost: 100000, max_balance: Infinity, score: 94, tier: 'Corporate', color: 0x000000,
-        benefits: ['Corporativos grandes', 'Financiamiento', 'Líneas extra']
-    },
-    'Enterprise': {
-        limit: 10000000, interest: 0.4, cost: 200000, max_balance: Infinity, score: 96, tier: 'Corporate', color: 0x003366,
-        benefits: ['Transnacionales', 'Global Corp', 'Auditoría gratuita']
-    },
-    'Conglomerate': {
-        limit: 25000000, interest: 0.3, cost: 350000, max_balance: Infinity, score: 98, tier: 'Corporate', color: 0x660066,
-        benefits: ['Conglomerados', 'Sin límites', 'Todo incluido']
-    },
-    'Supreme': {
-        limit: 50000000, interest: 0.2, cost: 500000, max_balance: Infinity, score: 99, tier: 'Corporate', color: 0xFFFFFF,
-        benefits: ['Top Tier', 'Mercado capitales', 'Rey de los negocios']
-    }
-};
-
+const RP_RANK_ROLES = [
+    { id: '1460050867473612840', name: 'Novato', salary: 1.0, shop: 1.0, license: 1.0, casino: 0.10, stocks: 0.10, score: 0, limit: 1.0 },
+    { id: '1460050977246679164', name: 'Habitante', salary: 1.05, shop: 0.95, license: 1.0, casino: 0.10, stocks: 0.10, score: 5, limit: 1.0 },
+    { id: '1460051059568545884', name: 'Ciudadano', salary: 1.10, shop: 0.92, license: 1.0, casino: 0.05, stocks: 0.10, score: 10, limit: 1.0 },
+    { id: '1460051141071995104', name: 'Residente', salary: 1.15, shop: 0.90, license: 1.0, casino: 0.05, stocks: 0.10, score: 15, limit: 1.05 },
+    { id: '1460051219186843670', name: 'Experimentado', salary: 1.20, shop: 0.88, license: 1.0, casino: 0.05, stocks: 0.08, score: 20, limit: 1.05 },
+    { id: '1460051350199996640', name: 'Veterano', salary: 1.25, shop: 0.85, license: 1.0, casino: 0.03, stocks: 0.08, score: 25, limit: 1.10 },
+    { id: '1460051433331232893', name: 'Profesional', salary: 1.35, shop: 0.80, license: 0.80, casino: 0.03, stocks: 0.05, score: 30, limit: 1.10 },
+    { id: '1460051534053380219', name: 'Elite', salary: 1.45, shop: 0.75, license: 0.80, casino: 0.03, stocks: 0.05, score: 50, limit: 1.15 },
+    { id: '1460051629184385146', name: 'Leyenda', salary: 1.60, shop: 0.65, license: 0.70, casino: 0.02, stocks: 0.0, score: 75, limit: 1.20 },
+    { id: '1460051693092995174', name: 'Icono de Nación', salary: 1.80, shop: 0.50, license: 0.50, casino: 0.0, stocks: 0.0, score: 100, limit: 1.30 }
+].reverse(); // Reverse so we find the highest rank first
 
 function applyRoleBenefits(member, baseAmount, type) {
     let finalAmount = baseAmount;
     let perks = [];
 
-    // Role Checks
+    // 1. RP RANK BENEFITS (Highest priority, only one applies)
+    const userRank = RP_RANK_ROLES.find(rank => member.roles.cache.has(rank.id));
+
+    if (userRank) {
+        if (type === 'job' && userRank.salary > 1.0) {
+            finalAmount = Math.floor(baseAmount * userRank.salary);
+            perks.push(`[${userRank.name}] +${Math.round((userRank.salary - 1) * 100)}% Salario`);
+        }
+        if (type === 'shop' && userRank.shop < 1.0) {
+            finalAmount = Math.floor(baseAmount * userRank.shop);
+            perks.push(`[${userRank.name}] -${Math.round((1 - userRank.shop) * 100)}% Tienda`);
+        }
+        if (type === 'license' && userRank.license < 1.0) {
+            finalAmount = Math.floor(baseAmount * userRank.license);
+            perks.push(`[${userRank.name}] -${Math.round((1 - userRank.license) * 100)}% Licencias`);
+        }
+        if (type === 'casino_fee') {
+            finalAmount = userRank.casino; // Returns the fee percentage (e.g. 0.03)
+            if (userRank.casino === 0) perks.push(`[${userRank.name}] Sin Comisiones Casino`);
+            else perks.push(`[${userRank.name}] Comis. Casino: ${userRank.casino * 100}%`);
+        }
+        if (type === 'stock_commission') {
+            finalAmount = userRank.stocks;
+            if (userRank.stocks === 0) perks.push(`[${userRank.name}] Sin Comisiones Bolsa`);
+            else perks.push(`[${userRank.name}] Comis. Bolsa: ${userRank.stocks * 100}%`);
+        }
+    }
+
+    // 2. STACKABLE BENEFITS (Premium, Booster, UltraPass)
     const isUltraPass = member.roles.cache.has(BENEFIT_ROLES.ULTRAPASS);
     const isBooster = member.roles.cache.has(BENEFIT_ROLES.BOOSTER);
     const isPremium = member.roles.cache.has(BENEFIT_ROLES.PREMIUM);
 
-    // Business Creation (Discounts)
-    if (type === 'business_create') {
-        const discount = isUltraPass ? 0.50 : isBooster ? 0.20 : isPremium ? 0.10 : 0;
-        if (discount > 0) {
-            finalAmount = Math.floor(baseAmount * (1 - discount));
-            perks.push(`-${discount * 100}% Descuento`);
-        }
-    }
-
-    // Licenses (Discounts in time or cost - assuming cost here)
-    if (type === 'license') {
-        const discount = isUltraPass ? 0.80 : isBooster ? 0.50 : isPremium ? 0.25 : 0;
-        if (discount > 0) {
-            finalAmount = Math.floor(baseAmount * (1 - discount));
-            perks.push(`-${discount * 100}% Costo Licencia`);
-        }
-    }
-
-    // Job Pay (Bonus)
+    // Salario (Cumulative)
     if (type === 'job') {
-        const bonus = isUltraPass ? 2.0 : isBooster ? 1.5 : isPremium ? 1.25 : 1.0;
-        if (bonus > 1.0) {
-            finalAmount = Math.floor(baseAmount * bonus);
-            perks.push(`+${Math.floor((bonus - 1) * 100)}% Salario`);
+        const stackBonus = isUltraPass ? 2.0 : isBooster ? 1.5 : isPremium ? 1.25 : 1.0;
+        if (stackBonus > 1.0) {
+            finalAmount = Math.floor(finalAmount * stackBonus);
+            perks.push(`[Stack] +${Math.round((stackBonus - 1) * 100)}% Bono Extra`);
+        }
+    }
+
+    // Tienda/Business (Cumulative)
+    if (type === 'business_create' || type === 'shop') {
+        const stackDiscount = isUltraPass ? 0.50 : isBooster ? 0.20 : isPremium ? 0.10 : 0;
+        if (stackDiscount > 0) {
+            finalAmount = Math.floor(finalAmount * (1 - stackDiscount));
+            perks.push(`[Stack] -${stackDiscount * 100}% Desc. Extra`);
         }
     }
 
@@ -148,6 +76,7 @@ async function getDebitCard(supabase, discordId) {
 
 module.exports = {
     BENEFIT_ROLES,
+    RP_RANK_ROLES,
     CARD_TIERS,
     applyRoleBenefits,
     getDebitCard
