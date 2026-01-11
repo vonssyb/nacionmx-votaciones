@@ -48,7 +48,11 @@ module.exports = {
     // Emergency voice channels for 911 alerts
     EMERGENCY_VOICE_CHANNELS: [
         '1459948822024159262', // Paramédicos
-        '1459948849601712381'  // Bomberos
-        // Add police VC channels here if you have specific ones
+        '1459948849601712381', // Bomberos
+        '1459646170476314765', // Policía 1
+        '1459645796256317617', // Policía 2
+        '1459646124079054929', // Policía 3
+        '1459646138498945368', // Policía 4
+        '1459646153619669165'  // Policía 5
     ]
 };
