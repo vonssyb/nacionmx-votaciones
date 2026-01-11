@@ -30,7 +30,7 @@ const ERRORS = {
         `💡 Realiza un pago con \`/credito pagar\` antes de usar más crédito.`,
 
     // Citizenship
-    NOT_CITIZEN: '❌ **No eres ciudadano**\n\nSolo los ciudadanos pueden usar este comando.\n\n➡️ Vincula tu cuenta con `/fichar vincular` (Solo Staff)',
+    NOT_CITIZEN: '❌ **No eres ciudadano**\n\nSolo los ciudadanos pueden usar este comando.\n\n➡️ Crea un DNI con `/dni crear`',
 
     NOT_AMERICAN: '❌ **American ID Requerido**\n\nNecesitas ser ciudadano americano para esto.\n\n➡️ Solicita una visa con `/visa solicitar`',
 

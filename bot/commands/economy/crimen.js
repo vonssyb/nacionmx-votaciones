@@ -25,7 +25,7 @@ module.exports = {
 
         if (!crimenDni) {
             return interaction.editReply({
-                content: '❌ **DNI Requerido**\nNecesitas un DNI para cometer crímenes. Usa `/fichar vincular` o ve al registro civil.',
+                content: '❌ **DNI Requerido**\nNecesitas un DNI para cometer crímenes. Usa `/dni crear` o ve al registro civil.',
             });
         }
 

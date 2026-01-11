@@ -1966,7 +1966,7 @@ const handleEconomyLegacy = async (interaction, client, supabase) => {
 
             if (!citizen) {
                 return interaction.editReply({
-                    content: `❌ **Error:** El usuario <@${targetUser.id}> no está registrado en el censo.\n⚠️ **Acción Requerida:** Usa el comando \`/fichar vincular\` para registrar su Nombre y DNI antes de emitir una tarjeta.`
+                    content: `❌ **Error:** El usuario <@${targetUser.id}> no está registrado en el censo.\n⚠️ **Acción Requerida:** Pídele que use el comando \`/dni crear\` para registrar su identidad antes de emitir una tarjeta.`
                 });
             }
             // Update name?
@@ -5815,7 +5815,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
 
         if (!crimenDni) {
             return interaction.editReply({
-                content: '❌ **DNI Requerido**\nNecesitas un DNI para cometer crímenes.',
+                content: '❌ **DNI Requerido**\nNecesitas un DNI para cometer crímenes. Usa `/dni crear`.',
             });
         }
 

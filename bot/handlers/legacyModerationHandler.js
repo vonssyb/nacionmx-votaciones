@@ -2845,7 +2845,7 @@ const handleModerationLegacy = async (interaction, client, supabase) => {
 
             if (!citizen) {
                 return interaction.editReply({
-                    content: `❌ **Error:** El usuario <@${targetUser.id}> no está registrado en el censo.\n⚠️ **Acción Requerida:** Usa el comando \`/fichar vincular\` para registrar su Nombre y DNI antes de emitir una tarjeta.`
+                    content: `❌ **Error:** El usuario <@${targetUser.id}> no está registrado en el censo.\n⚠️ **Acción Requerida:** Pídele que use el comando \`/dni crear\` para registrar su identidad antes de emitir una tarjeta.`
                 });
             }
             // Update name?

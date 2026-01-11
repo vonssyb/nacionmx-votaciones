@@ -192,7 +192,7 @@ class ErlcPollingService {
         const member = await this.getDiscordMember(robloxUser);
         if (!member) {
             console.log(`❌ [ERLC Service] User ${robloxUser} not found in Discord`);
-            await this.sendPM(robloxUser, '❌ No estás vinculado. Usa /fichar vincular en Discord.');
+            await this.sendPM(robloxUser, '❌ No tienes DNI. Usa /dni crear en Discord.');
             return;
         }
 
@@ -240,7 +240,7 @@ class ErlcPollingService {
     async handleStaffMove(staffUser, targetUser, abbreviation) {
         const staffMember = await this.getDiscordMember(staffUser);
         if (!staffMember) {
-            await this.sendPM(staffUser, '❌ No estás vinculado. Usa /fichar vincular en Discord.');
+            await this.sendPM(staffUser, '❌ No tienes DNI. Usa /dni crear en Discord.');
             return;
         }
 
@@ -523,7 +523,7 @@ class ErlcPollingService {
             const targetMember = await this.getDiscordMember(resolvedTarget);
 
             if (!senderMember) {
-                return await this.sendPM(sender, '❌ No estás vinculado. Usa /fichar vincular en Discord.');
+                return await this.sendPM(sender, '❌ No tienes DNI. Usa /dni crear en Discord.');
             }
 
             if (!targetMember) {
@@ -586,7 +586,7 @@ class ErlcPollingService {
             const debtorMember = await this.getDiscordMember(resolvedTarget);
 
             if (!requesterMember) {
-                return await this.sendPM(requester, '❌ No estás vinculado. Usa /fichar vincular en Discord.');
+                return await this.sendPM(requester, '❌ No tienes DNI. Usa /dni crear en Discord.');
             }
 
             if (!debtorMember) {
