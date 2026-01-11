@@ -489,7 +489,22 @@ class ErlcPollingService {
 
                     // Dispatch to VoiceSwarm
                     if (this.swarmService) {
-                        await this.swarmService.dispatchVoiceTask(channelId, message);
+                        // First: Play MP4 alert sound if it exists
+                        if (fs.existsSync(soundPath)) {
+                            try {
+                                console.log(`[ERLC Service] 🔊 Playing alert sound in ${voiceChannel.name}`);
+                                await this.swarmService.dispatchAudioFile(channelId, soundPath);
+
+                                // Wait for sound to finish (~3 seconds)
+                                await new Promise(resolve => setTimeout(resolve, 3500));
+                            } catch (err) {
+                                console.error(`[ERLC Service] Failed to play alert sound: ${err.message}`);
+                            }
+                        }
+
+                        // Then: Play TTS message
+                        console.log(`[ERLC Service] 🗣️ Playing TTS: "${ttsMessage}"`);
+                        await this.swarmService.dispatchVoiceTask(channelId, ttsMessage);
                     }
                 } else {
                     console.log(`[ERLC Service] ⏭️ Skipping ${channelId} (no members or not found)`);
