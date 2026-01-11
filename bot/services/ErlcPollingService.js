@@ -155,6 +155,9 @@ class ErlcPollingService {
                 const concept = parts.slice(2).join(' ');
                 await this.handleCobrar(robloxUser, targetUser, amount, concept);
             }
+        } else if (content.toLowerCase().startsWith(':log anunciar ')) {
+            const message = content.substring(14).trim();
+            await this.handleAnuncio(robloxUser, message);
         }
     }
 
@@ -656,8 +659,55 @@ class ErlcPollingService {
 
         } catch (error) {
             console.error('[ERLC Service] handleCobrar Error:', error);
-            await this.sendPM(requester, '❌ Error creando solicitud de cobro.');
+            await this.sendPM(requester, '❌ Error enviando solicitud.');
         }
+    }
+
+    async handleAnuncio(robloxUser, message) {
+        console.log(`[ERLC Service] handleAnuncio called: user="${robloxUser}", msg="${message}"`);
+
+        const member = await this.getDiscordMember(robloxUser);
+        if (!member) {
+            await this.sendPM(robloxUser, '❌ No estás vinculado en Discord. Usa /dni crear.');
+            return;
+        }
+
+        const isStaff = member.roles.cache.has(voiceConfig.ROLES.STAFF[0]) || member.roles.cache.has(voiceConfig.ROLES.STAFF[1]);
+        const isJD = member.roles.cache.has(voiceConfig.ROLES.JUNTA_DIRECTIVA[0]);
+
+        if (!isStaff && !isJD) {
+            await this.sendPM(robloxUser, '⛔ No tienes permisos de Staff.');
+            return;
+        }
+
+        const announcement = `ANUNCIO DE STAFF: ${message}`;
+        const guildId = member.guild.id;
+
+        if (!this.swarmService) {
+            await this.sendPM(robloxUser, '❌ Servicio de voz no disponible.');
+            return;
+        }
+
+        // Get all channels except "espera"
+        const channelsToNotify = Object.keys(voiceConfig.CHANNELS).filter(id => {
+            const info = voiceConfig.CHANNELS[id];
+            return info.name !== 'Canal de Espera';
+        });
+
+        await this.sendPM(robloxUser, `📢 Emitiendo anuncio en ${channelsToNotify.length} canales...`);
+
+        let successCount = 0;
+        for (const channelId of channelsToNotify) {
+            try {
+                await this.swarmService.speak(guildId, channelId, announcement);
+                successCount++;
+            } catch (err) {
+                console.error(`[ERLC Service] Anuncio error in ${channelId}:`, err.message);
+            }
+        }
+
+        await this.sendPM(robloxUser, `✅ Anuncio emitido en ${successCount}/${channelsToNotify.length} canales.`);
+        console.log(`[ERLC Service] 📢 Broadcast by ${robloxUser}: "${message}"`);
     }
 }
 
