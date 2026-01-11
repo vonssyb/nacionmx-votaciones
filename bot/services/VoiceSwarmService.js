@@ -270,7 +270,18 @@ class VoiceSwarmService {
         try {
             if (connection) {
                 const status = connection.state.status;
-                if (status === 'destroyed' || status === 'disconnected') {
+                const currentChannelId = connection.joinConfig.channelId;
+
+                // IMPORTANT: If already connected but to a DIFFERENT channel, move!
+                if (currentChannelId !== channelId) {
+                    console.log(`🐝 [VoiceSwarm] ${worker.tag} - Moving from ${currentChannelId} to ${channelId}`);
+                    connection = joinVoiceChannel({
+                        channelId: channelId,
+                        guildId: guild.id,
+                        adapterCreator: guild.voiceAdapterCreator,
+                        group: group
+                    });
+                } else if (status === 'destroyed' || status === 'disconnected') {
                     console.log(`🐝 [VoiceSwarm] ${worker.tag} - Connection in bad state (${status}), recreating...`);
                     connection.destroy();
                     connection = null;

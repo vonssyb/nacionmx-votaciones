@@ -31,9 +31,9 @@ module.exports = {
         }
         const announcement = `ANUNCIO DE STAFF: ${message}`;
 
-        // 1. Roblox Announcement (:m) - IMMEDIATE & NON-BLOCKING (with Priority)
+        // 1. Roblox Announcement (:h) - IMMEDIATE & NON-BLOCKING (with Priority)
         if (erlcService) {
-            erlcService.runCommand(`:m ${announcement}`, true).catch(e =>
+            erlcService.runCommand(`:h ${announcement}`, true).catch(e =>
                 console.error('[Anunciar] Non-blocking Roblox error:', e.message)
             );
         }
@@ -85,7 +85,7 @@ module.exports = {
         const successCount = results.filter(r => r).length;
 
         await interaction.editReply({
-            content: `✅ Anuncio emitido: **${successCount}** canales dinámicos y Roblox (:m).`
+            content: `✅ Anuncio emitido: **${successCount}** canales dinámicos y Roblox (:h).`
         });
 
         console.log(`[Slash Command] 📢 /anunciar by ${member.user.tag}: "${message}"`);

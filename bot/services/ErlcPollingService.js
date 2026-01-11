@@ -689,9 +689,9 @@ class ErlcPollingService {
             return;
         }
 
-        // 1. Roblox Announcement (:m) - IMMEDIATE & NON-BLOCKING (with Priority)
+        // 1. Roblox Announcement (:h) - IMMEDIATE & NON-BLOCKING (with Priority)
         if (this.erlcService) {
-            this.erlcService.runCommand(`:m ${announcement}`, true).catch(e =>
+            this.erlcService.runCommand(`:h ${announcement}`, true).catch(e =>
                 console.error('[ERLC Service] Non-blocking Roblox error:', e.message)
             );
         }
@@ -732,7 +732,7 @@ class ErlcPollingService {
 
         await Promise.all(broadcastPromises);
 
-        await this.sendPM(robloxUser, `✅ Anuncio emitido en voice channels y Roblox (:m).`);
+        await this.sendPM(robloxUser, `✅ Anuncio emitido en voice channels y Roblox (:h).`);
         console.log(`[ERLC Service] 📢 Broadcast by ${robloxUser}: "${message}"`);
     }
 
