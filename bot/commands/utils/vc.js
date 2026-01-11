@@ -15,12 +15,12 @@ module.exports = {
         const member = interaction.member;
 
         if (!member.voice.channelId) {
-            return interaction.reply({ content: '❌ Debes estar en un canal de voz para usar este comando.', ephemeral: true });
+            return interaction.editReply({ content: '❌ Debes estar en un canal de voz para usar este comando.', ephemeral: true });
         }
 
         const targetId = voiceConfig.getIdFromAlias(abbreviation);
         if (!targetId) {
-            return interaction.reply({ content: `❌ El alias \`${abbreviation}\` no fue encontrado.`, ephemeral: true });
+            return interaction.editReply({ content: `❌ El alias \`${abbreviation}\` no fue encontrado.`, ephemeral: true });
         }
 
         const channelInfo = voiceConfig.getChannelInfo(targetId);
@@ -31,7 +31,7 @@ module.exports = {
         if (channelInfo && channelInfo.requiredRole && !isJD) {
             const roleId = voiceConfig.ROLES[channelInfo.requiredRole];
             if (roleId && !member.roles.cache.has(roleId)) {
-                return interaction.reply({
+                return interaction.editReply({
                     content: `⛔ No tienes permisos para acceder al canal **${channelInfo.name || abbreviation}**.`,
                     ephemeral: true
                 });
@@ -40,14 +40,14 @@ module.exports = {
 
         try {
             await member.voice.setChannel(targetId);
-            await interaction.reply({
+            await interaction.editReply({
                 content: `✅ Has sido movido a **${channelInfo?.name || abbreviation}**.`,
                 ephemeral: true
             });
             console.log(`[Slash Command] 🎙️ /vc: ${member.user.tag} moved to ${channelInfo?.name || abbreviation}`);
         } catch (error) {
             console.error(`[Slash Command] /vc Error:`, error.message);
-            await interaction.reply({
+            await interaction.editReply({
                 content: `❌ Error al moverte: ${error.message}`,
                 ephemeral: true
             });

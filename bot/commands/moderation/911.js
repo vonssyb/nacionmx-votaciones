@@ -40,7 +40,7 @@ module.exports = {
             const channel = await guild.channels.fetch(config.CHANNELS.EMERGENCY_911);
 
             if (!channel) {
-                return interaction.reply({ content: '❌ El canal de emergencias no está configurado correctamente.', ephemeral: true });
+                return interaction.editReply({ content: '❌ El canal de emergencias no está configurado correctamente.', ephemeral: true });
             }
 
             const embed = new EmbedBuilder()
@@ -81,7 +81,7 @@ module.exports = {
                 await client.services.erlcPolling.broadcastEmergencyToVoice(location, description);
             }
 
-            await interaction.reply({
+            await interaction.editReply({
                 content: `✅ **Emergencia reportada con éxito.**\nID: \`${emergency.id}\`\nLos servicios de emergencia han sido notificados.`,
                 ephemeral: true
             });
@@ -90,7 +90,7 @@ module.exports = {
 
         } catch (error) {
             console.error('[Slash Command] /911 Error:', error);
-            await interaction.reply({
+            await interaction.editReply({
                 content: '❌ Error al reportar la emergencia. Por favor, intenta de nuevo.',
                 ephemeral: true
             });

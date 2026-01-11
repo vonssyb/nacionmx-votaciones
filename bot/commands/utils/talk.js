@@ -15,7 +15,7 @@ module.exports = {
         const member = interaction.member;
 
         if (!member.voice.channelId) {
-            return interaction.reply({ content: '❌ Debes estar en un canal de voz para usar este comando.', ephemeral: true });
+            return interaction.editReply({ content: '❌ Debes estar en un canal de voz para usar este comando.', ephemeral: true });
         }
 
         const channelId = member.voice.channelId;
@@ -23,14 +23,14 @@ module.exports = {
 
         // Whitelist check
         if (!channelInfo) {
-            return interaction.reply({
+            return interaction.editReply({
                 content: '❌ No se permite el uso de TTS en este canal.',
                 ephemeral: true
             });
         }
 
         if (channelInfo.noTTS) {
-            return interaction.reply({
+            return interaction.editReply({
                 content: `❌ El canal **${channelInfo.name}** tiene el TTS desactivado.`,
                 ephemeral: true
             });
@@ -38,7 +38,7 @@ module.exports = {
 
         try {
             // Echo to interaction so user knows it went through
-            await interaction.reply({
+            await interaction.editReply({
                 content: `🗣️ Diciendo: "${message}"`,
                 ephemeral: true
             });
