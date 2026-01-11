@@ -38,7 +38,7 @@ async function registerGovernmentCommands() {
     const commandsPath = path.join(__dirname, 'commands');
 
     console.log('🔄 Cargando comandos de Gobierno...');
-    await loadCommands(client, commandsPath, ['gov', 'utils']);
+    await loadCommands(client, commandsPath, ['gov']);
 
     const allCommands = Array.from(client.commands.values()).map(cmd => cmd.data.toJSON());
 

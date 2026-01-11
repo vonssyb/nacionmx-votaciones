@@ -9,6 +9,7 @@ const GUILD_ID = process.env.GUILD_ID;
 const commands = [];
 
 // Load commands dynamically from folders
+const allCommandsByFolder = {};
 const commandFolders = ['moderation', 'utils', 'economy', 'business', 'games', 'gov', 'owner'];
 
 for (const folder of commandFolders) {
@@ -16,14 +17,16 @@ for (const folder of commandFolders) {
     if (!fs.existsSync(folderPath)) continue;
 
     const commandFiles = fs.readdirSync(folderPath).filter(file => file.endsWith('.js'));
+    allCommandsByFolder[folder] = [];
 
     for (const file of commandFiles) {
         const filePath = path.join(folderPath, file);
         try {
-            delete require.cache[require.resolve(filePath)]; // Clear cache for reload
+            delete require.cache[require.resolve(filePath)];
             const command = require(filePath);
             if (command.data) {
-                commands.push(command.data.toJSON());
+                const cmdJSON = command.data.toJSON();
+                allCommandsByFolder[folder].push(cmdJSON);
                 console.log(`✅ Loaded: ${folder}/${file}`);
             }
         } catch (error) {
@@ -31,22 +34,6 @@ for (const folder of commandFolders) {
         }
     }
 }
-
-// Deduplicate commands (keep last occurrence)
-const uniqueCommands = [];
-const seen = new Set();
-
-for (let i = commands.length - 1; i >= 0; i--) {
-    const cmd = commands[i];
-    if (!seen.has(cmd.name)) {
-        uniqueCommands.unshift(cmd);
-        seen.add(cmd.name);
-    } else {
-        console.log(`⚠️  Skipping duplicate: ${cmd.name}`);
-    }
-}
-
-console.log(`\n📋 Total unique commands: ${uniqueCommands.length}\n`);
 
 // Bot configurations
 const bots = [
@@ -73,24 +60,43 @@ const bots = [
 // Deploy to each bot
 (async () => {
     for (const bot of bots) {
+        if (!bot.token) {
+            console.warn(`\n⚠️  Skipping ${bot.name}: Token not found.`);
+            continue;
+        }
+
         try {
             console.log(`\n🤖 Deploying to ${bot.name}...`);
 
-            // Filter commands for this bot
-            const botCommands = uniqueCommands.filter(cmd => {
-                // Find which folder this command belongs to
-                const commandFile = commands.find(c => c.name === cmd.name);
-                return bot.commandFolders.some(folder => {
-                    // Check if this command was loaded from this folder
-                    return true; // For now, deploy all to all bots
-                });
-            });
+            // Collect commands for this specific bot based on its folders
+            const botCommands = [];
+            const seenNames = new Set();
+
+            for (const folder of bot.commandFolders) {
+                if (allCommandsByFolder[folder]) {
+                    for (const cmd of allCommandsByFolder[folder]) {
+                        if (!seenNames.has(cmd.name)) {
+                            botCommands.push(cmd);
+                            seenNames.add(cmd.name);
+                        } else {
+                            console.log(`   ⚠️  Skipping duplicate within ${bot.name}: ${cmd.name}`);
+                        }
+                    }
+                }
+            }
+
+            console.log(`   📋 Registering ${botCommands.length} commands for ${bot.name}...`);
 
             const rest = new REST({ version: '10' }).setToken(bot.token);
 
+            // 1. CLEANUP GLOBAL COMMANDS (To avoid "duplicate" entries if they were global before)
+            try {
+                await rest.put(Routes.applicationCommands(bot.appId), { body: [] });
+            } catch (e) { /* Ignore 401/403 on globals cleanup */ }
+
             const data = await rest.put(
                 Routes.applicationGuildCommands(bot.appId, GUILD_ID),
-                { body: uniqueCommands }, // Deploy all commands to all bots for now
+                { body: botCommands },
             );
 
             console.log(`✅ ${bot.name}: Successfully registered ${data.length} commands!`);

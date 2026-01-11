@@ -48,11 +48,12 @@ if (fs.existsSync(commandsPath)) {
 try {
     const legacyCommands = require('./commands.js');
     const MOD_LEGACY = [
-        'ping', 'info', 'sesion' // Removed 'ayuda' to use modular one
+        'sesion' // 'ping', 'info', 'ayuda' are now modular
     ];
 
     legacyCommands.forEach(cmd => {
         if (MOD_LEGACY.includes(cmd.name)) {
+            // Avoid duplicates if modular already loaded it
             if (!commands.find(c => c.name === cmd.name)) {
                 commands.push(cmd);
                 console.log(`[MOD] Legacy cargado: ${cmd.name}`);
