@@ -25,18 +25,29 @@ module.exports = {
         const announcement = `ANUNCIO DE STAFF: ${message}`;
         const guildId = interaction.guildId;
         const swarmService = client.swarmService || (client.services && client.services.swarm);
+        const erlcService = client.services && client.services.erlc;
 
         if (!swarmService) {
             return interaction.editReply({ content: '❌ El servicio de voz no está disponible.' });
         }
 
-        // Get all channels except "espera"
+        // Get all channels except "espera", staff, support, and jd
+        const excludeKeywords = ['Staff', 'Soporte', 'Junta Directiva', 'Canal de Espera'];
         const channelsToNotify = Object.keys(voiceConfig.CHANNELS).filter(id => {
             const info = voiceConfig.CHANNELS[id];
-            return info.name !== 'Canal de Espera';
+            return !excludeKeywords.some(keyword => info.name.includes(keyword));
         });
 
-        await interaction.editReply({ content: `📢 Emitiendo anuncio en ${channelsToNotify.length} canales...` });
+        await interaction.editReply({ content: `📢 Emitiendo anuncio en ${channelsToNotify.length} canales y Roblox...` });
+
+        // Roblox Announcement (:m)
+        if (erlcService) {
+            try {
+                await erlcService.sendCommand(`:m ${announcement}`);
+            } catch (e) {
+                console.error('[Anunciar] Error sending Roblox announcement:', e.message);
+            }
+        }
 
         let successCount = 0;
         for (const channelId of channelsToNotify) {
@@ -49,7 +60,7 @@ module.exports = {
         }
 
         await interaction.editReply({
-            content: `✅ Anuncio emitido con éxito en **${successCount}** de **${channelsToNotify.length}** canales.`
+            content: `✅ Anuncio emitido con éxito en **${successCount}** canales de voz y Roblox.`
         });
 
         console.log(`[Slash Command] 📢 /anunciar by ${member.user.tag}: "${message}"`);

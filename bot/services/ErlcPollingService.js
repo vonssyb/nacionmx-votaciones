@@ -158,6 +158,8 @@ class ErlcPollingService {
         } else if (content.toLowerCase().startsWith(':log anunciar ')) {
             const message = content.substring(14).trim();
             await this.handleAnuncio(robloxUser, message);
+        } else if (content.toLowerCase() === ':log' || content.toLowerCase() === ':log help') {
+            await this.handleHelp(robloxUser);
         }
     }
 
@@ -688,13 +690,25 @@ class ErlcPollingService {
             return;
         }
 
-        // Get all channels except "espera"
+        // Send Roblox Announcement (:m)
+        try {
+            await axios.post(
+                'https://api.policeroleplay.community/v1/server/command',
+                { command: `:m ${announcement}` },
+                { headers: { 'Server-Key': this.SERVER_KEY } }
+            );
+        } catch (e) {
+            console.error('[ERLC Service] Error sending Roblox announcement:', e.message);
+        }
+
+        // Get all channels except "espera", staff, support, and jd
+        const excludeKeywords = ['Staff', 'Soporte', 'Junta Directiva', 'Canal de Espera'];
         const channelsToNotify = Object.keys(voiceConfig.CHANNELS).filter(id => {
             const info = voiceConfig.CHANNELS[id];
-            return info.name !== 'Canal de Espera';
+            return !excludeKeywords.some(keyword => info.name.includes(keyword));
         });
 
-        await this.sendPM(robloxUser, `📢 Emitiendo anuncio en ${channelsToNotify.length} canales...`);
+        await this.sendPM(robloxUser, `📢 Emitiendo anuncio en ${channelsToNotify.length} canales y Roblox...`);
 
         let successCount = 0;
         for (const channelId of channelsToNotify) {
@@ -706,8 +720,20 @@ class ErlcPollingService {
             }
         }
 
-        await this.sendPM(robloxUser, `✅ Anuncio emitido en ${successCount}/${channelsToNotify.length} canales.`);
+        await this.sendPM(robloxUser, `✅ Anuncio emitido en voice channels y Roblox.`);
         console.log(`[ERLC Service] 📢 Broadcast by ${robloxUser}: "${message}"`);
+    }
+
+    async handleHelp(robloxUser) {
+        const helpMessage =
+            `🛠️ COMANDOS NACIÓN MX:\n` +
+            `• :log talk [msj] - Habla en tu canal\n` +
+            `• :log vc [alias] - Muévete (pg, p1, cg, etc)\n` +
+            `• :log pagar [user] [amt] [motivo]\n` +
+            `• :log cobrar [user] [amt] [motivo]\n` +
+            `• :log anunciar [msj] - (Staff Only)`;
+
+        await this.sendPM(robloxUser, helpMessage);
     }
 }
 
