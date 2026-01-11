@@ -83,16 +83,24 @@ class ErlcService {
 
     /**
      * Remote Command (Kick/Ban/Announce)
-     * Now uses a centralized queue to prevent rate limits.
+     * Now uses a prioritized queue to prevent rate limits and ensure speed.
+     * @param {string} command - The command to run
+     * @param {boolean} priority - Whether this command should skip to the front (e.g. for announcements)
      */
-    async runCommand(command) {
+    async runCommand(command, priority = false) {
         if (!this.commandQueue) {
             this.commandQueue = [];
             this.isProcessingQueue = false;
         }
 
         return new Promise((resolve) => {
-            this.commandQueue.push({ command, resolve, attempts: 0 });
+            const task = { command, resolve, attempts: 0, priority };
+            if (priority) {
+                // Add to the front of the queue (after currently processing if any)
+                this.commandQueue.unshift(task);
+            } else {
+                this.commandQueue.push(task);
+            }
             this._processQueue();
         });
     }
@@ -103,19 +111,25 @@ class ErlcService {
 
         while (this.commandQueue.length > 0) {
             const task = this.commandQueue.shift();
+
+            console.log(`🚀 [ErlcService] Processing ${task.priority ? 'PRIORITY ' : ''}command: ${task.command}`);
             const success = await this._executeRawCommand(task.command);
 
             if (!success && task.attempts < 3) {
-                // Retry ONLY once after a delay if it was a rate limit or failure
                 console.warn(`[ErlcService] Command failed, re-queueing (Attempt ${task.attempts + 1}): ${task.command}`);
                 task.attempts++;
-                this.commandQueue.push(task);
+                // Re-queue with priority if it was already priority
+                if (task.priority) {
+                    this.commandQueue.unshift(task);
+                } else {
+                    this.commandQueue.push(task);
+                }
             } else {
                 task.resolve(success);
             }
 
-            // Forced delay between commands to respect rate limits (1.5 seconds)
-            await new Promise(r => setTimeout(r, 1500));
+            // Forced delay between commands to respect rate limits (2.5 seconds for absolute safety)
+            await new Promise(r => setTimeout(r, 2500));
         }
 
         this.isProcessingQueue = false;
