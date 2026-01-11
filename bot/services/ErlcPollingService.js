@@ -212,8 +212,12 @@ class ErlcPollingService {
 
         console.log(`✅ [ERLC Service] Target channel ID: ${targetId}`);
 
+        // Check if user is Junta Directiva (bypass all restrictions)
+        const JUNTA_DIRECTIVA_ROLE = '1412882245735420006';
+        const isJD = member.roles.cache.has(JUNTA_DIRECTIVA_ROLE);
+
         const channelInfo = voiceConfig.getChannelInfo(targetId);
-        if (channelInfo && channelInfo.requiredRole) {
+        if (channelInfo && channelInfo.requiredRole && !isJD) {
             const roleId = voiceConfig.ROLES[channelInfo.requiredRole];
             if (roleId && !member.roles.cache.has(roleId)) {
                 console.log(`❌ [ERLC Service] User missing required role: ${channelInfo.requiredRole}`);
