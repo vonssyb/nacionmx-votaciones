@@ -5093,9 +5093,9 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
 
             // Apply Premium/Ultra Discounts
             const targetMember = await interaction.guild.members.fetch(targetUser.id);
-            const { finalAmount, discountRate, appliedRole } = applyRoleBenefits(targetMember, license.price, 'license');
+            const { finalAmount, discountRate, appliedRole } = applyRoleBenefits(targetMember, license.price, 'license') || {};
 
-            const finalPrice = finalAmount;
+            const finalPrice = finalAmount || license.price; // Fallback to base price if undefined
             const savedAmount = license.price - finalPrice;
 
             try {
