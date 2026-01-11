@@ -17,6 +17,10 @@ class ErlcPollingService {
         this.SERVER_KEY = process.env.ERLC_SERVER_KEY;
         this.pollingRate = 3000;
         this.linkCache = new Map();
+
+        // Command deduplication cache
+        this.processedCommands = new Map(); // key: "user:command:timestamp", value: timestamp when processed
+        this.DEDUP_WINDOW = 60000; // 60 seconds
     }
 
     start() {
@@ -26,10 +30,31 @@ class ErlcPollingService {
             console.log(`✅ [ERLC Service] API Key detected. Starting Polling...`);
         }
         this.interval = setInterval(() => this.fetchLogs(), this.pollingRate);
+        this.cleanupInterval = setInterval(() => this.cleanupDedupCache(), 60000);
     }
 
     stop() {
         if (this.interval) clearInterval(this.interval);
+        if (this.cleanupInterval) clearInterval(this.cleanupInterval);
+    }
+
+    cleanupDedupCache() {
+        const now = Date.now();
+        for (const [key, timestamp] of this.processedCommands.entries()) {
+            if (now - timestamp > this.DEDUP_WINDOW) {
+                this.processedCommands.delete(key);
+            }
+        }
+    }
+
+    isCommandProcessed(user, command, timestamp) {
+        const key = `${user}:${command}:${timestamp}`;
+        return this.processedCommands.has(key);
+    }
+
+    markCommandProcessed(user, command, timestamp) {
+        const key = `${user}:${command}:${timestamp}`;
+        this.processedCommands.set(key, Date.now());
     }
 
     /**
@@ -69,7 +94,14 @@ class ErlcPollingService {
             for (const log of logs) {
                 if (log.Timestamp > this.lastLogTimestamp) {
                     if (log.Timestamp > safeFilterTime) {
-                        await this.processCommand(log);
+                        // Check for duplicates before processing
+                        const user = (log.Player || "").split(':')[0];
+                        if (!this.isCommandProcessed(user, log.Command, log.Timestamp)) {
+                            this.markCommandProcessed(user, log.Command, log.Timestamp);
+                            await this.processCommand(log);
+                        } else {
+                            console.log(`[ERLC Service] 🔄 Skipping duplicate: ${log.Command}`);
+                        }
                     }
                     if (log.Timestamp > this.lastLogTimestamp) {
                         this.lastLogTimestamp = log.Timestamp;
