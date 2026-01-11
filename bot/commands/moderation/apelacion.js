@@ -1,4 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { applyRoleBenefits } = require('../../services/EconomyHelper');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -72,12 +73,24 @@ module.exports = {
         try {
             const channel = await client.channels.fetch(APPEAL_CHANNEL_ID);
             if (channel) {
+                // Detect RP Rank for Priority
+                const { amount: priorityLevel, perks } = applyRoleBenefits(interaction.member, 0, 'appeals_priority');
+                const priorityLabels = {
+                    0: '⚪ Estándar',
+                    1: '🔵 Preferente',
+                    2: '🟡 Alta',
+                    3: '🟠 Muy Alta',
+                    4: '🔴 INMEDIATA / VIP'
+                };
+                const priorityText = priorityLabels[priorityLevel] || '⚪ Estándar';
+
                 const appealEmbed = new EmbedBuilder()
                     .setTitle('⚖️ NUEVA APELACIÓN DE SANCIÓN')
-                    .setColor('#F1C40F')
+                    .setColor(priorityLevel >= 3 ? 0xFF0000 : '#F1C40F')
                     .addFields(
                         { name: '👤 Usuario', value: `<@${interaction.user.id}> (${interaction.user.tag})`, inline: true },
                         { name: '📜 Sanción Original', value: `Tipo: ${sanction.type}\nMotivo: ${sanction.reason}`, inline: true },
+                        { name: '🚩 Prioridad Rango RP', value: priorityText, inline: true },
                         { name: '📝 Motivo Apelación', value: appealReason, inline: false },
                         { name: '🆔 Appeal ID', value: `\`${appeal.id.substring(0, 8)}\``, inline: true }
                     )

@@ -1,15 +1,15 @@
 const RP_RANK_ROLES = [
-    { id: '1460050867473612840', name: 'Novato', salary: 1.0, shop: 1.0, license: 1.0, casino: 0.10, stocks: 0.10, score: 0, limit: 1.0 },
-    { id: '1460050977246679164', name: 'Habitante', salary: 1.05, shop: 0.95, license: 1.0, casino: 0.10, stocks: 0.10, score: 5, limit: 1.0 },
-    { id: '1460051059568545884', name: 'Ciudadano', salary: 1.10, shop: 0.92, license: 1.0, casino: 0.05, stocks: 0.10, score: 10, limit: 1.0 },
-    { id: '1460051141071995104', name: 'Residente', salary: 1.15, shop: 0.90, license: 1.0, casino: 0.05, stocks: 0.10, score: 15, limit: 1.05 },
-    { id: '1460051219186843670', name: 'Experimentado', salary: 1.20, shop: 0.88, license: 1.0, casino: 0.05, stocks: 0.08, score: 20, limit: 1.05 },
-    { id: '1460051350199996640', name: 'Veterano', salary: 1.25, shop: 0.85, license: 1.0, casino: 0.03, stocks: 0.08, score: 25, limit: 1.10 },
-    { id: '1460051433331232893', name: 'Profesional', salary: 1.35, shop: 0.80, license: 0.80, casino: 0.03, stocks: 0.05, score: 30, limit: 1.10 },
-    { id: '1460051534053380219', name: 'Elite', salary: 1.45, shop: 0.75, license: 0.80, casino: 0.03, stocks: 0.05, score: 50, limit: 1.15 },
-    { id: '1460051629184385146', name: 'Leyenda', salary: 1.60, shop: 0.65, license: 0.70, casino: 0.02, stocks: 0.0, score: 75, limit: 1.20 },
-    { id: '1460051693092995174', name: 'Icono de Nación', salary: 1.80, shop: 0.50, license: 0.50, casino: 0.0, stocks: 0.0, score: 100, limit: 1.30 }
-].reverse(); // Reverse so we find the highest rank first
+    { id: '1460050867473612840', name: 'Novato', salary: 1.0, shop: 1.0, license: 1.0, casino: 0.10, stocks: 0.10, score: 0, limit: 1.0, sanction_reduction: 0, appeal_priority: 0 },
+    { id: '1460050977246679164', name: 'Habitante', salary: 1.05, shop: 0.95, license: 1.0, casino: 0.10, stocks: 0.10, score: 5, limit: 1.0, sanction_reduction: 0, appeal_priority: 0 },
+    { id: '1460051059568545884', name: 'Ciudadano', salary: 1.10, shop: 0.92, license: 1.0, casino: 0.05, stocks: 0.10, score: 10, limit: 1.0, sanction_reduction: 0, appeal_priority: 0 },
+    { id: '1460051141071995104', name: 'Residente', salary: 1.15, shop: 0.90, license: 1.0, casino: 0.05, stocks: 0.10, score: 15, limit: 1.05, sanction_reduction: 0.05, appeal_priority: 1 },
+    { id: '1460051219186843670', name: 'Experimentado', salary: 1.20, shop: 0.88, license: 1.0, casino: 0.05, stocks: 0.08, score: 20, limit: 1.05, sanction_reduction: 0.10, appeal_priority: 1 },
+    { id: '1460051350199996640', name: 'Veterano', salary: 1.25, shop: 0.85, license: 1.0, casino: 0.03, stocks: 0.08, score: 25, limit: 1.10, sanction_reduction: 0.15, appeal_priority: 2 },
+    { id: '1460051433331232893', name: 'Profesional', salary: 1.35, shop: 0.80, license: 0.80, casino: 0.03, stocks: 0.05, score: 30, limit: 1.10, sanction_reduction: 0.20, appeal_priority: 2 },
+    { id: '1460051534053380219', name: 'Elite', salary: 1.45, shop: 0.75, license: 0.80, casino: 0.03, stocks: 0.05, score: 50, limit: 1.15, sanction_reduction: 0.30, appeal_priority: 3 },
+    { id: '1460051629184385146', name: 'Leyenda', salary: 1.60, shop: 0.65, license: 0.70, casino: 0.02, stocks: 0.0, score: 75, limit: 1.20, sanction_reduction: 0.40, appeal_priority: 3 },
+    { id: '1460051693092995174', name: 'Icono de Nación', salary: 1.80, shop: 0.50, license: 0.50, casino: 0.0, stocks: 0.0, score: 100, limit: 1.30, sanction_reduction: 0.50, appeal_priority: 4 }
+].reverse();
 
 function applyRoleBenefits(member, baseAmount, type) {
     let finalAmount = baseAmount;
@@ -40,6 +40,22 @@ function applyRoleBenefits(member, baseAmount, type) {
             finalAmount = userRank.stocks;
             if (userRank.stocks === 0) perks.push(`[${userRank.name}] Sin Comisiones Bolsa`);
             else perks.push(`[${userRank.name}] Comis. Bolsa: ${userRank.stocks * 100}%`);
+        }
+        if (type === 'sanction_reduction') {
+            finalAmount = userRank.sanction_reduction;
+            if (userRank.sanction_reduction > 0) perks.push(`[${userRank.name}] -${userRank.sanction_reduction * 100}% Tiempo Sanción`);
+        }
+        if (type === 'credit_limit_bonus') {
+            finalAmount = userRank.limit;
+            if (userRank.limit > 1.0) perks.push(`[${userRank.name}] +${Math.round((userRank.limit - 1) * 100)}% Límite Crédito`);
+        }
+        if (type === 'credit_score_bonus') {
+            finalAmount = userRank.score;
+            if (userRank.score > 0) perks.push(`[${userRank.name}] +${userRank.score} Score Crediticio`);
+        }
+        if (type === 'appeals_priority') {
+            finalAmount = userRank.appeal_priority || 0;
+            if (userRank.appeal_priority > 0) perks.push(`[${userRank.name}] Prioridad de Apelación Nivel ${userRank.appeal_priority}`);
         }
     }
 

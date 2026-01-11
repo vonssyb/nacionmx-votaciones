@@ -3,6 +3,7 @@ const path = require('path');
 const NotificationTemplates = require('../../services/NotificationTemplates');
 const StorageService = require('../../services/StorageService');
 const moment = require('moment-timezone');
+const { applyRoleBenefits } = require('../../services/EconomyHelper');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -225,6 +226,35 @@ module.exports = {
                     // Fallback if just number = days
                     durationMs = val * 24 * 3600 * 1000; durationText = `${val} Días`;
                 }
+            }
+
+            // --- RANK-BASED REDUCTION ---
+            try {
+                const guild = interaction.guild;
+                const member = await guild.members.fetch(targetDiscordId).catch(() => null);
+                if (member) {
+                    const { amount: reductionPercentage, perks } = applyRoleBenefits(member, 0, 'sanction_reduction');
+                    if (reductionPercentage > 0) {
+                        const originalDuration = durationMs;
+                        durationMs = Math.floor(durationMs * (1 - reductionPercentage));
+
+                        // Update duration text to show original vs reduced
+                        const originalText = durationText;
+                        const reducedVal = Math.floor(val * (1 - reductionPercentage));
+
+                        // Recalculate duration text for the embed
+                        if (unit === 'm') durationText = `${reducedVal} Minutos (Reducido de ${originalText})`;
+                        else if (unit === 'h') durationText = `${reducedVal} Horas (Reducido de ${originalText})`;
+                        else if (unit === 'd') durationText = `${reducedVal} Días (Reducido de ${originalText})`;
+                        else if (unit === 's') durationText = `${reducedVal} Semanas (Reducido de ${originalText})`;
+                        else if (unit === 'w') durationText = `${reducedVal} Meses (Reducido de ${originalText})`;
+                        else durationText = `${reducedVal} Días (Reducido de ${originalText})`;
+
+                        console.log(`[Justice-System] Sanction reduced for ${targetDiscordId}: ${originalText} -> ${durationText} (${reductionPercentage * 100}% off)`);
+                    }
+                }
+            } catch (reductionErr) {
+                console.error('[Justice-System] Error calculating reduction:', reductionErr);
             }
         }
 
