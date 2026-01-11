@@ -145,11 +145,11 @@ class VoiceSwarmService {
                     console.error(`[VoiceSwarm] Player error on ${worker.tag}:`, err.message);
                     resolve();
                 });
-                // Safety timeout 10s
+                // Safety timeout 30s (increased from 10s for slow networks)
                 setTimeout(() => {
-                    console.warn(`🐝 [VoiceSwarm] ${worker.tag} - Timeout (10s)`);
+                    console.warn(`🐝 [VoiceSwarm] ${worker.tag} - Timeout (30s)`);
                     resolve();
-                }, 10000);
+                }, 30000);
             });
 
         } catch (error) {
@@ -160,22 +160,16 @@ class VoiceSwarmService {
     }
 
     async ensureConnection(worker, guild, channelId) {
-        // NOTE: getVoiceConnection is global for the process, BUT it is keyed by guildId.
-        // With multiple clients in same process/guild, @discordjs/voice might get confused?
-        // Actually @discordjs/voice supports 'group' parameter in joinVoiceChannel to distinguish clients.
-        // Let's use the worker ID as the group identifier!
-
         const group = worker.id;
-
         let connection = getVoiceConnection(guild.id, group);
 
         try {
             if (connection) {
-                if (connection.state.status === 'destroyed') {
+                const status = connection.state.status;
+                if (status === 'destroyed' || status === 'disconnected') {
+                    console.log(`🐝 [VoiceSwarm] ${worker.tag} - Connection in bad state (${status}), recreating...`);
+                    connection.destroy();
                     connection = null;
-                } else if (connection.joinConfig.channelId !== channelId) {
-                    // connection.destroy(); // Destroy old if moving channels? Or let joinVoiceChannel handle it?
-                    // Better to let join handle switch, but for Swarm, clean switching is better
                 }
             }
 
@@ -184,12 +178,19 @@ class VoiceSwarmService {
                     channelId: channelId,
                     guildId: guild.id,
                     adapterCreator: guild.voiceAdapterCreator,
-                    group: group // CRITICAL for multiple bots in same guild
+                    group: group
                 });
 
-                // Attach error handler
+                // Handle connection errors and auto-reconnect
                 connection.on('error', (error) => {
                     console.warn(`⚠️ [VoiceSwarm] Connection Error on ${worker.tag}:`, error.message);
+                    if (error.message.includes('socket closed')) {
+                        console.log(`🐝 [VoiceSwarm] ${worker.tag} - Attempting reconnect...`);
+                        setTimeout(() => {
+                            connection.destroy();
+                            // Next call will recreate
+                        }, 1000);
+                    }
                 });
             }
 
