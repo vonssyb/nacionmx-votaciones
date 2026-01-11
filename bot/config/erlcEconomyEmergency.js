@@ -43,5 +43,12 @@ module.exports = {
     // Payment request settings
     PAYMENT_REQUEST: {
         TIMEOUT_MS: 300000 // 5 minutes
-    }
+    },
+
+    // Emergency voice channels for 911 alerts
+    EMERGENCY_VOICE_CHANNELS: [
+        '1459948822024159262', // Paramédicos
+        '1459948849601712381'  // Bomberos
+        // Add police VC channels here if you have specific ones
+    ]
 };
