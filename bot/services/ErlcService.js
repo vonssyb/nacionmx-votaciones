@@ -83,8 +83,45 @@ class ErlcService {
 
     /**
      * Remote Command (Kick/Ban/Announce)
+     * Now uses a centralized queue to prevent rate limits.
      */
     async runCommand(command) {
+        if (!this.commandQueue) {
+            this.commandQueue = [];
+            this.isProcessingQueue = false;
+        }
+
+        return new Promise((resolve) => {
+            this.commandQueue.push({ command, resolve, attempts: 0 });
+            this._processQueue();
+        });
+    }
+
+    async _processQueue() {
+        if (this.isProcessingQueue || this.commandQueue.length === 0) return;
+        this.isProcessingQueue = true;
+
+        while (this.commandQueue.length > 0) {
+            const task = this.commandQueue.shift();
+            const success = await this._executeRawCommand(task.command);
+
+            if (!success && task.attempts < 3) {
+                // Retry ONLY once after a delay if it was a rate limit or failure
+                console.warn(`[ErlcService] Command failed, re-queueing (Attempt ${task.attempts + 1}): ${task.command}`);
+                task.attempts++;
+                this.commandQueue.push(task);
+            } else {
+                task.resolve(success);
+            }
+
+            // Forced delay between commands to respect rate limits (1.5 seconds)
+            await new Promise(r => setTimeout(r, 1500));
+        }
+
+        this.isProcessingQueue = false;
+    }
+
+    async _executeRawCommand(command) {
         try {
             const response = await fetch(`${this.apiUrl}/server/command`, {
                 method: 'POST',
@@ -96,12 +133,16 @@ class ErlcService {
             });
 
             if (!response.ok) {
-                const err = await response.json();
+                if (response.status === 429) {
+                    console.warn('[ErlcService] Rate Limited during command execution');
+                    return false;
+                }
+                const err = await response.json().catch(() => ({ message: 'Unknown Error' }));
                 throw new Error(err.message || 'Unknown Error');
             }
             return true;
         } catch (error) {
-            console.error('[ErlcService] Command Error:', error.message);
+            console.error('[ErlcService] Raw Command Error:', error.message);
             return false;
         }
     }
