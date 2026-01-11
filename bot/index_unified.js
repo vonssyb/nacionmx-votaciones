@@ -46,10 +46,10 @@ app.listen(port, () => {
 // =============================================================================
 // HELPER: SAFE DEFER
 // =============================================================================
-async function safeDefer(interaction) {
+async function safeDefer(interaction, options = {}) {
     try {
         if (!interaction.deferred && !interaction.replied) {
-            await interaction.deferReply();
+            await interaction.deferReply({ ephemeral: options.ephemeral || false });
             // PATCH: Prevent double defer
             interaction.deferReply = async () => { };
             return true;
@@ -249,8 +249,36 @@ async function startModerationBot() {
             return;
         }
 
+        const ephemeralCommands = ['vc', '911', 'talk'];
+        const isEphemeral = ephemeralCommands.includes(interaction.commandName);
+
         // GLOBAL SAFE DEFER
-        if (!await safeDefer(interaction)) return;
+        if (!await safeDefer(interaction, { ephemeral: isEphemeral })) return;
+
+        // COMMAND LOGGING
+        if (isEphemeral) {
+            try {
+                const logChannelId = '1460022042622558391';
+                const logChannel = await client.channels.fetch(logChannelId).catch(() => null);
+                if (logChannel) {
+                    const { EmbedBuilder } = require('discord.js');
+                    const options = interaction.options.data.map(opt => `**${opt.name}**: ${opt.value}`).join('\n') || 'Sin opciones';
+                    const embed = new EmbedBuilder()
+                        .setTitle(`📝 Comando Usado: /${interaction.commandName}`)
+                        .setColor('#0099ff')
+                        .setAuthor({ name: interaction.user.tag, iconURL: interaction.user.displayAvatarURL() })
+                        .addFields(
+                            { name: 'Usuario', value: `<@${interaction.user.id}>`, inline: true },
+                            { name: 'Canal', value: `<#${interaction.channel.id}>`, inline: true },
+                            { name: 'Parámetros', value: options }
+                        )
+                        .setTimestamp();
+                    await logChannel.send({ embeds: [embed] });
+                }
+            } catch (logErr) {
+                console.error('[LOG] Error logging command:', logErr);
+            }
+        }
 
         const command = client.commands.get(interaction.commandName);
         if (command) {
