@@ -491,7 +491,7 @@ class ErlcPollingService {
 
                         // Then: Play TTS message
                         console.log(`[ERLC Service] 🗣️ Playing TTS: "${ttsMessage}"`);
-                        await this.swarmService.dispatchVoiceTask(channelId, ttsMessage);
+                        await this.swarmService.speak(guild.id, channelId, ttsMessage);
                     }
                 } else {
                     console.log(`[ERLC Service] ⏭️ Skipping ${channelId} (no members or not found)`);
