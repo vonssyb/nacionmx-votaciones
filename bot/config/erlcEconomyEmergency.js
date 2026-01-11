@@ -2,7 +2,7 @@
 module.exports = {
     // Channels - Using staff logs for everything to simplify
     CHANNELS: {
-        EMERGENCY_911: '1459935367388987616', // Dedicated 911 emergencies channel
+        EMERGENCY_911: '1459942641541189714', // Dedicated 911 emergencies channel (newly created)
         STAFF_LOGS: '1459935483047051347',    // Staff logs (transactions, cobros, etc.)
         PAYMENT_REQUESTS: '1459935483047051347' // Same as staff logs
     },
