@@ -40,27 +40,30 @@ module.exports = {
 
         await interaction.editReply({ content: `📢 Emitiendo anuncio en ${channelsToNotify.length} canales y Roblox...` });
 
-        // Roblox Announcement (:m)
+        // Roblox Announcement (:h)
         if (erlcService) {
             try {
-                await erlcService.sendCommand(`:m ${announcement}`);
+                await erlcService.sendCommand(`:h ${announcement}`);
             } catch (e) {
                 console.error('[Anunciar] Error sending Roblox announcement:', e.message);
             }
         }
 
-        let successCount = 0;
-        for (const channelId of channelsToNotify) {
-            try {
-                await swarmService.speak(guildId, channelId, announcement);
-                successCount++;
-            } catch (err) {
-                console.error(`[Anunciar] Error in channel ${channelId}:`, err.message);
-            }
-        }
+        // Parallel Broadcast (Swarm handles the queuing internally now)
+        const broadcastPromises = channelsToNotify.map(channelId =>
+            swarmService.speak(guildId, channelId, announcement)
+                .then(() => true)
+                .catch(err => {
+                    console.error(`[Anunciar] Error in channel ${channelId}:`, err.message);
+                    return false;
+                })
+        );
+
+        const results = await Promise.all(broadcastPromises);
+        const successCount = results.filter(r => r).length;
 
         await interaction.editReply({
-            content: `✅ Anuncio emitido con éxito en **${successCount}** canales de voz y Roblox.`
+            content: `✅ Anuncio emitido en **${successCount}** canales de voz y Roblox.`
         });
 
         console.log(`[Slash Command] 📢 /anunciar by ${member.user.tag}: "${message}"`);
