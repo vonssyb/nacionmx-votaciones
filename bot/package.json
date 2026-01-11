@@ -6,6 +6,7 @@
     "scripts": {
         "start": "node index_unified.js",
         "dev": "nodemon index_unified.js",
+        "deploy:local": "node deploy-commands-local.js",
         "deploy:mod": "node register_moderacion.js",
         "deploy:eco": "node register_economia.js",
         "deploy:gov": "node register_gobierno.js",
