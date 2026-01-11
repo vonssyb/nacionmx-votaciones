@@ -1,12 +1,27 @@
 // Mapeo completo de Canales de Voz para ERLC
 // ID Canal -> Nombre Human Readable, Abreviación y ROLES REQUERIDOS
 module.exports = {
-    // ROLES CONFIG (Reemplazar con IDs reales)
+    // ROLES CONFIG (Using arrays to allow multiple roles for a single category)
     ROLES: {
-        JUNTA_DIRECTIVA: '1412882245735420006', // Junta Directiva Role ID
-        STAFF: '1412887167654690908',          // Staff Role ID (Base)
-        POLICIA: '1459648900221370428',        // Rol Policia
-        CARTEL: '1459649033222684702'          // Rol Cartel
+        JUNTA_DIRECTIVA: ['1412882245735420006'], // Junta Directiva Role ID
+        STAFF: [
+            '1412887167654690908', // Staff Role ID (Base)
+            '1412882245735420006'  // JD also counts as Staff
+        ],
+        POLICIA: [
+            '1459648900221370428', // Rol Policia (Base)
+            '1412898916021829903', // AIC
+            '1412898905842122872', // EJERCITO
+            '1459674442501456074', // FEC
+            '1412898908706963507', // INFANTERIA_MARINA
+            '1457135315323195432', // SSPC
+            '1412898911185797310', // GUARDIA_NACIONAL
+            '1412898913345863760', // POLICIA_FEDERAL
+            '1457949662181851415', // USCIS
+            '1455037616054341704', // POLICIA_ESTATAL
+            '1416867605976715363'  // POLICIA_TRANSITO
+        ],
+        CARTEL: ['1459649033222684702'] // Rol Cartel
     },
 
     // ABREVIACIONES FÁCILES

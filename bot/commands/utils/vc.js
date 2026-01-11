@@ -29,8 +29,16 @@ module.exports = {
 
         // Required Role Check
         if (channelInfo && channelInfo.requiredRole && !isJD) {
-            const roleId = voiceConfig.ROLES[channelInfo.requiredRole];
-            if (roleId && !member.roles.cache.has(roleId)) {
+            const allowedRoles = voiceConfig.ROLES[channelInfo.requiredRole];
+            if (Array.isArray(allowedRoles)) {
+                // Check if member has ANY of the allowed roles
+                if (!member.roles.cache.some(role => allowedRoles.includes(role.id))) {
+                    return interaction.editReply({
+                        content: `⛔ No tienes permisos para acceder al canal **${channelInfo.name || abbreviation}**.`
+                    });
+                }
+            } else if (allowedRoles && !member.roles.cache.has(allowedRoles)) {
+                // Fallback for single ID string
                 return interaction.editReply({
                     content: `⛔ No tienes permisos para acceder al canal **${channelInfo.name || abbreviation}**.`
                 });
