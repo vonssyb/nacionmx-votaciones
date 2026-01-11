@@ -472,10 +472,13 @@ class ErlcPollingService {
 
     async broadcastEmergencyToVoice(location, description) {
         try {
+            const path = require('path');
+            const fs = require('fs');
             const guild = this.client.guilds.cache.get(process.env.GUILD_ID || '1398525215134318713');
             const emergencyChannels = config.EMERGENCY_VOICE_CHANNELS;
 
-            const message = `Hay una emergencia en ${location} con el asunto ${description}`;
+            const ttsMessage = `Hay una emergencia en ${location} con el asunto ${description}`;
+            const soundPath = path.join(__dirname, '../assets/sounds/911_alert.mp4');
 
             for (const channelId of emergencyChannels) {
                 const voiceChannel = guild.channels.cache.get(channelId);
