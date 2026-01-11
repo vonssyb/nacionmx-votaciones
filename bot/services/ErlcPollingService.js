@@ -697,26 +697,51 @@ class ErlcPollingService {
         }
 
         // 2. INSTANT Channel Discovery (using VoiceStates cache)
-        const excludeKeywords = ['Staff', 'Soporte', 'Junta Directiva', 'Canal de Espera'];
+        const excludeKeywords = ['Canal de Espera', 'Junta Directiva']; // Loosened for debugging
 
-        // Find all unique humans connected
-        const humanVoiceStates = member.guild.voiceStates.cache.filter(vs => vs.channelId && !vs.member?.user.bot);
-        const activeVoiceChannelIds = [...new Set(humanVoiceStates.map(vs => vs.channelId))];
+        // DEEP DEBUG: Log every voice state
+        const allStates = member.guild.voiceStates.cache;
+        console.log(`[ERLC Polling] Deep Audit: ${allStates.size} total states in cache.`);
 
-        console.log(`[ERLC Polling] Discovery: Found ${humanVoiceStates.size} humans in ${activeVoiceChannelIds.length} unique channels.`);
+        const channelsWithPeople = new Map();
+        allStates.forEach(vs => {
+            if (!vs.channelId) return;
+            const chan = member.guild.channels.cache.get(vs.channelId);
+            const isBot = vs.member?.user.bot || false;
+            const userName = vs.member?.user.tag || `UID:${vs.id}`;
+
+            if (!channelsWithPeople.has(vs.channelId)) {
+                channelsWithPeople.set(vs.channelId, { name: chan?.name || 'Unknown', humans: 0, bots: 0 });
+            }
+            const stats = channelsWithPeople.get(vs.channelId);
+            if (isBot) stats.bots++; else stats.humans++;
+
+            console.log(`[ERLC Polling] VC Audit: User=${userName}, Bot=${isBot}, Channel=${chan?.name || 'Unknown'} (${vs.channelId})`);
+        });
+
+        // Unique channels with at least one human
+        const activeVoiceChannelIds = [...channelsWithPeople.entries()]
+            .filter(([id, stats]) => stats.humans > 0)
+            .map(([id, stats]) => id);
+
+        console.log(`[ERLC Polling] Discovery Summary: Found ${activeVoiceChannelIds.length} unique channels with humans.`);
 
         // Filter out excluded channels
         const channelsToNotify = activeVoiceChannelIds.filter(channelId => {
-            const channel = member.guild.channels.cache.get(channelId);
-            if (!channel) return false;
-            const isExcluded = excludeKeywords.some(keyword => channel.name.includes(keyword));
+            const stats = channelsWithPeople.get(channelId);
+            const isExcluded = excludeKeywords.some(keyword => stats.name.includes(keyword));
             if (isExcluded) {
-                console.log(`[ERLC Polling] Skipping excluded channel: ${channel.name} (${channelId})`);
+                console.log(`[ERLC Polling] Skipping excluded channel: ${stats.name} (${channelId})`);
                 return false;
             }
-            console.log(`[ERLC Polling] Including channel: ${channel.name} (${channelId})`);
+            console.log(`[ERLC Polling] Including channel: ${stats.name} (${channelId})`);
             return true;
         });
+
+        if (channelsToNotify.length === 0) {
+            console.warn('[ERLC Polling] NO active channels found for announcement!');
+            return;
+        }
 
         await this.sendPM(robloxUser, `⚡ Iniciando anuncio ultra-rápido en Roblox y ${channelsToNotify.length} canales activos...`);
 
