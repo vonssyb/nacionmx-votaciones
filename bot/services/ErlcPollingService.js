@@ -459,11 +459,42 @@ class ErlcPollingService {
             // Confirm to caller
             await this.sendPM(caller, `✅ Tu emergencia ha sido reportada. ID: ${emergency.id}. Los servicios de emergencia han sido notificados.`);
 
+            // Broadcast to emergency voice channels
+            await this.broadcastEmergencyToVoice(location, description);
+
             console.log(`[ERLC Service] 🚨 Emergency ${emergency.id} created by ${caller}`);
 
         } catch (error) {
             console.error('[ERLC Service] handle911 Error:', error);
             await this.sendPM(caller, '❌ Error reportando emergencia. Intenta de nuevo.');
+        }
+    }
+
+    async broadcastEmergencyToVoice(location, description) {
+        try {
+            const guild = this.client.guilds.cache.get(process.env.GUILD_ID || '1398525215134318713');
+            const emergencyChannels = config.EMERGENCY_VOICE_CHANNELS;
+
+            const message = `Hay una emergencia en ${location} con el asunto ${description}`;
+
+            for (const channelId of emergencyChannels) {
+                const voiceChannel = guild.channels.cache.get(channelId);
+
+                // Only broadcast if channel exists and has members
+                if (voiceChannel && voiceChannel.members.size > 0) {
+                    console.log(`[ERLC Service] 📢 Broadcasting to ${voiceChannel.name} (${voiceChannel.members.size} members)`);
+
+                    // Dispatch to VoiceSwarm
+                    if (this.swarmService) {
+                        await this.swarmService.dispatchVoiceTask(channelId, message);
+                    }
+                } else {
+                    console.log(`[ERLC Service] ⏭️ Skipping ${channelId} (no members or not found)`);
+                }
+            }
+
+        } catch (error) {
+            console.error('[ERLC Service] broadcastEmergencyToVoice Error:', error);
         }
     }
 
