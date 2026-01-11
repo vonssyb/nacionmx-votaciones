@@ -463,42 +463,58 @@ async function startGovernmentBot() {
                     .eq('id', emergencyId)
                     .single();
 
-                if (!emergency || emergency.status !== 'pending') {
-                    return interaction.followUp({ content: '❌ Esta emergencia ya fue atendida.', ephemeral: true });
+                if (!emergency) {
+                    return interaction.followUp({ content: '❌ No se encontró la emergencia.', ephemeral: true });
                 }
 
-                // Update emergency status
-                await supabase
-                    .from('emergency_calls')
-                    .update({
-                        status: 'responding',
-                        responder_discord_id: interaction.user.id,
-                        responder_name: interaction.user.tag,
-                        responded_at: new Date().toISOString()
-                    })
-                    .eq('id', emergencyId);
+                // Update database (only if it was pending, to mark the first responder)
+                if (emergency.status === 'pending') {
+                    await supabase
+                        .from('emergency_calls')
+                        .update({
+                            status: 'responding',
+                            responder_discord_id: interaction.user.id,
+                            responder_name: interaction.user.tag,
+                            responded_at: new Date().toISOString()
+                        })
+                        .eq('id', emergencyId);
+                }
 
-                // Update embed
+                // Update embed to list multiple responders
                 const oldEmbed = interaction.message.embeds[0];
-                const embed = EmbedBuilder.from(oldEmbed)
-                    .setColor(0xFFA500) // Orange
-                    .addFields({ name: '👮 Respondiendo', value: `<@${interaction.user.id}>`, inline: true });
+                const embed = EmbedBuilder.from(oldEmbed).setColor(0xFFA500); // Orange
+
+                // Find or create "Unidades en Camino" field
+                let fields = [...oldEmbed.fields];
+                let unitsField = fields.find(f => f.name === '🚔 Unidades en Camino');
+
+                if (unitsField) {
+                    // Check if user is already in the list
+                    if (unitsField.value.includes(interaction.user.id)) {
+                        return interaction.followUp({ content: '⚠️ Ya estás en camino a esta emergencia.', ephemeral: true });
+                    }
+                    unitsField.value += `\n- <@${interaction.user.id}>`;
+                } else {
+                    fields.push({ name: '🚔 Unidades en Camino', value: `- <@${interaction.user.id}>`, inline: false });
+                }
+
+                embed.setFields(fields);
 
                 await interaction.message.edit({
-                    embeds: [embed],
-                    components: [] // Remove buttons
+                    embeds: [embed]
+                    // components stay there for more people to join
                 });
 
                 await interaction.followUp({
-                    content: `✅ Marcaste la emergencia ${emergencyId} como atendida.`,
+                    content: `✅ Te has unido a la emergencia ${emergencyId}.`,
                     ephemeral: true
                 });
 
-                console.log(`[ERLC] Emergency ${emergencyId} responded by ${interaction.user.tag}`);
+                console.log(`[ERLC] Emergency ${emergencyId} joined by ${interaction.user.tag}`);
 
             } catch (error) {
                 console.error('[ERLC] Emergency respond error:', error);
-                await interaction.followUp({ content: '❌ Error procesando respuesta.', ephemeral: true });
+                await interaction.followUp({ content: '❌ Error al unirse a la emergencia.', ephemeral: true });
             }
             return;
         }

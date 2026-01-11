@@ -423,7 +423,7 @@ class ErlcPollingService {
             const row = new ActionRowBuilder().addComponents(
                 new ButtonBuilder()
                     .setCustomId(`emergency_respond_${emergency.id}`)
-                    .setLabel('✅ Atendiendo')
+                    .setLabel('🚨 Unirse a Emergencia')
                     .setStyle(ButtonStyle.Success)
             );
 
