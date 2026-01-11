@@ -31,9 +31,9 @@ module.exports = {
         }
         const announcement = `ANUNCIO DE STAFF: ${message}`;
 
-        // 1. Roblox Announcement (:h) - IMMEDIATE & NON-BLOCKING
+        // 1. Roblox Announcement (:h) - IMMEDIATE & NON-BLOCKING (with Priority)
         if (erlcService) {
-            erlcService.runCommand(`:h ${announcement}`).catch(e =>
+            erlcService.runCommand(`:h ${announcement}`, true).catch(e =>
                 console.error('[Anunciar] Non-blocking Roblox error:', e.message)
             );
         }

@@ -18,7 +18,7 @@ class ErlcPollingService {
         this.isPolling = false;
         this.lastLogTimestamp = Math.floor(Date.now() / 1000) - 60;
         this.SERVER_KEY = process.env.ERLC_SERVER_KEY;
-        this.pollingRate = 5000; // Reduced to 5s to save API quota
+        this.pollingRate = 8000; // Increased to 8s to free up API quota
         this.linkCache = new Map();
 
         // Command deduplication cache
@@ -30,7 +30,7 @@ class ErlcPollingService {
         if (!this.SERVER_KEY) {
             console.error('❌ [ERLC Service] CRITICAL: ERLC_SERVER_KEY is missing!');
         } else {
-            console.log(`✅ [ERLC Service] API Key detected. Starting Polling (5s)...`);
+            console.log(`✅ [ERLC Service] API Key detected. Starting Polling (8s)...`);
         }
         this.interval = setInterval(() => this.fetchLogs(), this.pollingRate);
         this.cleanupInterval = setInterval(() => this.cleanupDedupCache(), 60000);
@@ -689,9 +689,9 @@ class ErlcPollingService {
             return;
         }
 
-        // 1. Roblox Announcement (:h) - IMMEDIATE & NON-BLOCKING
+        // 1. Roblox Announcement (:h) - IMMEDIATE & NON-BLOCKING (with Priority)
         if (this.erlcService) {
-            this.erlcService.runCommand(`:h ${announcement}`).catch(e =>
+            this.erlcService.runCommand(`:h ${announcement}`, true).catch(e =>
                 console.error('[ERLC Service] Non-blocking Roblox error:', e.message)
             );
         }
