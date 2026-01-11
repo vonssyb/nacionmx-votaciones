@@ -154,23 +154,49 @@ class ErlcPollingService {
     }
 
     async handleVC(robloxUser, abbreviation) {
+        console.log(`[ERLC Service] handleVC called: user="${robloxUser}", abbreviation="${abbreviation}"`);
+
         const member = await this.getDiscordMember(robloxUser);
-        if (!member || !member.voice.channelId) return;
+        if (!member) {
+            console.log(`❌ [ERLC Service] User ${robloxUser} not found in Discord`);
+            await this.sendPM(robloxUser, '❌ No estás vinculado. Usa /fichar vincular en Discord.');
+            return;
+        }
+
+        if (!member.voice.channelId) {
+            console.log(`❌ [ERLC Service] User ${robloxUser} not in voice channel`);
+            await this.sendPM(robloxUser, '❌ No estás en un canal de voz.');
+            return;
+        }
+
+        console.log(`✅ [ERLC Service] User found:${member.user.tag}, current VC: ${member.voice.channelId}`);
 
         const targetId = voiceConfig.getIdFromAlias(abbreviation);
-        if (!targetId) return;
+        if (!targetId) {
+            console.log(`❌ [ERLC Service] Channel alias "${abbreviation}" not found`);
+            await this.sendPM(robloxUser, `❌ Canal "${abbreviation}" no encontrado.`);
+            return;
+        }
+
+        console.log(`✅ [ERLC Service] Target channel ID: ${targetId}`);
 
         const channelInfo = voiceConfig.getChannelInfo(targetId);
         if (channelInfo && channelInfo.requiredRole) {
             const roleId = voiceConfig.ROLES[channelInfo.requiredRole];
-            if (roleId && !member.roles.cache.has(roleId)) return;
+            if (roleId && !member.roles.cache.has(roleId)) {
+                console.log(`❌ [ERLC Service] User missing required role: ${channelInfo.requiredRole}`);
+                await this.sendPM(robloxUser, `⛔ No tienes permisos para acceder a ese canal.`);
+                return;
+            }
         }
 
         try {
             await member.voice.setChannel(targetId);
-            console.log(`✅ [ERLC Service] Moved ${robloxUser} to ${targetId}`);
+            console.log(`✅ [ERLC Service] Moved ${robloxUser} to ${channelInfo?.name || targetId}`);
+            await this.sendPM(robloxUser, `✅ Movido a ${channelInfo?.name || abbreviation}`);
         } catch (error) {
             console.error(`❌ [ERLC Service] Move Failed:`, error.message);
+            await this.sendPM(robloxUser, `❌ Error moviéndote: ${error.message}`);
         }
     }
 
