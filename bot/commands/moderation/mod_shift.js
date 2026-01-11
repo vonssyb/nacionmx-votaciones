@@ -19,7 +19,7 @@ module.exports = {
     async execute(interaction, client) {
         const action = interaction.options.getString('accion');
         const discordId = interaction.user.id;
-        const MOD_ROLE_ID = '1457892493310951444'; // Updated ID
+        const MOD_ROLE_ID = '1412887167654690908'; // Staff Role ID
 
         // Check Role
         if (!interaction.member.roles.cache.has(MOD_ROLE_ID) && !interaction.member.permissions.has('Administrator')) {
