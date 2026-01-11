@@ -47,9 +47,25 @@ class VoiceSwarmService {
 
         await Promise.all(promises);
         // Sort by index to maintain consistency
-        this.workers.sort((a, b) => a.index - b.index);
+        this.workers.sort((a, b) => (a.index || 0) - (b.index || 0));
         console.log(`🐝 [VoiceSwarm] Swarm ready with ${this.workers.length} active drones.`);
         this.initialized = true;
+    }
+
+    /**
+     * Manually register an external client as a worker
+     */
+    registerClient(client, name = 'External') {
+        if (this.workers.some(w => w.id === client.user.id)) return;
+
+        console.log(`🐝 [VoiceSwarm] Registering external worker: ${client.user.tag} (${name})`);
+        this.workers.push({
+            client: client,
+            id: client.user.id,
+            tag: client.user.tag,
+            index: this.workers.length + 100, // Offset for external
+            busy: false
+        });
     }
 
     /**

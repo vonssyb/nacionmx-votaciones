@@ -162,6 +162,8 @@ async function startModerationBot() {
     // Events
     client.once('ready', () => {
         log('🟢', `[MOD] Logged in as ${client.user.tag}`);
+        // Register Mod bot as a drone
+        if (swarmService) swarmService.registerClient(client, 'MOD');
     });
 
 
@@ -365,7 +367,12 @@ async function startEconomyBot() {
 
     // Events
     client.once('ready', () => {
+        const INSTANCE_ID = Math.random().toString(36).substring(7).toUpperCase();
         log('🟢', `[ECO] Logged in as ${client.user.tag}`);
+
+        // Register Eco bot as a drone
+        const swarm = client.services && client.services.swarm;
+        if (swarm) swarm.registerClient(client, 'ECO');
     });
 
     client.on('interactionCreate', async interaction => {
@@ -463,7 +470,12 @@ async function startGovernmentBot() {
 
     // Events
     client.once('ready', () => {
+        const INSTANCE_ID = Math.random().toString(36).substring(7).toUpperCase();
         log('🟢', `[GOV] Logged in as ${client.user.tag}`);
+
+        // Register Gov bot as a drone
+        const swarm = client.services && client.services.swarm;
+        if (swarm) swarm.registerClient(client, 'GOV');
     });
 
     client.on('interactionCreate', async interaction => {

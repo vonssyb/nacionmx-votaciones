@@ -22,7 +22,6 @@ module.exports = {
             return interaction.editReply({ content: '⛔ No tienes permisos para emitir anuncios de staff.' });
         }
 
-        const announcement = `ANUNCIO DE STAFF: ${message}`;
         const guildId = interaction.guildId;
         const swarmService = client.swarmService || (client.services && client.services.swarm);
         const erlcService = client.services && client.services.erlc;
@@ -30,43 +29,41 @@ module.exports = {
         if (!swarmService) {
             return interaction.editReply({ content: '❌ El servicio de voz no está disponible.' });
         }
+        const announcement = `ANUNCIO DE STAFF: ${message}`;
 
-        // Get all channels except "espera", staff, support, and jd
-        // ALSO: Filter to only include channels with ACTIVE human members
+        // 1. Roblox Announcement (:h) - IMMEDIATE & NON-BLOCKING
+        if (erlcService) {
+            erlcService.runCommand(`:h ${announcement}`).catch(e =>
+                console.error('[Anunciar] Non-blocking Roblox error:', e.message)
+            );
+        }
+
+        await interaction.editReply({ content: `⚡ Iniciando anuncio ultra-rápido en Roblox y canales de voz...` });
+
+        // 2. INSTANT Channel Discovery (using VoiceStates cache)
         const excludeKeywords = ['Staff', 'Soporte', 'Junta Directiva', 'Canal de Espera'];
-        const channelsToNotify = Object.keys(voiceConfig.CHANNELS).filter(id => {
-            const info = voiceConfig.CHANNELS[id];
 
-            // 1. Check exclusions
-            const isExcluded = excludeKeywords.some(keyword => info.name.includes(keyword));
-            if (isExcluded) return false;
+        // Find all unique channel IDs where actual humans are currently connected
+        const activeVoiceChannelIds = [...new Set(
+            interaction.guild.voiceStates.cache
+                .filter(vs => vs.channelId && !vs.member?.user.bot)
+                .map(vs => vs.channelId)
+        )];
 
-            // 2. Check for active human members
-            const channel = interaction.guild.channels.cache.get(id);
-            if (!channel || channel.members.size === 0) return false;
-
-            const hasHumans = channel.members.some(member => !member.user.bot);
-            return hasHumans;
+        // Filter out excluded channels based on their names
+        const channelsToNotify = activeVoiceChannelIds.filter(channelId => {
+            const channel = interaction.guild.channels.cache.get(channelId);
+            if (!channel) return false;
+            return !excludeKeywords.some(keyword => channel.name.includes(keyword));
         });
 
         if (channelsToNotify.length === 0) {
-            // Don't error, just inform that nobody is in voice, but still do Roblox hint
+            return await interaction.editReply({
+                content: `✅ Roblox actualizado (:h). No hay usuarios en canales de voz públicos para anunciar.`
+            });
         }
 
-        await interaction.editReply({
-            content: `📢 Emitiendo anuncio en ${channelsToNotify.length} canales activos y Roblox (:h)...`
-        });
-
-        // Roblox Announcement (:h)
-        if (erlcService) {
-            try {
-                await erlcService.sendCommand(`:h ${announcement}`);
-            } catch (e) {
-                console.error('[Anunciar] Error sending Roblox announcement:', e.message);
-            }
-        }
-
-        // Parallel Broadcast (Swarm handles the queuing internally now)
+        // 3. Parallel Broadcast (Optimized for 8+ drones)
         const broadcastPromises = channelsToNotify.map(channelId =>
             swarmService.speak(guildId, channelId, announcement)
                 .then(() => true)
@@ -80,7 +77,7 @@ module.exports = {
         const successCount = results.filter(r => r).length;
 
         await interaction.editReply({
-            content: `✅ Anuncio emitido en **${successCount}** canales de voz y Roblox.`
+            content: `✅ Anuncio emitido: **${successCount}** canales dinámicos y Roblox (:h).`
         });
 
         console.log(`[Slash Command] 📢 /anunciar by ${member.user.tag}: "${message}"`);

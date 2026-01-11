@@ -695,38 +695,33 @@ class ErlcPollingService {
             return;
         }
 
-        // Send Roblox Announcement (:h)
-        try {
-            await axios.post(
-                'https://api.policeroleplay.community/v1/server/command',
-                { command: `:h ${announcement}` },
-                { headers: { 'Server-Key': this.SERVER_KEY } }
-            );
-        } catch (e) {
-            console.error('[ERLC Service] Error sending Roblox announcement:', e.message);
-        }
+        // 1. Roblox Announcement (:h) - IMMEDIATE & NON-BLOCKING
+        axios.post(
+            'https://api.policeroleplay.community/v1/server/command',
+            { command: `:h ${announcement}` },
+            { headers: { 'Server-Key': this.SERVER_KEY } }
+        ).catch(e => console.error('[ERLC Service] Non-blocking Roblox error:', e.message));
 
-        // Get all channels except "espera", staff, support, and jd
-        // ALSO: Filter to only include channels with ACTIVE human members to avoid wasting resources
+        // 2. INSTANT Channel Discovery (using VoiceStates cache)
         const excludeKeywords = ['Staff', 'Soporte', 'Junta Directiva', 'Canal de Espera'];
-        const channelsToNotify = Object.keys(voiceConfig.CHANNELS).filter(id => {
-            const info = voiceConfig.CHANNELS[id];
 
-            // 1. Check exclusions
-            const isExcluded = excludeKeywords.some(keyword => info.name.includes(keyword));
-            if (isExcluded) return false;
+        // Find all unique channel IDs where actual humans are currently connected
+        const activeVoiceChannelIds = [...new Set(
+            member.guild.voiceStates.cache
+                .filter(vs => vs.channelId && !vs.member?.user.bot)
+                .map(vs => vs.channelId)
+        )];
 
-            // 2. Check for active human members
-            const channel = member.guild.channels.cache.get(id);
-            if (!channel || channel.members.size === 0) return false;
-
-            const hasHumans = channel.members.some(m => !m.user.bot);
-            return hasHumans;
+        // Filter out excluded channels
+        const channelsToNotify = activeVoiceChannelIds.filter(channelId => {
+            const channel = member.guild.channels.cache.get(channelId);
+            if (!channel) return false;
+            return !excludeKeywords.some(keyword => channel.name.includes(keyword));
         });
 
-        await this.sendPM(robloxUser, `📢 Emitiendo anuncio en ${channelsToNotify.length} canales activos y Roblox (:h)...`);
+        await this.sendPM(robloxUser, `⚡ Iniciando anuncio ultra-rápido en Roblox y ${channelsToNotify.length} canales activos...`);
 
-        // Parallel Broadcast (Swarm handles the queuing internally now)
+        // 3. Parallel Broadcast (Optimized Swarm)
         const broadcastPromises = channelsToNotify.map(channelId =>
             this.swarmService.speak(guildId, channelId, announcement)
                 .then(() => true)
@@ -738,7 +733,7 @@ class ErlcPollingService {
 
         await Promise.all(broadcastPromises);
 
-        await this.sendPM(robloxUser, `✅ Anuncio emitido en voice channels y Roblox.`);
+        await this.sendPM(robloxUser, `✅ Anuncio emitido en voice channels y Roblox (:h).`);
         console.log(`[ERLC Service] 📢 Broadcast by ${robloxUser}: "${message}"`);
     }
 
