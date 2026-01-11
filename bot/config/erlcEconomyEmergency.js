@@ -1,10 +1,10 @@
 // ERLC Emergency & Economy Configuration
 module.exports = {
-    // Channels
+    // Channels - Using staff logs for everything to simplify
     CHANNELS: {
-        EMERGENCY_911: '1459935367388987616',
-        STAFF_LOGS: '1459935483047051347',
-        PAYMENT_REQUESTS: '1459935483047051347' // Using staff logs for now, create separate if needed
+        EMERGENCY_911: '1459935367388987616', // Dedicated 911 emergencies channel
+        STAFF_LOGS: '1459935483047051347',    // Staff logs (transactions, cobros, etc.)
+        PAYMENT_REQUESTS: '1459935483047051347' // Same as staff logs
     },
 
     // Emergency Response Roles
