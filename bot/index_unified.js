@@ -140,7 +140,7 @@ async function startModerationBot() {
     const swarmService = new VoiceSwarmService(swarmTokens);
     swarmService.init().catch(err => console.error('❌ [Swarm] Init Failed:', err));
 
-    const erlcPollingService = new ErlcPollingService(supabase, client, swarmService);
+    const erlcPollingService = new ErlcPollingService(supabase, client, swarmService, erlcService);
     erlcPollingService.start();
 
     client.services = {

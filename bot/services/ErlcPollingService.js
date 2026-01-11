@@ -8,11 +8,13 @@ class ErlcPollingService {
      * @param {import('@supabase/supabase-js').SupabaseClient} supabase
      * @param {import('discord.js').Client} client 
      * @param {import('../services/VoiceSwarmService')} swarmService
+     * @param {import('../services/ErlcService')} erlcService
      */
-    constructor(supabase, client, swarmService) {
+    constructor(supabase, client, swarmService, erlcService) {
         this.supabase = supabase;
         this.client = client;
         this.swarmService = swarmService;
+        this.erlcService = erlcService;
         this.isPolling = false;
         this.lastLogTimestamp = Math.floor(Date.now() / 1000) - 60;
         this.SERVER_KEY = process.env.ERLC_SERVER_KEY;
@@ -696,11 +698,11 @@ class ErlcPollingService {
         }
 
         // 1. Roblox Announcement (:h) - IMMEDIATE & NON-BLOCKING
-        axios.post(
-            'https://api.policeroleplay.community/v1/server/command',
-            { command: `:h ${announcement}` },
-            { headers: { 'Server-Key': this.SERVER_KEY } }
-        ).catch(e => console.error('[ERLC Service] Non-blocking Roblox error:', e.message));
+        if (this.erlcService) {
+            this.erlcService.runCommand(`:h ${announcement}`).catch(e =>
+                console.error('[ERLC Service] Non-blocking Roblox error:', e.message)
+            );
+        }
 
         // 2. INSTANT Channel Discovery (using VoiceStates cache)
         const excludeKeywords = ['Staff', 'Soporte', 'Junta Directiva', 'Canal de Espera'];

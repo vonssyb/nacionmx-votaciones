@@ -76,14 +76,20 @@ class VoiceSwarmService {
             const check = () => {
                 // 1. Find a worker already in this channel
                 let worker = this.findWorkerInChannel(guildId, channelId);
-                if (worker) return resolve(worker);
+                if (worker) {
+                    worker.busy = true; // ATOMIC RESERVE
+                    return resolve(worker);
+                }
 
                 // 2. Find a free worker
                 worker = this.getFreeWorker();
-                if (worker) return resolve(worker);
+                if (worker) {
+                    worker.busy = true; // ATOMIC RESERVE
+                    return resolve(worker);
+                }
 
                 // 3. Retry shortly
-                setTimeout(check, 100);
+                setTimeout(check, 50); // Faster check (50ms)
             };
             check();
         });
@@ -104,8 +110,9 @@ class VoiceSwarmService {
         // Wait for an available worker to avoid interrupting other broadcasts
         const worker = await this.waitForWorker(guildId, channelId);
 
-        console.log(`🐝 [VoiceSwarm] Dispatching task to ${worker.tag} -> Channel ${channelId}`);
-        await this.executeVoiceTask(worker, guildId, channelId, text);
+        console.log(`🐝 [VoiceSwarm] Dispatched to ${worker.tag} -> Channel ${channelId}`);
+        // Note: busy is already true from waitForWorker
+        await this.executeVoiceTask(worker, guildId, channelId, text, true); // true = alreadyBusy
     }
 
     async dispatchAudioFile(channelId, audioFilePath, guildId = process.env.GUILD_ID || '1398525215134318713') {
@@ -140,40 +147,40 @@ class VoiceSwarmService {
         return this.workers.find(w => !w.busy);
     }
 
-    async executeVoiceTask(worker, guildId, channelId, text) {
-        worker.busy = true;
+    async executeVoiceTask(worker, guildId, channelId, text, alreadyBusy = false) {
+        if (!alreadyBusy) worker.busy = true;
         try {
-            console.log(`🐝 [VoiceSwarm] ${worker.tag} - Fetching guild...`);
+            console.log(`🐝 [VoiceSwarm] [${worker.tag}] Fetching guild...`);
             const guild = await worker.client.guilds.fetch(guildId).catch(() => null);
             if (!guild) {
-                console.error(`[VoiceSwarm] Worker ${worker.tag} cannot find guild ${guildId}`);
+                console.error(`[VoiceSwarm] [${worker.tag}] Cannot find guild ${guildId}`);
                 return;
             }
 
-            console.log(`🐝 [VoiceSwarm] ${worker.tag} - Connecting to channel ${channelId}...`);
+            console.log(`🐝 [VoiceSwarm] [${worker.tag}] Connecting to channel ${channelId}...`);
             // Connection Logic (Robust)
             const connection = await this.ensureConnection(worker, guild, channelId);
             if (!connection) {
-                console.error(`🐝 [VoiceSwarm] ${worker.tag} - Connection failed`);
+                console.error(`🐝 [VoiceSwarm] [${worker.tag}] Connection failed`);
                 return;
             }
 
-            console.log(`🐝 [VoiceSwarm] ${worker.tag} - Generating TTS for: "${text}"`);
+            console.log(`🐝 [VoiceSwarm] [${worker.tag}] Generating TTS: "${text}"`);
             // Generate TTS using discord-tts (more reliable than google-tts-api)
             const discordTTS = require('discord-tts');
             const stream = discordTTS.getVoiceStream(text, { lang: 'es' });
             const resource = createAudioResource(stream);
             const player = createAudioPlayer();
 
-            console.log(`🐝 [VoiceSwarm] ${worker.tag} - Subscribing player to connection...`);
+            console.log(`🐝 [VoiceSwarm] [${worker.tag}] Subscribing player...`);
             // Subscribe
             const subscription = connection.subscribe(player);
             if (!subscription) {
-                console.error(`🐝 [VoiceSwarm] ${worker.tag} - Failed to subscribe player`);
+                console.error(`🐝 [VoiceSwarm] [${worker.tag}] Failed to subscribe player`);
                 return;
             }
 
-            console.log(`🐝 [VoiceSwarm] ${worker.tag} - Playing audio...`);
+            console.log(`🐝 [VoiceSwarm] [${worker.tag}] Playing audio...`);
             player.play(resource);
 
             // Wait for finish
