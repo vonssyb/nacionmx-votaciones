@@ -707,13 +707,24 @@ class ErlcPollingService {
         }
 
         // Get all channels except "espera", staff, support, and jd
+        // ALSO: Filter to only include channels with ACTIVE human members to avoid wasting resources
         const excludeKeywords = ['Staff', 'Soporte', 'Junta Directiva', 'Canal de Espera'];
         const channelsToNotify = Object.keys(voiceConfig.CHANNELS).filter(id => {
             const info = voiceConfig.CHANNELS[id];
-            return !excludeKeywords.some(keyword => info.name.includes(keyword));
+
+            // 1. Check exclusions
+            const isExcluded = excludeKeywords.some(keyword => info.name.includes(keyword));
+            if (isExcluded) return false;
+
+            // 2. Check for active human members
+            const channel = member.guild.channels.cache.get(id);
+            if (!channel || channel.members.size === 0) return false;
+
+            const hasHumans = channel.members.some(m => !m.user.bot);
+            return hasHumans;
         });
 
-        await this.sendPM(robloxUser, `📢 Emitiendo anuncio en ${channelsToNotify.length} canales y Roblox...`);
+        await this.sendPM(robloxUser, `📢 Emitiendo anuncio en ${channelsToNotify.length} canales activos y Roblox (:h)...`);
 
         // Parallel Broadcast (Swarm handles the queuing internally now)
         const broadcastPromises = channelsToNotify.map(channelId =>

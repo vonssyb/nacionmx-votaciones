@@ -32,13 +32,30 @@ module.exports = {
         }
 
         // Get all channels except "espera", staff, support, and jd
+        // ALSO: Filter to only include channels with ACTIVE human members
         const excludeKeywords = ['Staff', 'Soporte', 'Junta Directiva', 'Canal de Espera'];
         const channelsToNotify = Object.keys(voiceConfig.CHANNELS).filter(id => {
             const info = voiceConfig.CHANNELS[id];
-            return !excludeKeywords.some(keyword => info.name.includes(keyword));
+
+            // 1. Check exclusions
+            const isExcluded = excludeKeywords.some(keyword => info.name.includes(keyword));
+            if (isExcluded) return false;
+
+            // 2. Check for active human members
+            const channel = interaction.guild.channels.cache.get(id);
+            if (!channel || channel.members.size === 0) return false;
+
+            const hasHumans = channel.members.some(member => !member.user.bot);
+            return hasHumans;
         });
 
-        await interaction.editReply({ content: `📢 Emitiendo anuncio en ${channelsToNotify.length} canales y Roblox...` });
+        if (channelsToNotify.length === 0) {
+            // Don't error, just inform that nobody is in voice, but still do Roblox hint
+        }
+
+        await interaction.editReply({
+            content: `📢 Emitiendo anuncio en ${channelsToNotify.length} canales activos y Roblox (:h)...`
+        });
 
         // Roblox Announcement (:h)
         if (erlcService) {
