@@ -31,9 +31,9 @@ module.exports = {
         }
         const announcement = `ANUNCIO DE STAFF: ${message}`;
 
-        // 1. Roblox Announcement (:h) - IMMEDIATE & NON-BLOCKING (with Priority)
+        // 1. Roblox Announcement (:m) - IMMEDIATE & NON-BLOCKING (with Priority)
         if (erlcService) {
-            erlcService.runCommand(`:h ${announcement}`, true).catch(e =>
+            erlcService.runCommand(`:m ${announcement}`, true).catch(e =>
                 console.error('[Anunciar] Non-blocking Roblox error:', e.message)
             );
         }
@@ -43,25 +43,33 @@ module.exports = {
         // 2. INSTANT Channel Discovery (using VoiceStates cache)
         const excludeKeywords = ['Staff', 'Soporte', 'Junta Directiva', 'Canal de Espera'];
 
-        // Find all unique channel IDs where actual humans are currently connected
-        const activeVoiceChannelIds = [...new Set(
-            interaction.guild.voiceStates.cache
-                .filter(vs => vs.channelId && !vs.member?.user.bot)
-                .map(vs => vs.channelId)
-        )];
+        // Find all unique humans connected
+        const humanVoiceStates = interaction.guild.voiceStates.cache.filter(vs => vs.channelId && !vs.member?.user.bot);
+        const activeVoiceChannelIds = [...new Set(humanVoiceStates.map(vs => vs.channelId))];
+
+        console.log(`[Anunciar] Discovery: Found ${humanVoiceStates.size} humans in ${activeVoiceChannelIds.length} unique channels.`);
 
         // Filter out excluded channels based on their names
         const channelsToNotify = activeVoiceChannelIds.filter(channelId => {
             const channel = interaction.guild.channels.cache.get(channelId);
             if (!channel) return false;
-            return !excludeKeywords.some(keyword => channel.name.includes(keyword));
+            const isExcluded = excludeKeywords.some(keyword => channel.name.includes(keyword));
+            if (isExcluded) {
+                console.log(`[Anunciar] Skipping excluded channel: ${channel.name} (${channelId})`);
+                return false;
+            }
+            console.log(`[Anunciar] Including channel: ${channel.name} (${channelId})`);
+            return true;
         });
 
         if (channelsToNotify.length === 0) {
+            console.log(`[Anunciar] No valid channels found after filtering.`);
             return await interaction.editReply({
-                content: `✅ Roblox actualizado (:h). No hay usuarios en canales de voz públicos para anunciar.`
+                content: `✅ Roblox actualizado (:m). No hay usuarios en canales de voz públicos para anunciar.`
             });
         }
+
+        console.log(`[Anunciar] Discovery: channels=${channelsToNotify.length}, activeIDs=${activeVoiceChannelIds.join(',')}`);
 
         // 3. Parallel Broadcast (Optimized for 8+ drones)
         const broadcastPromises = channelsToNotify.map(channelId =>
@@ -77,7 +85,7 @@ module.exports = {
         const successCount = results.filter(r => r).length;
 
         await interaction.editReply({
-            content: `✅ Anuncio emitido: **${successCount}** canales dinámicos y Roblox (:h).`
+            content: `✅ Anuncio emitido: **${successCount}** canales dinámicos y Roblox (:m).`
         });
 
         console.log(`[Slash Command] 📢 /anunciar by ${member.user.tag}: "${message}"`);

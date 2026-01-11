@@ -109,30 +109,37 @@ class ErlcService {
         if (this.isProcessingQueue || this.commandQueue.length === 0) return;
         this.isProcessingQueue = true;
 
-        while (this.commandQueue.length > 0) {
-            const task = this.commandQueue.shift();
+        try {
+            while (this.commandQueue.length > 0) {
+                const task = this.commandQueue.shift();
 
-            console.log(`🚀 [ErlcService] Processing ${task.priority ? 'PRIORITY ' : ''}command: ${task.command}`);
-            const success = await this._executeRawCommand(task.command);
+                console.log(`🚀 [ErlcService] Processing ${task.priority ? 'PRIORITY ' : ''}command: ${task.command}`);
+                const success = await this._executeRawCommand(task.command);
 
-            if (!success && task.attempts < 3) {
-                console.warn(`[ErlcService] Command failed, re-queueing (Attempt ${task.attempts + 1}): ${task.command}`);
-                task.attempts++;
-                // Re-queue with priority if it was already priority
-                if (task.priority) {
-                    this.commandQueue.unshift(task);
+                if (!success && task.attempts < 3) {
+                    console.warn(`[ErlcService] Command failed, re-queueing (Attempt ${task.attempts + 1}): ${task.command}`);
+                    task.attempts++;
+                    // Re-queue with priority if it was already priority
+                    if (task.priority) {
+                        this.commandQueue.unshift(task);
+                    } else {
+                        this.commandQueue.push(task);
+                    }
+                } else if (success) {
+                    console.log(`✅ [ErlcService] Command SUCCESS: ${task.command}`);
+                    task.resolve(true);
                 } else {
-                    this.commandQueue.push(task);
+                    task.resolve(false);
                 }
-            } else {
-                task.resolve(success);
+
+                // Forced delay between commands to respect rate limits (2.5 seconds for absolute safety)
+                if (this.commandQueue.length > 0) {
+                    await new Promise(r => setTimeout(r, 2500));
+                }
             }
-
-            // Forced delay between commands to respect rate limits (2.5 seconds for absolute safety)
-            await new Promise(r => setTimeout(r, 2500));
+        } finally {
+            this.isProcessingQueue = false;
         }
-
-        this.isProcessingQueue = false;
     }
 
     async _executeRawCommand(command) {
