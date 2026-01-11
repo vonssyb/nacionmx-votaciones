@@ -1,5 +1,5 @@
 require('dotenv').config();
-const { Client, GatewayIntentBits, Partials, Collection, REST, Routes } = require('discord.js');
+const { Client, GatewayIntentBits, Partials, Collection, REST, Routes, EmbedBuilder, ButtonStyle } = require('discord.js');
 const { createClient } = require('@supabase/supabase-js');
 const fs = require('fs');
 const path = require('path');
@@ -479,9 +479,10 @@ async function startGovernmentBot() {
                     .eq('id', emergencyId);
 
                 // Update embed
-                const embed = interaction.message.embeds[0];
-                embed.color = 0xFFA500; // Orange
-                embed.fields.push({ name: '👮 Respondiendo', value: `<@${interaction.user.id}>`, inline: true });
+                const oldEmbed = interaction.message.embeds[0];
+                const embed = EmbedBuilder.from(oldEmbed)
+                    .setColor(0xFFA500) // Orange
+                    .addFields({ name: '👮 Respondiendo', value: `<@${interaction.user.id}>`, inline: true });
 
                 await interaction.message.edit({
                     embeds: [embed],
@@ -569,9 +570,10 @@ async function startGovernmentBot() {
                 });
 
                 // Update embed
-                const embed = interaction.message.embeds[0];
-                embed.color = 0x00FF00; // Green
-                embed.footer = { text: `✅ PAGADO | ID: ${requestId}` };
+                const oldEmbed = interaction.message.embeds[0];
+                const embed = EmbedBuilder.from(oldEmbed)
+                    .setColor(0x00FF00) // Green
+                    .setFooter({ text: `✅ PAGADO | ID: ${requestId}` });
 
                 await interaction.message.edit({ embeds: [embed], components: [] });
 
@@ -623,9 +625,10 @@ async function startGovernmentBot() {
                     .eq('id', requestId);
 
                 // Update embed
-                const embed = interaction.message.embeds[0];
-                embed.color = 0xFF0000; // Red
-                embed.footer = { text: `❌ RECHAZADO | ID: ${requestId}` };
+                const oldEmbed = interaction.message.embeds[0];
+                const embed = EmbedBuilder.from(oldEmbed)
+                    .setColor(0xFF0000) // Red
+                    .setFooter({ text: `❌ RECHAZADO | ID: ${requestId}` });
 
                 await interaction.message.edit({ embeds: [embed], components: [] });
 
