@@ -43,12 +43,12 @@ module.exports = {
             return interaction.editReply('❌ Error de configuración: UNBELIEVABOAT_TOKEN no definido.');
         }
 
-        const ubService = new UnbelievaBoatService(ubToken);
+        const ubService = new UnbelievaBoatService(ubToken, supabase);
 
         try {
             // Check Current Balance First
             const balancePromise = ubService.getUserBalance(interaction.guildId, targetUser.id);
-            const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('UB Timeout')), 3000));
+            const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('UB Timeout')), 10000));
             const balance = await Promise.race([balancePromise, timeoutPromise]);
 
             const currentCash = balance.cash || 0;
@@ -64,6 +64,10 @@ module.exports = {
                 transactionResult = await ubService.addMoney(interaction.guildId, targetUser.id, cantidad, `Admin: ${razon}`, 'cash');
             } else {
                 transactionResult = await ubService.removeMoney(interaction.guildId, targetUser.id, cantidad, `Admin: ${razon}`, 'cash');
+            }
+
+            if (!transactionResult || !transactionResult.newBalance) {
+                throw new Error('Transaction result invalid');
             }
 
             const newCash = transactionResult.newBalance.cash;
@@ -87,7 +91,7 @@ module.exports = {
                 commandName: 'dinero',
                 interactionId: interaction.id,
                 canRollback: true
-            });
+            }).catch(e => console.error('[AUDIT] Failed to log:', e.message));
 
             // Log to audit
             const auditEmbed = new EmbedBuilder()
@@ -106,7 +110,7 @@ module.exports = {
             // Log to audit channel
             const AUDIT_CHANNEL_ID = process.env.AUDIT_LOGS_CHANNEL_ID || '1450610756663115879';
             try {
-                const logChannel = await client.channels.fetch(AUDIT_CHANNEL_ID);
+                const logChannel = await client.channels.fetch(AUDIT_CHANNEL_ID).catch(() => null);
                 if (logChannel) await logChannel.send({ embeds: [auditEmbed] });
             } catch (e) {
                 console.log('Error logging to audit channel:', e.message);
@@ -124,7 +128,7 @@ module.exports = {
                 .setFooter({ text: `Operación administrativa por ${interaction.user.tag}` })
                 .setTimestamp();
 
-            await interaction.editReply({ embeds: [successEmbed] });
+            await interaction.editReply({ content: null, embeds: [successEmbed] });
 
             // Notify user via DM
             try {
@@ -138,13 +142,21 @@ module.exports = {
                     )
                     .setTimestamp();
 
-                await targetUser.send({ embeds: [dmEmbed] });
+                await targetUser.send({ embeds: [dmEmbed] }).catch(() => { });
             } catch (dmError) {
                 console.log('Could not DM user:', dmError.message);
             }
         } catch (error) {
             console.error('[DINERO] Error:', error);
-            await interaction.editReply('❌ Error al procesar la transacción.');
+            const errorMsg = error.message === 'UB Timeout'
+                ? '🕒 La API de UnbelievaBoat está tardando demasiado. El dinero se procesará en segundo plano, pero no puedo confirmar el balance ahora.'
+                : '❌ Error al procesar la transacción con UnbelievaBoat.';
+
+            try {
+                await interaction.editReply({ content: errorMsg });
+            } catch (e) {
+                console.error('[DINERO] FailReply error:', e.message);
+            }
         }
     }
 };
