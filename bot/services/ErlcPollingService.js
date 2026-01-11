@@ -219,13 +219,18 @@ class ErlcPollingService {
         console.log(`✅ [ERLC Service] Target channel ID: ${targetId}`);
 
         // Check if user is Junta Directiva (bypass all restrictions)
-        const JUNTA_DIRECTIVA_ROLE = '1412882245735420006';
-        const isJD = member.roles.cache.has(JUNTA_DIRECTIVA_ROLE);
+        const isJD = voiceConfig.ROLES.JUNTA_DIRECTIVA.some(id => member.roles.cache.has(id));
 
         const channelInfo = voiceConfig.getChannelInfo(targetId);
         if (channelInfo && channelInfo.requiredRole && !isJD) {
-            const roleId = voiceConfig.ROLES[channelInfo.requiredRole];
-            if (roleId && !member.roles.cache.has(roleId)) {
+            const allowedRoles = voiceConfig.ROLES[channelInfo.requiredRole];
+            if (Array.isArray(allowedRoles)) {
+                if (!member.roles.cache.some(role => allowedRoles.includes(role.id))) {
+                    console.log(`❌ [ERLC Service] User missing required role: ${channelInfo.requiredRole}`);
+                    await this.sendPM(robloxUser, `⛔ No tienes permisos para acceder a ese canal.`);
+                    return;
+                }
+            } else if (allowedRoles && !member.roles.cache.has(allowedRoles)) {
                 console.log(`❌ [ERLC Service] User missing required role: ${channelInfo.requiredRole}`);
                 await this.sendPM(robloxUser, `⛔ No tienes permisos para acceder a ese canal.`);
                 return;
@@ -249,8 +254,8 @@ class ErlcPollingService {
             return;
         }
 
-        const isStaff = staffMember.roles.cache.has(voiceConfig.ROLES.STAFF);
-        const isJD = staffMember.roles.cache.has(voiceConfig.ROLES.JUNTA_DIRECTIVA);
+        const isStaff = voiceConfig.ROLES.STAFF.some(id => staffMember.roles.cache.has(id));
+        const isJD = voiceConfig.ROLES.JUNTA_DIRECTIVA.some(id => staffMember.roles.cache.has(id));
         if (!isStaff && !isJD) {
             await this.sendPM(staffUser, '⛔ No tienes permisos de Staff.');
             return;
@@ -674,8 +679,8 @@ class ErlcPollingService {
             return;
         }
 
-        const isStaff = member.roles.cache.has(voiceConfig.ROLES.STAFF[0]) || member.roles.cache.has(voiceConfig.ROLES.STAFF[1]);
-        const isJD = member.roles.cache.has(voiceConfig.ROLES.JUNTA_DIRECTIVA[0]);
+        const isStaff = voiceConfig.ROLES.STAFF.some(id => member.roles.cache.has(id));
+        const isJD = voiceConfig.ROLES.JUNTA_DIRECTIVA.some(id => member.roles.cache.has(id));
 
         if (!isStaff && !isJD) {
             await this.sendPM(robloxUser, '⛔ No tienes permisos de Staff.');

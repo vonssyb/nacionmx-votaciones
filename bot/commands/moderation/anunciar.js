@@ -15,8 +15,8 @@ module.exports = {
         const member = interaction.member;
 
         // Permission check: Staff or JD
-        const isStaff = member.roles.cache.has(voiceConfig.ROLES.STAFF[0]) || member.roles.cache.has(voiceConfig.ROLES.STAFF[1]);
-        const isJD = member.roles.cache.has(voiceConfig.ROLES.JUNTA_DIRECTIVA[0]);
+        const isStaff = voiceConfig.ROLES.STAFF.some(id => member.roles.cache.has(id));
+        const isJD = voiceConfig.ROLES.JUNTA_DIRECTIVA.some(id => member.roles.cache.has(id));
 
         if (!isStaff && !isJD) {
             return interaction.editReply({ content: '⛔ No tienes permisos para emitir anuncios de staff.' });
