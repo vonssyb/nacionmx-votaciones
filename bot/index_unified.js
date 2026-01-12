@@ -168,11 +168,13 @@ async function startModerationBot() {
 
 
 
-    // --- ENHANCED LOGGING ---
+    // --- ENHANCED LOGGING (MAIN GUILD ONLY) ---
     const LOG_CHANNEL_ID = '1457457209268109516'; // Canal de Logs General
 
     client.on('messageDelete', async message => {
         if (!message.guild || message.author?.bot) return;
+        const MAIN_GUILDS = [process.env.GUILD_ID, '1460059764494041211'];
+        if (!MAIN_GUILDS.includes(message.guild.id)) return; // ONLY LOG MAIN SERVERS
 
         try {
             const logChannel = await client.channels.fetch(LOG_CHANNEL_ID).catch(() => null);
@@ -208,26 +210,44 @@ async function startModerationBot() {
         }
     });
 
-    // Welcome System
+    // Welcome System (MULTI-SERVER AWARE)
     client.on('guildMemberAdd', async member => {
+        const MAIN_GUILDS = [process.env.GUILD_ID, '1460059764494041211'];
+        if (!MAIN_GUILDS.includes(member.guild.id)) return;
+
         try {
-            const WELCOME_CHANNEL_ID = '1398887127789473835';
-            const VERIFY_CHANNEL_ID = '1398887174585323550';
-            const DNI_CHANNEL_ID = '1398887380202688654';
-
-            const welcomeChannel = await client.channels.fetch(WELCOME_CHANNEL_ID).catch(() => null);
-            if (!welcomeChannel) return;
-
+            let welcomeChannelId, message;
             const ImageGenerator = require('./utils/ImageGenerator');
             const { AttachmentBuilder } = require('discord.js');
+
+            if (member.guild.id === process.env.GUILD_ID) {
+                // ORIGINAL SERVER CONFIG
+                welcomeChannelId = '1398887127789473835';
+                const VERIFY_CHANNEL_ID = '1398887174585323550';
+                const DNI_CHANNEL_ID = '1398887380202688654';
+                message = `<@${member.user.id}> **bienvenido al servidor** para verificarse usa el comando \`/verificar\` en <#${VERIFY_CHANNEL_ID}> y también crea tu dni con el comando \`/dni crear\` en el canal de <#${DNI_CHANNEL_ID}> **¡Bienvenido!**`;
+            } else if (member.guild.id === '1460059764494041211') {
+                // NEW MAIN SERVER CONFIG
+                welcomeChannelId = '1460059765437890560'; // Placeholder
+                message = `<@${member.user.id}> **¡Bienvenido al servidor!** Nos alegra tenerte aquí. **¡Disfruta tu estancia!**`;
+
+                // AUTO-DISCOVERY FALLBACK
+                try {
+                    const channels = await member.guild.channels.fetch();
+                    const found = channels.find(ch => ch.type === 0 && ch.name.toLowerCase().includes('bienvenida'));
+                    if (found) welcomeChannelId = found.id;
+                } catch (e) { /* ignore */ }
+            }
+
+            const welcomeChannel = await client.channels.fetch(welcomeChannelId).catch(() => null);
+            if (!welcomeChannel) return;
 
             // Generate Luxury Image
             const buffer = await ImageGenerator.generateWelcome(member);
             const attachment = new AttachmentBuilder(buffer, { name: `bienvenida_${member.user.id}.png` });
 
-            // Send Personalised Message
             await welcomeChannel.send({
-                content: `<@${member.user.id}> **bienvenido al servidor** para verificarse usa el comando \`/verificar\` en <#${VERIFY_CHANNEL_ID}> y también crea tu dni con el comando \`/dni crear\` en el canal de <#${DNI_CHANNEL_ID}> **¡Bienvenido!**`,
+                content: message,
                 files: [attachment]
             });
 
@@ -238,6 +258,8 @@ async function startModerationBot() {
 
     client.on('messageUpdate', async (oldMessage, newMessage) => {
         if (!oldMessage.guild || oldMessage.author?.bot) return;
+        const MAIN_GUILDS = [process.env.GUILD_ID, '1460059764494041211'];
+        if (!MAIN_GUILDS.includes(oldMessage.guild.id)) return; // ONLY LOG MAIN SERVERS
         if (oldMessage.content === newMessage.content) return; // Ignore embed updates
 
         try {

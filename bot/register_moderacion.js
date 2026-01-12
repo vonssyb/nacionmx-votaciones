@@ -103,13 +103,17 @@ const rest = new REST({ version: '10' }).setToken(token);
             console.log('✅ Comandos globales eliminados.');
         } catch (e) { console.error('⚠️ Warning cleaning globals:', e.message); }
 
-        const data = await rest.put(
-            Routes.applicationGuildCommands(clientId, guildId),
-            { body: commands }
-        );
+        // 1. REGISTER PER GUILD
+        const guildIds = guildId.split(',').map(id => id.trim());
 
-        console.log(`✅ [MOD] ${data.length} comandos registrados para App ID ${clientId}`);
-        data.forEach(cmd => console.log(`   - /${cmd.name}`));
+        for (const targetGuildId of guildIds) {
+            console.log(`🚀 [MOD] Registrando en servidor: ${targetGuildId}`);
+            const data = await rest.put(
+                Routes.applicationGuildCommands(clientId, targetGuildId),
+                { body: commands }
+            );
+            console.log(`✅ [MOD] ${data.length} comandos registrados en ${targetGuildId}`);
+        }
 
     } catch (error) {
         console.error('❌ [MOD] Error:', error);
