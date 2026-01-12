@@ -466,6 +466,90 @@ class ImageGenerator {
 
         return canvas.toBuffer('image/png');
     }
+
+    static async generateWelcome(member) {
+        const width = 1024;
+        const height = 450;
+        const canvas = createCanvas(width, height);
+        const ctx = canvas.getContext('2d');
+
+        // LUXURY GRADIENT BACKGROUND (Blue/Dark Theme)
+        const grad = ctx.createLinearGradient(0, 0, width, height);
+        grad.addColorStop(0, '#0f172a'); // Slate 900
+        grad.addColorStop(0.5, '#1e293b'); // Slate 800
+        grad.addColorStop(1, '#0f172a'); // Slate 900
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, width, height);
+
+        // Abstract shapes for texture
+        ctx.fillStyle = 'rgba(56, 189, 248, 0.05)'; // Sky 400
+        ctx.beginPath();
+        ctx.arc(width * 0.8, height * 0.2, 200, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.beginPath();
+        ctx.arc(width * 0.1, height * 0.8, 150, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Border Line (Bottom)
+        ctx.fillStyle = '#38bdf8';
+        ctx.fillRect(0, height - 10, width, 10);
+
+        // Avatar Circle
+        const avatarSize = 180;
+        const avatarX = width / 2;
+        const avatarY = height / 2 - 40;
+
+        // Shadow/Glow
+        ctx.shadowColor = '#38bdf8';
+        ctx.shadowBlur = 30;
+        ctx.beginPath();
+        ctx.arc(avatarX, avatarY, avatarSize / 2 + 5, 0, Math.PI * 2);
+        ctx.strokeStyle = '#38bdf8';
+        ctx.lineWidth = 4;
+        ctx.stroke();
+        ctx.shadowBlur = 0; // Reset shadow
+
+        try {
+            const avatarURL = member.user.displayAvatarURL({ extension: 'png', size: 256 });
+            const avatar = await loadImage(avatarURL);
+
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(avatarX, avatarY, avatarSize / 2, 0, Math.PI * 2);
+            ctx.clip();
+            ctx.drawImage(avatar, avatarX - avatarSize / 2, avatarY - avatarSize / 2, avatarSize, avatarSize);
+            ctx.restore();
+        } catch (e) {
+            console.error('[ImageGen] Avatar failed:', e);
+            // Fallback circle if avatar fails
+            ctx.fillStyle = '#334155';
+            ctx.beginPath();
+            ctx.arc(avatarX, avatarY, avatarSize / 2, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        // Welcome Text
+        ctx.textAlign = 'center';
+
+        // "WELCOME" Title
+        ctx.font = 'bold 70px sans-serif';
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText('BIENVENIDO/A', width / 2, height - 140);
+
+        // Username
+        ctx.font = 'bold 45px sans-serif';
+        ctx.fillStyle = '#38bdf8';
+        const name = member.user.username.toUpperCase();
+        ctx.fillText(name, width / 2, height - 80);
+
+        // Server Motto
+        ctx.font = '22px sans-serif';
+        ctx.fillStyle = '#94a3b8';
+        ctx.fillText('NACIÓN MX • LA PATRIA TE ESPERA', width / 2, height - 40);
+
+        return canvas.toBuffer('image/png');
+    }
 }
 
 module.exports = ImageGenerator;

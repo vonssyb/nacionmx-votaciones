@@ -208,6 +208,34 @@ async function startModerationBot() {
         }
     });
 
+    // Welcome System
+    client.on('guildMemberAdd', async member => {
+        try {
+            const WELCOME_CHANNEL_ID = '1398887127789473835';
+            const VERIFY_CHANNEL_ID = '1398887174585323550';
+            const DNI_CHANNEL_ID = '1398887380202688654';
+
+            const welcomeChannel = await client.channels.fetch(WELCOME_CHANNEL_ID).catch(() => null);
+            if (!welcomeChannel) return;
+
+            const ImageGenerator = require('./utils/ImageGenerator');
+            const { AttachmentBuilder } = require('discord.js');
+
+            // Generate Luxury Image
+            const buffer = await ImageGenerator.generateWelcome(member);
+            const attachment = new AttachmentBuilder(buffer, { name: `bienvenida_${member.user.id}.png` });
+
+            // Send Personalised Message
+            await welcomeChannel.send({
+                content: `👋 <@${member.user.id}> **bienvenido al servidor!**\n\n> Para verificarse usa el comando \`/verificar\` en <#${VERIFY_CHANNEL_ID}>\n> También crea tu DNI con el comando \`/dni crear\` en el canal de <#${DNI_CHANNEL_ID}>\n\n**¡Bienvenido a la patria!** 🇲🇽`,
+                files: [attachment]
+            });
+
+        } catch (err) {
+            console.error('[MOD] Error in welcome system:', err);
+        }
+    });
+
     client.on('messageUpdate', async (oldMessage, newMessage) => {
         if (!oldMessage.guild || oldMessage.author?.bot) return;
         if (oldMessage.content === newMessage.content) return; // Ignore embed updates
