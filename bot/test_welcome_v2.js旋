@@ -1,0 +1,42 @@
+const { Client, GatewayIntentBits, AttachmentBuilder } = require('discord.js');
+require('dotenv').config();
+const ImageGenerator = require('./utils/ImageGenerator');
+
+const client = new Client({
+    intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers]
+});
+
+client.once('ready', async () => {
+    console.log(`Logged in as ${client.user.tag}`);
+    
+    const WELCOME_CHANNEL_ID = '1398887127789473835';
+
+    try {
+        const welcomeChannel = await client.channels.fetch(WELCOME_CHANNEL_ID);
+        if (!welcomeChannel) {
+            console.error('Welcome channel not found');
+            process.exit(1);
+        }
+
+        const guild = welcomeChannel.guild;
+        const member = await guild.members.fetch(client.user.id);
+
+        console.log('Generating Redesigned Welcome Image...');
+        const buffer = await ImageGenerator.generateWelcome(member);
+        const attachment = new AttachmentBuilder(buffer, { name: 'redesigned_welcome.png' });
+
+        console.log('Sending Test Message...');
+        await welcomeChannel.send({
+            content: `🧪 **MODO TEST: REDISEÑO DE BIENVENIDA V2**\n💎 <@${member.user.id}> **¡Bienvenido a la patria!** 🇲🇽`,
+            files: [attachment]
+        });
+
+        console.log('✅ Test message sent!');
+    } catch (e) {
+        console.error('❌ Test failed:', e);
+    } finally {
+        process.exit(0);
+    }
+});
+
+client.login(process.env.DISCORD_TOKEN_MOD);

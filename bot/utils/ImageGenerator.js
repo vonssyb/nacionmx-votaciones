@@ -473,43 +473,45 @@ class ImageGenerator {
         const canvas = createCanvas(width, height);
         const ctx = canvas.getContext('2d');
 
-        // LUXURY GRADIENT BACKGROUND (Blue/Dark Theme)
-        const grad = ctx.createLinearGradient(0, 0, width, height);
-        grad.addColorStop(0, '#0f172a'); // Slate 900
-        grad.addColorStop(0.5, '#1e293b'); // Slate 800
-        grad.addColorStop(1, '#0f172a'); // Slate 900
-        ctx.fillStyle = grad;
+        // 1. LOAD BACKGROUND
+        try {
+            const bgPath = path.join(__dirname, '../assets/welcome_bg.png');
+            if (fs.existsSync(bgPath)) {
+                const background = await loadImage(bgPath);
+                ctx.drawImage(background, 0, 0, width, height);
+            } else {
+                // Fallback Gradient if file missing
+                const grad = ctx.createLinearGradient(0, 0, width, height);
+                grad.addColorStop(0, '#0f172a');
+                grad.addColorStop(1, '#1e293b');
+                ctx.fillStyle = grad;
+                ctx.fillRect(0, 0, width, height);
+            }
+        } catch (e) {
+            console.error('[ImageGen] BG Load Error:', e);
+        }
+
+        // 2. OVERLAY DARK TINT (For better text readability)
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
         ctx.fillRect(0, 0, width, height);
 
-        // Abstract shapes for texture
-        ctx.fillStyle = 'rgba(56, 189, 248, 0.05)'; // Sky 400
-        ctx.beginPath();
-        ctx.arc(width * 0.8, height * 0.2, 200, 0, Math.PI * 2);
-        ctx.fill();
-
-        ctx.beginPath();
-        ctx.arc(width * 0.1, height * 0.8, 150, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Border Line (Bottom)
-        ctx.fillStyle = '#38bdf8';
-        ctx.fillRect(0, height - 10, width, 10);
-
-        // Avatar Circle
+        // 3. AVATAR CONFIG
         const avatarSize = 180;
         const avatarX = width / 2;
-        const avatarY = height / 2 - 40;
+        const avatarY = height / 2 - 60; // Slightly higher to fit name below
 
-        // Shadow/Glow
-        ctx.shadowColor = '#38bdf8';
-        ctx.shadowBlur = 30;
+        // Outer Glow Ring
+        ctx.save();
+        ctx.shadowColor = '#00e5ff';
+        ctx.shadowBlur = 25;
+        ctx.strokeStyle = '#00e5ff';
+        ctx.lineWidth = 6;
         ctx.beginPath();
-        ctx.arc(avatarX, avatarY, avatarSize / 2 + 5, 0, Math.PI * 2);
-        ctx.strokeStyle = '#38bdf8';
-        ctx.lineWidth = 4;
+        ctx.arc(avatarX, avatarY, (avatarSize / 2) + 5, 0, Math.PI * 2);
         ctx.stroke();
-        ctx.shadowBlur = 0; // Reset shadow
+        ctx.restore();
 
+        // Actual Avatar
         try {
             const avatarURL = member.user.displayAvatarURL({ extension: 'png', size: 256 });
             const avatar = await loadImage(avatarURL);
@@ -521,32 +523,40 @@ class ImageGenerator {
             ctx.drawImage(avatar, avatarX - avatarSize / 2, avatarY - avatarSize / 2, avatarSize, avatarSize);
             ctx.restore();
         } catch (e) {
-            console.error('[ImageGen] Avatar failed:', e);
-            // Fallback circle if avatar fails
             ctx.fillStyle = '#334155';
             ctx.beginPath();
             ctx.arc(avatarX, avatarY, avatarSize / 2, 0, Math.PI * 2);
             ctx.fill();
         }
 
-        // Welcome Text
+        // 4. TEXT LAYOUT
         ctx.textAlign = 'center';
 
-        // "WELCOME" Title
-        ctx.font = 'bold 70px sans-serif';
+        // "BIENVENIDO/A" (Bold White)
+        ctx.font = 'bold 65px sans-serif';
         ctx.fillStyle = '#ffffff';
-        ctx.fillText('BIENVENIDO/A', width / 2, height - 140);
+        ctx.shadowColor = 'rgba(0,0,0,0.8)';
+        ctx.shadowBlur = 10;
+        ctx.fillText('BIENVENIDO/A', width / 2, height / 2 + 100);
 
-        // Username
-        ctx.font = 'bold 45px sans-serif';
-        ctx.fillStyle = '#38bdf8';
+        // Username (Cyan Neon)
+        ctx.font = 'bold 50px sans-serif';
+        ctx.fillStyle = '#00e5ff';
+        ctx.shadowColor = '#00e5ff';
+        ctx.shadowBlur = 15;
         const name = member.user.username.toUpperCase();
-        ctx.fillText(name, width / 2, height - 80);
+        ctx.fillText(name, width / 2, height / 2 + 160);
 
-        // Server Motto
-        ctx.font = '22px sans-serif';
+        // Footer / Motto (Subtle)
+        ctx.shadowBlur = 0;
+        ctx.font = '24px sans-serif';
         ctx.fillStyle = '#94a3b8';
-        ctx.fillText('NACIÓN MX • LA PATRIA TE ESPERA', width / 2, height - 40);
+        ctx.letterSpacing = '2px';
+        ctx.fillText('NACIÓN MX • LA PATRIA TE ESPERA', width / 2, height - 30);
+
+        // Accent Line
+        ctx.fillStyle = '#00e5ff';
+        ctx.fillRect(width / 2 - 150, height / 2 + 115, 300, 4);
 
         return canvas.toBuffer('image/png');
     }
