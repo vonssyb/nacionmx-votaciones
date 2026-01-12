@@ -1,5 +1,6 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const PaginationHelper = require('../../utils/PaginationHelper');
+const JobValidator = require('../../services/JobValidator');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -217,6 +218,15 @@ module.exports = {
                     .select('full_name')
                     .eq('discord_id', targetUser.id)
                     .maybeSingle();
+
+                // === JOB LIMIT CHECK ===
+                const targetMember = await interaction.guild.members.fetch(targetUser.id);
+                const limitCheck = await JobValidator.validateNewJob(targetMember, 'SECONDARY', supabase);
+
+                if (!limitCheck.allowed) {
+                    return interaction.editReply(limitCheck.reason);
+                }
+                // ========================
 
                 // Hire - WITH ERROR VALIDATION
                 console.log(`[empresa/contratar] Attempting to hire user ${targetUser.id} for company ${company.id}`);

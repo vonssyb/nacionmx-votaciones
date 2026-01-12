@@ -159,6 +159,39 @@ async function startModerationBot() {
     const loader = require('./handlers/commandLoader');
     await loader.loadCommands(client, path.join(__dirname, 'commands'), ['moderation', 'utils', 'owner']);
 
+    // AUTO-REGISTER COMMANDS (On Startup)
+    const MOD_TOKEN = process.env.DISCORD_TOKEN_MOD;
+    const MAIN_GUILD_ID = process.env.GUILD_ID;
+    const STAFF_GUILD_ID = '1460059764494041211';
+
+    const TARGET_GUILDS = [MAIN_GUILD_ID, STAFF_GUILD_ID].filter(id => id);
+
+    if (MOD_TOKEN && TARGET_GUILDS.length > 0) {
+        console.log(`🔄 [MOD] Auto-registering commands for ${TARGET_GUILDS.length} guilds...`);
+        const rest = new REST({ version: '10' }).setToken(MOD_TOKEN);
+
+        try {
+            const currentUser = await rest.get(Routes.user('@me'));
+            const clientId = currentUser.id;
+            const allCommands = Array.from(client.commands.values()).map(cmd => cmd.data.toJSON());
+
+            for (const guildId of TARGET_GUILDS) {
+                try {
+                    await rest.put(
+                        Routes.applicationGuildCommands(clientId, guildId),
+                        { body: allCommands }
+                    );
+                    console.log(`✅ [MOD] Registered ${allCommands.length} commands to Guild ID: ${guildId}`);
+                } catch (guildError) {
+                    console.error(`❌ [MOD] Failed to register commands for Guild ID ${guildId}:`, guildError);
+                }
+            }
+        } catch (regError) {
+            console.error('❌ [MOD] Critical Auto-registration failure:', regError);
+        }
+    }
+
+
     // Events
     client.once('ready', () => {
         log('🟢', `[MOD] Logged in as ${client.user.tag}`);
@@ -253,6 +286,76 @@ async function startModerationBot() {
 
         } catch (err) {
             console.error('[MOD] Error in welcome system:', err);
+        }
+    });
+
+    // JOB/ROLE PROTECTION (Police vs Cartel)
+    client.on('guildMemberUpdate', async (oldMember, newMember) => {
+        // Optimization: Quick check if roles size changed or strict equality
+        if (oldMember.roles.cache.size === newMember.roles.cache.size) return;
+
+        // Ignore bots
+        if (newMember.user.bot) return;
+
+        try {
+            const JobValidator = require('./services/JobValidator');
+            const oldRoles = oldMember.roles.cache;
+            const newRoles = newMember.roles.cache;
+            const addedRoles = newRoles.filter(role => !oldRoles.has(role.id));
+
+            // Only process if roles were added
+            if (addedRoles.size === 0) return;
+
+            // 1. Check Incompatible Roles (Police vs Cartel)
+            if (JobValidator.hasIncompatibleRoles(newMember)) {
+                // Conflict Detected
+                console.log(`[MOD] 🛡️ Role Conflict detected for ${newMember.user.tag}. Removing conflicting roles.`);
+
+                // Remove the newly added conflicting roles
+                await newMember.roles.remove(addedRoles);
+
+                // Notify User
+                try {
+                    await newMember.send('⚠️ **Conflicto de Roles**: No puedes pertenecer a una facción legal (Policía/Ejército) y una ilegal (Cartel) simultáneamente.\nSe ha revertido la asignación de rol.');
+                } catch (e) { /* DM closed */ }
+
+                // Log to Security Channel
+                const LOG_CHANNEL_ID = '1457457209268109516';
+                const logChannel = await client.channels.fetch(LOG_CHANNEL_ID).catch(() => null);
+                if (logChannel) {
+                    const { EmbedBuilder } = require('discord.js');
+                    const embed = new EmbedBuilder()
+                        .setTitle('🛡️ Conflicto de Roles Preventivo')
+                        .setColor('#FF0000')
+                        .setDescription(`Se intentó asignar un rol incompatible a <@${newMember.id}>.`)
+                        .addFields(
+                            { name: 'Usuario', value: `${newMember.user.tag}`, inline: true },
+                            { name: 'Rol Intentado', value: addedRoles.map(r => r.name).join(', ') || 'Desconocido', inline: true }
+                        )
+                        .setTimestamp();
+                    await logChannel.send({ embeds: [embed] });
+                }
+                return; // Stop further checks if conflict found
+            }
+
+            // 2. Check Principal Job Limits (Numerical)
+            const limits = JobValidator.getLimits(newMember);
+            const currentPrincipal = JobValidator.getPrincipalJobCount(newMember);
+
+            if (currentPrincipal > limits.principal) {
+                const prevPrincipal = JobValidator.getPrincipalJobCount(oldMember);
+                if (currentPrincipal > prevPrincipal) {
+                    console.log(`[MOD] 🛡️ Job Limit Exceeded for ${newMember.user.tag}. Limit: ${limits.principal}, Count: ${currentPrincipal}`);
+                    await newMember.roles.remove(addedRoles);
+                    try {
+                        await newMember.send(`⚠️ **Límite de Trabajos Alcanzado**: Tu nivel de membresía actual (**${limits.tier}**) solo permite **${limits.principal}** trabajos principales (Gobierno/Cartel).\nActualiza tu membresía (Booster/Premium) para obtener más espacios.`);
+                    } catch (e) { }
+                }
+            }
+
+
+        } catch (err) {
+            console.error('[MOD] Role Conflict Handler Error:', err);
         }
     });
 
@@ -460,6 +563,39 @@ async function startEconomyBot() {
     const loader = require('./handlers/commandLoader');
     await loader.loadCommands(client, path.join(__dirname, 'commands'), ['economy', 'business', 'games']);
 
+    // AUTO-REGISTER COMMANDS (On Startup)
+    const ECO_TOKEN = process.env.DISCORD_TOKEN_ECO;
+    const MAIN_GUILD_ID = process.env.GUILD_ID;
+    const STAFF_GUILD_ID = '1460059764494041211';
+
+    const TARGET_GUILDS = [MAIN_GUILD_ID, STAFF_GUILD_ID].filter(id => id);
+
+    if (ECO_TOKEN && TARGET_GUILDS.length > 0) {
+        console.log(`🔄 [ECO] Auto-registering commands for ${TARGET_GUILDS.length} guilds...`);
+        const rest = new REST({ version: '10' }).setToken(ECO_TOKEN);
+
+        try {
+            const currentUser = await rest.get(Routes.user('@me'));
+            const clientId = currentUser.id;
+            const allCommands = Array.from(client.commands.values()).map(cmd => cmd.data.toJSON());
+
+            for (const guildId of TARGET_GUILDS) {
+                try {
+                    await rest.put(
+                        Routes.applicationGuildCommands(clientId, guildId),
+                        { body: allCommands }
+                    );
+                    console.log(`✅ [ECO] Registered ${allCommands.length} commands to Guild ID: ${guildId}`);
+                } catch (guildError) {
+                    console.error(`❌ [ECO] Failed to register commands for Guild ID ${guildId}:`, guildError);
+                }
+            }
+        } catch (regError) {
+            console.error('❌ [ECO] Critical Auto-registration failure:', regError);
+        }
+    }
+
+
     // Legacy Support
     const { handleEconomyLegacy } = require('./handlers/legacyEconomyHandler');
     client.legacyHandler = handleEconomyLegacy;
@@ -545,25 +681,35 @@ async function startGovernmentBot() {
     await loader.loadCommands(client, path.join(__dirname, 'commands'), ['gov']);
 
     // AUTO-REGISTER COMMANDS (On Startup)
+    // AUTO-REGISTER COMMANDS (On Startup)
     const GOV_TOKEN = process.env.DISCORD_TOKEN_GOV;
-    const GOV_GUILD_ID = process.env.GUILD_ID;
+    const MAIN_GUILD_ID = process.env.GUILD_ID;
+    const STAFF_GUILD_ID = '1460059764494041211'; // Staff/New Main Server
 
-    if (GOV_TOKEN && GOV_GUILD_ID) {
+    const TARGET_GUILDS = [MAIN_GUILD_ID, STAFF_GUILD_ID].filter(id => id); // Filter out undefined
+
+    if (GOV_TOKEN && TARGET_GUILDS.length > 0) {
+        console.log(`🔄 Auto-registering Gov commands for ${TARGET_GUILDS.length} guilds...`);
+        const rest = new REST({ version: '10' }).setToken(GOV_TOKEN);
+
         try {
-            console.log('🔄 Auto-registering Gov commands...');
-            const rest = new REST({ version: '10' }).setToken(GOV_TOKEN);
             const currentUser = await rest.get(Routes.user('@me'));
             const clientId = currentUser.id;
-
             const allCommands = Array.from(client.commands.values()).map(cmd => cmd.data.toJSON());
 
-            await rest.put(
-                Routes.applicationGuildCommands(clientId, GOV_GUILD_ID),
-                { body: allCommands }
-            );
-            console.log(`✅ Registered ${allCommands.length} Gov commands via REST.`);
+            for (const guildId of TARGET_GUILDS) {
+                try {
+                    await rest.put(
+                        Routes.applicationGuildCommands(clientId, guildId),
+                        { body: allCommands }
+                    );
+                    console.log(`✅ Registered ${allCommands.length} Gov commands to Guild ID: ${guildId}`);
+                } catch (guildError) {
+                    console.error(`❌ Failed to register commands for Guild ID ${guildId}:`, guildError);
+                }
+            }
         } catch (regError) {
-            console.error('❌ Auto-registration failed:', regError);
+            console.error('❌ Critical Auto-registration failure:', regError);
         }
     }
 
