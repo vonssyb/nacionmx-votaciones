@@ -17,8 +17,9 @@ const STEPS = [
     { id: 1, title: "Información Personal", icon: User },
     { id: 2, title: "Verificación Roblox", icon: Gamepad2 },
     { id: 3, title: "Experiencia", icon: Shield },
-    { id: 4, title: "Disponibilidad", icon: Clock },
-    { id: 5, title: "Motivación", icon: MessageSquare },
+    { id: 4, title: "Escenarios Roleplay", icon: AlertCircle },
+    { id: 5, title: "Disponibilidad", icon: Clock },
+    { id: 6, title: "Motivación", icon: MessageSquare },
 ];
 
 export default function ApplyPage() {
@@ -44,9 +45,13 @@ export default function ApplyPage() {
         experiencia_previa: "",
         tiempo_disponible: "",
         rango_deseado: "",
+        escenario_irlx: "",
+        escenario_cxm: "",
+        escenario_vlv: "",
         por_que_unirse: "",
         fortalezas: "",
         situacion_ejemplo: "",
+        recomendado_por: "",
     });
 
     useEffect(() => {
@@ -142,6 +147,13 @@ export default function ApplyPage() {
         }
 
         if (currentStep === 4) {
+            if (!formData.escenario_irlx || !formData.escenario_cxm || !formData.escenario_vlv) {
+                setError("Por favor responde a todos los escenarios de evaluación");
+                return;
+            }
+        }
+
+        if (currentStep === 5) {
             if (!formData.tiempo_disponible) {
                 setError("Por favor selecciona tu disponibilidad");
                 return;
@@ -182,7 +194,9 @@ export default function ApplyPage() {
                 .from('applications')
                 .insert({
                     user_id: user.id,
-                    form_data: formData, // JSONB column or flattened? Assuming JSONB 'form_data' or mapped columns
+                    applicant_username: formData.roblox_username || user.email,
+                    type: 'Staff Opos',
+                    form_data: formData,
                     status: 'pending',
                     created_at: new Date().toISOString()
                 });
@@ -281,8 +295,8 @@ export default function ApplyPage() {
                                 >
                                     <div
                                         className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 ${currentStep >= step.id
-                                                ? "bg-gradient-to-br from-[#FFD700] to-[#FFA500] text-black"
-                                                : "bg-white/5 border border-white/10 text-gray-500"
+                                            ? "bg-gradient-to-br from-[#FFD700] to-[#FFA500] text-black"
+                                            : "bg-white/5 border border-white/10 text-gray-500"
                                             }`}
                                     >
                                         {currentStep > step.id ? (
@@ -495,6 +509,56 @@ export default function ApplyPage() {
                     )}
 
                     {currentStep === 4 && (
+                        <div className="space-y-8">
+                            <div>
+                                <h2 className="text-2xl font-bold text-white mb-2">Escenarios Roleplay</h2>
+                                <p className="text-gray-400 text-sm mb-6">Demuestra tu conocimiento del reglamento de Nación MX.</p>
+                            </div>
+
+                            <div className="space-y-6">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                                        Escenario 1: Ves a un usuario volando con un auto y diciendo que es "magia". ¿Qué regla se está rompiendo y cómo actuarías? *
+                                    </label>
+                                    <textarea
+                                        value={formData.escenario_irlx}
+                                        onChange={(e) => updateFormData("escenario_irlx", e.target.value)}
+                                        placeholder="Menciona la regla específica y tu procedimiento..."
+                                        rows={3}
+                                        className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:border-[#FFD700] focus:ring-2 focus:ring-[#FFD700]/20 outline-none transition-all duration-300 resize-none"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                                        Escenario 2: Un usuario usa información que leyó en el Discord OOC para arrestar a alguien en el juego (IC). ¿Cómo se llama esta falta? *
+                                    </label>
+                                    <textarea
+                                        value={formData.escenario_cxm}
+                                        onChange={(e) => updateFormData("escenario_cxm", e.target.value)}
+                                        placeholder="Identifica la sigla o nombre de la regla..."
+                                        rows={3}
+                                        className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:border-[#FFD700] focus:ring-2 focus:ring-[#FFD700]/20 outline-none transition-all duration-300 resize-none"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                                        Escenario 3: Si un usuario es apuntado por 3 oficiales con armas largas y decide sacar su propia arma para defenderse, ¿está Valorando su Vida (VLV)? Justifica. *
+                                    </label>
+                                    <textarea
+                                        value={formData.escenario_vlv}
+                                        onChange={(e) => updateFormData("escenario_vlv", e.target.value)}
+                                        placeholder="Explica tu razonamiento basado en el reglamento..."
+                                        rows={3}
+                                        className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:border-[#FFD700] focus:ring-2 focus:ring-[#FFD700]/20 outline-none transition-all duration-300 resize-none"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {currentStep === 5 && (
                         <div className="space-y-6">
                             <h2 className="text-2xl font-bold text-white mb-4">
                                 Disponibilidad
@@ -521,7 +585,7 @@ export default function ApplyPage() {
                         </div>
                     )}
 
-                    {currentStep === 5 && (
+                    {currentStep === 6 && (
                         <div className="space-y-6">
                             <h2 className="text-2xl font-bold text-white mb-4">
                                 Motivación Final
@@ -567,6 +631,21 @@ export default function ApplyPage() {
                                     placeholder="Comparte un ejemplo específico..."
                                     rows={4}
                                     className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:border-[#FFD700] focus:ring-2 focus:ring-[#FFD700]/20 outline-none transition-all duration-300 resize-none"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-300 mb-2">
+                                    ¿Quién te recomendó aplicar? (Opcional)
+                                </label>
+                                <input
+                                    type="text"
+                                    value={formData.recomendado_por}
+                                    onChange={(e) =>
+                                        updateFormData("recomendado_por", e.target.value)
+                                    }
+                                    placeholder="Nombre del staff o usuario que te recomendó..."
+                                    className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:border-[#FFD700] focus:ring-2 focus:ring-[#FFD700]/20 outline-none transition-all duration-300 font-mono"
                                 />
                             </div>
                         </div>
