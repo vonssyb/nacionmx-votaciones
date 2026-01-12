@@ -6,6 +6,7 @@ const Applications = () => {
     // Mock data
     const [applications, setApplications] = React.useState([]);
     const [loading, setLoading] = React.useState(true);
+    const [selectedApp, setSelectedApp] = React.useState(null);
 
     React.useEffect(() => {
         fetchApplications();
@@ -20,6 +21,20 @@ const Applications = () => {
 
         if (data) setApplications(data);
         setLoading(false);
+    };
+
+    const handleUpdateStatus = async (id, newStatus) => {
+        const { error } = await supabase
+            .from('applications')
+            .update({ status: newStatus })
+            .eq('id', id);
+
+        if (!error) {
+            fetchApplications();
+            setSelectedApp(null);
+        } else {
+            alert("Error: " + error.message);
+        }
     };
 
     const getStatusBadge = (status) => {
@@ -39,7 +54,9 @@ const Applications = () => {
             </div>
 
             <div className="apps-list card">
-                {applications.map((app) => (
+                {applications.length === 0 ? (
+                    <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>No hay solicitudes registradas.</div>
+                ) : applications.map((app) => (
                     <div key={app.id} className="app-item">
                         <div className="app-icon">
                             <FileText size={24} color="var(--primary)" />
@@ -55,11 +72,45 @@ const Applications = () => {
                             {getStatusBadge(app.status)}
                         </div>
                         <div className="app-actions">
-                            <button className="btn-sm">Ver Detalles</button>
+                            <button className="btn-sm" onClick={() => setSelectedApp(app)}>Ver Detalles</button>
                         </div>
                     </div>
                 ))}
             </div>
+
+            {/* Application Detail Modal Overlay */}
+            {selectedApp && (
+                <div className="modal-overlay" onClick={() => setSelectedApp(null)}>
+                    <div className="modal-content" onClick={e => e.stopPropagation()}>
+                        <div className="modal-header">
+                            <h2>Solicitud de {selectedApp.applicant_username}</h2>
+                            <button className="btn-close" onClick={() => setSelectedApp(null)}><X size={24} /></button>
+                        </div>
+
+                        <div className="modal-body">
+                            <div className="detail-grid">
+                                {Object.entries(selectedApp.form_data || {}).map(([key, value]) => (
+                                    <div key={key} className="detail-item">
+                                        <label>{key.replace(/_/g, ' ').toUpperCase()}</label>
+                                        <div className="value">{typeof value === 'object' ? JSON.stringify(value) : String(value)}</div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        {selectedApp.status === 'pending' && (
+                            <div className="modal-actions">
+                                <button className="btn-reject" onClick={() => handleUpdateStatus(selectedApp.id, 'rejected')}>
+                                    <X size={18} /> Rechazar
+                                </button>
+                                <button className="btn-approve" onClick={() => handleUpdateStatus(selectedApp.id, 'approved')}>
+                                    <Check size={18} /> Aprobar Candidato
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
 
             <style>{`
                 .apps-list {
@@ -127,6 +178,95 @@ const Applications = () => {
                     background: var(--primary);
                     color: black;
                     border-color: var(--primary);
+                }
+
+                .modal-overlay {
+                    position: fixed;
+                    inset: 0;
+                    background: rgba(0,0,0,0.8);
+                    backdrop-filter: blur(8px);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    z-index: 1000;
+                    padding: 2rem;
+                }
+                .modal-content {
+                    background: var(--bg-dark);
+                    border: 1px solid var(--border);
+                    border-radius: var(--radius);
+                    width: 100%;
+                    max-width: 800px;
+                    max-height: 90vh;
+                    display: flex;
+                    flex-direction: column;
+                    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+                }
+                .modal-header {
+                    padding: 1.5rem;
+                    border-bottom: 1px solid var(--border);
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                }
+                .modal-header h2 { font-size: 1.5rem; color: var(--primary); }
+                .btn-close { background: none; border: none; color: var(--text-muted); cursor: pointer; }
+                
+                .modal-body {
+                    padding: 1.5rem;
+                    overflow-y: auto;
+                    flex: 1;
+                }
+                .detail-grid {
+                    display: grid;
+                    grid-template-columns: 1fr;
+                    gap: 1.5rem;
+                }
+                .detail-item label {
+                    display: block;
+                    font-size: 0.75rem;
+                    color: var(--text-muted);
+                    margin-bottom: 0.5rem;
+                    font-weight: 700;
+                }
+                .detail-item .value {
+                    background: var(--bg-card);
+                    padding: 1rem;
+                    border-radius: 8px;
+                    border: 1px solid var(--border);
+                    white-space: pre-wrap;
+                }
+
+                .modal-actions {
+                    padding: 1.5rem;
+                    border-top: 1px solid var(--border);
+                    display: flex;
+                    justify-content: flex-end;
+                    gap: 1rem;
+                }
+                .btn-approve {
+                    background: #2ecc71;
+                    color: white;
+                    border: none;
+                    padding: 0.75rem 1.5rem;
+                    border-radius: var(--radius);
+                    font-weight: bold;
+                    display: flex;
+                    align-items: center;
+                    gap: 0.5rem;
+                    cursor: pointer;
+                }
+                .btn-reject {
+                    background: #e74c3c;
+                    color: white;
+                    border: none;
+                    padding: 0.75rem 1.5rem;
+                    border-radius: var(--radius);
+                    font-weight: bold;
+                    display: flex;
+                    align-items: center;
+                    gap: 0.5rem;
+                    cursor: pointer;
                 }
             `}</style>
         </div>

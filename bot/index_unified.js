@@ -289,6 +289,50 @@ async function startModerationBot() {
         }
     });
 
+    // --- REALTIME APPLICATION MONITOR ---
+    function initRealtimeMonitor(client, supabase) {
+        log('🛡️', 'Realtime Application Monitor started.');
+
+        const channel = supabase
+            .channel('applications_db_changes')
+            .on(
+                'postgres_changes',
+                {
+                    event: 'INSERT',
+                    schema: 'public',
+                    table: 'applications',
+                },
+                async (payload) => {
+                    log('📨', 'New staff application detected!');
+                    const app = payload.new;
+                    const NOTIFY_CHANNEL_ID = '1456035521141670066'; // Security/Sanctions or Opos Channel
+                    const targetChannel = await client.channels.fetch(NOTIFY_CHANNEL_ID).catch(() => null);
+
+                    if (targetChannel) {
+                        const { EmbedBuilder } = require('discord.js');
+                        const embed = new EmbedBuilder()
+                            .setTitle('📜 Nueva Solicitud de Staff (Opos)')
+                            .setColor('#FFD700')
+                            .setThumbnail('https://i.imgur.com/8QG5BZr.png') // Nación MX Logo
+                            .addFields(
+                                { name: '👤 Candidato', value: `${app.applicant_username}`, inline: true },
+                                { name: '📝 Tipo', value: `${app.type}`, inline: true },
+                                { name: '📅 Fecha', value: new Date(app.created_at).toLocaleString(), inline: true },
+                                { name: '🔗 Enlace Administrativo', value: '[Ir al Panel de Opos](https://gonzalez-puebla.github.io/nacionmx-portal/dashboard/applications)' }
+                            )
+                            .setDescription('Se ha recibido una nueva postulación desde el portal web. Por favor revisa los detalles en el panel administrativo.')
+                            .setFooter({ text: 'Nación MX Portal System • Realtime Monitor' })
+                            .setTimestamp();
+
+                        await targetChannel.send({ content: '🔔 **@everyone ¡Atención Mandos! Nueva postulación recibida.**', embeds: [embed] });
+                    }
+                }
+            )
+            .subscribe();
+
+        return channel;
+    }
+
     // Interaction Handler
     client.on('interactionCreate', async interaction => {
         if (!interaction.isChatInputCommand()) {
@@ -350,6 +394,11 @@ async function startModerationBot() {
     if (!TOKEN) return log('❌', '[MOD] No Token Found');
 
     loginWithRetry(client, TOKEN, 'MOD');
+
+    // Start Realtime monitor once client is ready
+    client.once('ready', () => {
+        initRealtimeMonitor(client, supabase);
+    });
 }
 
 // =============================================================================

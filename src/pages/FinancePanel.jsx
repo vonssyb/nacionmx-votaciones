@@ -281,12 +281,17 @@ const FinancePanel = () => {
                     <form onSubmit={handleRegister} className="finance-form">
                         <h3><User size={20} /> Datos del Ciudadano</h3>
                         <div className="form-row">
-                            {/* DNI Field Removed as requested
                             <div className="form-group">
-                                <label>DNI (Número)</label>
-                                <input ... />
+                                <label>DNI (Número) *</label>
+                                <input
+                                    type="text"
+                                    value={dni}
+                                    onChange={(e) => setDni(e.target.value)}
+                                    required
+                                    placeholder="Ej: 123456789"
+                                    className="premium-input"
+                                />
                             </div>
-                            */}
 
                             <div className="form-group">
                                 <label>Nombre Completo</label>
@@ -299,7 +304,9 @@ const FinancePanel = () => {
                                     className="premium-input"
                                 />
                             </div>
+                        </div>
 
+                        <div className="form-row">
                             <div className="form-group">
                                 <label>Captura del DNI</label>
                                 <div className="file-input-wrapper">
