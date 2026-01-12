@@ -529,34 +529,34 @@ class ImageGenerator {
             ctx.fill();
         }
 
-        // 4. TEXT LAYOUT
+        // 4. TEXT LAYOUT (STYLIZED LIKE KOYA)
         ctx.textAlign = 'center';
 
-        // "BIENVENIDO/A" (Bold White)
-        ctx.font = 'bold 65px sans-serif';
-        ctx.fillStyle = '#ffffff';
+        // "WELCOME" (Top, Yellow/Orange Gradient)
+        const welcomeText = 'WELCOME';
+        ctx.font = 'bold 85px sans-serif';
+        const welcomeGrad = ctx.createLinearGradient(0, height / 2 + 30, 0, height / 2 + 100);
+        welcomeGrad.addColorStop(0, '#ffd700'); // Gold
+        welcomeGrad.addColorStop(1, '#ff8c00'); // Dark Orange
+
+        ctx.fillStyle = welcomeGrad;
         ctx.shadowColor = 'rgba(0,0,0,0.8)';
-        ctx.shadowBlur = 10;
-        ctx.fillText('BIENVENIDO/A', width / 2, height / 2 + 100);
-
-        // Username (Cyan Neon)
-        ctx.font = 'bold 50px sans-serif';
-        ctx.fillStyle = '#00e5ff';
-        ctx.shadowColor = '#00e5ff';
         ctx.shadowBlur = 15;
+        ctx.fillText(welcomeText, width / 2, height / 2 + 80);
+
+        // Username (Middle, Cyan/Light Blue)
+        ctx.font = 'bold 55px sans-serif';
+        ctx.fillStyle = '#00e5ff'; // Cyan
+        ctx.shadowColor = '#00e5ff';
+        ctx.shadowBlur = 10;
         const name = member.user.username.toUpperCase();
-        ctx.fillText(name, width / 2, height / 2 + 160);
+        ctx.fillText(name, width / 2, height / 2 + 150);
 
-        // Footer / Motto (Subtle)
+        // "BIENVENIDO AL SERVIDOR" (Bottom, Greenish-Blue)
         ctx.shadowBlur = 0;
-        ctx.font = '24px sans-serif';
-        ctx.fillStyle = '#94a3b8';
-        ctx.letterSpacing = '2px';
-        ctx.fillText('NACIÓN MX • LA PATRIA TE ESPERA', width / 2, height - 30);
-
-        // Accent Line
-        ctx.fillStyle = '#00e5ff';
-        ctx.fillRect(width / 2 - 150, height / 2 + 115, 300, 4);
+        ctx.font = 'bold 35px sans-serif';
+        ctx.fillStyle = '#26d0ce'; // Greenish Cyan
+        ctx.fillText('BIENVENIDO AL SERVIDOR', width / 2, height / 2 + 200);
 
         return canvas.toBuffer('image/png');
     }
