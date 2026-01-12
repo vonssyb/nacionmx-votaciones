@@ -227,7 +227,7 @@ async function startModerationBot() {
 
             // Send Personalised Message
             await welcomeChannel.send({
-                content: `👋 <@${member.user.id}> **bienvenido al servidor!**\n\n> Para verificarse usa el comando \`/verificar\` en <#${VERIFY_CHANNEL_ID}>\n> También crea tu DNI con el comando \`/dni crear\` en el canal de <#${DNI_CHANNEL_ID}>\n\n**¡Bienvenido a la patria!** 🇲🇽`,
+                content: `<@${member.user.id}> **bienvenido al servidor** para verificarse usa el comando \`/verificar\` en <#${VERIFY_CHANNEL_ID}> y también crea tu dni con el comando \`/dni crear\` en el canal de <#${DNI_CHANNEL_ID}> **¡Bienvenido!**`,
                 files: [attachment]
             });
 
