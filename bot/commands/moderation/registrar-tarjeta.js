@@ -305,8 +305,10 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 else if (['reg_pay_cash', 'reg_pay_bank', 'reg_pay_debit'].includes(i.customId)) {
                     await i.deferUpdate();
                     try {
-                        // Billing Service from Client Services
-                        const billingService = client.services.billing;
+                        // Billing Service: Instantiate locally since Mod Bot doesn't have it natively
+                        // Path from bot/commands/moderation/ -> ../../services/BillingService
+                        const BillingService = require('../../services/BillingService');
+                        const billingService = new BillingService(client);
 
                         // 1. Check Funds & Charge
                         if (stats.cost > 0) {
