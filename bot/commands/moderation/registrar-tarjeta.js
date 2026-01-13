@@ -135,7 +135,7 @@ module.exports = {
                     { name: 'NMX Conglomerate ($25M)', value: 'NMX Conglomerate' },
                     { name: 'NMX Supreme ($50M)', value: 'NMX Supreme' }
                 ))
-        .addAttachmentOption(option => option.setName('foto_dni').setDescription('Foto del DNI').setRequired(true))
+        .addAttachmentOption(option => option.setName('foto_dni').setDescription('Foto del DNI').setRequired(false))
         .addStringOption(option => option.setName('notas').setDescription('Notas adicionales para el contrato').setRequired(false)),
 
     async execute(interaction, client, supabase) {
@@ -246,9 +246,10 @@ module.exports = {
                 );
             }
 
-            offerEmbed
-                .setThumbnail(dniPhoto.url)
-                .setFooter({ text: 'Tienes 5 minutos para aceptar. Revisa los términos antes.' });
+            if (dniPhoto) {
+                offerEmbed.setThumbnail(dniPhoto.url);
+            }
+            offerEmbed.setFooter({ text: 'Tienes 5 minutos para aceptar. Revisa los términos antes.' });
 
             const row = new ActionRowBuilder()
                 .addComponents(
