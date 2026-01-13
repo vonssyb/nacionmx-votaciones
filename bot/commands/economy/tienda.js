@@ -174,8 +174,21 @@ module.exports = {
                     .maybeSingle();
 
                 if (existing) {
-                    const expiryDate = existing.expiration_date ? `\nExpira: <t:${Math.floor(new Date(existing.expiration_date).getTime() / 1000)}:R>` : '';
-                    return interaction.editReply(`⚠️ Ya tienes este item activo.${expiryDate}`);
+                    const now = new Date();
+                    const expiration = existing.expiration_date ? new Date(existing.expiration_date) : null;
+
+                    // If it has an expiration date and it's in the past, mark as expired and allow re-purchase
+                    if (expiration && expiration < now) {
+                        await supabase
+                            .from('user_purchases')
+                            .update({ status: 'expired' })
+                            .eq('id', existing.id);
+                        // Continue to purchase flow...
+                    } else {
+                        // It's genuinely active and valid
+                        const expiryDate = existing.expiration_date ? `\nExpira: <t:${Math.floor(new Date(existing.expiration_date).getTime() / 1000)}:R>` : '';
+                        return interaction.editReply(`⚠️ Ya tienes este item activo.${expiryDate}`);
+                    }
                 }
 
                 // Payment Flow
