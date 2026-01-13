@@ -393,6 +393,52 @@ async function startModerationBot() {
         }
     });
 
+    // --- VC AUTO-DISCONNECT ---
+    const vcDisconnectTimers = new Map(); // channelId -> Timeout
+
+    client.on('voiceStateUpdate', (oldState, newState) => {
+        // We only care if the bot is involved or if it affects the bot's channel
+        const botId = client.user.id;
+        const botVoice = oldState.guild.members.me.voice;
+
+        // If bot is not connected, ignore
+        if (!botVoice.channelId) return;
+
+        const channel = botVoice.channel;
+        if (!channel) return;
+
+        // Check if the channel is now empty (excluding bots)
+        // Note: voice.channel.members includes the bot itself
+        const humans = channel.members.filter(m => !m.user.bot);
+
+        if (humans.size === 0) {
+            // Channel is empty (only bots or just me)
+            if (!vcDisconnectTimers.has(channel.id)) {
+                console.log(`[VC] ⏳ Channel ${channel.name} empty. Disconnecting in 20s...`);
+                const timeout = setTimeout(() => {
+                    if (botVoice.channelId === channel.id) { // Still in same channel?
+                        const currentHumans = channel.members.filter(m => !m.user.bot);
+                        if (currentHumans.size === 0) {
+                            console.log(`[VC] 🔌 Disconnecting from ${channel.name} due to inactivity.`);
+                            const { getVoiceConnection } = require('@discordjs/voice');
+                            const connection = getVoiceConnection(oldState.guild.id);
+                            if (connection) connection.destroy();
+                        }
+                    }
+                    vcDisconnectTimers.delete(channel.id);
+                }, 20000); // 20 seconds
+                vcDisconnectTimers.set(channel.id, timeout);
+            }
+        } else {
+            // Channel is not empty, cancel any pending timer
+            if (vcDisconnectTimers.has(channel.id)) {
+                console.log(`[VC] 👤 User joined ${channel.name}. Cancelling disconnect timer.`);
+                clearTimeout(vcDisconnectTimers.get(channel.id));
+                vcDisconnectTimers.delete(channel.id);
+            }
+        }
+    });
+
     // --- REALTIME APPLICATION MONITOR ---
     function initRealtimeMonitor(client, supabase) {
         log('🛡️', 'Realtime Application Monitor started.');
@@ -402,33 +448,112 @@ async function startModerationBot() {
             .on(
                 'postgres_changes',
                 {
-                    event: 'INSERT',
+                    event: '*', // Listen to ALL events (INSERT + UPDATE)
                     schema: 'public',
                     table: 'applications',
                 },
                 async (payload) => {
-                    log('📨', 'New staff application detected!');
-                    const app = payload.new;
-                    const NOTIFY_CHANNEL_ID = '1456035521141670066'; // Security/Sanctions or Opos Channel
-                    const targetChannel = await client.channels.fetch(NOTIFY_CHANNEL_ID).catch(() => null);
+                    // HANDLE NEW APPLICATIONS
+                    if (payload.eventType === 'INSERT') {
+                        log('📨', 'New staff application detected!');
+                        const app = payload.new;
+                        const NOTIFY_CHANNEL_ID = '1456035521141670066'; // Security/Sanctions or Opos Channel
+                        const targetChannel = await client.channels.fetch(NOTIFY_CHANNEL_ID).catch(() => null);
 
-                    if (targetChannel) {
-                        const { EmbedBuilder } = require('discord.js');
-                        const embed = new EmbedBuilder()
-                            .setTitle('📜 Nueva Solicitud de Staff (Opos)')
-                            .setColor('#FFD700')
-                            .setThumbnail('https://i.imgur.com/8QG5BZr.png') // Nación MX Logo
-                            .addFields(
-                                { name: '👤 Candidato', value: `${app.applicant_username}`, inline: true },
-                                { name: '📝 Tipo', value: `${app.type}`, inline: true },
-                                { name: '📅 Fecha', value: new Date(app.created_at).toLocaleString(), inline: true },
-                                { name: '🔗 Enlace Administrativo', value: '[Ir al Panel de Opos](https://gonzalez-puebla.github.io/nacionmx-portal/dashboard/applications)' }
-                            )
-                            .setDescription('Se ha recibido una nueva postulación desde el portal web. Por favor revisa los detalles en el panel administrativo.')
-                            .setFooter({ text: 'Nación MX Portal System • Realtime Monitor' })
-                            .setTimestamp();
+                        if (targetChannel) {
+                            const { EmbedBuilder } = require('discord.js');
+                            const embed = new EmbedBuilder()
+                                .setTitle('📜 Nueva Solicitud de Staff (Opos)')
+                                .setColor('#FFD700')
+                                .setThumbnail('https://i.imgur.com/8QG5BZr.png') // Nación MX Logo
+                                .addFields(
+                                    { name: '👤 Candidato', value: `${app.applicant_username}`, inline: true },
+                                    { name: '📝 Tipo', value: `${app.type}`, inline: true },
+                                    { name: '📅 Fecha', value: new Date(app.created_at).toLocaleString(), inline: true },
+                                    { name: '🔗 Enlace Administrativo', value: '[Ir al Panel de Opos](https://gonzalez-puebla.github.io/nacionmx-portal/dashboard/applications)' }
+                                )
+                                .setDescription('Se ha recibido una nueva postulación desde el portal web. Por favor revisa los detalles en el panel administrativo.')
+                                .setFooter({ text: 'Nación MX Portal System • Realtime Monitor' })
+                                .setTimestamp();
 
-                        await targetChannel.send({ content: '🔔 **@everyone ¡Atención Mandos! Nueva postulación recibida.**', embeds: [embed] });
+                            await targetChannel.send({ content: '🔔 **@everyone ¡Atención Mandos! Nueva postulación recibida.**', embeds: [embed] });
+                        }
+                    }
+
+                    // HANDLE APPROVED APPLICATIONS (Role Assignment)
+                    if (payload.eventType === 'UPDATE') {
+                        const newRecord = payload.new;
+                        const oldRecord = payload.old;
+
+                        // Check if status changed to 'approved'
+                        if (newRecord.status === 'approved') {
+                            console.log(`[APP] ✅ Application approved for ${newRecord.applicant_username} (${newRecord.applicant_discord_id})`);
+
+                            // DEFAULT FALLBACKS
+                            let STAFF_GUILD_ID = '1460059764494041211';
+                            let ROLES_TO_ADD = [
+                                '1460678189104894138',
+                                '1460071124074233897',
+                                '1460074363708768391'
+                            ];
+
+                            try {
+                                // FETCH DYNAMIC CONFIG
+                                const { data: settings } = await supabase
+                                    .from('bot_settings')
+                                    .select('*')
+                                    .in('key', ['staff_approval_roles', 'staff_guild_id']);
+
+                                if (settings) {
+                                    const guildConf = settings.find(s => s.key === 'staff_guild_id');
+                                    const rolesConf = settings.find(s => s.key === 'staff_approval_roles');
+
+                                    if (guildConf && guildConf.value) STAFF_GUILD_ID = guildConf.value;
+                                    if (rolesConf && Array.isArray(rolesConf.value)) ROLES_TO_ADD = rolesConf.value;
+
+                                    console.log(`[APP] ⚙️ Loaded config: Guild=${STAFF_GUILD_ID}, Roles=${ROLES_TO_ADD.length}`);
+                                }
+                            } catch (confError) {
+                                console.error('[APP] ⚠️ Error loading settings, using defaults:', confError.message);
+                            }
+
+                            try {
+                                const guild = await client.guilds.fetch(STAFF_GUILD_ID).catch(() => null);
+                                if (!guild) {
+                                    console.error(`[APP] ❌ Staff Guild (${STAFF_GUILD_ID}) not found!`);
+                                    return;
+                                }
+
+                                const member = await guild.members.fetch(newRecord.applicant_discord_id).catch(() => null);
+                                if (!member) {
+                                    console.error(`[APP] ❌ Member (${newRecord.applicant_discord_id}) not found in Staff Guild!`);
+                                    return;
+                                }
+
+                                await member.roles.add(ROLES_TO_ADD);
+                                console.log(`[APP] 🎉 Roles assigned to ${member.user.tag} in Staff Guild.`);
+
+                                // Optional: Log success to a channel
+                                const LOG_CHANNEL_ID = '1456035521141670066'; // Reuse security channel
+                                const logChannel = await client.channels.fetch(LOG_CHANNEL_ID).catch(() => null);
+                                if (logChannel) {
+                                    const { EmbedBuilder } = require('discord.js');
+                                    const embed = new EmbedBuilder()
+                                        .setTitle('✅ Staff Aceptado (Auto-Rol)')
+                                        .setColor('#2ecc71')
+                                        .setDescription(`El usuario **${member.user.tag}** ha sido aprobado en el portal.`)
+                                        .addFields(
+                                            { name: 'Roles Asignados', value: `${ROLES_TO_ADD.length} roles` },
+                                            { name: 'Procesado por', value: newRecord.processed_by || 'Admin' }
+                                        )
+                                        .setTimestamp();
+                                    logChannel.send({ embeds: [embed] });
+                                }
+
+                            } catch (err) {
+                                console.error('[APP] 💥 Error assigning roles:', err);
+                            }
+                        }
                     }
                 }
             )
