@@ -1,7 +1,8 @@
 const { REST, Routes } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
-require('dotenv').config();
+const envPath = fs.existsSync(path.join(__dirname, '.env')) ? path.join(__dirname, '.env') : path.join(__dirname, '../.env');
+require('dotenv').config({ path: envPath });
 
 const GUILD_ID = process.env.GUILD_ID;
 

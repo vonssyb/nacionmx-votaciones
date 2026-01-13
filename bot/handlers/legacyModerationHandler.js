@@ -3,6 +3,7 @@ const { createClient } = require('@supabase/supabase-js');
 const fs = require('fs');
 const path = require('path');
 require('dotenv').config();
+const { clearChannelMessages, renameChannel } = require('../utils/channelUtils');
 
 // Initialize Supabase (Global for helpers)
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY);
@@ -2487,7 +2488,7 @@ const handleModerationLegacy = async (interaction, client, supabase) => {
                             try {
                                 const fs = require('fs');
                                 const path = require('path');
-                                const configPath = path.join(__dirname, '../../data/erlc_config.json');
+                                const configPath = path.join(__dirname, '../data/erlc_config.json');
                                 let config = {};
                                 if (fs.existsSync(configPath)) {
                                     config = JSON.parse(fs.readFileSync(configPath));

@@ -1,8 +1,9 @@
-require('dotenv').config();
-const { Client, GatewayIntentBits, Partials, Collection, REST, Routes, EmbedBuilder, ButtonStyle } = require('discord.js');
-const { createClient } = require('@supabase/supabase-js');
 const fs = require('fs');
 const path = require('path');
+const envPath = fs.existsSync(path.join(__dirname, '.env')) ? path.join(__dirname, '.env') : path.join(__dirname, '../.env');
+require('dotenv').config({ path: envPath });
+const { Client, GatewayIntentBits, Partials, Collection, REST, Routes, EmbedBuilder, ButtonStyle } = require('discord.js');
+const { createClient } = require('@supabase/supabase-js');
 const express = require('express');
 const { handleModerationLegacy } = require('./handlers/legacyModerationHandler');
 
