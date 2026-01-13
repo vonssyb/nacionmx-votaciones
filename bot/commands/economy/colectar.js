@@ -190,18 +190,28 @@ module.exports = {
             const balance = await ubService.getUserBalance(guildId, userId);
             const newCashBalance = balance.cash || 0;
 
+            // 8. Build detailed breakdown string
+            let salaryBreakdown = salaries.map(job => `• **${job.role_name}**: $${job.salary_amount.toLocaleString()}`).join('\n');
+
+            if (bonusLabel) {
+                salaryBreakdown += `\n\n**Bonos:**\n• ${bonusLabel} (+$${(grossSalary - totalSalary).toLocaleString()})`;
+            }
+
+            salaryBreakdown += `\n\n**Deducciones:**\n• Impuestos (${(taxRate * 100).toFixed(0)}%): -$${taxAmount.toLocaleString()}`;
+
             // 7. Send success embed
             const successEmbed = new EmbedBuilder()
                 .setTitle('💰 SALARIO COLECTADO')
                 .setColor('#00FF00')
                 .setThumbnail(interaction.user.displayAvatarURL({ dynamic: true }))
+                .setDescription(`Has colectado tu salario de **${roleNames.length}** rol(es).`) // Add description context
                 .addFields(
-                    { name: '👤 Ciudadano', value: `<@${userId}>`, inline: false },
-                    { name: '💚 Neto Depositado', value: `**$${netAmount.toLocaleString()}**`, inline: true },
-                    { name: '💵 Nuevo Balance en Efectivo', value: `$${newCashBalance.toLocaleString()}`, inline: false },
-                    { name: '⏰ Próxima Colecta', value: `<t:${Math.floor(moment().add(72, 'hours').valueOf() / 1000)}:R>`, inline: false }
+                    { name: '📜 Desglose', value: salaryBreakdown, inline: false },
+                    { name: '💵 Total Neto Depositado', value: `**$${netAmount.toLocaleString()}**`, inline: false },
+                    { name: '💰 Nuevo Balance', value: `$${newCashBalance.toLocaleString()}`, inline: true },
+                    { name: '⏰ Próxima Colecta', value: `<t:${Math.floor(moment().add(72, 'hours').valueOf() / 1000)}:R>`, inline: true }
                 )
-                .setFooter({ text: 'Nación MX | Sistema de Nómina (Multiempleo)' })
+                .setFooter({ text: 'Nación MX | Sistema de Nómina (Multiempleo) v2' })
                 .setTimestamp();
 
             await interaction.editReply({ embeds: [successEmbed] });
