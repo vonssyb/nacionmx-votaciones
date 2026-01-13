@@ -587,7 +587,7 @@ module.exports = {
                             .setFooter({ text: `Gestionado por ${interaction.user.tag}`, iconURL: interaction.user.displayAvatarURL() })
                             .setTimestamp();
 
-                        await publicChannel.send({ embeds: [publicEmbed] });
+                        await publicChannel.send({ content: `<@${targetUser.id}>`, embeds: [publicEmbed] });
                     }
                 }
             } catch (pubLogErr) {
@@ -598,7 +598,7 @@ module.exports = {
             // Add note about ERLC/DB application
             const feedbackMsg = `\n\n📌 **Nota:** Los cambios de rango se han registrado en la base de datos y se aplicarán en ERLC (si el servidor está activo). Si el usuario está offline, el comando se encolará.`;
             const finalEmbed = EmbedBuilder.from(embed).setDescription(embed.data.description + erlcSyncMsg + feedbackMsg);
-            await interaction.editReply({ embeds: [finalEmbed] });
+            await interaction.editReply({ content: `<@${targetUser.id}>`, embeds: [finalEmbed] });
 
             // --- TRIGGER SHIFT IF NEEDED ---
             if (releasedBadgeType && releasedBadgeNumber) {
