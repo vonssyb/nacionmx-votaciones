@@ -605,6 +605,11 @@ const commands = [
                     { name: 'duracion', description: 'Tiempo estimado (ej: 1 hora)', type: 3, required: false },
                     { name: 'razon', description: 'Motivo del mantenimiento', type: 3, required: false }
                 ]
+            },
+            {
+                name: 'asistentes',
+                description: '📋 Ver asistentes de la última sesión',
+                type: 1
             }
         ]
     }

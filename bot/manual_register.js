@@ -40,6 +40,18 @@ async function registerCommands() {
             { body: commands }
         );
 
+        // Also register to Staff Guild
+        const STAFF_GUILD_ID = '1460059764494041211';
+        try {
+            await rest.put(
+                Routes.applicationGuildCommands(CLIENT_ID, STAFF_GUILD_ID),
+                { body: commands }
+            );
+            console.log(`✅ Registrado también en Staff Guild (${STAFF_GUILD_ID})`);
+        } catch (e) {
+            console.log(`⚠️ No se pudo registrar en Staff Guild: ${e.message}`);
+        }
+
         console.log(`✅ ${data.length} comandos registrados exitosamente!`);
         console.log('🎉 Los comandos deberían aparecer instantáneamente en Discord.');
         console.log('\n📋 Comandos registrados:');

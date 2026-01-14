@@ -369,11 +369,11 @@ module.exports = {
             await interaction.editReply('✅ Modo mantenimiento activado. Servidor ERLC Bloqueado.');
         }
         else if (subCmd === 'asistentes') {
-            // Fetch last live or closed session
+            // Fetch last live, opened or closed session
             const { data: lastSession, error } = await supabase
                 .from('session_votes')
                 .select('*')
-                .in('status', ['live', 'closed'])
+                .in('status', ['live', 'opened', 'closed'])
                 .order('created_at', { ascending: false })
                 .limit(1)
                 .single();
