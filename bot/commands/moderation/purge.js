@@ -13,17 +13,14 @@ module.exports = {
         .setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages),
 
     async execute(interaction) {
-        // Defer reply minimally to avoid "Unknown interaction" if deletion takes time, 
-        // though bulkDelete is fast. We use ephemeral to not clutter.
-        await interaction.deferReply({ ephemeral: true });
-
+        // Global handler already defers the reply in index_unified.js
         const amount = interaction.options.getInteger('cantidad');
 
         try {
             const deleted = await interaction.channel.bulkDelete(amount, true);
 
             const embed = new EmbedBuilder()
-                .setColor('#e74c3c') // Red-ish for moderation actions
+                .setColor('#e74c3c')
                 .setDescription(`🗑️ **Se han eliminado ${deleted.size} mensajes.**`)
                 .setFooter({ text: `Acción realizada por ${interaction.user.tag}` });
 
