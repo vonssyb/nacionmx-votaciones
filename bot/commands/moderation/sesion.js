@@ -31,7 +31,11 @@ module.exports = {
                 .setName('mantenimiento')
                 .setDescription('🛠️ Activar modo mantenimiento (Staff)')
                 .addStringOption(option => option.setName('duracion').setDescription('Tiempo estimado (ej: 1 hora)'))
-                .addStringOption(option => option.setName('razon').setDescription('Motivo del mantenimiento'))),
+                .addStringOption(option => option.setName('razon').setDescription('Motivo del mantenimiento')))
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('asistentes')
+                .setDescription('📋 Ver asistentes de la última sesión')),
 
     async execute(interaction) {
         // CRITICAL: Defer immediately to prevent "Unknown interaction" errors
@@ -363,6 +367,55 @@ module.exports = {
 
             updateErlcLock(true); // LOCK SERVER
             await interaction.editReply('✅ Modo mantenimiento activado. Servidor ERLC Bloqueado.');
+        }
+        else if (subCmd === 'asistentes') {
+            // Fetch last completed or forced session
+            const { data: lastSession, error } = await supabase
+                .from('session_votes')
+                .select('*')
+                .in('status', ['completed', 'forced'])
+                .order('created_at', { ascending: false })
+                .limit(1)
+                .single();
+
+            if (error || !lastSession) {
+                return interaction.editReply('❌ No se encontró ninguna sesión completada.');
+            }
+
+            // Fetch all votes for this session
+            const { data: votes } = await supabase
+                .from('session_participants')
+                .select('*')
+                .eq('session_id', lastSession.id);
+
+            if (!votes || votes.length === 0) {
+                return interaction.editReply('❌ No hay registro de asistentes para la última sesión.');
+            }
+
+            // Categorize votes
+            const onTime = votes.filter(v => v.vote_type === 'yes');
+            const late = votes.filter(v => v.vote_type === 'late');
+            const absent = votes.filter(v => v.vote_type === 'no');
+
+            // Format user lists
+            const formatUsers = (userList) => {
+                if (userList.length === 0) return 'Ninguno';
+                return userList.map(v => `<@${v.user_id}>`).join(', ');
+            };
+
+            const embed = new EmbedBuilder()
+                .setTitle('📋 Asistentes de Última Sesión')
+                .setColor(0x00FF00)
+                .setDescription(`**Sesión creada:** <t:${Math.floor(new Date(lastSession.created_at).getTime() / 1000)}:F>`)
+                .addFields(
+                    { name: `✅ Asistieron a Tiempo (${onTime.length})`, value: formatUsers(onTime), inline: false },
+                    { name: `⏰ Llegaron Tarde (${late.length})`, value: formatUsers(late), inline: false },
+                    { name: `❌ No Asistieron (${absent.length})`, value: formatUsers(absent), inline: false }
+                )
+                .setFooter({ text: `Total de votos: ${votes.length}` })
+                .setTimestamp();
+
+            await interaction.editReply({ embeds: [embed] });
         }
         else {
             await interaction.reply({ content: '❌ Subcomando desconocido.', flags: [64] });
