@@ -26,6 +26,7 @@ module.exports = {
             // Group by category
             const categories = {
                 '👮 Policía': [],
+                '👮‍♂️ Policía Federal': [],
                 '🕵️ AIC': [],
                 '🚑 Emergencias': [],
                 '💀 Cartel': [],
@@ -42,6 +43,7 @@ module.exports = {
                 const entry = `**\`${alias}\`** → ${name}`;
 
                 if (alias.startsWith('p') || alias === 'pg') categories['👮 Policía'].push(entry);
+                else if (alias.startsWith('pf')) categories['👮‍♂️ Policía Federal'].push(entry);
                 else if (alias.startsWith('aic')) categories['🕵️ AIC'].push(entry);
                 else if (['mg', 'bg'].includes(alias)) categories['🚑 Emergencias'].push(entry);
                 else if (alias.startsWith('c') || alias === 'cg') categories['💀 Cartel'].push(entry);

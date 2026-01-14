@@ -96,12 +96,12 @@ module.exports = {
         '1459646153619669165': { name: 'Policía 4', requiredRole: 'POLICIA' },
 
         // Policía Federal
-        '1461133946703314985': { name: 'Policía Federal 1', requiredRole: 'POLICIA_FEDERAL' },
-        '1461133995944185998': { name: 'Policía Federal 2', requiredRole: 'POLICIA_FEDERAL' },
+        '1461133946703314985': { name: 'Policía Federal 1', requiredRole: 'POLICIA_FEDERAL', noTTS: false },
+        '1461133995944185998': { name: 'Policía Federal 2', requiredRole: 'POLICIA_FEDERAL', noTTS: false },
 
         // AIC
-        '1461129202450300988': { name: 'AIC 1', requiredRole: 'AIC' },
-        '1461129229277335765': { name: 'AIC 2', requiredRole: 'AIC' },
+        '1461129202450300988': { name: 'AIC 1', requiredRole: 'AIC', noTTS: false },
+        '1461129229277335765': { name: 'AIC 2', requiredRole: 'AIC', noTTS: false },
 
         // Emergencias
         '1459948822024159262': { name: 'Médico General', requiredRole: null },
