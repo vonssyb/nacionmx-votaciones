@@ -210,7 +210,57 @@ module.exports = {
 
             const targetChannel = await client.channels.fetch(channelIds.voting);
             if (targetChannel) {
-                // Clear Channel FIRST (Legacy Behavior)
+                // --- 1. GENERATE ATTENDANCE REPORT (Before clearing) ---
+                const REPORT_CHANNEL_ID = '1398891368398585886';
+                if (session) {
+                    try {
+                        const { data: participants } = await supabase
+                            .from('session_vote_participants')
+                            .select('user_id, vote_type')
+                            .eq('session_id', session.id);
+
+                        if (participants && participants.length > 0) {
+                            const yesMentions = participants.filter(p => p.vote_type === 'yes').map(p => `<@${p.user_id}>`);
+                            const lateMentions = participants.filter(p => p.vote_type === 'late').map(p => `<@${p.user_id}>`);
+                            const noMentions = participants.filter(p => p.vote_type === 'no').map(p => `<@${p.user_id}>`);
+
+                            const reportEmbed = new EmbedBuilder()
+                                .setTitle('📋 Reporte de Asistencia - Apertura de Sesión')
+                                .setColor(0x00BFFF) // Deep Sky Blue
+                                .setDescription(`Resumen de votaciones para la sesión iniciada por <@${interaction.user.id}>`)
+                                .addFields(
+                                    {
+                                        name: `✅ Confirmados (${yesMentions.length})`,
+                                        value: yesMentions.length > 0 ? yesMentions.join(', ') : 'Ninguno',
+                                        inline: false
+                                    },
+                                    {
+                                        name: `📋 Con Retraso (${lateMentions.length})`,
+                                        value: lateMentions.length > 0 ? lateMentions.join(', ') : 'Ninguno',
+                                        inline: false
+                                    },
+                                    {
+                                        name: `❌ No Asistirán (${noMentions.length})`,
+                                        value: noMentions.length > 0 ? noMentions.join(', ') : 'Ninguno',
+                                        inline: false
+                                    }
+                                )
+                                .setTimestamp();
+
+                            const reportChannel = await client.channels.fetch(REPORT_CHANNEL_ID).catch(() => null);
+                            if (reportChannel) {
+                                await reportChannel.send({ embeds: [reportEmbed] });
+                                console.log(`[Sesion] Attendance report sent to ${REPORT_CHANNEL_ID}`);
+                            } else {
+                                console.warn(`[Sesion] Report channel ${REPORT_CHANNEL_ID} not found.`);
+                            }
+                        }
+                    } catch (reportErr) {
+                        console.error('[Sesion] Error generating attendance report:', reportErr);
+                    }
+                }
+
+                // --- 2. CLEAR CHANNEL (Legacy Behavior) ---
                 try {
                     const messages = await targetChannel.messages.fetch({ limit: 100 });
                     if (messages.size > 0) await targetChannel.bulkDelete(messages, true).catch(() => { });
