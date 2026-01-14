@@ -384,7 +384,7 @@ module.exports = {
 
             // Fetch all votes for this session
             const { data: votes } = await supabase
-                .from('session_participants')
+                .from('session_vote_participants')
                 .select('*')
                 .eq('session_id', lastSession.id);
 
