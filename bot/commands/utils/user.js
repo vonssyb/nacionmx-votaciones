@@ -68,12 +68,14 @@ module.exports = {
             const createDate = `<t:${Math.floor(targetUser.createdTimestamp / 1000)}:F> (<t:${Math.floor(targetUser.createdTimestamp / 1000)}:R>)`;
 
             // Roles list (From Main Guild)
+            // Use plain text names because Mentions (<@&ID>) show as "@deleted-role" or "@rol-desconocido" 
+            // if viewed from a different server where those roles don't exist.
             const roles = mainMember
                 ? mainMember.roles.cache
                     .filter(role => role.name !== '@everyone')
                     .sort((a, b) => b.position - a.position)
-                    .map(role => role.toString())
-                    .join(' ')
+                    .map(role => `\`${role.name}\``) // Changed to code block name
+                    .join(', ') // Changed to comma separator for cleaner list
                 : 'No disponible (Fuera del servidor)';
 
             // 2. Economy (UnbelievaBoat)
