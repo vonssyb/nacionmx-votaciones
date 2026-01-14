@@ -22,7 +22,8 @@ module.exports = {
             '1416867605976715363'  // POLICIA_TRANSITO
         ],
         CARTEL: ['1459649033222684702'], // Rol Cartel
-        AIC: ['1412898916021829903'] // Rol AIC Exclusivo
+        AIC: ['1412898916021829903'], // Rol AIC Exclusivo
+        POLICIA_FEDERAL: ['1412898913345863760'] // Rol PF Exclusivo
     },
 
     // ABREVIACIONES FÁCILES
@@ -38,6 +39,10 @@ module.exports = {
         'p2': '1459646124079054929',
         'p3': '1459646138498945368',
         'p4': '1459646153619669165',
+
+        // 👮‍♂️ POLICÍA FEDERAL
+        'pf1': '1461133946703314985',
+        'pf2': '1461133995944185998',
 
         // 🕵️ AIC
         'aic1': '1461129202450300988',
@@ -89,6 +94,10 @@ module.exports = {
         '1459646124079054929': { name: 'Policía 2', requiredRole: 'POLICIA' },
         '1459646138498945368': { name: 'Policía 3', requiredRole: 'POLICIA' },
         '1459646153619669165': { name: 'Policía 4', requiredRole: 'POLICIA' },
+
+        // Policía Federal
+        '1461133946703314985': { name: 'Policía Federal 1', requiredRole: 'POLICIA_FEDERAL' },
+        '1461133995944185998': { name: 'Policía Federal 2', requiredRole: 'POLICIA_FEDERAL' },
 
         // AIC
         '1461129202450300988': { name: 'AIC 1', requiredRole: 'AIC' },
