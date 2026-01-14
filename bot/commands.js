@@ -612,6 +612,17 @@ const commands = [
                 type: 1
             }
         ]
+    },
+    {
+        name: 'radio',
+        description: '📻 Gestión de radio y frecuencias',
+        options: [
+            {
+                name: 'codigos',
+                description: '📋 Ver lista de códigos y frecuencias de radio',
+                type: 1
+            }
+        ]
     }
 ];
 
