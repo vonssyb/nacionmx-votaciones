@@ -31,6 +31,9 @@ process.on('unhandledRejection', (reason, promise) => {
 const app = express();
 const port = process.env.PORT || 8000;
 
+// Middleware
+app.use(express.json());
+
 app.get('/', (req, res) => {
     res.send(`
         <h1>🤖 Nacion MX Unified System</h1>
@@ -38,6 +41,59 @@ app.get('/', (req, res) => {
         <p>✅ Economy Bot: Online</p>
         <p>✅ Government Bot: Online</p>
     `);
+});
+
+// Webhook endpoint for portal to assign postulante role
+app.post('/api/assign-postulante-role', async (req, res) => {
+    try {
+        // Verify API key
+        const apiKey = req.headers.authorization?.replace('Bearer ', '');
+        if (apiKey !== process.env.BOT_API_KEY) {
+            log('🚫', '[WEBHOOK] Unauthorized request - invalid API key');
+            return res.status(401).json({ error: 'Unauthorized' });
+        }
+
+        const { discord_user_id, application_id } = req.body;
+
+        if (!discord_user_id || !application_id) {
+            return res.status(400).json({ error: 'Missing discord_user_id or application_id' });
+        }
+
+        log('📥', `[WEBHOOK] Received role assignment request for user ${discord_user_id}`);
+
+        // Get the main guild and member
+        const GUILD_ID = process.env.GUILD_ID; // Main guild
+        const POSTULANTE_ROLE_ID = '1460071124074233897';
+
+        // Ensure the client is ready before trying to fetch guilds/members
+        if (!client || !client.isReady()) {
+            log('❌', '[WEBHOOK] Discord client not ready yet.');
+            return res.status(503).json({ error: 'Discord client not ready' });
+        }
+
+        const guild = await client.guilds.fetch(GUILD_ID);
+        const member = await guild.members.fetch(discord_user_id);
+
+        if (!member) {
+            log('❌', `[WEBHOOK] Member ${discord_user_id} not found in guild`);
+            return res.status(404).json({ error: 'Member not found in guild' });
+        }
+
+        // Assign postulante role
+        const role = guild.roles.cache.get(POSTULANTE_ROLE_ID);
+        if (!role) {
+            log('❌', `[WEBHOOK] Postulante role ${POSTULANTE_ROLE_ID} not found`);
+            return res.status(500).json({ error: 'Role not found' });
+        }
+
+        await member.roles.add(role);
+        log('✅', `[WEBHOOK] Assigned postulante role to ${member.user.tag}`);
+
+        res.json({ success: true, user: member.user.tag });
+    } catch (error) {
+        console.error('[WEBHOOK] Error:', error);
+        res.status(500).json({ error: error.message });
+    }
 });
 
 app.listen(port, () => {
