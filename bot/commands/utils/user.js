@@ -42,34 +42,49 @@ module.exports = {
 
             console.log(`[UserInfo] Target Resolved: ${targetUser.tag} (${targetId})`);
 
-            // Check member (might be null if ID provided and not in guild)
-            const member = await interaction.guild.members.fetch(targetId).catch(err => {
-                console.log('[UserInfo] Member fetch failed (user likely left):', err.message);
-                return null;
-            });
-            console.log(`[UserInfo] Member found: ${!!member}`);
+            // --- FETCHING MEMBER FROM MAIN GUILD ---
+            // User requested roles specifically from server: 1398525215134318713
+            const MAIN_GUILD_ID = process.env.GUILD_ID || '1398525215134318713';
+            let mainMember = null;
+            let displayColor = '#0099ff';
+
+            try {
+                console.log(`[UserInfo] Fetching member from Main Guild: ${MAIN_GUILD_ID}`);
+                const mainGuild = await client.guilds.fetch(MAIN_GUILD_ID);
+                mainMember = await mainGuild.members.fetch(targetId).catch(() => null);
+                if (mainMember) {
+                    displayColor = mainMember.displayHexColor;
+                    console.log('[UserInfo] Found member in Main Guild.');
+                } else {
+                    console.log('[UserInfo] Member NOT found in Main Guild.');
+                }
+            } catch (gErr) {
+                console.error('[UserInfo] Failed to fetch Main Guild:', gErr.message);
+            }
 
             // 1. Basic Info
-            const joinDate = member ? `<t:${Math.floor(member.joinedTimestamp / 1000)}:F> (<t:${Math.floor(member.joinedTimestamp / 1000)}:R>)` : 'N/A';
+            // Use mainMember for join date if available, otherwise N/A
+            const joinDate = mainMember ? `<t:${Math.floor(mainMember.joinedTimestamp / 1000)}:F> (<t:${Math.floor(mainMember.joinedTimestamp / 1000)}:R>)` : 'No está en el servidor';
             const createDate = `<t:${Math.floor(targetUser.createdTimestamp / 1000)}:F> (<t:${Math.floor(targetUser.createdTimestamp / 1000)}:R>)`;
-            const roles = member
-                ? member.roles.cache
+
+            // Roles list (From Main Guild)
+            const roles = mainMember
+                ? mainMember.roles.cache
                     .filter(role => role.name !== '@everyone')
                     .sort((a, b) => b.position - a.position)
                     .map(role => role.toString())
                     .join(' ')
-                : 'N/A';
+                : 'No disponible (Fuera del servidor)';
 
             // 2. Economy (UnbelievaBoat)
             console.log('[UserInfo] Fetching Economy...');
             let economytext = 'Datos no disponibles';
             if (client.services && client.services.billing && client.services.billing.ubService) {
                 try {
-                    // FORCE MAIN GUILD ID for Economy (To work even from Staff Server)
-                    const economyGuildId = process.env.GUILD_ID || interaction.guildId;
-                    console.log(`[UserInfo] Querying UB for User ${targetId} in Guild ${economyGuildId}`);
+                    // FORCE MAIN GUILD ID for Economy
+                    console.log(`[UserInfo] Querying UB for User ${targetId} in Guild ${MAIN_GUILD_ID}`);
 
-                    const balance = await client.services.billing.ubService.getUserBalance(economyGuildId, targetId);
+                    const balance = await client.services.billing.ubService.getUserBalance(MAIN_GUILD_ID, targetId);
                     economytext = `💵 Efectivo: $${balance.cash.toLocaleString()}\n🏦 Banco: $${balance.bank.toLocaleString()}\n💰 Total: $${balance.total.toLocaleString()}`;
                     console.log('[UserInfo] Economy fetched successfully.');
                 } catch (err) {
@@ -105,11 +120,12 @@ module.exports = {
                 console.warn('[UserInfo] Sanction Service unavailable.');
             }
 
-            // 4. Blacklist Check
+            // 4. Blacklist Check (DB + Roles)
             console.log('[UserInfo] Checking Blacklist...');
-            let blacklistStatus = '✅ Limpio';
+            let blacklistLines = [];
+
             try {
-                // Check DB for active Blacklist sanctions
+                // A. Check DB for active Blacklist sanctions
                 const { data: blSanctions, error: blError } = await supabase
                     .from('sanctions')
                     .select('action_type, reason')
@@ -120,41 +136,55 @@ module.exports = {
                 if (blError) throw blError;
 
                 if (blSanctions && blSanctions.length > 0) {
-                    // Format: • Blacklist Moderación: Razón
-                    const reasons = blSanctions.map(b => `• **${b.action_type.replace('Blacklist:', '').trim()}**: ${b.reason}`).join('\n');
-                    blacklistStatus = `⛔ **USUARIO EN BLACKLIST**\n${reasons}`;
-                } else {
-                    // Determine if they have any blacklist roles explicitly
-                    const BLACKLIST_ROLES = [
-                        '1451860028653834300', // Mod
-                        '1413714060423200778', // Policial
-                        '1449930883762225253', // Cartel
-                        '1413714467287470172', // Politica
-                        '1413714540834852875', // Empresas
-                        '1459240544017453238'  // Influencer
-                    ];
-                    if (member && member.roles.cache.some(r => BLACKLIST_ROLES.includes(r.id))) {
-                        blacklistStatus = `⛔ **TIENE ROLES DE BLACKLIST**`;
-                    }
+                    blSanctions.forEach(b => {
+                        blacklistLines.push(`• **${b.action_type.replace('Blacklist:', '').trim()} (DB)**: ${b.reason}`);
+                    });
+                }
+
+                // B. Check Roles (Explicitly list ALL matching blacklist roles)
+                const BLACKLIST_ROLES = [
+                    { id: '1451860028653834300', name: 'Blacklist Mod' },
+                    { id: '1413714060423200778', name: 'Blacklist Policial' },
+                    { id: '1449930883762225253', name: 'Blacklist Cartel' },
+                    { id: '1413714467287470172', name: 'Blacklist Política' },
+                    { id: '1413714540834852875', name: 'Blacklist Empresas' },
+                    { id: '1459240544017453238', name: 'Blacklist Influencer' }
+                ];
+
+                if (mainMember) {
+                    const userRoleIds = mainMember.roles.cache.map(r => r.id);
+                    BLACKLIST_ROLES.forEach(blRole => {
+                        if (userRoleIds.includes(blRole.id)) {
+                            // Try to get real role name if possible, fallback to hardcoded name
+                            const realRole = mainMember.roles.cache.get(blRole.id);
+                            const roleName = realRole ? realRole.name : blRole.name;
+                            blacklistLines.push(`• **Rol Detectado**: ${roleName}`);
+                        }
+                    });
                 }
                 console.log('[UserInfo] Blacklist checked.');
             } catch (err) {
                 console.error('[UserInfo] Error checking blacklist:', err.message);
+                blacklistLines.push(`⚠️ Error verificando: ${err.message}`);
             }
+
+            const blacklistStatus = blacklistLines.length > 0
+                ? `⛔ **USUARIO EN BLACKLIST**\n${blacklistLines.join('\n')}`
+                : '✅ Limpio';
 
             // 5. Build Embed
             console.log('[UserInfo] Building Embed...');
             const embed = new EmbedBuilder()
-                .setColor(member ? member.displayHexColor : '#0099ff')
+                .setColor(displayColor)
                 .setThumbnail(targetUser.displayAvatarURL({ dynamic: true, size: 512 }))
                 .setAuthor({ name: targetUser.tag, iconURL: targetUser.displayAvatarURL({ dynamic: true }) })
                 .addFields(
-                    { name: '🆔 Información Básica', value: `**ID:** ${targetId}\n**Nick:** ${member ? member.displayName : 'N/A'}\n**Bot:** ${targetUser.bot ? 'Sí' : 'No'}`, inline: true },
+                    { name: '🆔 Información Básica', value: `**ID:** ${targetId}\n**Nick:** ${mainMember ? mainMember.displayName : 'N/A'}\n**Bot:** ${targetUser.bot ? 'Sí' : 'No'}`, inline: true },
                     { name: '📅 Fechas', value: `**Creado:** ${createDate}\n**Ingreso:** ${joinDate}`, inline: true },
                     { name: '💼 Economía', value: economytext, inline: false },
                     { name: '🛡️ Historial de Sanciones', value: sanctionsText, inline: true },
                     { name: '⛔ Estado de Blacklist', value: blacklistStatus, inline: true },
-                    { name: '🎭 Roles', value: roles.length > 1024 ? `${roles.substring(0, 1020)}...` : (roles || 'Ninguno') }
+                    { name: '🎭 Roles (Servidor Principal)', value: roles.length > 1024 ? `${roles.substring(0, 1020)}...` : (roles || 'Ninguno') }
                 )
                 .setFooter({ text: `Solicitado por ${interaction.user.tag}` })
                 .setTimestamp();
