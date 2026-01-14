@@ -24,46 +24,48 @@ module.exports = {
         // Whitelist check
         if (!channelInfo) {
             return interaction.editReply({
-                content: '❌ No se permite el uso de TTS en este canal.'
-            });
-        }
-
-        if (channelInfo.noTTS) {
-            return interaction.editReply({
-                content: `❌ El canal **${channelInfo.name}** tiene el TTS desactivado.`
-            });
-        }
-
-        try {
-            // Echo to interaction so user knows it went through
-            await interaction.editReply({
-                content: `🗣️ Diciendo: "${message}"`
-            });
-
-            // Dispatch to Swarm
-            // We assume the moderation bot client has accessibility to the swarm service
-            // Based on index_unified.js, the moderation bot client is where services are attached.
-            const swarmService = client.services?.swarm;
-
-            if (swarmService) {
-                await swarmService.speak(member.guild.id, channelId, `${member.displayName} dice: ${message}`);
-                console.log(`[Slash Command] 🗣️ /talk: ${member.user.tag} said "${message}" in ${channelInfo.name}`);
-            } else {
-                console.warn('[Slash Command] /talk: Swarm Service not found via client.services.swarm');
-                // Fallback attempt: if attached directly to client
-                if (client.swarmService) {
-                    await client.swarmService.speak(member.guild.id, channelId, `${member.displayName} dice: ${message}`);
-                } else {
-                    throw new Error('Servicio de voz no disponible.');
-                }
+                console.log(`[Talk CMD] Refused: Channel ${channelId} not valid.`);
+                return interaction.editReply({
+                    content: `❌ No se permite el uso de TTS en este canal. (ID Detectado: **${channelId}** - No está en whitelist)`
+                });
             }
 
-        } catch (error) {
-            console.error(`[Slash Command] /talk Error:`, error.message);
-            await interaction.followUp({
-                content: `❌ Error al reproducir el mensaje: ${error.message}`,
-                ephemeral: true
-            });
+        if (channelInfo.noTTS) {
+                return interaction.editReply({
+                    content: `❌ El canal **${channelInfo.name}** tiene el TTS desactivado.`
+                });
+            }
+
+            try {
+                // Echo to interaction so user knows it went through
+                await interaction.editReply({
+                    content: `🗣️ Diciendo: "${message}"`
+                });
+
+                // Dispatch to Swarm
+                // We assume the moderation bot client has accessibility to the swarm service
+                // Based on index_unified.js, the moderation bot client is where services are attached.
+                const swarmService = client.services?.swarm;
+
+                if (swarmService) {
+                    await swarmService.speak(member.guild.id, channelId, `${member.displayName} dice: ${message}`);
+                    console.log(`[Slash Command] 🗣️ /talk: ${member.user.tag} said "${message}" in ${channelInfo.name}`);
+                } else {
+                    console.warn('[Slash Command] /talk: Swarm Service not found via client.services.swarm');
+                    // Fallback attempt: if attached directly to client
+                    if (client.swarmService) {
+                        await client.swarmService.speak(member.guild.id, channelId, `${member.displayName} dice: ${message}`);
+                    } else {
+                        throw new Error('Servicio de voz no disponible.');
+                    }
+                }
+
+            } catch (error) {
+                console.error(`[Slash Command] /talk Error:`, error.message);
+                await interaction.followUp({
+                    content: `❌ Error al reproducir el mensaje: ${error.message}`,
+                    ephemeral: true
+                });
+            }
         }
-    }
-};
+    };
