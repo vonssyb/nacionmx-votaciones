@@ -623,6 +623,18 @@ const commands = [
                 type: 1
             }
         ]
+    },
+    {
+        name: 'talk',
+        description: '🗣️ Enviar un mensaje de voz (TTS) a tu canal actual',
+        options: [
+            {
+                name: 'mensaje',
+                description: '📝 El mensaje que deseas decir',
+                type: 3, // STRING
+                required: true
+            }
+        ]
     }
 ];
 
