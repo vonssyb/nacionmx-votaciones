@@ -168,28 +168,31 @@ async function startModerationBot() {
     const TARGET_GUILDS = [MAIN_GUILD_ID, STAFF_GUILD_ID].filter(id => id);
 
     if (MOD_TOKEN && TARGET_GUILDS.length > 0) {
-        console.log(`🔄 [MOD] Auto-registering commands for ${TARGET_GUILDS.length} guilds...`);
-        const rest = new REST({ version: '10' }).setToken(MOD_TOKEN);
+        // Run in background to not block startup
+        (async () => {
+            console.log(`🔄 [MOD] Auto-registering commands for ${TARGET_GUILDS.length} guilds (Background)...`);
+            const rest = new REST({ version: '10' }).setToken(MOD_TOKEN);
 
-        try {
-            const currentUser = await rest.get(Routes.user('@me'));
-            const clientId = currentUser.id;
-            const allCommands = Array.from(client.commands.values()).map(cmd => cmd.data.toJSON());
+            try {
+                const currentUser = await rest.get(Routes.user('@me'));
+                const clientId = currentUser.id;
+                const allCommands = Array.from(client.commands.values()).map(cmd => cmd.data.toJSON());
 
-            for (const guildId of TARGET_GUILDS) {
-                try {
-                    await rest.put(
-                        Routes.applicationGuildCommands(clientId, guildId),
-                        { body: allCommands }
-                    );
-                    console.log(`✅ [MOD] Registered ${allCommands.length} commands to Guild ID: ${guildId}`);
-                } catch (guildError) {
-                    console.error(`❌ [MOD] Failed to register commands for Guild ID ${guildId}:`, guildError);
+                for (const guildId of TARGET_GUILDS) {
+                    try {
+                        await rest.put(
+                            Routes.applicationGuildCommands(clientId, guildId),
+                            { body: allCommands }
+                        );
+                        console.log(`✅ [MOD] Registered ${allCommands.length} commands to Guild ID: ${guildId}`);
+                    } catch (guildError) {
+                        console.error(`❌ [MOD] Failed to register commands for Guild ID ${guildId}:`, guildError);
+                    }
                 }
+            } catch (regError) {
+                console.error('❌ [MOD] Critical Auto-registration failure:', regError);
             }
-        } catch (regError) {
-            console.error('❌ [MOD] Critical Auto-registration failure:', regError);
-        }
+        })();
     }
 
 
@@ -697,28 +700,31 @@ async function startEconomyBot() {
     const TARGET_GUILDS = [MAIN_GUILD_ID, STAFF_GUILD_ID].filter(id => id);
 
     if (ECO_TOKEN && TARGET_GUILDS.length > 0) {
-        console.log(`🔄 [ECO] Auto-registering commands for ${TARGET_GUILDS.length} guilds...`);
-        const rest = new REST({ version: '10' }).setToken(ECO_TOKEN);
+        // Run in background
+        (async () => {
+            console.log(`🔄 [ECO] Auto-registering commands for ${TARGET_GUILDS.length} guilds (Background)...`);
+            const rest = new REST({ version: '10' }).setToken(ECO_TOKEN);
 
-        try {
-            const currentUser = await rest.get(Routes.user('@me'));
-            const clientId = currentUser.id;
-            const allCommands = Array.from(client.commands.values()).map(cmd => cmd.data.toJSON());
+            try {
+                const currentUser = await rest.get(Routes.user('@me'));
+                const clientId = currentUser.id;
+                const allCommands = Array.from(client.commands.values()).map(cmd => cmd.data.toJSON());
 
-            for (const guildId of TARGET_GUILDS) {
-                try {
-                    await rest.put(
-                        Routes.applicationGuildCommands(clientId, guildId),
-                        { body: allCommands }
-                    );
-                    console.log(`✅ [ECO] Registered ${allCommands.length} commands to Guild ID: ${guildId}`);
-                } catch (guildError) {
-                    console.error(`❌ [ECO] Failed to register commands for Guild ID ${guildId}:`, guildError);
+                for (const guildId of TARGET_GUILDS) {
+                    try {
+                        await rest.put(
+                            Routes.applicationGuildCommands(clientId, guildId),
+                            { body: allCommands }
+                        );
+                        console.log(`✅ [ECO] Registered ${allCommands.length} commands to Guild ID: ${guildId}`);
+                    } catch (guildError) {
+                        console.error(`❌ [ECO] Failed to register commands for Guild ID ${guildId}:`, guildError);
+                    }
                 }
+            } catch (regError) {
+                console.error('❌ [ECO] Critical Auto-registration failure:', regError);
             }
-        } catch (regError) {
-            console.error('❌ [ECO] Critical Auto-registration failure:', regError);
-        }
+        })();
     }
 
 
