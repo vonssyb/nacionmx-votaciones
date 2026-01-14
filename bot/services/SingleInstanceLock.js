@@ -71,34 +71,34 @@ class SingleInstanceLock {
                 console.error('⚠️ [Lock] Heartbeat failed:', error.message);
             }
         }, this.checkIntervalTime);
-    }, this.checkIntervalTime);
     }
 
-stopHeartbeat() {
-    if (this.heartbeatInterval) {
-        clearInterval(this.heartbeatInterval);
-        this.heartbeatInterval = null;
+    stopHeartbeat() {
+        if (this.heartbeatInterval) {
+            clearInterval(this.heartbeatInterval);
+            this.heartbeatInterval = null;
+        }
     }
-}
 
     async releaseLock() {
-    this.stopHeartbeat();
-    console.log(`🔓 [Lock] Releasing lock for instance ${this.instanceId}...`);
+        this.stopHeartbeat();
+        console.log(`🔓 [Lock] Releasing lock for instance ${this.instanceId}...`);
 
-    // Remove or nullify the lock in DB so next instance picks it up immediately
-    const { error } = await this.supabase
-        .from('bot_heartbeats')
-        .update({
-            instance_id: null,
-            last_heartbeat: new Date(0).toISOString() // Make it super old 
-        })
-        .eq('id', this.lockKey)
-        .eq('instance_id', this.instanceId);
+        // Remove or nullify the lock in DB so next instance picks it up immediately
+        const { error } = await this.supabase
+            .from('bot_heartbeats')
+            .update({
+                instance_id: null,
+                last_heartbeat: new Date(0).toISOString() // Make it super old 
+            })
+            .eq('id', this.lockKey)
+            .eq('instance_id', this.instanceId);
 
-    if (error) {
-        console.error('❌ [Lock] Failed to release lock:', error.message);
-    } else {
-        console.log('✅ [Lock] Lock released successfully.');
+        if (error) {
+            console.error('❌ [Lock] Failed to release lock:', error.message);
+        } else {
+            console.log('✅ [Lock] Lock released successfully.');
+        }
     }
 }
 
