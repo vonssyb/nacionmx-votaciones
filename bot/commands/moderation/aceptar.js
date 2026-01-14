@@ -29,12 +29,23 @@ module.exports = {
 
             try {
                 // 1. Verify application exists and is pending
-                const { data: application, error: fetchError } = await supabase
+                // Check if applicationId is UUID format or numeric
+                const isUUID = applicationId.includes('-');
+
+                let query = supabase
                     .from('applications')
                     .select('*')
-                    .eq('id', applicationId)
-                    .eq('discord_user_id', targetUser.id)
-                    .single();
+                    .eq('discord_user_id', targetUser.id);
+
+                if (isUUID) {
+                    // Search by UUID in id column
+                    query = query.eq('id', applicationId);
+                } else {
+                    // Search by numeric id
+                    query = query.eq('id', parseInt(applicationId));
+                }
+
+                const { data: application, error: fetchError } = await query.single();
 
                 if (fetchError || !application) {
                     return interaction.editReply('❌ No se encontró la postulación con ese ID para ese usuario.');
