@@ -1122,10 +1122,10 @@ async function loginWithRetry(client, token, botName) {
         // WAIT FOR LOCK (Do not exit, as that fails Health Checks)
         let acquired = await locker.acquireLock();
         let attempts = 0;
-        const MAX_ATTEMPTS = 24; // 24 * 5s = 120s (2 Minutes)
+        const MAX_ATTEMPTS = 9; // 9 * 5s = 45s (Reduced from 2m)
 
         if (!acquired) {
-            console.log(`⏳ [Startup] Another instance is active. Waiting for lock... (Max 2 min)`);
+            console.log(`⏳ [Startup] Another instance is active. Waiting for lock... (Max 45s)`);
 
             while (!acquired && attempts < MAX_ATTEMPTS) {
                 await new Promise(resolve => setTimeout(resolve, 5000)); // Wait 5s
