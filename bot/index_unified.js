@@ -89,6 +89,33 @@ app.post('/api/assign-postulante-role', async (req, res) => {
         await member.roles.add(role);
         log('✅', `[WEBHOOK] Assigned postulante role to ${member.user.tag}`);
 
+        // Send DM to user
+        try {
+            const dmEmbed = {
+                color: 0x2ecc71,
+                title: '✅ Postulación Aceptada',
+                description: `¡Felicidades **${member.user.tag}**! Tu postulación para staff ha sido **ACEPTADA**.`,
+                fields: [
+                    {
+                        name: '📋 Próximos Pasos',
+                        value: 'Se te ha asignado el rol de **Postulante**. El equipo de administración se pondrá en contacto contigo pronto con más información.'
+                    },
+                    {
+                        name: '📅 Fecha de Aprobación',
+                        value: `<t:${Math.floor(Date.now() / 1000)}:F>`
+                    }
+                ],
+                footer: { text: 'Nación MX Roleplay - Sistema de Staff' },
+                timestamp: new Date().toISOString()
+            };
+
+            await member.send({ embeds: [dmEmbed] });
+            log('✅', `[WEBHOOK] DM sent to ${member.user.tag}`);
+        } catch (dmError) {
+            log('⚠️', `[WEBHOOK] Could not send DM to ${member.user.tag}: ${dmError.message}`);
+            // Don't fail the whole request if DM fails
+        }
+
         res.json({ success: true, user: member.user.tag });
     } catch (error) {
         console.error('[WEBHOOK] Error:', error);
