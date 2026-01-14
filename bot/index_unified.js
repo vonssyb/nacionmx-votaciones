@@ -821,28 +821,31 @@ async function startGovernmentBot() {
     const TARGET_GUILDS = [MAIN_GUILD_ID, STAFF_GUILD_ID].filter(id => id); // Filter out undefined
 
     if (GOV_TOKEN && TARGET_GUILDS.length > 0) {
-        console.log(`🔄 Auto-registering Gov commands for ${TARGET_GUILDS.length} guilds...`);
-        const rest = new REST({ version: '10' }).setToken(GOV_TOKEN);
+        // Run in background
+        (async () => {
+            console.log(`🔄 Auto-registering Gov commands for ${TARGET_GUILDS.length} guilds (Background)...`);
+            const rest = new REST({ version: '10' }).setToken(GOV_TOKEN);
 
-        try {
-            const currentUser = await rest.get(Routes.user('@me'));
-            const clientId = currentUser.id;
-            const allCommands = Array.from(client.commands.values()).map(cmd => cmd.data.toJSON());
+            try {
+                const currentUser = await rest.get(Routes.user('@me'));
+                const clientId = currentUser.id;
+                const allCommands = Array.from(client.commands.values()).map(cmd => cmd.data.toJSON());
 
-            for (const guildId of TARGET_GUILDS) {
-                try {
-                    await rest.put(
-                        Routes.applicationGuildCommands(clientId, guildId),
-                        { body: allCommands }
-                    );
-                    console.log(`✅ Registered ${allCommands.length} Gov commands to Guild ID: ${guildId}`);
-                } catch (guildError) {
-                    console.error(`❌ Failed to register commands for Guild ID ${guildId}:`, guildError);
+                for (const guildId of TARGET_GUILDS) {
+                    try {
+                        await rest.put(
+                            Routes.applicationGuildCommands(clientId, guildId),
+                            { body: allCommands }
+                        );
+                        console.log(`✅ Registered ${allCommands.length} Gov commands to Guild ID: ${guildId}`);
+                    } catch (guildError) {
+                        console.error(`❌ Failed to register commands for Guild ID ${guildId}:`, guildError);
+                    }
                 }
+            } catch (regError) {
+                console.error('❌ Critical Gov Auto-registration failure:', regError);
             }
-        } catch (regError) {
-            console.error('❌ Critical Auto-registration failure:', regError);
-        }
+        })();
     }
 
     // Events
