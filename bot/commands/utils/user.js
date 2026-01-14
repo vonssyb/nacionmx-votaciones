@@ -73,10 +73,15 @@ module.exports = {
                     economytext = `💵 Efectivo: $${balance.cash.toLocaleString()}\n🏦 Banco: $${balance.bank.toLocaleString()}\n💰 Total: $${balance.total.toLocaleString()}`;
                     console.log('[UserInfo] Economy fetched successfully.');
                 } catch (err) {
-                    // Detailed error for debug
-                    const errMsg = err.response?.status === 404 ? 'Usuario no encontrado en economía' : (err.message || 'Error desconocido');
-                    console.error('[UserInfo] Error fetching economy:', err);
-                    economytext = `⚠️ Error: ${errMsg}`;
+                    // Handle 404 (User has no economy profile yet) -> Show $0
+                    if (err.response && err.response.status === 404) {
+                        economytext = `💵 Efectivo: $0\n🏦 Banco: $0\n💰 Total: $0`;
+                        console.log('[UserInfo] User has no economy profile (404), defaulting to $0.');
+                    } else {
+                        const errMsg = err.message || 'Error desconocido';
+                        console.error('[UserInfo] Error fetching economy:', err);
+                        economytext = `⚠️ Error: ${errMsg}`;
+                    }
                 }
             } else {
                 console.warn('[UserInfo] Billing Service unavailable.');
@@ -115,7 +120,8 @@ module.exports = {
                 if (blError) throw blError;
 
                 if (blSanctions && blSanctions.length > 0) {
-                    const reasons = blSanctions.map(b => `${b.action_type} (${b.reason})`).join('\n');
+                    // Format: • Blacklist Moderación: Razón
+                    const reasons = blSanctions.map(b => `• **${b.action_type.replace('Blacklist:', '').trim()}**: ${b.reason}`).join('\n');
                     blacklistStatus = `⛔ **USUARIO EN BLACKLIST**\n${reasons}`;
                 } else {
                     // Determine if they have any blacklist roles explicitly
