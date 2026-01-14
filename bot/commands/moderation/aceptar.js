@@ -34,8 +34,7 @@ module.exports = {
 
                 let query = supabase
                     .from('applications')
-                    .select('*')
-                    .eq('discord_user_id', targetUser.id);
+                    .select('*');
 
                 if (isUUID) {
                     // Search by UUID in id column
@@ -48,7 +47,7 @@ module.exports = {
                 const { data: application, error: fetchError } = await query.single();
 
                 if (fetchError || !application) {
-                    return interaction.editReply('❌ No se encontró la postulación con ese ID para ese usuario.');
+                    return interaction.editReply('❌ No se encontró la postulación con ese ID.');
                 }
 
                 if (application.status !== 'pending') {
