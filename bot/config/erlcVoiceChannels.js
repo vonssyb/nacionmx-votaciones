@@ -1,24 +1,20 @@
-// Mapeo completo de Canales de Voz para ERLC
-// ID Canal -> Nombre Human Readable, Abreviación y ROLES REQUERIDOS
 module.exports = {
-    // ROLES CONFIG (Using arrays to allow multiple roles for a single category)
+
     ROLES: {
-        JUNTA_DIRECTIVA: ['1412882245735420006'], // Junta Directiva Role ID
-        STAFF: [
-            '1412887167654690908', // Staff Role ID (Base)
-            '1412882245735420006'  // JD also counts as Staff
-        ],
+        JUNTA_DIRECTIVA: ['1412967056730755143', '1412967017639575562'],
+        STAFF: ['1412927576879661207'],
         POLICIA: [
-            '1459648900221370428', // Rol Policia (Base)
-            '1412898916021829903', // AIC
-            '1412898905842122872', // EJERCITO
-            '1459674442501456074', // FEC
-            '1412898908706963507', // INFANTERIA_MARINA
-            '1457135315323195432', // SSPC
-            '1412898911185797310', // GUARDIA_NACIONAL
-            '1412898913345863760', // POLICIA_FEDERAL
-            '1457949662181851415', // USCIS
-            '1455037616054341704', // POLICIA_ESTATAL
+            '1398525215641702492', // Sheriff
+            '1398525215641702491', // Sub Sheriff 
+            '1398525215641702490', // Commander
+            '1398525215629115488', // Captain
+            '1398525215629115487', // Lieutenant
+            '1398525215629115486', // Sergeant
+            '1398525215629115485', // Corporal
+            '1398525215629115484', // Master Trooper
+            '1398525215629115483', // Senior Trooper
+            '1398525215629115482', // Trooper
+            '1398525215629115481', // Cadet
             '1416867605976715363'  // POLICIA_TRANSITO
         ],
         CARTEL: ['1459649033222684702'], // Rol Cartel
@@ -48,7 +44,7 @@ module.exports = {
         'aic1': '1461129202450300988',
         'aic2': '1461129229277335765',
 
-        // 🚑 MÉDICO / 🚒 BOMBEROS (Extra addition based on context)
+        // 🚑 MÉDICO / 🚒 BOMBEROS
         'mg': '1459948822024159262', // Médico General
         'bg': '1459948849601712381', // Bomberos General
 
@@ -102,48 +98,6 @@ module.exports = {
         // AIC
         '1461129202450300988': { name: 'AIC 1', requiredRole: 'AIC', noTTS: false },
         '1461129229277335765': { name: 'AIC 2', requiredRole: 'AIC', noTTS: false },
-
-        // Emergencias
-        '1459948822024159262': { name: 'Médico General', requiredRole: null },
-        '1459948849601712381': { name: 'Bomberos General', requiredRole: null },
-
-        // Cartel
-        '1459646308145955019': { name: 'Cartel General', requiredRole: 'CARTEL' },
-        '1459646253746098409': { name: 'Cartel 1', requiredRole: 'CARTEL' },
-        '1459646266630996009': { name: 'Cartel 2', requiredRole: 'CARTEL' },
-        '1459646277766611049': { name: 'Cartel 3', requiredRole: 'CARTEL' },
-        '1459646293264826723': { name: 'Cartel 4', requiredRole: 'CARTEL' },
-
-        // Ambientes
-        '1412966846273163396': { name: 'Ambiente 1' },
-        '1459642544441786521': { name: 'Ambiente 2' },
-        '1459642568756297951': { name: 'Ambiente 3' },
-        '1459643217996943683': { name: 'Ambiente 4' },
-
-        // 🎭 ROL - ESCENARIOS
-        'e1': '1459642733097652235',
-        'e2': '1459643100157841640',
-        'e3': '1459643138728792074',
-        'e4': '1459643117929238550',
-        'e5': '1459643177056080049',
-        'e6': '1459643198438768873'
-    },
-
-    // Configuración de Permisos por Canal
-    CHANNELS: {
-        // Junta Directiva
-        '1412956722469011657': { name: 'Junta Directiva', requiredRole: 'JUNTA_DIRECTIVA' },
-
-        // Staff
-        '1412956666512543751': { name: 'Staff', requiredRole: 'STAFF' },
-        '1459640433297588401': { name: 'Canal de Espera', requiredRole: null, noTTS: true },
-
-        // Policía
-        '1459646170476314765': { name: 'Policía General', requiredRole: 'POLICIA' },
-        '1459645796256317617': { name: 'Policía 1', requiredRole: 'POLICIA' },
-        '1459646124079054929': { name: 'Policía 2', requiredRole: 'POLICIA' },
-        '1459646138498945368': { name: 'Policía 3', requiredRole: 'POLICIA' },
-        '1459646153619669165': { name: 'Policía 4', requiredRole: 'POLICIA' },
 
         // Emergencias
         '1459948822024159262': { name: 'Médico General', requiredRole: null },
