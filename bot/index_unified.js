@@ -1150,17 +1150,7 @@ async function loginWithRetry(client, token, botName) {
 
         // Lock acquired, proceed
         await startModerationBot();
-        await startEconomyBot()
-            .subscribe();
-
-        log('✅', '[MOD] Application listener registered');
-
-        // Set global client reference
-        moderationClient = client;
-
-        // Load webhook endpoint
-        require('./webhook-endpoint');
-
+        await startEconomyBot();
         await startGovernmentBot();
         log('🚀', 'All Initialization Functions Called');
     } catch (error) {
