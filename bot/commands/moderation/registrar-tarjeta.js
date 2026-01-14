@@ -246,7 +246,7 @@ module.exports = {
                 );
             }
 
-            if (dniPhoto) {
+            if (dniPhoto && dniPhoto.url) {
                 offerEmbed.setThumbnail(dniPhoto.url);
             }
             offerEmbed.setFooter({ text: 'Tienes 5 minutos para aceptar. Revisa los términos antes.' });
@@ -289,7 +289,7 @@ El saldo no liquidado generará un interés semanal según el nivel de la tarjet
 
 **4. USO DE LA TARJETA**
 Esta tarjeta es personal e intransferible. El titular es responsable de todos los cargos realizados con ella. El Banco Nacional colaborará con la policía en caso de compras ilegales.`);
-                    await i.reply({ embeds: [tycEmbed], ephemeral: true });
+                    await i.reply({ embeds: [tycEmbed], flags: 64 });
                 }
                 else if (i.customId === 'btn_reject') {
                     await i.update({ content: '❌ Oferta rechazada.', components: [] });
@@ -320,13 +320,13 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
 
                             if (i.customId === 'reg_pay_cash') {
                                 const bal = await billingService.ubService.getUserBalance(interaction.guildId, targetUser.id);
-                                if ((bal.cash || 0) < stats.cost) return i.followUp({ content: `❌ No tienes suficiente efectivo. Tienes: $${(bal.cash || 0).toLocaleString()}`, ephemeral: true });
+                                if ((bal.cash || 0) < stats.cost) return i.followUp({ content: `❌ No tienes suficiente efectivo. Tienes: $${(bal.cash || 0).toLocaleString()}`, flags: 64 });
                                 await billingService.ubService.removeMoney(interaction.guildId, targetUser.id, stats.cost, `Apertura ${cardType}`, 'cash');
                             }
                             else if (i.customId === 'reg_pay_debit') {
                                 // Unified with Bank
                                 const bal = await billingService.ubService.getUserBalance(interaction.guildId, targetUser.id);
-                                if ((bal.bank || 0) < stats.cost) return i.followUp({ content: `❌ No tienes suficiente en Banco/Débito.`, ephemeral: true });
+                                if ((bal.bank || 0) < stats.cost) return i.followUp({ content: `❌ No tienes suficiente en Banco/Débito.`, flags: 64 });
                                 await billingService.ubService.removeMoney(interaction.guildId, targetUser.id, stats.cost, `Apertura ${cardType}`, 'bank');
                             }
                         }
@@ -423,7 +423,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
 
                     } catch (err) {
                         console.error(err);
-                        await i.followUp({ content: `❌ Error procesando: ${err.message}`, ephemeral: true });
+                        await i.followUp({ content: `❌ Error procesando: ${err.message}`, flags: 64 });
                     }
                     collector.stop();
                 }
