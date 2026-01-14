@@ -1144,10 +1144,23 @@ async function loginWithRetry(client, token, botName) {
         }
 
         // Lock acquired, proceed
+        // Lock acquired, proceed
         await startModerationBot();
         await startEconomyBot();
         await startGovernmentBot();
         log('🚀', 'All Initialization Functions Called');
+
+        // --- GRACEFUL SHUTDOWN HANDLER ---
+        const handleShutdown = async (signal) => {
+            console.log(`🛑 [Shutdown] Received ${signal}. Releasing lock...`);
+            await locker.releaseLock();
+            console.log('👋 [Shutdown] Exiting process.');
+            process.exit(0);
+        };
+
+        process.on('SIGTERM', () => handleShutdown('SIGTERM'));
+        process.on('SIGINT', () => handleShutdown('SIGINT'));
+
     } catch (error) {
         console.error('💥 FATAL UNIFIED CRASH:', error);
     }
