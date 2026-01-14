@@ -167,10 +167,13 @@ class ErlcPollingService {
 
             const channelId = member.voice.channelId;
             const channelInfo = voiceConfig.getChannelInfo(channelId);
-            if (!channelInfo) return; // Whitelist check
+            if (!channelInfo) {
+                console.log(`[ERLC Service] ⚠️ Talk Ignored: CID ${channelId} not in config/whitelist.`);
+                return;
+            }
 
             if (channelInfo.noTTS) {
-                console.log(`[ERLC Service] Talk Ignored: Channel ${channelInfo.name} has TTS disabled.`);
+                console.log(`[ERLC Service] ⚠️ Talk Ignored: Channel ${channelInfo.name} has TTS disabled.`);
                 return;
             }
             console.log(`[ERLC Service] 🐝 Dispatching to Swarm: "${message}" -> Channel ${channelId}`);
