@@ -27,7 +27,6 @@ module.exports = {
             const categories = {
                 '👮 Policía': [],
                 '👮‍♂️ Policía Federal': [],
-                '🕵️ AIC': [],
                 '🚑 Emergencias': [],
                 '💀 Cartel': [],
                 '👑 Administración': [],
@@ -43,8 +42,8 @@ module.exports = {
                 const entry = `**\`${alias}\`** → ${name}`;
 
                 if (alias.startsWith('p') || alias === 'pg') categories['👮 Policía'].push(entry);
+                else if (alias.startsWith('aic')) categories['👮 Policía'].push(entry); // AIC goes in Police as requested
                 else if (alias.startsWith('pf')) categories['👮‍♂️ Policía Federal'].push(entry);
-                else if (alias.startsWith('aic')) categories['🕵️ AIC'].push(entry);
                 else if (['mg', 'bg'].includes(alias)) categories['🚑 Emergencias'].push(entry);
                 else if (alias.startsWith('c') || alias === 'cg') categories['💀 Cartel'].push(entry);
                 else if (['jd', 'staff', 'espera', 's1', 's2', 's3'].includes(alias)) categories['👑 Administración'].push(entry);
