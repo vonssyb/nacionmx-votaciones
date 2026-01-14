@@ -143,6 +143,11 @@ module.exports = {
                 await new Promise(resolve => setTimeout(resolve, 3000));
             }
 
+            // --- CALCULATE SENTENCE ---
+            const sentence = calculateSentence(validArticles.join(','));
+            let fineAmount = sentence.totalFine || 0; // Initialize fine
+            let finalTime = sentence.suggestedTime || 0; // Initialize time (default to min)
+
             // Add standard processing fine ($500 per valid article)
             const processingFee = validArticles.length * 500;
             fineAmount += processingFee;
