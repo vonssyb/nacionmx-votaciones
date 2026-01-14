@@ -65,12 +65,18 @@ module.exports = {
             let economytext = 'Datos no disponibles';
             if (client.services && client.services.billing && client.services.billing.ubService) {
                 try {
-                    const balance = await client.services.billing.ubService.getUserBalance(interaction.guildId, targetId);
+                    // FORCE MAIN GUILD ID for Economy (To work even from Staff Server)
+                    const economyGuildId = process.env.GUILD_ID || interaction.guildId;
+                    console.log(`[UserInfo] Querying UB for User ${targetId} in Guild ${economyGuildId}`);
+
+                    const balance = await client.services.billing.ubService.getUserBalance(economyGuildId, targetId);
                     economytext = `💵 Efectivo: $${balance.cash.toLocaleString()}\n🏦 Banco: $${balance.bank.toLocaleString()}\n💰 Total: $${balance.total.toLocaleString()}`;
                     console.log('[UserInfo] Economy fetched successfully.');
                 } catch (err) {
-                    console.error('[UserInfo] Error fetching economy:', err.message);
-                    economytext = '⚠️ Error al obtener saldo (API Timeout o Error)';
+                    // Detailed error for debug
+                    const errMsg = err.response?.status === 404 ? 'Usuario no encontrado en economía' : (err.message || 'Error desconocido');
+                    console.error('[UserInfo] Error fetching economy:', err);
+                    economytext = `⚠️ Error: ${errMsg}`;
                 }
             } else {
                 console.warn('[UserInfo] Billing Service unavailable.');
