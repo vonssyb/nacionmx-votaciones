@@ -43,6 +43,9 @@ class JobValidator {
         // Count Government Roles
         const govRoles = Object.values(EMERGENCY_ROLES);
         for (const roleId of govRoles) {
+            // EXCEPTION: Paramédico is considered a Secondary Job
+            if (roleId === EMERGENCY_ROLES.PARAMEDICO) continue;
+
             if (member.roles.cache.has(roleId)) {
                 count++;
                 // Optimization: If distinct government branches count as 1 "Principal" job regardless of how many roles they have within it?

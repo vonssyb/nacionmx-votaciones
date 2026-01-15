@@ -349,10 +349,11 @@ async function startModerationBot() {
             if (currentPrincipal > limits.principal) {
                 const prevPrincipal = JobValidator.getPrincipalJobCount(oldMember);
                 if (currentPrincipal > prevPrincipal) {
-                    console.log(`[MOD] 🛡️ Job Limit Exceeded for ${newMember.user.tag}. Limit: ${limits.principal}, Count: ${currentPrincipal}`);
+                    const roleNames = addedRoles.map(r => r.name).join(', ');
+                    console.log(`[MOD] 🛡️ Job Limit Exceeded for ${newMember.user.tag}. Roles Added: [${roleNames}]. Limit: ${limits.principal}, Count: ${currentPrincipal}`);
                     await newMember.roles.remove(addedRoles);
                     try {
-                        await newMember.send(`⚠️ **Límite de Trabajos Alcanzado**: Tu nivel de membresía actual (**${limits.tier}**) solo permite **${limits.principal}** trabajos principales (Gobierno/Cartel).\nActualiza tu membresía (Booster/Premium) para obtener más espacios.`);
+                        await newMember.send(`⚠️ **Límite de Trabajos Alcanzado**: Tu nivel de membresía actual (**${limits.tier}**) solo permite **${limits.principal}** trabajos principales (Gobierno/Cartel).\nRoles intentados: ${roleNames}\nActualiza tu membresía (Booster/Premium) para obtener más espacios.`);
                     } catch (e) { }
                 }
             }

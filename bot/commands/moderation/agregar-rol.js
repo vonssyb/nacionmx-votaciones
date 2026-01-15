@@ -38,6 +38,33 @@ module.exports = {
                 return interaction.editReply(`⚠️ ${targetUser.tag} ya tiene el rol ${role.name}.`);
             }
 
+            // --- JOB LIMIT CHECK ---
+            const { EMERGENCY_ROLES } = require('../../config/erlcEconomyEmergency');
+            const JobValidator = require('../../services/JobValidator');
+
+            // Check if it's a Principal Job (Government)
+            const isPrincipalJob = Object.values(EMERGENCY_ROLES).includes(role.id);
+
+            if (isPrincipalJob) {
+                // Validate if user can take this new job
+                // We don't check 'SECONDARY' here yet as we don't know if the role is a company role easily without more context
+                // But for Principal roles, we know from the config.
+
+                // EXCEPTION: Paramédico (if logic in JobValidator handles it, we should align. 
+                // JobValidator excludes it from counting, so if we pass 'PRINCIPAL' here, we just need to know if *this specific role* should count as adding a principal job.
+                // If Paramédico is excluded from count, adding it shouldn't trigger the limit check for "adding a principal job" if it *is* the principal job slot itself?
+                // Actually, if Paramédico is Secondary, we should treat it as such.
+
+                const isParamedico = role.id === EMERGENCY_ROLES.PARAMEDICO;
+                const jobTypeToCheck = isParamedico ? 'SECONDARY' : 'PRINCIPAL';
+
+                const validation = await JobValidator.validateNewJob(member, jobTypeToCheck, interaction.client.supabase);
+
+                if (!validation.allowed) {
+                    return interaction.editReply(validation.reason);
+                }
+            }
+
             // --- CK ROLE COOLDOWN CHECK ---
             const { data: cooldown } = await interaction.client.supabase
                 .from('role_cooldowns')
