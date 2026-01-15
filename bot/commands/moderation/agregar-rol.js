@@ -46,19 +46,12 @@ module.exports = {
             const isPrincipalJob = Object.values(EMERGENCY_ROLES).includes(role.id);
 
             if (isPrincipalJob) {
-                // Validate if user can take this new job
-                // We don't check 'SECONDARY' here yet as we don't know if the role is a company role easily without more context
-                // But for Principal roles, we know from the config.
-
-                // EXCEPTION: Paramédico (if logic in JobValidator handles it, we should align. 
-                // JobValidator excludes it from counting, so if we pass 'PRINCIPAL' here, we just need to know if *this specific role* should count as adding a principal job.
-                // If Paramédico is excluded from count, adding it shouldn't trigger the limit check for "adding a principal job" if it *is* the principal job slot itself?
-                // Actually, if Paramédico is Secondary, we should treat it as such.
-
                 const isParamedico = role.id === EMERGENCY_ROLES.PARAMEDICO;
                 const jobTypeToCheck = isParamedico ? 'SECONDARY' : 'PRINCIPAL';
 
+                console.log(`[AddRole Debug] Validating ${role.name} (${role.id}) for ${member.user.tag}. Type: ${jobTypeToCheck}`);
                 const validation = await JobValidator.validateNewJob(member, jobTypeToCheck, interaction.client.supabase);
+                console.log('[AddRole Debug] Result:', validation);
 
                 if (!validation.allowed) {
                     return interaction.editReply(validation.reason);
