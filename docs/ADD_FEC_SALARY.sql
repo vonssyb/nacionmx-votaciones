@@ -7,10 +7,10 @@ DELETE FROM job_salaries WHERE role_id = '1459674442501456074';
 -- 2. Insertar nueva configuración
 INSERT INTO job_salaries (guild_id, role_id, role_name, salary_amount)
 VALUES (
-    '1412803882773643325', -- Guild ID
-    '1459674442501456074', -- Role ID FEC
+    '1398525215134318713', -- Guild ID (Actualizado al actual)
+    '1459674442501456074', -- Role ID FEC (Verificado en config)
     'Fuerza Especial Conjunta (FEC)',
-    5000
+    15000 -- Salario Sugerido (Ajustar si es necesario)
 );
 
 -- OPCIONAL: Para arreglar la tabla a futuro y permitir UPSERTs, ejecuta esto (si no tienes duplicados):
