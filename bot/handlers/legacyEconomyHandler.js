@@ -187,7 +187,7 @@ const handleEconomyLegacy = async (interaction, client, supabase) => {
 
     if (interaction.isButton() && interaction.customId.startsWith('btn_invest_')) {
         // DEFER REMOVED BY AUDIT
-        const invId = interaction.customId.replace('btn_collect_', '');
+        const invId = interaction.customId.replace('btn_invest_', '');
 
         // Fetch Inv
         const { data: inv } = await supabase.from('investments').select('*').eq('id', invId).single();

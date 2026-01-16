@@ -2364,6 +2364,38 @@ const handleModerationLegacy = async (interaction, client, supabase) => {
     if (interaction.isButton()) {
         const customId = interaction.customId;
 
+        // GENERIC AUTOROLE HANDLER
+        if (customId.startsWith('autorol_') || customId.startsWith('btn_rol_')) {
+            await interaction.deferReply({ ephemeral: true });
+
+            // Format: autorol_{ROLE_ID} or btn_rol_{ROLE_ID}
+            const roleId = customId.replace('autorol_', '').replace('btn_rol_', '');
+
+            try {
+                const member = interaction.member;
+                if (!member) {
+                    return interaction.editReply('❌ No se pudo verificar tu usuario.');
+                }
+
+                const role = interaction.guild.roles.cache.get(roleId);
+                if (!role) {
+                    return interaction.editReply('❌ El rol configurado ya no existe.');
+                }
+
+                if (member.roles.cache.has(roleId)) {
+                    await member.roles.remove(roleId);
+                    await interaction.editReply(`➖ Se te ha quitado el rol **${role.name}**.`);
+                } else {
+                    await member.roles.add(roleId);
+                    await interaction.editReply(`✅ Se te ha otorgado el rol **${role.name}**.`);
+                }
+            } catch (error) {
+                console.error('[Autorol] Error:', error);
+                await interaction.editReply('❌ Error al gestionar el rol (Posible falta de permisos del bot).');
+            }
+            return;
+        }
+
 
 
         // Handle session voting buttons
