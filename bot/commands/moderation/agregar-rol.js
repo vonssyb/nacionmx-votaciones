@@ -39,16 +39,17 @@ module.exports = {
             }
 
             // --- JOB LIMIT CHECK ---
-            const { EMERGENCY_ROLES } = require('../../config/erlcEconomyEmergency');
+            const { PRINCIPAL_JOBS, SECONDARY_JOBS } = require('../../config/erlcEconomyEmergency');
             const JobValidator = require('../../services/JobValidator');
 
-            // Check if it's a Principal Job (Government)
-            const isPrincipalJob = Object.values(EMERGENCY_ROLES).includes(role.id);
+            let jobTypeToCheck = null;
+            if (PRINCIPAL_JOBS.includes(role.id)) {
+                jobTypeToCheck = 'PRINCIPAL';
+            } else if (SECONDARY_JOBS.includes(role.id)) {
+                jobTypeToCheck = 'SECONDARY';
+            }
 
-            if (isPrincipalJob) {
-                const isParamedico = role.id === EMERGENCY_ROLES.PARAMEDICO;
-                const jobTypeToCheck = isParamedico ? 'SECONDARY' : 'PRINCIPAL';
-
+            if (jobTypeToCheck) {
                 console.log(`[AddRole Debug] Validating ${role.name} (${role.id}) for ${member.user.tag}. Type: ${jobTypeToCheck}`);
                 const validation = await JobValidator.validateNewJob(member, jobTypeToCheck, interaction.client.supabase);
                 console.log('[AddRole Debug] Result:', validation);
