@@ -109,6 +109,27 @@ module.exports = {
                     }
                 }
 
+                // D2. Restore Purchases (Fix for lost items)
+                if (backup.purchases && backup.purchases.length > 0) {
+                    for (const pch of backup.purchases) {
+                        try {
+                            // Restore only if it was active
+                            if (pch.status === 'active') {
+                                // If it was already expired by time logic, we generally don't restore?
+                                // Assuming backing up 'active' items means they should be active again.
+                                // We might need to adjust expiration date if user was dead for a long time?
+                                // For simplicity: Restore original expiration date.
+                                await supabase
+                                    .from('user_purchases')
+                                    .update({ status: 'active', expiration_date: pch.expiration_date })
+                                    .eq('id', pch.id);
+                            }
+                        } catch (e) {
+                            console.error('[CK Revert] Failed to restore purchase:', pch.id);
+                        }
+                    }
+                }
+
                 // E. Restore Roles
                 let rolesRestoredCount = 0;
                 for (const roleName of rolesToRestore) {
@@ -454,7 +475,7 @@ module.exports = {
                     }
 
                     // 1. CAPTURE BACKUP DATA (Snapshot before deletion)
-                    const backupData = { dni: null, cards: [], companies: [] };
+                    const backupData = { dni: null, cards: [], companies: [], purchases: [] };
 
                     // Backup DNI
                     const { data: bDni } = await supabase.from('citizen_dni').select('*').eq('user_id', targetUser.id).maybeSingle();
@@ -463,6 +484,14 @@ module.exports = {
                     // Backup Cards
                     const { data: bCards } = await supabase.from('credit_cards').select('*').eq('user_id', targetUser.id);
                     backupData.cards = bCards || [];
+
+                    // Backup Purchases (Active ones)
+                    const { data: bPurchases } = await supabase
+                        .from('user_purchases')
+                        .select('*')
+                        .eq('user_id', targetUser.id)
+                        .eq('status', 'active');
+                    backupData.purchases = bPurchases || [];
 
                     // 1b. Get current balances (TRY UNBELIEVABOAT FIRST FOR ACCURACY)
                     let previousCash = 0;
@@ -638,6 +667,20 @@ module.exports = {
                         .from('citizen_dni')
                         .delete()
                         .eq('user_id', targetUser.id);
+
+                    // 5a. RESET STORE PURCHASES
+                    if (backupData.purchases && backupData.purchases.length > 0) {
+                        const purchaseIds = backupData.purchases.map(p => p.id);
+                        if (purchaseIds.length > 0) {
+                            await supabase
+                                .from('user_purchases')
+                                .update({ status: 'ck_reset' })
+                                .in('id', purchaseIds);
+                        }
+                    }
+
+
+
 
                     // 5b. INSERT ROLE COOLDOWNS (2 Weeks)
                     const cooldownExpiry = new Date();
