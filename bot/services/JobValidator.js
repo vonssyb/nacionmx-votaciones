@@ -1,5 +1,5 @@
 const { EMERGENCY_ROLES } = require('../config/erlcEconomyEmergency');
-const { BENEFIT_ROLES } = require('./EconomyHelper');
+const { BENEFIT_ROLES, RP_RANK_ROLES } = require('./EconomyHelper');
 
 const CARTEL_ROLE_ID = '0000000000000000000'; // TODO: Replace with actual Cartel Role ID
 
@@ -29,7 +29,11 @@ class JobValidator {
             return { ...JOB_LIMITS.BOOSTER, tier: 'Booster 🚀' };
         }
 
-        return { ...JOB_LIMITS.DEFAULT, tier: 'Ciudadano' };
+        // Check for RP Rank Label
+        const rpRank = RP_RANK_ROLES.find(r => member.roles.cache.has(r.id));
+        const tierLabel = rpRank ? rpRank.name : 'Civil';
+
+        return { ...JOB_LIMITS.DEFAULT, tier: tierLabel };
     }
 
     /**
