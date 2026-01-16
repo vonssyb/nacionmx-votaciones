@@ -2365,11 +2365,11 @@ const handleModerationLegacy = async (interaction, client, supabase) => {
         const customId = interaction.customId;
 
         // GENERIC AUTOROLE HANDLER
-        if (customId.startsWith('autorol_') || customId.startsWith('btn_rol_')) {
+        if (customId.startsWith('autorol_') || customId.startsWith('btn_rol_') || customId.startsWith('ping_role_')) {
             await interaction.deferReply({ ephemeral: true });
 
-            // Format: autorol_{ROLE_ID} or btn_rol_{ROLE_ID}
-            const roleId = customId.replace('autorol_', '').replace('btn_rol_', '');
+            // Format: autorol_{ROLE_ID} or btn_rol_{ROLE_ID} or ping_role_{ROLE_ID}
+            const roleId = customId.replace('autorol_', '').replace('btn_rol_', '').replace('ping_role_', '');
 
             try {
                 const member = interaction.member;
