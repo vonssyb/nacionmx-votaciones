@@ -9,6 +9,8 @@ module.exports = {
 
     // Emergency Response Roles
     EMERGENCY_ROLES: {
+        // Principal Roles
+        PRESIDENTE: '1412887183089471568',
         EJERCITO: '1412898905842122872',
         FEC: '1459674442501456074',
         INFANTERIA_MARINA: '1412898908706963507',
@@ -16,12 +18,53 @@ module.exports = {
         GUARDIA_NACIONAL: '1412898911185797310',
         AIC: '1412898916021829903',
         POLICIA_FEDERAL: '1412898913345863760',
-        USCIS: '1457949662181851415',
         POLICIA_ESTATAL: '1455037616054341704',
         POLICIA_TRANSITO: '1416867605976715363',
+        CARTEL: '1412899393493012540',
+        CRIMINAL: '1412899390108209183',
+
+        // Secondary Roles
         BOMBERO: '1412899382436827369',
-        PARAMEDICO: '1413540726100332574'
+        CAFETERO: '1457789055608557608',
+        DOT: '1412899385519640707',
+        GASOLINERO: '1458505462768079092',
+        PARAMEDICO: '1413540726100332574',
+        BASURERO: '1413540735487053924',
+        REPORTERO: '1413540732760883311',
+        JUEZ: '1413541371503185961',
+        ABOGADO: '1412891683535982632',
+
+        // Legacy/Other
+        USCIS: '1457949662181851415'
     },
+
+    // Categorization
+    PRINCIPAL_JOBS: [
+        '1412887183089471568', // Presidente
+        '1412898905842122872', // Ejercito
+        '1459674442501456074', // FEC
+        '1412898908706963507', // Infantería de Marina
+        '1457135315323195432', // SSPC
+        '1412898911185797310', // Guardia Nacional
+        '1412898916021829903', // AIC
+        '1412898913345863760', // Policia federal
+        '1455037616054341704', // Policía estatal
+        '1416867605976715363', // Policía de tránsito
+        '1412899393493012540', // Cartel
+        '1412899390108209183'  // Criminal
+    ],
+
+    SECONDARY_JOBS: [
+        '1412899382436827369', // Bombero
+        '1457789055608557608', // Cafetero
+        '1412899385519640707', // DOT
+        '1458505462768079092', // Gasolinero
+        '1413540726100332574', // Paramédico
+        '1413540735487053924', // Basurero
+        '1413540732760883311', // Reportero
+        '1413541371503185961', // Juez
+        '1412891683535982632'  // Abogado
+    ],
 
     // Emergency Categories (for selective pinging)
     EMERGENCY_CATEGORIES: {
