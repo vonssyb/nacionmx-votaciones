@@ -158,6 +158,7 @@ class StoreService {
                 .limit(1)
                 .maybeSingle();
 
+            /* RESTRICTION DISABLED BY ADMIN REQUEST (User Issue)
             if (lastConsumed) {
                 const consumedDate = new Date(lastConsumed.expiration_date);
                 const now = new Date();
@@ -169,6 +170,7 @@ class StoreService {
                     throw new Error(`🛡️ **Enfriamiento Activado:** Usaste un Seguro Anti-CK hace ${diffDays} días.\nDebes esperar **${COOLDOWN_DAYS - diffDays} días más** para comprar otro.`);
                 }
             }
+            */
         }
 
         // 3. Check user balance
