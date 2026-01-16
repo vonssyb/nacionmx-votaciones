@@ -29,11 +29,7 @@ class JobValidator {
             return { ...JOB_LIMITS.BOOSTER, tier: 'Booster 🚀' };
         }
 
-        // Check for RP Rank Label
-        const rpRank = RP_RANK_ROLES.find(r => member.roles.cache.has(r.id));
-        const tierLabel = rpRank ? rpRank.name : 'Civil';
-
-        return { ...JOB_LIMITS.DEFAULT, tier: tierLabel };
+        return { ...JOB_LIMITS.DEFAULT, tier: 'Estándar' };
     }
 
     /**
