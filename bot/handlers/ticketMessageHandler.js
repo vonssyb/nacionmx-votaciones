@@ -2,9 +2,14 @@ const { EmbedBuilder, PermissionFlagsBits } = require('discord.js');
 const Groq = require('groq-sdk');
 const fs = require('fs');
 const path = require('path');
+const { GoogleGenerativeAI } = require("@google/generative-ai");
+const axios = require('axios');
 
-// Inicializar Groq
-// NOTA: El usuario debe poner GROQ_API_KEY en su .env
+// --- CONFIGURACIÓN HÍBRIDA ---
+// CEREBRO: Groq (Llama 3.3 70b) - Genera las respuestas de chat.
+// OJOS: Gemini (1.5 Flash) - Solo describe las imágenes para Groq.
+
+// 1. Inicializar Groq (Cerebro)
 let groq;
 try {
     if (process.env.GROQ_API_KEY) {
@@ -15,9 +20,18 @@ try {
 } catch (e) {
     console.error('Error inicializando Groq:', e);
 }
+const AI_MODEL_CHAT = "llama-3.3-70b-versatile";
 
-// FALLBACK: User requested Groq specifically. Vision deactivated.
-const AI_MODEL = "llama-3.3-70b-versatile";
+// 2. Inicializar Gemini (Ojos)
+let visionModel = null;
+if (process.env.GEMINI_API_KEY) {
+    try {
+        const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+        visionModel = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    } catch (e) {
+        console.error("Error inicializando Gemini (Visión):", e);
+    }
+}
 
 // Cargar Contexto desde Archivo
 let SERVER_CONTEXT = '';
@@ -53,9 +67,10 @@ ${SERVER_KNOWLEDGE}
 CONTEXTO TÉCNICO:
 ${SERVER_CONTEXT}
 
-👁️ CAPACIDAD VISUAL:
-ACTUALMENTE DESACTIVADA (Tu proveedor Groq no soporta visión).
-Si el usuario sube una imagen, NO PUEDES VERLA. Pídele que describa lo que hay en ella o el texto relevante.
+👁️ CAPACIDAD VISUAL (Sistema Híbrido):
+Si el usuario envía una imagen, recibirás una DESCRIPCIÓN DETALLADA generada por un módulo de visión externo.
+Debes confiar en esa descripción como si estuvieras viendo la imagen tú mismo.
+Úsala para verificar niveles, logs, recibos o pruebas de rol.
 
 ⚡ PROTOCOLO DE ACCIONES (JSON):
 Si determinas que se debe realizar una acción (dar rol, quitar sanción), NO LO HAGAS TÚ.
@@ -73,8 +88,8 @@ En su lugar, TERMINA tu respuesta con un bloque JSON estricto con este formato:
 \`\`\`
 
 REGLAS DE ACTUACIÓN:
-1. Solo sugiere GRANT_ROLE si ves PRUEBAS CLARAS (imagen del nivel, recibo, etc).
-2. Solo sugiere REMOVE_SANCTION si la apelación es sólida y coincide con las reglas de perdón.
+1. Solo sugiere GRANT_ROLE si ves PRUEBAS CLARAS (en la descripción visual de la imagen o texto).
+2. Solo sugiere REMOVE_SANCTION si la apelación es sólida.
 3. Si dudas, solo responde con texto y pide esperar a un humano.
 4. Mantén un tono profesional, firme pero útil.
 `;
@@ -82,12 +97,43 @@ REGLAS DE ACTUACIÓN:
 // Palabras prohibidas (Filtro local rápido)
 const BAD_WORDS = ['pendejo', 'imbecil', 'idiota', 'estupido', 'verga', 'puto', 'mierda', 'chinga', 'tonto', 'inutil'];
 
-// Función interna reutilizable para generar respuesta
+// --- Helper: Analizar Imagen con Gemini ---
+async function getImageDescription(imageUrl) {
+    if (!visionModel) return "Error: Sistema de visión (Gemini) no configurado. Falta GEMINI_API_KEY.";
+
+    try {
+        const response = await axios.get(imageUrl, { responseType: 'arraybuffer' });
+        const imagePart = {
+            inlineData: {
+                data: Buffer.from(response.data).toString("base64"),
+                mimeType: response.headers['content-type'] || "image/png"
+            }
+        };
+
+        const result = await visionModel.generateContent([
+            { text: "Describe esta imagen detalladamente para un moderador de Discord. Menciona nombres de usuario, textos visibles, chats, recibos bancarios o situaciones de rol. Sé objetivo y preciso." },
+            imagePart
+        ]);
+        return result.response.text();
+    } catch (err) {
+        console.error("Vision Analyze Error:", err.message);
+        return "Error analizando la imagen (Fallo técnico).";
+    }
+}
+
+// Función Principal
 async function generateAIResponse(query, imageUrl = null) {
-    // 1. Check for Image (Vision is DEAD on Groq)
+    let visualContext = "";
+
+    // 1. Pre-procesar Imagen (si existe)
     if (imageUrl) {
-        // Inject system note about blindness
-        query += "\n\n[SISTEMA: El usuario envió una imagen, pero tu modelo (Groq) NO TIENE visión. Ignora la imagen explícitamente y avisa al usuario que no puedes verla.]";
+        if (visionModel) {
+            const description = await getImageDescription(imageUrl);
+            visualContext = `\n\n[SISTEMA - ANÁLISIS VISUAL]: El usuario adjuntó una imagen. Un módulo de visión la describe así:\n"${description}"\n\n(Usa esta descripción para validar pruebas).`;
+            query += visualContext;
+        } else {
+            query += "\n\n[SISTEMA: El usuario envió una imagen, pero el módulo de visión (Gemini) NO está activo. Avisa que no puedes verla.]";
+        }
     }
 
     if (!process.env.GROQ_API_KEY) {
@@ -95,13 +141,14 @@ async function generateAIResponse(query, imageUrl = null) {
         return "ERROR_MISSING_KEY: La variable GROQ_API_KEY no está definida en el entorno.";
     }
 
+    // 2. Generar Respuesta con Groq (Chat)
     try {
         const chatCompletion = await groq.chat.completions.create({
             messages: [
                 { role: "system", content: SYSTEM_PROMPT },
                 { role: "user", content: query }
             ],
-            model: AI_MODEL,
+            model: AI_MODEL_CHAT,
             temperature: 0.5,
             max_tokens: 800,
         });
@@ -134,24 +181,16 @@ module.exports = {
         }
 
         // 2. IA RESPONSES (Solo si no es Staff y nadie ha respondido recientemente)
-        // Check if last message was from Staff to avoid interrupting conversation
         const messages = await message.channel.messages.fetch({ limit: 5 });
         const lastStaffMsg = messages.find(m => m.member?.permissions.has(PermissionFlagsBits.ManageMessages) && !m.author.bot);
 
-        // Si un staff habló hace menos de 2 minutos, la IA se calla para no molestar
         if (lastStaffMsg && (Date.now() - lastStaffMsg.createdTimestamp < 120000)) return;
-
-        // Evitar bucles: Si la IA ya respondió el último mensaje, no responder otra vez salvo que pregunten de nuevo
         const lastMsg = messages.first();
         if (lastMsg.author.id === client.user.id) return;
 
-        // ACTIVADOR: Solo responder si es una pregunta clara o menciona palabras clave generales
-        // O responder a TODO lo que diga el creador del ticket si está "solo".
-        // Para economizar tokens y no ser spam, responderemos si el mensaje tiene longitud > 5 chars.
         if (message.content.length < 5) return;
 
         try {
-            // Indicar que está escribiendo...
             await message.channel.sendTyping();
 
             // Vision Checking
@@ -172,7 +211,7 @@ module.exports = {
                     .from('citizens')
                     .select('full_name, dni')
                     .eq('discord_id', message.author.id)
-                    .maybeSingle(); // Safe if not found
+                    .maybeSingle();
 
                 if (citizen) {
                     userContext += `🆔 IDENTIDAD RP: ${citizen.full_name} | DNI: ${citizen.dni || 'N/A'}\n`;
@@ -233,10 +272,6 @@ module.exports = {
                     new ButtonBuilder().setCustomId('ai_reject').setLabel('⛔ Rechazar').setStyle(ButtonStyle.Danger)
                 );
 
-                // Send silently or ephemeral if possible? No, ephemeral works on interaction only.
-                // We send it to channel, but maybe with a "Staff Only" hint?
-                // Ideally we filter it by permissions later, but for now we put it in the channel.
-                // TODO: Gate the button interaction to Staff only.
                 await message.channel.send({ content: '🕵️ **Propuesta para Staff:**', embeds: [actionEmbed], components: [row] });
             }
         } catch (error) {
