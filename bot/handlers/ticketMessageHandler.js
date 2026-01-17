@@ -17,7 +17,7 @@ try {
 } catch (e) {
     console.error('Error inicializando Groq:', e);
 }
-const AI_MODEL = "llama-3.2-90b-vision-preview"; // Modelo Vision + Chat (Smarter)
+const AI_MODEL = "llama-3.2-11b-vision-preview"; // Updated: 90b decomisionado
 
 // Cargar Contexto desde Archivo
 let SERVER_CONTEXT = '';
