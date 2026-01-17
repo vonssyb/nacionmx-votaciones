@@ -188,7 +188,7 @@ module.exports = {
         const lastMsg = messages.first();
         if (lastMsg.author.id === client.user.id) return;
 
-        if (message.content.length < 5) return;
+        if (message.content.length < 2 && message.attachments.size === 0) return;
 
         try {
             await message.channel.sendTyping();
