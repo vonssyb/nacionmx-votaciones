@@ -559,9 +559,9 @@ module.exports = {
         // --- ESCALAMIENTO MANUAL A STAFF ---
         if (customId === 'escalate_to_staff') {
             await interaction.deferUpdate();
+            const STAFF_ROLE_ID = '1412887167654690908'; // ROLE_COMMON
             await interaction.channel.send({
-                content: `🚨 **<@${interaction.user.id}> ha solicitado atención del Staff**\n\nEste ticket requiere soporte humano. Un moderador lo revisará pronto.`,
-                // TODO: Agregar @mention del role de staff cuando esté configurado
+                content: `🚨 <@&${STAFF_ROLE_ID}> - **<@${interaction.user.id}> ha solicitado atención del Staff**\n\nEste ticket requiere soporte humano. Un moderador lo revisará pronto.`,
             });
             return true;
         }
