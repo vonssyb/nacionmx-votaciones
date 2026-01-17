@@ -79,48 +79,44 @@ module.exports = {
 
             if (ticketTypeKey === 'ticket_reportes') {
                 fields.push(
-                    new TextInputBuilder().setCustomId('q_who').setLabel("¿A quién reportas?").setStyle(TextInputStyle.Short).setRequired(true),
-                    new TextInputBuilder().setCustomId('q_rule').setLabel("¿Qué regla rompió?").setStyle(TextInputStyle.Short).setRequired(true),
-                    new TextInputBuilder().setCustomId('q_when').setLabel("¿Dónde/Cuándo ocurrió?").setStyle(TextInputStyle.Short).setRequired(true),
-                    new TextInputBuilder().setCustomId('q_proof').setLabel("Pruebas (Links obligatorios)").setStyle(TextInputStyle.Paragraph).setRequired(true)
+                    new TextInputBuilder().setCustomId('q_who').setLabel("Usuario a Reportar").setStyle(TextInputStyle.Short).setRequired(true),
+                    new TextInputBuilder().setCustomId('q_rule').setLabel("Infracción Cometida (Ej: ROL-X, CDM)").setStyle(TextInputStyle.Short).setRequired(true),
+                    new TextInputBuilder().setCustomId('q_story').setLabel("Narra los hechos (Contexto para IA)").setStyle(TextInputStyle.Paragraph).setRequired(true).setMaxLength(700),
+                    new TextInputBuilder().setCustomId('q_proof').setLabel("Pruebas (Links video/foto obligatorios)").setStyle(TextInputStyle.Paragraph).setRequired(true)
                 );
             } else if (ticketTypeKey === 'ticket_blacklist') {
                 fields.push(
-                    new TextInputBuilder().setCustomId('q_sanction').setLabel("Sanción Actual").setStyle(TextInputStyle.Short).setRequired(true),
-                    new TextInputBuilder().setCustomId('q_why').setLabel("Motivo de la Sanción").setStyle(TextInputStyle.Paragraph).setRequired(true),
-                    new TextInputBuilder().setCustomId('q_regret').setLabel("¿Reconoces el error?").setStyle(TextInputStyle.Short).setRequired(true),
-                    new TextInputBuilder().setCustomId('q_type').setLabel("Tipo de Apelación").setStyle(TextInputStyle.Short).setRequired(true)
+                    new TextInputBuilder().setCustomId('q_sanction').setLabel("¿Quién te sancionó?").setStyle(TextInputStyle.Short).setRequired(true),
+                    new TextInputBuilder().setCustomId('q_reason').setLabel("Razón del Ban/Warn").setStyle(TextInputStyle.Short).setRequired(true),
+                    new TextInputBuilder().setCustomId('q_regret').setLabel("Apelación: ¿Por qué debemos quitarla?").setStyle(TextInputStyle.Paragraph).setRequired(true).setMaxLength(800)
                 );
             } else if (ticketTypeKey === 'ticket_ck') {
                 fields.push(
-                    new TextInputBuilder().setCustomId('q_char').setLabel("Nombre del Personaje").setStyle(TextInputStyle.Short).setRequired(true),
-                    new TextInputBuilder().setCustomId('q_motive').setLabel("Motivo de Rol (CK)").setStyle(TextInputStyle.Paragraph).setRequired(true),
-                    new TextInputBuilder().setCustomId('q_prior').setLabel("¿Rol Previo? (Contexto)").setStyle(TextInputStyle.Paragraph).setRequired(true),
-                    new TextInputBuilder().setCustomId('q_proof').setLabel("Pruebas del Rol (Links)").setStyle(TextInputStyle.Paragraph).setRequired(true)
+                    new TextInputBuilder().setCustomId('q_char').setLabel("Nombre de tu Personaje").setStyle(TextInputStyle.Short).setRequired(true),
+                    new TextInputBuilder().setCustomId('q_target').setLabel("Nombre del Objetivo (CK)").setStyle(TextInputStyle.Short).setRequired(true),
+                    new TextInputBuilder().setCustomId('q_lore').setLabel("Historia/Motivo del Asesinato (Lore)").setStyle(TextInputStyle.Paragraph).setRequired(true).setMaxLength(800),
+                    new TextInputBuilder().setCustomId('q_proof').setLabel("Pruebas de Rol Previo (Links)").setStyle(TextInputStyle.Paragraph).setRequired(true)
                 );
             } else if (ticketTypeKey === 'ticket_trabajo') {
                 fields.push(
-                    new TextInputBuilder().setCustomId('q_role_req').setLabel("¿Solicitas un rol? (Si/No)").setStyle(TextInputStyle.Short).setRequired(true),
-                    new TextInputBuilder().setCustomId('q_role_name').setLabel("Nombre del Rol (Si aplica)").setStyle(TextInputStyle.Short).setRequired(false),
-                    new TextInputBuilder().setCustomId('q_details').setLabel("Detalles / Experiencia").setStyle(TextInputStyle.Paragraph).setRequired(false)
+                    new TextInputBuilder().setCustomId('q_role').setLabel("¿Qué facción/trabajo buscas?").setStyle(TextInputStyle.Short).setRequired(true),
+                    new TextInputBuilder().setCustomId('q_exp').setLabel("Experiencia Previa / Detalles").setStyle(TextInputStyle.Paragraph).setRequired(true).setMaxLength(600)
                 );
             } else if (ticketTypeKey === 'ticket_bug') {
-                // Modified for Bugs based on User Request/Context
                 fields.push(
-                    new TextInputBuilder().setCustomId('q_reason').setLabel("Descubre el fallo/bug").setStyle(TextInputStyle.Paragraph).setRequired(true),
-                    new TextInputBuilder().setCustomId('q_impede').setLabel("¿Te impide jugar/rolear?").setStyle(TextInputStyle.Short).setRequired(true)
+                    new TextInputBuilder().setCustomId('q_location').setLabel("¿Dónde ocurre? (Discord / Roblox)").setStyle(TextInputStyle.Short).setRequired(true),
+                    new TextInputBuilder().setCustomId('q_desc').setLabel("Describe el fallo detalladamente").setStyle(TextInputStyle.Paragraph).setRequired(true).setMaxLength(800)
                 );
             } else if (ticketTypeKey === 'ticket_vip') {
                 fields.push(
-                    new TextInputBuilder().setCustomId('q_vip_user').setLabel("Usuario Roblox").setStyle(TextInputStyle.Short).setRequired(true),
-                    new TextInputBuilder().setCustomId('q_vip_type').setLabel("Tipo (Compra/Soporte/Renovación)").setStyle(TextInputStyle.Short).setRequired(true),
-                    new TextInputBuilder().setCustomId('q_reason').setLabel("Detalles de su consulta").setStyle(TextInputStyle.Paragraph).setRequired(true)
+                    new TextInputBuilder().setCustomId('q_user_roblox').setLabel("Tu Usuario de Roblox").setStyle(TextInputStyle.Short).setRequired(true),
+                    new TextInputBuilder().setCustomId('q_vip_request').setLabel("¿En qué necesitas atención prioritaria?").setStyle(TextInputStyle.Paragraph).setRequired(true).setMaxLength(800)
                 );
             } else {
                 // ticket_general
                 fields.push(
-                    new TextInputBuilder().setCustomId('q_subject').setLabel("Asunto del Ticket").setStyle(TextInputStyle.Short).setRequired(true).setMaxLength(50),
-                    new TextInputBuilder().setCustomId('q_reason').setLabel("Descripción Detallada").setStyle(TextInputStyle.Paragraph).setRequired(true).setMaxLength(1000)
+                    new TextInputBuilder().setCustomId('q_topic').setLabel("Tema (Duda, Queja, Sugerencia)").setStyle(TextInputStyle.Short).setRequired(true),
+                    new TextInputBuilder().setCustomId('q_details').setLabel("Explica tu situación a la IA/Staff").setStyle(TextInputStyle.Paragraph).setRequired(true).setMaxLength(900)
                 );
             }
 
