@@ -2,12 +2,12 @@ const { EmbedBuilder, PermissionFlagsBits } = require('discord.js');
 const Groq = require('groq-sdk');
 const fs = require('fs');
 const path = require('path');
-const OpenAI = require('openai');
+const Replicate = require('replicate');
 const axios = require('axios');
 
 // --- CONFIGURACIÓN HÍBRIDA ---
 // CEREBRO: Groq (Llama 3.3 70b) - Genera las respuestas de chat.
-// OJOS: OpenAI GPT-4o Vision - Análisis de imágenes profesional.
+// OJOS: Replicate (BLIP) - Análisis de imágenes con créditos gratis.
 
 // 1. Inicializar Groq (Cerebro)
 let groq;
@@ -22,13 +22,15 @@ try {
 }
 const AI_MODEL_CHAT = "llama-3.3-70b-versatile";
 
-// 2. Inicializar OpenAI (Visión)
-let openai = null;
-if (process.env.OPENAI_API_KEY) {
-    openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-    console.log('✅ OpenAI GPT-4o Vision inicializado correctamente');
+// 2. Inicializar Replicate (Visión)
+let replicate = null;
+if (process.env.REPLICATE_API_TOKEN) {
+    replicate = new Replicate({
+        auth: process.env.REPLICATE_API_TOKEN,
+    });
+    console.log('✅ Replicate Vision inicializado correctamente (BLIP)');
 } else {
-    console.warn('⚠️ OPENAI_API_KEY no encontrada - Visión desactivada');
+    console.warn('⚠️ REPLICATE_API_TOKEN no encontrada - Visión desactivada');
 }
 
 // Cargar Contexto desde Archivo
@@ -95,56 +97,34 @@ REGLAS DE ACTUACIÓN:
 // Palabras prohibidas (Filtro local rápido)
 const BAD_WORDS = ['pendejo', 'imbecil', 'idiota', 'estupido', 'verga', 'puto', 'mierda', 'chinga', 'tonto', 'inutil'];
 
-// --- Helper: Analizar Imagen con OpenAI GPT-4o Vision ---
+// --- Helper: Analizar Imagen con Replicate BLIP ---
 async function getImageDescription(imageUrl) {
-    if (!openai) return "Error: Sistema de visión (OpenAI) no configurado. Falta OPENAI_API_KEY.";
+    if (!replicate) return "Error: Sistema de visión (Replicate) no configurado. Falta REPLICATE_API_TOKEN.";
     
     try {
-        console.log('🔍 Analizando imagen con GPT-4o Vision...');
+        console.log('🔍 Analizando imagen con Replicate BLIP...');
         
-        const response = await openai.chat.completions.create({
-            model: "gpt-4o",
-            messages: [
-                {
-                    role: "user",
-                    content: [
-                        {
-                            type: "text",
-                            text: `Analiza esta captura de pantalla de Emergency Response: Liberty County (ER:LC).
-
-IDENTIFICA Y REPORTA:
-1. **Nombre del jugador** (esquina superior o UI)
-2. **Rango/Nivel/Rol** visible en la pantalla
-3. **Chat visible**: Lee EXACTAMENTE lo que dice el chat (palabra por palabra)
-4. **Logs del sistema**: Mensajes de kill, spawn, arrestos, etc.
-5. **Estadísticas**: Dinero, nivel, experiencia si es visible
-6. **Infracciones evidentes**: RDM, VDM, spawn kill, etc.
-7. **Contexto visual**: Ubicación, armas, vehículos, situación
-
-SÉ ESPECÍFICO. Cita textos exactos entre comillas. Menciona colores de UI y detalles clave.`
-                        },
-                        {
-                            type: "image_url",
-                            image_url: {
-                                url: imageUrl,
-                                detail: "low"
-                            }
-                        }
-                    ]
+        const output = await replicate.run(
+            "salesforce/blip:2e1dddc8621f72155f24cf2e0adbde548458d3cab9f00c0139eea840d0ac4746",
+            {
+                input: {
+                    image: imageUrl,
+                    task: "image_captioning"
                 }
-            ],
-            max_tokens: 500
-        });
+            }
+        );
         
-        const description = response.choices[0].message.content;
-        console.log('✅ GPT-4o análisis completo');
-        return description;
+        const description = output || "No se pudo generar descripción";
+        console.log('✅ Replicate análisis completo:', description);
+        
+        // Mejorar contexto para ER:LC
+        return `[Análisis visual]: ${description}. NOTA: Esta es una descripción automática general. Para detalles específicos de ER:LC (nombres, niveles, chat exacto), pide al usuario que los escriba.`;
         
     } catch (err) {
-        console.error("❌ OpenAI Vision Error:", err.message);
+        console.error("❌ Replicate Vision Error:", err.message);
         
-        if (err.code === 'insufficient_quota') {
-            return "⚠️ Sin créditos en OpenAI. Agrega saldo en https://platform.openai.com/settings/organization/billing";
+        if (err.message?.includes('insufficient credits')) {
+            return "⚠️ Sin créditos en Replicate. Revisa tu cuenta en https://replicate.com/account/billing";
         }
         
         return `Error analizando imagen: ${err.message}. Intenta de nuevo o describe verbalmente.`;
@@ -157,12 +137,12 @@ async function generateAIResponse(query, imageUrl = null) {
 
     // 1. Pre-procesar Imagen (si existe)
     if (imageUrl) {
-        if (openai) {
+        if (replicate) {
             const description = await getImageDescription(imageUrl);
-            visualContext = `\n\n[SISTEMA - ANÁLISIS VISUAL]: El usuario adjuntó una imagen. GPT-4o Vision la describe así:\n"${description}"\n\n(Usa esta descripción para validar pruebas).`;
+            visualContext = `\n\n[SISTEMA - ANÁLISIS VISUAL]: El usuario adjuntó una imagen. Replicate BLIP la describe así:\n"${description}"\n\n(Usa esta descripción para validar pruebas).`;
             query += visualContext;
         } else {
-            query += "\n\n[SISTEMA: El usuario envió una imagen, pero el módulo de visión (OpenAI) NO está activo. Avisa que no puedes verla.]";
+            query += "\n\n[SISTEMA: El usuario envió una imagen, pero el módulo de visión (Replicate) NO está activo. Avisa que no puedes verla.]";
         }
     }
 
