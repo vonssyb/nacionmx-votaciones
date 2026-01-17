@@ -53,17 +53,22 @@ module.exports = {
 
         // --- 2. VALIDACIONES PREVIAS (Blacklist / Horario) ---
         if (ticketTypeKey) {
-            // A) Check Blacklist BD
-            const { data: isBanned } = await supabase.from('ticket_blacklist').select('*').eq('user_id', interaction.user.id).single();
-            if (isBanned) return interaction.reply({ content: '🚫 Estás vetado del sistema de soporte por mal comportamiento.', ephemeral: true });
+            // A) Check Blacklist BD (with 2s timeout to prevent Interaction Failure)
+            const checkBlacklist = supabase.from('ticket_blacklist').select('user_id').eq('user_id', interaction.user.id).single();
+            const timeoutPromise = new Promise(resolve => setTimeout(() => resolve({ timeout: true }), 2000));
 
-            // B) Check Horario (Opcional - solo Warning)
+            const result = await Promise.race([checkBlacklist, timeoutPromise]);
+
+            if (!result.timeout && result.data) {
+                return interaction.reply({ content: '🚫 Estás vetado del sistema de soporte.', ephemeral: true });
+            }
+
+            // B) Check Horario (Non-blocking warning)
             const hora = new Date().toLocaleString('es-MX', { timeZone: 'America/Mexico_City', hour: 'numeric', hour12: false });
-            // Si es entre 2 AM y 9 AM
             const isNight = (hora >= 2 && hora < 9);
             if (isNight) {
-                await interaction.channel.send({ content: '💤 **Nota:** Nuestro staff duerme a estas horas. Deja tu mensaje y te responderemos en la mañana.', ephemeral: true }).catch(() => { });
-                // No bloqueamos, solo avisamos (o bloqueamos si prefieres)
+                // Do NOT await this, let it fire and forget so we can show Modal fast
+                interaction.channel.send({ content: `💤 <@${interaction.user.id}>, nuestro staff descansa. Te responderemos en la mañana.`, ephemeral: true }).catch(() => { });
             }
 
             const config = TICKET_TYPES[ticketTypeKey];
