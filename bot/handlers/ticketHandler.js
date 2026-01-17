@@ -151,9 +151,23 @@ module.exports = {
             let description = `**Tipo:** ${config.title}\n**Usuario:** <@${interaction.user.id}>\n\n`;
 
             // Append fields dynamically
+            const labelMap = {
+                'q_topic': 'Tema',
+                'q_situation': 'Situación',
+                'q_vip_needs': 'Solicitud VIP',
+                'q_report_who': 'Usuario Reportado',
+                'q_report_reason': 'Razón',
+                'q_ck_target': 'Objetivo CK',
+                'q_ck_motive': 'Motivo CK',
+                'q_work_area': 'Área de Trabajo',
+                'q_work_portfolio': 'Portafolio/Exp',
+                'q_bug_desc': 'Descripción del Bug',
+                'q_bug_steps': 'Pasos para reproducir'
+            };
+
             interaction.fields.fields.forEach(field => {
-                // Intenta buscar el label original si es posible, o usa el value
-                description += `**${field.customId}**: ${field.value}\n`;
+                const politeLabel = labelMap[field.customId] || field.customId;
+                description += `**${politeLabel}:** ${field.value}\n`;
             });
             // (Note: cleaner formatting possible but this ensures all data is captured)
 
@@ -166,7 +180,10 @@ module.exports = {
                     { id: interaction.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.AttachFiles] },
                     { id: client.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ManageChannels] }
                 ];
-                if (config.role) permissionOverwrites.push({ id: config.role, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] });
+
+                // GATEKEEPER: No agregamos al Staff al inicio. Solo entran si la IA falla o el usuario pide ayuda.
+                // if (config.role) permissionOverwrites.push({ id: config.role, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] });
+
                 if (config.pingUser) permissionOverwrites.push({ id: config.pingUser, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] });
 
                 const ticketChannel = await interaction.guild.channels.create({
@@ -343,12 +360,19 @@ module.exports = {
             await interaction.deferUpdate();
 
             if (roleId && roleId !== 'none') {
-                await interaction.channel.send({ content: `🔔 <@&${roleId}>, el usuario ha solicitado asistencia humana.` });
+                // DAR PERMISO AL ROL DE VER EL CANAL
+                await interaction.channel.permissionOverwrites.edit(roleId, {
+                    ViewChannel: true,
+                    SendMessages: true,
+                    AttachFiles: true
+                });
+
+                await interaction.channel.send({ content: `🔔 <@&${roleId}>, el usuario ha solicitado asistencia humana. (Acceso concedido)` });
             } else {
                 await interaction.channel.send({ content: `🔔 Staff, el usuario solicita asistencia.` });
             }
 
-            // Disable button
+            // Disable button to prevent spam
             await interaction.editReply({ components: [] });
             return true;
         }
