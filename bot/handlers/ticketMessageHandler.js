@@ -8,6 +8,7 @@ const axios = require('axios');
 // --- CONFIGURACIÓN HÍBRIDA ---
 // CEREBRO: Groq (Llama 3.3 70b) - Genera las respuestas de chat.
 // OJOS: Gemini 1.5 Flash - Análisis de imágenes (GRATIS).
+// Version: 2.0 - Gemini Vision Final
 
 // 1. Inicializar Groq (Cerebro)
 let groq;
@@ -100,34 +101,48 @@ REGLAS DE ACTUACIÓN:
 // Palabras prohibidas (Filtro local rápido)
 const BAD_WORDS = ['pendejo', 'imbecil', 'idiota', 'estupido', 'verga', 'puto', 'mierda', 'chinga', 'tonto', 'inutil'];
 
-// --- Helper: Analizar Imagen con Replicate BLIP ---
+// --- Helper: Analizar Imagen con Gemini ---
 async function getImageDescription(imageUrl) {
-    if (!replicate) return "Error: Sistema de visión (Replicate) no configurado. Falta REPLICATE_API_TOKEN.";
+    if (!visionModel) return "Error: Sistema de visión (Gemini) no configurado. Falta GEMINI_API_KEY.";
 
     try {
-        console.log('🔍 Analizando imagen con Replicate BLIP...');
+        console.log('🔍 Analizando imagen con Gemini 1.5 Flash...');
 
-        const output = await replicate.run(
-            "salesforce/blip:2e1dddc8621f72155f24cf2e0adbde548458d3cab9f00c0139eea840d0ac4746",
-            {
-                input: {
-                    image: imageUrl,
-                    task: "image_captioning"
-                }
+        const response = await axios.get(imageUrl, { responseType: 'arraybuffer' });
+        const imagePart = {
+            inlineData: {
+                data: Buffer.from(response.data).toString("base64"),
+                mimeType: response.headers['content-type'] || "image/png"
             }
-        );
+        };
 
-        const description = output || "No se pudo generar descripción";
-        console.log('✅ Replicate análisis completo:', description);
+        const result = await visionModel.generateContent([
+            {
+                text: `Analiza esta captura de pantalla de Emergency Response: Liberty County (ER:LC).
 
-        // Mejorar contexto para ER:LC
-        return `[Análisis visual]: ${description}. NOTA: Esta es una descripción automática general. Para detalles específicos de ER:LC (nombres, niveles, chat exacto), pide al usuario que los escriba.`;
+IDENTIFICA Y REPORTA:
+1. **Nombre del jugador** (esquina superior o UI)
+2. **Rango/Nivel/Rol** visible en la pantalla
+3. **Chat visible**: Lee EXACTAMENTE lo que dice el chat (palabra por palabra)
+4. **Logs del sistema**: Mensajes de kill, spawn, arrestos, etc.
+5. **Estadísticas**: Dinero, nivel, experiencia si es visible
+6. **Infracciones evidentes**: RDM, VDM, spawn kill, etc.
+7. **Contexto visual**: Ubicación, armas, vehículos, situación
+
+SÉ ESPECÍFICO. Cita textos exactos entre comillas. Menciona colores de UI y detalles clave.`
+            },
+            imagePart
+        ]);
+
+        const description = result.response.text();
+        console.log('✅ Gemini análisis completo');
+        return description;
 
     } catch (err) {
-        console.error("❌ Replicate Vision Error:", err.message);
+        console.error("❌ Gemini Vision Error:", err.message);
 
-        if (err.message?.includes('insufficient credits')) {
-            return "⚠️ Sin créditos en Replicate. Revisa tu cuenta en https://replicate.com/account/billing";
+        if (err.message?.includes('API key')) {
+            return "⚠️ API key de Gemini inválida o expirada. Genera una nueva en https://aistudio.google.com/app/apikey";
         }
 
         return `Error analizando imagen: ${err.message}. Intenta de nuevo o describe verbalmente.`;
@@ -140,12 +155,12 @@ async function generateAIResponse(query, imageUrl = null) {
 
     // 1. Pre-procesar Imagen (si existe)
     if (imageUrl) {
-        if (replicate) {
+        if (visionModel) {
             const description = await getImageDescription(imageUrl);
-            visualContext = `\n\n[SISTEMA - ANÁLISIS VISUAL]: El usuario adjuntó una imagen. Replicate BLIP la describe así:\n"${description}"\n\n(Usa esta descripción para validar pruebas).`;
+            visualContext = `\n\n[SISTEMA - ANÁLISIS VISUAL]: El usuario adjuntó una imagen. Gemini la describe así:\n"${description}"\n\n(Usa esta descripción para validar pruebas).`;
             query += visualContext;
         } else {
-            query += "\n\n[SISTEMA: El usuario envió una imagen, pero el módulo de visión (Replicate) NO está activo. Avisa que no puedes verla.]";
+            query += "\n\n[SISTEMA: El usuario envió una imagen, pero el módulo de visión (Gemini) NO está activo. Avisa que no puedes verla.]";
         }
     }
 
