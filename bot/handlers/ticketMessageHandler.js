@@ -17,7 +17,10 @@ try {
 } catch (e) {
     console.error('Error inicializando Groq:', e);
 }
-const AI_MODEL = "llama-3.2-11b-vision-preview"; // Updated: 90b decomisionado
+
+// FALLBACK: Vision models (90b/11b) decomissioned. Using robust text model.
+const AI_MODEL = "llama-3.3-70b-versatile";
+
 
 // Cargar Contexto desde Archivo
 let SERVER_CONTEXT = '';
