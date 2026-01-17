@@ -10,7 +10,7 @@ let geminiModel = null;
 if (process.env.GEMINI_API_KEY) {
     try {
         const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-        geminiModel = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
+        geminiModel = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
         console.log('✅ Gemini 2.0 Flash inicializado (texto + visión, 1.5M tokens/día)');
     } catch (e) {
         console.error('❌ Error inicializando Gemini:', e);
