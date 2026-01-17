@@ -38,6 +38,9 @@ function rotateGroqKey() {
 groqClient = initializeGroq();
 const AI_MODEL_CHAT = "llama-3.3-70b-versatile";
 
+// Sistema de estados para escalamiento a staff
+const ticketStates = new Map(); // channelId -> { awaitingInfo: bool, staffCalled: bool }
+
 // Cargar Contexto desde Archivo
 let SERVER_CONTEXT = '';
 try {
@@ -161,24 +164,45 @@ async function generateAIResponse(query, imageUrl = null) {
         }
     }
 
-    if (!geminiModel) {
-        console.error('[GEMINI] Modelo no inicializado');
-        return "ERROR_MISSING_KEY: La variable GEMINI_API_KEY no está definida en el entorno.";
+    if (!groqClient || GROQ_KEYS.length === 0) {
+        console.error('[GROQ] No hay API keys configuradas');
+        return "ERROR_MISSING_KEY: No hay API keys de Groq configuradas.";
     }
 
-    // 2. Generar Respuesta con Gemini 2.0 Flash
-    try {
-        const result = await geminiModel.generateContent(query);
-        return result.response.text();
-    } catch (err) {
-        console.error("Gemini Generate Error:", err);
+    // 2. Generar Respuesta con Groq (con rotación automática)
+    let attempts = 0;
+    const maxAttempts = GROQ_KEYS.length;
 
-        if (err.message?.includes('quota') || err.message?.includes('limit')) {
-            return "⚠️ Límite de Gemini alcanzado. Vuelve en unas horas o describe tu consulta más breve.";
+    while (attempts < maxAttempts) {
+        try {
+            const chatCompletion = await groqClient.chat.completions.create({
+                messages: [
+                    { role: "system", content: SYSTEM_PROMPT },
+                    { role: "user", content: query }
+                ],
+                model: AI_MODEL_CHAT,
+                temperature: 0.5,
+                max_tokens: 800,
+            });
+
+            return chatCompletion.choices[0]?.message?.content || "";
+
+        } catch (err) {
+            console.error(`Groq Error (Key #${currentKeyIndex + 1}):`, err.message);
+
+            // Si es rate limit (429), rotar a la siguiente key
+            if (err.status === 429 && rotateGroqKey()) {
+                attempts++;
+                console.log(`🔄 Intentando con siguiente API key (${attempts}/${maxAttempts})...`);
+                continue;
+            }
+
+            // Si no se puede rotar o es otro error, fallar
+            return `ERROR_API: ${err.message}`;
         }
-
-        return `ERROR_API: ${err.message}`;
     }
+
+    return "⚠️ Todas las API keys de Groq alcanzaron el límite. Vuelve en unas horas.";
 }
 
 module.exports = {
@@ -189,6 +213,20 @@ module.exports = {
 
         // Solo en canales de tickets
         if (!message.channel.name.includes('-') && !message.channel.topic?.includes('Ticket')) return;
+
+        // Si el staff fue llamado, el bot se silencia hasta que staff responda
+        const state = ticketStates.get(message.channel.id) || {};
+        if (state.staffCalled) {
+            // Si el mensaje es de staff, resetear el estado
+            const staffRoles = ['1412887167654690908', '1398526164253888640']; // ROLE_COMMON y ROLE_ADMIN
+            const isStaff = message.member?.roles.cache.some(r => staffRoles.includes(r.id));
+
+            if (isStaff) {
+                ticketStates.delete(message.channel.id); // Resetear estado
+                console.log(`✅ Staff respondió en ${message.channel.id}, bot reactivado`);
+            }
+            return; // Bot silenciado hasta que staff responda
+        }
 
         // 1. AUTO-MOD (Shadow Moderation)
         const contentLower = message.content.toLowerCase();
@@ -321,10 +359,61 @@ ${message.content || "(Imagen enviada)"}
 
                 await message.channel.send({ embeds: [embed], components: [row] });
 
-                // Auto-escalamiento si la IA detecta que no puede ayudar
+                // Auto-escalamiento con recopilación de información
                 if (needsStaff) {
-                    const STAFF_ROLE_ID = '1412887167654690908'; // ROLE_COMMON from config
-                    await message.channel.send(`🚨 <@&${STAFF_ROLE_ID}> - **Este ticket requiere soporte humano.** Un moderador debe revisar este caso.`);
+                    const state = ticketStates.get(message.channel.id) || {};
+
+                    // Si NO hemos pedido info aún, pedirla primero
+                    if (!state.awaitingInfo && !state.staffCalled) {
+                        ticketStates.set(message.channel.id, { awaitingInfo: true, staffCalled: false });
+
+                        const infoEmbed = new EmbedBuilder()
+                            .setTitle('📋 Antes de llamar al staff...')
+                            .setDescription(`Para ayudarte mejor, por favor proporciona:
+
+1️⃣ **Descripción detallada** de tu problema
+2️⃣ **Capturas de pantalla** (si aplica)
+3️⃣ **Nombres de usuarios involucrados** (si aplica)
+4️⃣ **Cuándo ocurrió** (fecha/hora aproximada)
+
+Responde con toda esta información en tu siguiente mensaje.`)
+                            .setColor(0xFFA500)
+                            .setFooter({ text: 'El staff será notificado cuando termines de dar la info.' });
+
+                        await message.channel.send({ embeds: [infoEmbed] });
+                        return; // No llamar al staff todavía
+                    }
+
+                    // Si YA pedimos info y el usuario respondió, ahora sí llamamos al staff
+                    if (state.awaitingInfo && !state.staffCalled) {
+                        ticketStates.set(message.channel.id, { awaitingInfo: false, staffCalled: true });
+
+                        const STAFF_ROLE_ID = '1412887167654690908';
+
+                        // Compilar resumen para el staff
+                        const summaryEmbed = new EmbedBuilder()
+                            .setTitle('🚨 Escalamiento a Staff')
+                            .setDescription(`**Usuario:** ${message.author}
+**Canal:** ${message.channel}
+
+**Información recopilada:**
+${message.content}
+
+**Contexto del ticket:**
+${ticketTopic}
+
+**Últimos mensajes:**
+${conversationContext.substring(0, 500)}...`)
+                            .setColor(0xFF0000)
+                            .setFooter({ text: 'El bot se silenciará hasta que el staff responda.' });
+
+                        await message.channel.send({
+                            content: `🚨 <@&${STAFF_ROLE_ID}>`,
+                            embeds: [summaryEmbed]
+                        });
+
+                        return; // Bot se silencia después de llamar al staff
+                    }
                 }
             }
 
