@@ -122,16 +122,49 @@ module.exports = {
             // Indicar que está escribiendo...
             await message.channel.sendTyping();
 
-            const response = await generateAIResponse(message.content);
+            // Vision Checking
+            let imageUrl = null;
+            if (message.attachments.size > 0) {
+                const attachment = message.attachments.first();
+                if (attachment.contentType?.startsWith('image/')) {
+                    imageUrl = attachment.url;
+                }
+            }
 
-            if (response) {
+            const aiResult = await generateAIResponse(message.content || "(Imagen enviada)", imageUrl);
+            const responseText = typeof aiResult === 'object' ? aiResult.content : aiResult;
+            const actionRequest = typeof aiResult === 'object' ? aiResult.action : null;
+
+            if (responseText) {
                 const embed = new EmbedBuilder()
                     .setTitle('🤖 Asistente Virtual')
-                    .setDescription(response)
+                    .setDescription(responseText)
                     .setColor(0x5865F2)
                     .setFooter({ text: 'Soy una IA. Espera a un humano si mi respuesta no ayuda.' });
 
                 await message.channel.send({ embeds: [embed] });
+            }
+
+            // --- AI ACTION PROPOSAL (Staff Only) ---
+            if (actionRequest) {
+                const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+
+                const actionEmbed = new EmbedBuilder()
+                    .setTitle('⚡ Propuesta de Acción (IA)')
+                    .setDescription(`La IA sugiere ejecutar: **${actionRequest.action}**\n\n**Razón:** ${actionRequest.reason || 'N/A'}\n**Datos:** \`\`\`json\n${JSON.stringify(actionRequest.data, null, 2)}\n\`\`\``)
+                    .setColor(0xFFA500)
+                    .setFooter({ text: 'Solo Staff puede confirmar esto.' });
+
+                const row = new ActionRowBuilder().addComponents(
+                    new ButtonBuilder().setCustomId(`ai_confirm_${actionRequest.action}`).setLabel('✅ Confirmar').setStyle(ButtonStyle.Success),
+                    new ButtonBuilder().setCustomId('ai_reject').setLabel('⛔ Rechazar').setStyle(ButtonStyle.Danger)
+                );
+
+                // Send silently or ephemeral if possible? No, ephemeral works on interaction only.
+                // We send it to channel, but maybe with a "Staff Only" hint?
+                // Ideally we filter it by permissions later, but for now we put it in the channel.
+                // TODO: Gate the button interaction to Staff only.
+                await message.channel.send({ content: '🕵️ **Propuesta para Staff:**', embeds: [actionEmbed], components: [row] });
             }
         } catch (error) {
             console.error('Gemini Handler Error:', error);
