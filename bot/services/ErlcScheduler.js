@@ -89,7 +89,7 @@ class ErlcScheduler {
                 const newStatus = (action.attempts + 1 >= 50) ? 'failed' : 'pending';
 
                 await this.supabase
-                    .from('pending_erlc_actions')
+                    .from('erlc_pending_actions')
                     .update({
                         attempts: action.attempts + 1,
                         last_attempt: new Date().toISOString(),
@@ -102,7 +102,7 @@ class ErlcScheduler {
         } catch (err) {
             console.error(`[ErlcScheduler] Fatal Error processing action ${action.id}:`, err);
             await this.supabase
-                .from('pending_erlc_actions')
+                .from('erlc_pending_actions')
                 .update({
                     attempts: action.attempts + 1,
                     last_attempt: new Date().toISOString(),
@@ -115,7 +115,7 @@ class ErlcScheduler {
     // Helper to queue an action (Used by commands)
     static async queueAction(supabase, command, reason, robloxUser = null) {
         try {
-            await supabase.from('pending_erlc_actions').insert({
+            await supabase.from('erlc_pending_actions').insert({
                 command: command,
                 reason: reason,
                 roblox_username: robloxUser?.username,
