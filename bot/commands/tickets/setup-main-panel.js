@@ -34,8 +34,8 @@ El equipo de Staff te atenderá lo más pronto posible.
 • Describe tu problema detalladamente.
 
 ⬇️ **SELECCIONA UNA OPCIÓN ABAJO** ⬇️`)
-            .setColor(0xFFFFFF) // Blanco o color corporativo
-            .setImage('https://i.imgur.com/8QG5BZr.png') // Banner si tienen, o logo
+            .setColor(0xFFFFFF)
+            .setImage('https://media4.giphy.com/media/v1.Y2lkPTc5MGI3NjExbzdhaTUzend4bXByMDk3bWhnemJidXBtZjdma2p6cGdnOXM3Yzc1ZSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/FywHpJCtWSb28/giphy.gif')
             .setFooter({ text: 'Nación MX • Sistema de Tickets', iconURL: interaction.guild.iconURL() });
 
         // --- 2. MENU DESPLEGABLE ---
