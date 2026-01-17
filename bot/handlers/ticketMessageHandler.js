@@ -1,5 +1,4 @@
 const { EmbedBuilder, PermissionFlagsBits } = require('discord.js');
-const Groq = require('groq-sdk');
 const fs = require('fs');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
@@ -85,42 +84,49 @@ REGLAS DE ACTUACIÓN:
 // Palabras prohibidas (Filtro local rápido)
 const BAD_WORDS = ['pendejo', 'imbecil', 'idiota', 'estupido', 'verga', 'puto', 'mierda', 'chinga', 'tonto', 'inutil'];
 
-// --- Helper: Analizar Imagen con Hugging Face ---
+// --- Helper: Analizar Imagen con Gemini 2.0 Flash ---
 async function getImageDescription(imageUrl) {
+    if (!geminiModel) return "Error: Gemini no configurado. Falta GEMINI_API_KEY.";
+
     try {
-        console.log('🔍 Analizando imagen con Hugging Face (puede tardar 20-30 seg)...');
+        console.log('🔍 Analizando imagen con Gemini 2.0 Flash...');
 
-        // Descargar imagen
         const response = await axios.get(imageUrl, { responseType: 'arraybuffer' });
-        const imageBuffer = Buffer.from(response.data);
-
-        // Llamar a Hugging Face Inference API (Sin auth, público)
-        const hfResponse = await axios.post(
-            `https://api-inference.huggingface.co/models/${HF_MODEL}`,
-            imageBuffer,
-            {
-                headers: {
-                    'Content-Type': 'application/octet-stream',
-                },
-                timeout: 60000 // 60 segundos timeout
+        const imagePart = {
+            inlineData: {
+                data: Buffer.from(response.data).toString("base64"),
+                mimeType: response.headers['content-type'] || "image/png"
             }
-        );
+        };
 
-        const description = hfResponse.data[0]?.generated_text || "No se pudo generar descripción";
-        console.log('✅ Hugging Face análisis completo:', description);
+        const result = await geminiModel.generateContent([
+            {
+                text: `Analiza esta captura de pantalla de Emergency Response: Liberty County (ER:LC).
 
-        return `[Descripción básica de la imagen]: ${description}. NOTA: Para detalles específicos de ER:LC (nombres de jugadores, niveles exactos, chat), por favor descríbelos tú mismo.`;
+IDENTIFICA Y REPORTA:
+1. **Nombre del jugador** (esquina superior o UI)
+2. **Rango/Nivel/Rol** visible en la pantalla
+3. **Chat visible**: Lee EXACTAMENTE lo que dice el chat (palabra por palabra)
+4. **Logs del sistema**: Mensajes de kill, spawn, arrestos, etc.
+5. **Estadísticas**: Dinero, nivel, experiencia si es visible
+6. **Infracciones evidentes**: RDM, VDM, spawn kill, etc.
+7. **Contexto visual**: Ubicación, armas, vehículos, situación
+
+SÉ ESPECÍFICO. Cita textos exactos entre comillas. Menciona colores de UI y detalles clave.`
+            },
+            imagePart
+        ]);
+
+        const description = result.response.text();
+        console.log('✅ Gemini 2.0 análisis de imagen completo');
+        return description;
 
     } catch (err) {
-        console.error("❌ Hugging Face Vision Error:", err.message);
-
-        if (err.response?.status === 503) {
-            return "⏳ El modelo de visión está cargándose (tarda ~30 seg la primera vez). Por favor, vuelve a enviar la imagen en 30 segundos.";
-        }
-
-        return `Error analizando imagen. Por favor describe verbalmente lo que contiene la captura.`;
+        console.error("❌ Gemini Vision Error:", err.message);
+        return `Error analizando imagen: ${err.message}. Describe verbalmente la captura.`;
     }
 }
+
 
 // Función Principal
 async function generateAIResponse(query, imageUrl = null) {
@@ -130,34 +136,30 @@ async function generateAIResponse(query, imageUrl = null) {
     if (imageUrl) {
         if (visionModel) {
             const description = await getImageDescription(imageUrl);
-            visualContext = `\n\n[SISTEMA - ANÁLISIS VISUAL]: El usuario adjuntó una imagen. Hugging Face la describe así:\n"${description}"\n\n(Usa esta descripción para validar pruebas).`;
+            visualContext = `\n\n[SISTEMA - ANÁLISIS VISUAL]: El usuario adjuntó una imagen. Gemini la describe así:\n"${description}"\n\n(Usa esta descripción para validar pruebas).`;
             query += visualContext;
         } else {
-            query += "\n\n[SISTEMA: El usuario envió una imagen, pero el módulo de visión (Hugging Face) NO está activo. Avisa que no puedes verla.]";
+            query += "\n\n[SISTEMA: El usuario envió una imagen, pero el módulo de visión (Gemini) NO está activo. Avisa que no puedes verla.]";
         }
     }
 
-    if (!process.env.GROQ_API_KEY) {
-        console.error('[GROQ] API Key is missing');
-        return "ERROR_MISSING_KEY: La variable GROQ_API_KEY no está definida en el entorno.";
+    if (!geminiModel) {
+        console.error('[GEMINI] Modelo no inicializado');
+        return "ERROR_MISSING_KEY: La variable GEMINI_API_KEY no está definida en el entorno.";
     }
 
-    // 2. Generar Respuesta con Groq (Chat)
+    // 2. Generar Respuesta con Gemini 2.0 Flash
     try {
-        const chatCompletion = await groq.chat.completions.create({
-            messages: [
-                { role: "system", content: SYSTEM_PROMPT },
-                { role: "user", content: query }
-            ],
-            model: AI_MODEL_CHAT,
-            temperature: 0.5,
-            max_tokens: 800,
-        });
+        const result = await geminiModel.generateContent(query);
+        return result.response.text();
+    } catch (err) {
+        console.error("Gemini Generate Error:", err);
 
-        return chatCompletion.choices[0]?.message?.content || "";
-    } catch (error) {
-        console.error('Groq Generate Error:', error);
-        return `ERROR_API: ${error.message}`;
+        if (err.message?.includes('quota') || err.message?.includes('limit')) {
+            return "⚠️ Límite de Gemini alcanzado. Vuelve en unas horas o describe tu consulta más breve.";
+        }
+
+        return `ERROR_API: ${err.message}`;
     }
 }
 
