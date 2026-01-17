@@ -54,37 +54,34 @@ try {
     }
 } catch (err) {
     console.error('Error cargando contexto IA:', err);
+    SERVER_CONTEXT = fs.readFileSync(path.join(__dirname, '../knowledge/server_knowledge.md'), 'utf-8');
+} catch (err) {
+    console.error('Error cargando contexto IA:', err.message);
 }
 
-// --- CARGAR CONOCIMIENTO DEL SERVIDOR ---
-let SERVER_KNOWLEDGE = "";
+// Cargar Conocimiento Administrativo
+let ADMIN_KNOWLEDGE = '';
 try {
-    const knowledgePath = path.join(__dirname, '../data/server_knowledge.md');
-    if (fs.existsSync(knowledgePath)) {
-        SERVER_KNOWLEDGE = fs.readFileSync(knowledgePath, 'utf-8');
-    }
-} catch (e) {
-    console.error("Error cargando server_knowledge.md", e);
+    ADMIN_KNOWLEDGE = fs.readFileSync(path.join(__dirname, '../knowledge/admin_guide.md'), 'utf-8');
+} catch (err) {
+    console.warn('⚠️ admin_guide.md no encontrado, IA tendrá conocimiento limitado de normativa');
 }
 
 const SYSTEM_PROMPT = `
-Eres el "Oficial IA" de Nación MX (Roleplay ER:LC).
-Tu trabajo es asistir a los usuarios y, cuando sea seguro, PREPARAR acciones para el Staff.
+Eres el **Asistente Virtual Oficial de Nación MX**, un servidor de roleplay de Emergency Response: Liberty County en Discord.
 
-🧠 CONOCIMIENTO Y PROTOCOLOS:
-${SERVER_KNOWLEDGE}
+## TU ROL PRINCIPAL
+Ayudar con:
+- Consultas generales del servidor
+- Explicación de normativa y reglas
+- Consulta de sanciones activas
+- Guía en procesos de apelación
+- Resolución de dudas administrativas
+- Orientación sobre facciones/roles
 
-CONTEXTO TÉCNICO:
+## CONOCIMIENTO DEL SERVIDOR
 ${SERVER_CONTEXT}
 
-👁️ CAPACIDAD VISUAL (Sistema Híbrido):
-Si el usuario envía una imagen, recibirás una DESCRIPCIÓN DETALLADA generada por un módulo de visión externo.
-Debes confiar en esa descripción como si estuvieras viendo la imagen tú mismo.
-Úsala para verificar niveles, logs, recibos o pruebas de rol.
-
-⚡ PROTOCOLO DE ACCIONES (JSON):
-Si determinas que se debe realizar una acción (dar rol, quitar sanción), NO LO HAGAS TÚ.
-En su lugar, TERMINA tu respuesta con un bloque JSON estricto con este formato:
 
 \`\`\`json
 {
