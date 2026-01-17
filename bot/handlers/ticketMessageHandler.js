@@ -205,7 +205,6 @@ module.exports = {
         if (!message.channel.name.includes('-') && !message.channel.topic?.includes('Ticket')) return;
 
         // SEGURIDAD: Solo el dueño del ticket puede hablar con la IA
-        const supabase = client.supabase;
         try {
             const { data: ticket } = await supabase
                 .from('tickets')
