@@ -32,16 +32,18 @@ const app = express();
 const port = process.env.PORT || 8000;
 
 app.get('/', (req, res) => {
-    res.send(`
+    res.status(200).send(`
         <h1>🤖 Nacion MX Unified System</h1>
         <p>✅ Moderation Bot: Online</p>
         <p>✅ Economy Bot: Online</p>
         <p>✅ Government Bot: Online</p>
+        <p>🕒 Time: ${new Date().toISOString()}</p>
     `);
 });
 
-app.listen(port, () => {
-    log('🌐', `Unified Server listening on port ${port}`);
+// Explicitly bind to 0.0.0.0 for connection from outside container
+app.listen(port, '0.0.0.0', () => {
+    log('🌐', `Unified Server listening on port ${port} (0.0.0.0)`);
 });
 
 // =============================================================================
