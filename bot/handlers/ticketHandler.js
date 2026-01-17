@@ -120,13 +120,30 @@ module.exports = {
             }
 
             fields.forEach(f => modal.addComponents(new ActionRowBuilder().addComponents(f)));
-            await interaction.showModal(modal);
+            try {
+                await interaction.showModal(modal);
+            } catch (err) {
+                if (err.code === 10062 || err.code === 40060) {
+                    console.warn(`[TICKET] Interaction obsolete (Modal): ${err.message}`);
+                    return false;
+                }
+                throw err;
+            }
             return true;
         }
 
         // --- 3. CREATE LOGIC (Submit) ---
         if (interaction.isModalSubmit() && customId.startsWith('modal_create_main_')) {
-            await interaction.deferReply({ ephemeral: true });
+            try {
+                await interaction.deferReply({ ephemeral: true });
+            } catch (err) {
+                if (err.code === 10062 || err.code === 40060) {
+                    console.warn(`[TICKET] Interaction obsolete (Defer): ${err.message}`);
+                    return;
+                }
+                console.error('[TICKET] Defer Error:', err);
+                return;
+            }
             const typeKey = customId.replace('modal_create_main_', '');
             const config = TICKET_TYPES[typeKey];
             if (!config) return interaction.editReply('❌ Config Error.');
