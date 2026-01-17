@@ -300,6 +300,11 @@ module.exports = {
 
         if (customId === 'btn_close_ticket_confirm') {
             await interaction.message.delete().catch(() => { });
+
+            // Get Creator ID to ping THEM, not the Staff closing it
+            const { data: ticket } = await supabase.from('tickets').select('creator_id').eq('channel_id', interaction.channel.id).single();
+            const targetUser = ticket?.creator_id || interaction.user.id;
+
             const embed = new EmbedBuilder().setTitle('🔒 Finalizado').setDescription('Califica la atención:').setColor(0xFEE75C);
             const row = new ActionRowBuilder().addComponents(
                 new ButtonBuilder().setCustomId('feedback_5').setEmoji('⭐').setLabel('Excelente').setStyle(ButtonStyle.Success),
@@ -307,7 +312,7 @@ module.exports = {
                 new ButtonBuilder().setCustomId('feedback_1').setEmoji('😡').setLabel('Mal').setStyle(ButtonStyle.Danger),
                 new ButtonBuilder().setCustomId('feedback_s').setLabel('Omitir').setStyle(ButtonStyle.Secondary)
             );
-            await interaction.channel.send({ content: `<@${interaction.user.id}>`, embeds: [embed], components: [row] });
+            await interaction.channel.send({ content: `<@${targetUser}>`, embeds: [embed], components: [row] });
             return true;
         }
 
