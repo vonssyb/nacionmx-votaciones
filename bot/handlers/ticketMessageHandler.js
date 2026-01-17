@@ -1,24 +1,35 @@
 const { EmbedBuilder, PermissionFlagsBits } = require('discord.js');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
+const fs = require('fs');
+const path = require('path');
 
 // Inicializar Gemini
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const model = genAI.getGenerativeModel({ model: "gemini-pro" });
 
-// Contexto del Servidor (System Prompt para la IA)
-const SERVER_CONTEXT = `
-Eres el Asistente IA de Soporte de "Nación MX", un servidor de Roleplay en ER:LC (Roblox).
-Tu trabajo es responder dudas cortas y directas. NO inventes comandos.
-Información Real del Servidor:
-- IP/Código: Se encuentra en el canal #información.
-- Convocatorias: FEC (Viernes), GN (Formulario Discord).
-- Facciones Ilegales: Cartel requiere historia de rol aprobada en ticket.
-- CK (Character Kill): Requiere aprobación de Staff y pruebas de rol válido.
-- PK (Player Kill): Olvidar rol reciente (NLR 15 min).
-- Apelaciones: Solo vía ticket opción "Apelación". Mentir es ban.
-- Comandos: /recuperar (contraseña), /vincular-roblox (cuenta), /bug (reportar).
-- Horario Staff: 10:00 AM - 12:00 AM CDMX.
-- Tono: Profesional, serio pero servicial. Respuestas cortas (max 2 lineas).
+// Cargar Contexto desde Archivo
+let SERVER_CONTEXT = '';
+try {
+    const contextPath = path.join(__dirname, '../data/server_knowledge.md');
+    // Leer síncrono al inicio para asegurar que esté listo
+    if (fs.existsSync(contextPath)) {
+        SERVER_CONTEXT = fs.readFileSync(contextPath, 'utf-8');
+    } else {
+        console.warn('⚠️ No se encontró server_knowledge.md, usando contexto vacío.');
+    }
+} catch (err) {
+    console.error('Error cargando contexto IA:', err);
+}
+
+// System Prompt Base
+const SYSTEM_PROMPT = `
+Eres el Asistente IA de Soporte de "Nación MX" (Roleplay ER:LC en Roblox).
+Responde dudas basándote EXCLUSIVAMENTE en el siguiente documento de reglas y leyes.
+Si la respuesta no está en el texto, di "No tengo esa información, espera a un humano."
+Sé breve, profesional y directo.
+
+DOCUMENTO DE CONOCIMIENTO:
+${SERVER_CONTEXT}
 `;
 
 // Palabras prohibidas (Filtro local rápido)
@@ -61,9 +72,9 @@ module.exports = {
             // Indicar que está escribiendo...
             await message.channel.sendTyping();
 
-            const prompt = `Contexto: ${SERVER_CONTEXT}\nUsuario pregunta: "${message.content}"\nRespuesta:`;
+            const fullPrompt = `${SYSTEM_PROMPT}\nUsuario pregunta: "${message.content}"\nRespuesta:`;
 
-            const result = await model.generateContent(prompt);
+            const result = await model.generateContent(fullPrompt);
             const response = result.response.text();
 
             if (response) {
