@@ -1,5 +1,7 @@
 const { EmbedBuilder, PermissionFlagsBits } = require('discord.js');
 const Groq = require('groq-sdk');
+const fs = require('fs');
+const path = require('path');
 const axios = require('axios');
 
 // SISTEMA DE ROTACIÓN: 4 API Keys de Groq (400K tokens/día total)
