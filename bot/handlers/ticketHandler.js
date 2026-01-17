@@ -181,8 +181,14 @@ module.exports = {
                     { id: client.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ManageChannels] }
                 ];
 
-                // GATEKEEPER: No agregamos al Staff al inicio. Solo entran si la IA falla o el usuario pide ayuda.
-                // if (config.role) permissionOverwrites.push({ id: config.role, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] });
+                // STAFF VIEW ONLY (Muted logic)
+                if (config.role) {
+                    permissionOverwrites.push({
+                        id: config.role,
+                        allow: [PermissionFlagsBits.ViewChannel],
+                        deny: [PermissionFlagsBits.SendMessages] // Cannot speak until claimed
+                    });
+                }
 
                 if (config.pingUser) permissionOverwrites.push({ id: config.pingUser, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] });
 
@@ -221,11 +227,9 @@ module.exports = {
                     .setDescription(description.substring(0, 4000))
                     .addFields({ name: '👤 Historial del Ciudadano (CRM)', value: userHistoryText, inline: false })
                     .setColor(0x5865F2)
-                    .setFooter({ text: 'Sistema de Soporte' }).setTimestamp();
+                    .setFooter({ text: 'Reclama el ticket para responder' }).setTimestamp();
 
                 let pings = `<@${interaction.user.id}>`;
-                // NOTA: Ya no hacemos ping al rol automáticamente si queremos que la IA intente resolverlo primero.
-                // Pero para seguridad, guardamos el Rol en una variable para usarlo si piden ayuda.
                 const staffRoleID = config.role;
 
                 const row = new ActionRowBuilder().addComponents(
@@ -233,7 +237,8 @@ module.exports = {
                     new ButtonBuilder().setCustomId('btn_claim_ticket').setLabel('Reclamar').setStyle(ButtonStyle.Success).setEmoji('✋')
                 );
 
-                await ticketChannel.send({ content: pings, embeds: [embed], components: [row] });
+                const welcomeMsg = await ticketChannel.send({ content: pings, embeds: [embed], components: [row] });
+                await welcomeMsg.pin().catch(() => { }); // PIN WELCOME MESSAGE
 
                 // --- IA ANALYSIS ---
                 console.log(`[DEBUG] Ticket Created. Attempting AI Analysis for: ${channelName}`);
@@ -282,16 +287,68 @@ module.exports = {
 
         // --- 4. ACCIONES (Claim / Close / Feedback) ---
         // Reuse same logic from previous steps
+        // --- 4. ACCIONES (Claim / Unclaim Logic) ---
         if (customId === 'btn_claim_ticket') {
             const isStaff = interaction.member.permissions.has(PermissionFlagsBits.ManageMessages);
             if (!isStaff) return interaction.reply({ content: '🚫 Solo Staff.', ephemeral: true });
 
             const { data: ticket } = await supabase.from('tickets').select('*').eq('channel_id', interaction.channel.id).single();
-            if (ticket && ticket.claimed_by_id) return interaction.reply({ content: `⚠️ Reclamado por <@${ticket.claimed_by_id}>`, ephemeral: true });
+            if (!ticket) return interaction.reply({ content: '❌ Error: Ticket no encontrado en DB.', ephemeral: true });
 
+            // A) UNCLAIM (Si ya lo tiene reclamado el usuario actual)
+            if (ticket.claimed_by_id === interaction.user.id) {
+                await supabase.from('tickets').update({ claimed_by_id: null }).eq('channel_id', interaction.channel.id);
+
+                // RESTORE PERMISSIONS (Staff Viewing, No one writing except User)
+                // We need the Role ID. Best way is to fetch from ticket_panels using ticket.panel_id if possible, or try to guess from overwrites.
+                // For simplified logic, we assume we want to reset channel perms to "Listen Mode".
+                // Since we don't have the explicit role ID easily without a join, we can iterate channel overwrites or assume default.
+
+                // TRICK: Fetch panel config via panel_id
+                const { data: panel } = await supabase.from('ticket_panels').select('support_role_id').eq('id', ticket.panel_id).single();
+                const roleId = panel?.support_role_id;
+
+                if (roleId) {
+                    await interaction.channel.permissionOverwrites.edit(roleId, {
+                        ViewChannel: true,
+                        SendMessages: false, // Mute again
+                        AttachFiles: false
+                    });
+                }
+
+                await interaction.channel.permissionOverwrites.delete(interaction.user.id); // Remove individual override
+
+                await interaction.reply({ content: `👐 **Ticket Liberado** por <@${interaction.user.id}>. Otros staff pueden verlo.` });
+                await interaction.channel.setTopic(interaction.channel.topic.replace(/ \| Staff: .*/, ''));
+                return true;
+            }
+
+            // B) PREVENT STEAL (Si lo tiene otro)
+            if (ticket.claimed_by_id) {
+                return interaction.reply({ content: `⚠️ Ticket ya reclamado por <@${ticket.claimed_by_id}>`, ephemeral: true });
+            }
+
+            // C) CLAIM (Si está libre)
             await supabase.from('tickets').update({ claimed_by_id: interaction.user.id }).eq('channel_id', interaction.channel.id);
+
+            const { data: panel } = await supabase.from('ticket_panels').select('support_role_id').eq('id', ticket.panel_id).single();
+            const roleId = panel?.support_role_id;
+
+            // HIDE from other staff, SHOW for claimer
+            if (roleId) {
+                await interaction.channel.permissionOverwrites.edit(roleId, {
+                    ViewChannel: false // Hide from others
+                });
+            }
+            // Add Claimer explicitly
+            await interaction.channel.permissionOverwrites.edit(interaction.user.id, {
+                ViewChannel: true,
+                SendMessages: true,
+                AttachFiles: true
+            });
+
             await interaction.channel.setTopic(`${interaction.channel.topic} | Staff: ${interaction.user.tag}`);
-            await interaction.reply({ embeds: [new EmbedBuilder().setDescription(`✅ Ticket reclamado por <@${interaction.user.id}>`).setColor(0x2ECC71)] });
+            await interaction.reply({ embeds: [new EmbedBuilder().setDescription(`✋ **Atendido por** <@${interaction.user.id}>\nEl ticket ahora es privado entre tú y el usuario.`).setColor(0x2ECC71)] });
             return true;
         }
 
