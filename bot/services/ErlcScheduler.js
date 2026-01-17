@@ -39,7 +39,7 @@ class ErlcScheduler {
 
             // 2. Fetch Pending Actions
             const { data: actions, error } = await this.supabase
-                .from('pending_erlc_actions')
+                .from('erlc_pending_actions')
                 .select('*')
                 .eq('status', 'pending')
                 .order('created_at', { ascending: true })
@@ -72,9 +72,8 @@ class ErlcScheduler {
             const success = await this.erlcService.runCommand(action.command);
 
             if (success) {
-                // MARK AS COMPLETED
                 await this.supabase
-                    .from('pending_erlc_actions')
+                    .from('erlc_pending_actions')
                     .update({
                         status: 'completed',
                         last_attempt: new Date().toISOString(),
