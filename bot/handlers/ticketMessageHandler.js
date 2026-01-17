@@ -254,8 +254,8 @@ module.exports = {
 
             // --- CONVERSATIONAL MEMORY ---
             // 0. CONTEXTO MASIVO: Obtener historial extendido (50 mensajes)
-            const ticketHistory = await message.channel.messages.fetch({ limit: 50 });
-            const conversationContext = ticketHistory
+            const messageHistory = await message.channel.messages.fetch({ limit: 50 });
+            const conversationContext = messageHistory
                 .reverse()
                 .map(m => `[${m.author.tag}]: ${m.content || '(imagen)'}`.substring(0, 200))
                 .join('\n');
