@@ -2,9 +2,10 @@ module.exports = {
 
     ROLES: {
         JUNTA_DIRECTIVA: [
-            '1412967056730755143', // Junta Directiva actual
-            '1412967017639575562', // Junta Directiva actual
-            '1412887195014557787', // CO-OWNER (agregar este)
+            '1412882245735420006', // Junta Directiva (el correcto)
+            '1412967056730755143', // Junta Directiva viejo
+            '1412967017639575562', // Junta Directiva viejo
+            '1412887195014557787', // CO-OWNER
         ],
         STAFF: ['1412927576879661207', '1412887167654690908'], // Agregar ROLE_COMMON
         POLICIA: [
