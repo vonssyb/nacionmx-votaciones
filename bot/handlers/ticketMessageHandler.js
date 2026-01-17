@@ -196,7 +196,12 @@ module.exports = {
         if (message.author.bot) return;
         if (message.channel.type !== 0) return;
 
-        // Solo en canales de tickets
+        // Solo en canales de tickets, NO en canales administrativos
+        const EXCLUDED_CHANNELS = [
+            '1398891368398585886', // Altos Mandos
+        ];
+
+        if (EXCLUDED_CHANNELS.includes(message.channel.id)) return;
         if (!message.channel.name.includes('-') && !message.channel.topic?.includes('Ticket')) return;
 
         // Si el staff fue llamado, el bot se silencia hasta que staff responda
