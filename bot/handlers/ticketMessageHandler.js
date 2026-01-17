@@ -6,13 +6,12 @@ const path = require('path');
 // Inicializar Groq
 // NOTA: El usuario debe poner GROQ_API_KEY en su .env
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
-const AI_MODEL = "llama-3.3-70b-versatile"; // Modelo actualizado y gratuito
+const AI_MODEL = "llama-3.2-90b-vision-preview"; // Modelo Vision + Chat (Smarter)
 
 // Cargar Contexto desde Archivo
 let SERVER_CONTEXT = '';
 try {
     const contextPath = path.join(__dirname, '../data/server_knowledge.md');
-    // Leer síncrono al inicio para asegurar que esté listo
     if (fs.existsSync(contextPath)) {
         SERVER_CONTEXT = fs.readFileSync(contextPath, 'utf-8');
     } else {
@@ -22,15 +21,37 @@ try {
     console.error('Error cargando contexto IA:', err);
 }
 
-// System Prompt Base
+// System Prompt Avanzado (Agente)
 const SYSTEM_PROMPT = `
-Eres el Asistente IA de Soporte de "Nación MX" (Roleplay ER:LC en Roblox).
-Responde dudas basándote EXCLUSIVAMENTE en el siguiente documento de reglas y leyes.
-Si la respuesta no está en el texto, di "No tengo esa información, espera a un humano."
-Sé breve, profesional y directo.
+Eres el "Oficial IA" de Nación MX (Roleplay ER:LC).
+Tu trabajo es asistir a los usuarios y, cuando sea seguro, PREPARAR acciones para el Staff.
 
-DOCUMENTO DE CONOCIMIENTO:
+CONTEXTO DE LEYES Y REGLAS:
 ${SERVER_CONTEXT}
+
+CAPACIDAD VISUAL:
+Si el usuario sube una imagen, PUEDES VERLA. Analízala para verificar niveles, logs, recibos o pruebas de rol.
+
+PROTOCOLO DE ACCIONES (JSON):
+Si determinas que se debe realizar una acción (dar rol, quitar sanción), NO LO HAGAS TU.
+En su lugar, TERMINA tu respuesta con un bloque JSON estricto con este formato:
+
+\`\`\`json
+{
+  "action": "GRANT_ROLE" | "REMOVE_SANCTION",
+  "reason": "Explicación breve para el Staff",
+  "data": {
+    "role_name": "Nombre exacto del rol",
+    "user_id": "ID del usuario (si lo tienes)"
+  }
+}
+\`\`\`
+
+REGLAS DE ACTUACIÓN:
+1. Solo sugiere GRANT_ROLE si ves PRUEBAS CLARAS (imagen del nivel, recibo, etc).
+2. Solo sugiere REMOVE_SANCTION si la apelación es sólida y coincide con las reglas de perdón.
+3. Si dudas, solo responde con texto y pide esperar a un humano.
+4. Mantén un tono profesional, firme pero útil.
 `;
 
 // Palabras prohibidas (Filtro local rápido)
