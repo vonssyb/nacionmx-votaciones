@@ -11,6 +11,7 @@ const {
     AttachmentBuilder
 } = require('discord.js');
 const discordTranscripts = require('discord-html-transcripts');
+const { generateAIResponse } = require('./ticketMessageHandler');
 
 // --- CONFIGURACIÓN PRINCIPAL ---
 const TICKET_CONFIG = {
@@ -170,7 +171,9 @@ module.exports = {
                     .setFooter({ text: 'Sistema de Soporte' }).setTimestamp();
 
                 let pings = `<@${interaction.user.id}>`;
-                if (config.role) pings += ` <@&${config.role}>`;
+                // NOTA: Ya no hacemos ping al rol automáticamente si queremos que la IA intente resolverlo primero.
+                // Pero para seguridad, guardamos el Rol en una variable para usarlo si piden ayuda.
+                const staffRoleID = config.role;
 
                 const row = new ActionRowBuilder().addComponents(
                     new ButtonBuilder().setCustomId('btn_close_ticket_ask').setLabel('Cerrar').setStyle(ButtonStyle.Danger).setEmoji('🔒'),
@@ -178,6 +181,32 @@ module.exports = {
                 );
 
                 await ticketChannel.send({ content: pings, embeds: [embed], components: [row] });
+
+                // --- IA ANALYSIS ---
+                try {
+                    const aiAnswer = await generateAIResponse(description);
+                    if (aiAnswer) {
+                        const aiRow = new ActionRowBuilder().addComponents(
+                            new ButtonBuilder().setCustomId('btn_ai_close').setLabel('✅ Me sirvió, cerrar ticket').setStyle(ButtonStyle.Success).setEmoji('🔒'),
+                            new ButtonBuilder().setCustomId(`btn_ai_help_${staffRoleID || 'none'}`).setLabel('👮 Aún necesito Staff').setStyle(ButtonStyle.Secondary).setEmoji('📢')
+                        );
+
+                        const aiEmbed = new EmbedBuilder()
+                            .setTitle('🤖 Respuesta Automática')
+                            .setDescription(aiAnswer)
+                            .setColor(0x5865F2)
+                            .setFooter({ text: '¿Te ayudó esta respuesta?' });
+
+                        await ticketChannel.send({ content: `<@${interaction.user.id}>`, embeds: [aiEmbed], components: [aiRow] });
+                    } else {
+                        // Fallback: Si la IA falla o no responde, hacemos ping al staff manual
+                        if (config.role) await ticketChannel.send({ content: `📢 <@&${config.role}>` });
+                    }
+                } catch (e) {
+                    // Fallback error
+                    if (config.role) await ticketChannel.send({ content: `📢 <@&${config.role}>` });
+                }
+
                 await interaction.editReply(`✅ Ticket creado: ${ticketChannel}`);
 
             } catch (err) {
@@ -263,6 +292,32 @@ module.exports = {
 
             await interaction.channel.send('✅ Cerrando...');
             setTimeout(() => interaction.channel.delete().catch(() => { }), 5000);
+            return true;
+        }
+
+        if (customId === 'btn_ai_close') {
+            // Reutilizamos la lógica de cierre confirmada
+            // O directamente saltamos a la confirmación
+            const row = new ActionRowBuilder().addComponents(
+                new ButtonBuilder().setCustomId('btn_close_ticket_confirm').setLabel('Confirmar Cerrar').setStyle(ButtonStyle.Danger),
+                new ButtonBuilder().setCustomId('btn_cancel_close').setLabel('Cancelar').setStyle(ButtonStyle.Secondary)
+            );
+            await interaction.reply({ content: '¿Cerrar ticket?', components: [row] });
+            return true;
+        }
+
+        if (customId.startsWith('btn_ai_help_')) {
+            const roleId = customId.replace('btn_ai_help_', '');
+            await interaction.deferUpdate();
+
+            if (roleId && roleId !== 'none') {
+                await interaction.channel.send({ content: `🔔 <@&${roleId}>, el usuario ha solicitado asistencia humana.` });
+            } else {
+                await interaction.channel.send({ content: `🔔 Staff, el usuario solicita asistencia.` });
+            }
+
+            // Disable button
+            await interaction.editReply({ components: [] });
             return true;
         }
 
