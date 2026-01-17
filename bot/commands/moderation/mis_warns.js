@@ -31,7 +31,10 @@ module.exports = {
                 const recentSanctions = sanctions.slice(0, 5);
                 let descriptionList = '';
 
-                recentSanctions.forEach(s => {
+                const MAX_FIELD_LENGTH = 1000;
+                let currentLength = 0;
+
+                for (const s of recentSanctions) {
                     let icon = '📜';
                     let displayType = s.action_type || (s.type === 'general' ? 'Sanción' : 'Notificación');
 
@@ -45,26 +48,25 @@ module.exports = {
                     const evidenceLink = s.evidence_url ? ` [📸 Ver Evidencia](${s.evidence_url})` : '';
                     let descriptionText = s.description ? `\n> *${s.description}*` : '';
                     const expiration = s.expires_at ? ` | ⏳ Expira: ${new Date(s.expires_at).toLocaleDateString('es-MX')}` : '';
-                    // Truncate logic to avoid "Invalid string length" (Limit 1024)
-                    // We need enough space for the Ref + Description
+
                     let baseLine = `**${icon} ${displayType}** [${date}]${evidenceLink} - **Ref:** ${s.reason}${expiration}`;
 
-                    // Truncate reason if too long
-                    if (baseLine.length > 900) {
-                        baseLine = baseLine.substring(0, 900) + '...';
-                    }
-
-                    if (descriptionText.length > 100) {
-                        descriptionText = descriptionText.substring(0, 100) + '...*';
-                    }
+                    // Truncate individual long lines
+                    if (baseLine.length > 300) baseLine = baseLine.substring(0, 300) + '...';
+                    if (descriptionText.length > 200) descriptionText = descriptionText.substring(0, 200) + '...*';
 
                     let line = `${baseLine}${descriptionText}\n`;
+                    if (s.status === 'appealed') line = `✨ **[APELADA]** ${line}`;
 
-                    if (s.status === 'appealed') {
-                        line = `✨ **[APELADA]** ${line}`;
+                    // CHECK GLOBAL LENGTH
+                    if ((currentLength + line.length) > MAX_FIELD_LENGTH) {
+                        descriptionList += `\n... y ${sanctions.length - 5} más (Ver archivo adjunto).`;
+                        break;
                     }
+
                     descriptionList += line;
-                });
+                    currentLength += line.length;
+                }
 
                 embed.addFields({ name: '📝 Últimos Registros', value: descriptionList || 'Sin detalles.' });
 
