@@ -185,8 +185,7 @@ module.exports = {
         const lastStaffMsg = messages.find(m => m.member?.permissions.has(PermissionFlagsBits.ManageMessages) && !m.author.bot);
 
         if (lastStaffMsg && (Date.now() - lastStaffMsg.createdTimestamp < 120000)) return;
-        const lastMsg = messages.first();
-        if (lastMsg.author.id === client.user.id) return;
+
 
         if (message.content.length < 2 && message.attachments.size === 0) return;
 
