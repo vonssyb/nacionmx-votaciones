@@ -28,7 +28,7 @@ let visionModel = null;
 if (process.env.GEMINI_API_KEY) {
     try {
         const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-        visionModel = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+        visionModel = genAI.getGenerativeModel({ model: 'gemini-pro-vision' });
         console.log('✅ Gemini 1.5 Flash Vision inicializado correctamente');
     } catch (e) {
         console.error('❌ Error inicializando Gemini:', e);
