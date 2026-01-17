@@ -182,7 +182,7 @@ module.exports = {
 
         // 2. IA RESPONSES (Solo si no es Staff y nadie ha respondido recientemente)
         const messages = await message.channel.messages.fetch({ limit: 5 });
-        const lastStaffMsg = messages.find(m => m.member?.permissions.has(PermissionFlagsBits.ManageMessages) && !m.author.bot);
+        const lastStaffMsg = messages.find(m => m.member?.permissions.has(PermissionFlagsBits.ManageMessages) && !m.author.bot && m.id !== message.id);
 
         if (lastStaffMsg && (Date.now() - lastStaffMsg.createdTimestamp < 120000)) return;
 
