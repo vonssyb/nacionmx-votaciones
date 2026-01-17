@@ -95,22 +95,22 @@ REGLAS DE ACTUACIÓN:
 // Palabras prohibidas (Filtro local rápido)
 const BAD_WORDS = ['pendejo', 'imbecil', 'idiota', 'estupido', 'verga', 'puto', 'mierda', 'chinga', 'tonto', 'inutil'];
 
-// --- Helper: Analizar Imagen con Gemini ---
+// --- Helper: Analizar Imagen con OpenAI GPT-4o Vision ---
 async function getImageDescription(imageUrl) {
-    if (!visionModel) return "Error: Sistema de visión (Gemini) no configurado. Falta GEMINI_API_KEY.";
-
+    if (!openai) return "Error: Sistema de visión (OpenAI) no configurado. Falta OPENAI_API_KEY.";
+    
     try {
-        const response = await axios.get(imageUrl, { responseType: 'arraybuffer' });
-        const imagePart = {
-            inlineData: {
-                data: Buffer.from(response.data).toString("base64"),
-                mimeType: response.headers['content-type'] || "image/png"
-            }
-        };
-
-        const result = await visionModel.generateContent([
-            {
-                text: `Analiza esta captura de pantalla de Emergency Response: Liberty County (ER:LC).
+        console.log('🔍 Analizando imagen con GPT-4o Vision...');
+        
+        const response = await openai.chat.completions.create({
+            model: "gpt-4o",
+            messages: [
+                {
+                    role: "user",
+                    content: [
+                        {
+                            type: "text",
+                            text: `Analiza esta captura de pantalla de Emergency Response: Liberty County (ER:LC).
 
 IDENTIFICA Y REPORTA:
 1. **Nombre del jugador** (esquina superior o UI)
@@ -121,16 +121,33 @@ IDENTIFICA Y REPORTA:
 6. **Infracciones evidentes**: RDM, VDM, spawn kill, etc.
 7. **Contexto visual**: Ubicación, armas, vehículos, situación
 
-SÉ ESPECÍFICO. Cita textos exactos entre comillas. Menciona colores de UI y detalles clave.` },
-            imagePart
-        ]);
-        return result.response.text();
+SÉ ESPECÍFICO. Cita textos exactos entre comillas. Menciona colores de UI y detalles clave.`
+                        },
+                        {
+                            type: "image_url",
+                            image_url: {
+                                url: imageUrl,
+                                detail: "low"
+                            }
+                        }
+                    ]
+                }
+            ],
+            max_tokens: 500
+        });
+        
+        const description = response.choices[0].message.content;
+        console.log('✅ GPT-4o análisis completo');
+        return description;
+        
     } catch (err) {
-        console.error("❌ Vision Analyze Error (FULL):", err);
-        console.error("Error name:", err.name);
-        console.error("Error message:", err.message);
-        console.error("Error stack:", err.stack);
-        return `Error analizando la imagen: ${err.message || 'Fallo técnico desconocido'}`;
+        console.error("❌ OpenAI Vision Error:", err.message);
+        
+        if (err.code === 'insufficient_quota') {
+            return "⚠️ Sin créditos en OpenAI. Agrega saldo en https://platform.openai.com/settings/organization/billing";
+        }
+        
+        return `Error analizando imagen: ${err.message}. Intenta de nuevo o describe verbalmente.`;
     }
 }
 
