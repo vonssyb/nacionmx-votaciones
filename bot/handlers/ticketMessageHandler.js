@@ -314,8 +314,8 @@ ${message.content || "(Imagen enviada)"}
 
                 // Auto-escalamiento si la IA detecta que no puede ayudar
                 if (needsStaff) {
-                    await message.channel.send('🚨 **Este ticket requiere soporte humano.** Un moderador será notificado.');
-                    // TODO: Agregar @mention del role de staff cuando esté configurado
+                    const STAFF_ROLE_ID = '1412887167654690908'; // ROLE_COMMON from config
+                    await message.channel.send(`🚨 <@&${STAFF_ROLE_ID}> - **Este ticket requiere soporte humano.** Un moderador debe revisar este caso.`);
                 }
             }
 
