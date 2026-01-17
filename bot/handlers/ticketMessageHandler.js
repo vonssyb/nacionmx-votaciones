@@ -105,47 +105,10 @@ REGLAS DE ACTUACIÓN:
 // Palabras prohibidas (Filtro local rápido)
 const BAD_WORDS = ['pendejo', 'imbecil', 'idiota', 'estupido', 'verga', 'puto', 'mierda', 'chinga', 'tonto', 'inutil'];
 
-// --- Helper: Analizar Imagen con Gemini 2.0 Flash ---
+// --- Helper: Visión desactivada temporalmente ---
 async function getImageDescription(imageUrl) {
-    if (!geminiModel) return "Error: Gemini no configurado. Falta GEMINI_API_KEY.";
-
-    try {
-        console.log('🔍 Analizando imagen con Gemini 2.0 Flash...');
-
-        const response = await axios.get(imageUrl, { responseType: 'arraybuffer' });
-        const imagePart = {
-            inlineData: {
-                data: Buffer.from(response.data).toString("base64"),
-                mimeType: response.headers['content-type'] || "image/png"
-            }
-        };
-
-        const result = await geminiModel.generateContent([
-            {
-                text: `Analiza esta captura de pantalla de Emergency Response: Liberty County (ER:LC).
-
-IDENTIFICA Y REPORTA:
-1. **Nombre del jugador** (esquina superior o UI)
-2. **Rango/Nivel/Rol** visible en la pantalla
-3. **Chat visible**: Lee EXACTAMENTE lo que dice el chat (palabra por palabra)
-4. **Logs del sistema**: Mensajes de kill, spawn, arrestos, etc.
-5. **Estadísticas**: Dinero, nivel, experiencia si es visible
-6. **Infracciones evidentes**: RDM, VDM, spawn kill, etc.
-7. **Contexto visual**: Ubicación, armas, vehículos, situación
-
-SÉ ESPECÍFICO. Cita textos exactos entre comillas. Menciona colores de UI y detalles clave.`
-            },
-            imagePart
-        ]);
-
-        const description = result.response.text();
-        console.log('✅ Gemini 2.0 análisis de imagen completo');
-        return description;
-
-    } catch (err) {
-        console.error("❌ Gemini Vision Error:", err.message);
-        return `Error analizando imagen: ${err.message}. Describe verbalmente la captura.`;
-    }
+    // Sin Gemini funcional, pedir descripción manual
+    return "⚠️ No puedo ver imágenes por ahora. Por favor describe qué contiene la captura.";
 }
 
 
@@ -153,15 +116,9 @@ SÉ ESPECÍFICO. Cita textos exactos entre comillas. Menciona colores de UI y de
 async function generateAIResponse(query, imageUrl = null) {
     let visualContext = "";
 
-    // 1. Pre-procesar Imagen (si existe)
+    // 1. Pre-procesar Imagen (si existe) - DESACTIVADO
     if (imageUrl) {
-        if (visionModel) {
-            const description = await getImageDescription(imageUrl);
-            visualContext = `\n\n[SISTEMA - ANÁLISIS VISUAL]: El usuario adjuntó una imagen. Gemini la describe así:\n"${description}"\n\n(Usa esta descripción para validar pruebas).`;
-            query += visualContext;
-        } else {
-            query += "\n\n[SISTEMA: El usuario envió una imagen, pero el módulo de visión (Gemini) NO está activo. Avisa que no puedes verla.]";
-        }
+        query += "\\n\\n[SISTEMA: El usuario envió una imagen, pero la visión está desactivada. Pídele que describa qué contiene.]";
     }
 
     if (!groqClient || GROQ_KEYS.length === 0) {
