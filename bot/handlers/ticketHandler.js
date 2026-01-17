@@ -207,9 +207,9 @@ module.exports = {
                 console.log(`[DEBUG] Ticket Created. Attempting AI Analysis for: ${channelName}`);
                 try {
                     const aiAnswer = await generateAIResponse(description);
-                    console.log(`[DEBUG] AI Response Result:`, aiAnswer ? "Reviewing..." : "NULL");
+                    console.log(`[DEBUG] AI Response Result:`, aiAnswer?.startsWith('ERROR') ? "FAIL" : "SUCCESS");
 
-                    if (aiAnswer) {
+                    if (aiAnswer && !aiAnswer.startsWith('ERROR')) {
                         const aiRow = new ActionRowBuilder().addComponents(
                             new ButtonBuilder().setCustomId('btn_ai_close').setLabel('✅ Me sirvió, cerrar ticket').setStyle(ButtonStyle.Success).setEmoji('🔒'),
                             new ButtonBuilder().setCustomId(`btn_ai_help_${staffRoleID || 'none'}`).setLabel('👮 Aún necesito Staff').setStyle(ButtonStyle.Secondary).setEmoji('📢')
@@ -224,17 +224,19 @@ module.exports = {
                         await ticketChannel.send({ content: `<@${interaction.user.id}>`, embeds: [aiEmbed], components: [aiRow] });
                         console.log(`[DEBUG] AI Embed sent to ${channelName}`);
                     } else {
-                        // ACOPLAMIENTO: Si la IA falla (null) o no hay key
-                        console.log(`[DEBUG] AI returned null (Check API Key).`);
+                        // ACOPLAMIENTO: Si la IA falla o no trae respuesta
+                        const errorMsg = aiAnswer || "Respuesta nula desconocida";
+                        console.log(`[DEBUG] AI Failed: ${errorMsg}`);
+
                         if (config.role) await ticketChannel.send({ content: `📢 <@&${config.role}>` });
-                        // Mensaje de debug para el admin (puedes quitarlo luego)
-                        await ticketChannel.send({ content: '⚠️ **Debug IA:** No se pudo generar respuesta (Posiblemente falta API KEY en Koyeb/Render).' });
+
+                        // Mensaje de debug visible para el admin
+                        await ticketChannel.send({ content: `⚠️ **Debug IA:** ${errorMsg}` });
                     }
                 } catch (e) {
                     console.error('[DEBUG] AI Error in Ticket Handler:', e);
-                    // Fallback error
                     if (config.role) await ticketChannel.send({ content: `📢 <@&${config.role}>` });
-                    await ticketChannel.send({ content: `⚠️ **Debug IA:** Error interno (${e.message}). Revisar logs.` });
+                    await ticketChannel.send({ content: `⚠️ **Debug IA:** Excepción Fatal (${e.message})` });
                 }
 
                 await interaction.editReply(`✅ Ticket creado: ${ticketChannel}`);

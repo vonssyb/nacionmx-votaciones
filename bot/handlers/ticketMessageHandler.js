@@ -37,13 +37,17 @@ const BAD_WORDS = ['pendejo', 'imbecil', 'idiota', 'estupido', 'verga', 'puto', 
 
 // Función interna reutilizable para generar respuesta
 async function generateAIResponse(query) {
+    if (!process.env.GEMINI_API_KEY) {
+        console.error('[GEMINI] API Key is missing');
+        return "ERROR_MISSING_KEY: La variable GEMINI_API_KEY no está definida en el entorno.";
+    }
     try {
         const fullPrompt = `${SYSTEM_PROMPT}\nUsuario pregunta: "${query}"\nRespuesta:`;
         const result = await model.generateContent(fullPrompt);
         return result.response.text();
     } catch (error) {
         console.error('Gemini Generate Error:', error);
-        return null; // Fallback
+        return `ERROR_API: ${error.message}`; // Fallback con info
     }
 }
 
