@@ -1,11 +1,15 @@
 const fs = require('fs');
+console.log("🚀 [DEBUG] Starting index_unified.js..."); // DEBUG LOG
 const path = require('path');
 const envPath = fs.existsSync(path.join(__dirname, '.env')) ? path.join(__dirname, '.env') : path.join(__dirname, '../.env');
 require('dotenv').config({ path: envPath });
+console.log("🚀 [DEBUG] Environment loaded."); // DEBUG LOG
 const { Client, GatewayIntentBits, Partials, Collection, REST, Routes, EmbedBuilder, ButtonStyle } = require('discord.js');
 const { createClient } = require('@supabase/supabase-js');
 const express = require('express');
+console.log("🚀 [DEBUG] Imports core done. Requiring handlers...");
 const { handleModerationLegacy } = require('./handlers/legacyModerationHandler');
+console.log("🚀 [DEBUG] Handlers loaded.");
 
 // --- LOGGING ---
 const log = (prefix, msg) => console.log(`${prefix} ${msg}`);
@@ -15,6 +19,7 @@ const INSTANCE_ID = Math.random().toString(36).substring(7).toUpperCase();
 console.log(`🆔 BOT INSTANCE STARTED: ${INSTANCE_ID}`);
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
+console.log(`🚀 [DEBUG] Supabase connecting to: ${SUPABASE_URL ? SUPABASE_URL.substring(0, 15) + '...' : 'UNDEFINED'}`);
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // --- GLOBAL ERROR HANDLERS (Prevent Exit Code 1) ---
