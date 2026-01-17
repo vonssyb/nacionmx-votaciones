@@ -1183,10 +1183,13 @@ async function loginWithRetry(client, token, botName) {
 
         // Lock acquired, proceed
         // Lock acquired, proceed
-        await startModerationBot();
-        await startEconomyBot();
-        await startGovernmentBot();
-        log('🚀', 'All Initialization Functions Called');
+        console.log("🚀 [Startup] Launching bots independently...");
+
+        try { await startModerationBot(); } catch (e) { console.error("❌ [MOD] Failed to start:", e); }
+        try { await startEconomyBot(); } catch (e) { console.error("❌ [ECO] Failed to start:", e); }
+        try { await startGovernmentBot(); } catch (e) { console.error("❌ [GOV] Failed to start:", e); }
+
+        log('🚀', 'All Initialization Attempts Completed');
 
         // --- GRACEFUL SHUTDOWN HANDLER ---
         const handleShutdown = async (signal) => {
