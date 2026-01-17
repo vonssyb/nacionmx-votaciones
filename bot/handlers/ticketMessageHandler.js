@@ -21,10 +21,6 @@ try {
     console.error('Error cargando contexto IA:', err);
 }
 
-// System Prompt Avanzado (Agente)
-const fs = require('fs');
-const path = require('path');
-
 // --- CARGAR CONOCIMIENTO DEL SERVIDOR ---
 let SERVER_KNOWLEDGE = "";
 try {
