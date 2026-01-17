@@ -111,7 +111,19 @@ async function getImageDescription(imageUrl) {
         };
 
         const result = await visionModel.generateContent([
-            { text: "Describe esta imagen detalladamente para un moderador de Discord. Menciona nombres de usuario, textos visibles, chats, recibos bancarios o situaciones de rol. Sé objetivo y preciso." },
+            {
+                text: `Analiza esta captura de pantalla de Emergency Response: Liberty County (ER:LC).
+
+IDENTIFICA Y REPORTA:
+1. **Nombre del jugador** (esquina superior o UI)
+2. **Rango/Nivel/Rol** visible en la pantalla
+3. **Chat visible**: Lee EXACTAMENTE lo que dice el chat (palabra por palabra)
+4. **Logs del sistema**: Mensajes de kill, spawn, arrestos, etc.
+5. **Estadísticas**: Dinero, nivel, experiencia si es visible
+6. **Infracciones evidentes**: RDM, VDM, spawn kill, etc.
+7. **Contexto visual**: Ubicación, armas, vehículos, situación
+
+SÉ ESPECÍFICO. Cita textos exactos entre comillas. Menciona colores de UI y detalles clave.` },
             imagePart
         ]);
         return result.response.text();
@@ -201,6 +213,22 @@ module.exports = {
                 }
             }
 
+
+            // --- CONVERSATIONAL MEMORY ---
+            // Leer últimos 10 mensajes para contexto de la conversación
+            const ticketHistory = await message.channel.messages.fetch({ limit: 10 });
+            const conversationContext = ticketHistory
+                .reverse()
+                .map(m => {
+                    const author = m.author.bot ? '🤖 IA' : m.author.username;
+                    const content = m.content || '(imagen adjunta)';
+                    return `[${author}]: ${content}`;
+                })
+                .join('\n');
+
+            // Tema original del ticket (contexto principal)
+            const ticketTopic = message.channel.topic || 'Ticket sin tema especificado';
+
             // --- USER CONTEXT (Sanctions & Info) ---
             let userContext = `Usuario: <@${message.author.id}> (${message.author.username})\n`;
 
@@ -240,20 +268,55 @@ module.exports = {
                 userContext += `\n(⚠️ No se pudo acceder a la base de datos de sanciones)\n`;
             }
 
-            const queryWithContext = `CONTEXTO DEL USUARIO:\n${userContext}\n\nMENSAJE DEL USUARIO:\n${message.content || "(Imagen enviada)"}`;
+            const queryWithContext = `
+📋 TEMA DEL TICKET:
+${ticketTopic}
+
+💬 CONVERSACIÓN PREVIA (últimos 10 mensajes):
+${conversationContext}
+
+👤 CONTEXTO DEL USUARIO:
+${userContext}
+
+📨 MENSAJE ACTUAL:
+${message.content || "(Imagen enviada)"}
+`;
 
             const aiResult = await generateAIResponse(queryWithContext, imageUrl);
             const responseText = typeof aiResult === 'object' ? aiResult.content : aiResult;
             const actionRequest = typeof aiResult === 'object' ? aiResult.action : null;
 
             if (responseText) {
+                // Detectar si la IA necesita ayuda
+                const needsStaff = (
+                    responseText.toLowerCase().includes('no puedo') ||
+                    responseText.toLowerCase().includes('necesitas un humano') ||
+                    responseText.toLowerCase().includes('no tengo autoridad') ||
+                    responseText.toLowerCase().includes('error analizando')
+                );
+
                 const embed = new EmbedBuilder()
                     .setTitle('🤖 Asistente Virtual')
                     .setDescription(responseText)
-                    .setColor(0x5865F2)
+                    .setColor(needsStaff ? 0xFF6B6B : 0x5865F2)
                     .setFooter({ text: 'Soy una IA. Espera a un humano si mi respuesta no ayuda.' });
 
-                await message.channel.send({ embeds: [embed] });
+                // Botón manual "Necesito Staff"
+                const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+                const row = new ActionRowBuilder().addComponents(
+                    new ButtonBuilder()
+                        .setCustomId('escalate_to_staff')
+                        .setLabel('🚨 Necesito Staff Real')
+                        .setStyle(ButtonStyle.Secondary)
+                );
+
+                await message.channel.send({ embeds: [embed], components: [row] });
+
+                // Auto-escalamiento si la IA detecta que no puede ayudar
+                if (needsStaff) {
+                    await message.channel.send('🚨 **Este ticket requiere soporte humano.** Un moderador será notificado.');
+                    // TODO: Agregar @mention del role de staff cuando esté configurado
+                }
             }
 
             // --- AI ACTION PROPOSAL (Staff Only) ---
