@@ -2,12 +2,12 @@ const { EmbedBuilder, PermissionFlagsBits } = require('discord.js');
 const Groq = require('groq-sdk');
 const fs = require('fs');
 const path = require('path');
-const { GoogleGenerativeAI } = require("@google/generative-ai");
+// Gemini removed - using Hugging Face instead (100% free)
 const axios = require('axios');
 
 // --- CONFIGURACIÓN HÍBRIDA ---
 // CEREBRO: Groq (Llama 3.3 70b) - Genera las respuestas de chat.
-// OJOS: Gemini (1.5 Flash) - Solo describe las imágenes para Groq.
+// OJOS: Hugging Face (BLIP) - Describe las imágenes GRATIS.
 
 // 1. Inicializar Groq (Cerebro)
 let groq;
@@ -22,19 +22,9 @@ try {
 }
 const AI_MODEL_CHAT = "llama-3.3-70b-versatile";
 
-// 2. Inicializar Gemini (Ojos)
-let visionModel = null;
-if (process.env.GEMINI_API_KEY) {
-    try {
-        const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-        visionModel = genAI.getGenerativeModel({ model: "gemini-pro-vision" });
-        console.log('✅ Gemini Vision inicializado correctamente');
-    } catch (e) {
-        console.error("❌ Error inicializando Gemini (Visión):", e);
-    }
-} else {
-    console.warn('⚠️ GEMINI_API_KEY no encontrada - Visión desactivada');
-}
+// 2. Hugging Face Vision (Sin API key - 100% GRATIS)
+const HF_MODEL = "Salesforce/blip-image-captioning-large";
+console.log('✅ Hugging Face Vision configurado (BLIP - Gratis)');
 
 // Cargar Contexto desde Archivo
 let SERVER_CONTEXT = '';
