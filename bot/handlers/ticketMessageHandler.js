@@ -5,7 +5,18 @@ const path = require('path');
 
 // Inicializar Groq
 // NOTA: El usuario debe poner GROQ_API_KEY en su .env
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+// Inicializar Groq
+// NOTA: El usuario debe poner GROQ_API_KEY en su .env
+let groq;
+try {
+    if (process.env.GROQ_API_KEY) {
+        groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+    } else {
+        console.warn('⚠️ GROQ_API_KEY no encontrada. La IA de tickets no funcionará.');
+    }
+} catch (e) {
+    console.error('Error inicializando Groq:', e);
+}
 const AI_MODEL = "llama-3.2-90b-vision-preview"; // Modelo Vision + Chat (Smarter)
 
 // Cargar Contexto desde Archivo
