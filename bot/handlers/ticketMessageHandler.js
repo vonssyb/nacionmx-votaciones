@@ -1,11 +1,12 @@
 const { EmbedBuilder, PermissionFlagsBits } = require('discord.js');
-const { GoogleGenerativeAI } = require('@google/generative-ai');
+const Groq = require('groq-sdk');
 const fs = require('fs');
 const path = require('path');
 
-// Inicializar Gemini
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const model = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
+// Inicializar Groq
+// NOTA: El usuario debe poner GROQ_API_KEY en su .env
+const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+const AI_MODEL = "llama3-8b-8192"; // Modelo rápido y gratuito
 
 // Cargar Contexto desde Archivo
 let SERVER_CONTEXT = '';
@@ -37,21 +38,25 @@ const BAD_WORDS = ['pendejo', 'imbecil', 'idiota', 'estupido', 'verga', 'puto', 
 
 // Función interna reutilizable para generar respuesta
 async function generateAIResponse(query) {
-    if (!process.env.GEMINI_API_KEY) {
-        console.error('[GEMINI] API Key is missing');
-        return "ERROR_MISSING_KEY: La variable GEMINI_API_KEY no está definida en el entorno.";
+    if (!process.env.GROQ_API_KEY) {
+        console.error('[GROQ] API Key is missing');
+        return "ERROR_MISSING_KEY: La variable GROQ_API_KEY no está definida en el entorno.";
     }
     try {
-        const fullPrompt = `${SYSTEM_PROMPT}\nUsuario pregunta: "${query}"\nRespuesta:`;
-        const result = await model.generateContent(fullPrompt);
-        return result.response.text();
+        const chatCompletion = await groq.chat.completions.create({
+            messages: [
+                { role: "system", content: SYSTEM_PROMPT },
+                { role: "user", content: query }
+            ],
+            model: AI_MODEL,
+            temperature: 0.5,
+            max_tokens: 500,
+        });
+
+        return chatCompletion.choices[0]?.message?.content || "";
     } catch (error) {
-        if (error.status === 429 || error.message.includes('429')) {
-            console.warn('[GEMINI] Quota Exceeded');
-            return "Lo siento, mi cerebro de IA está saturado por hoy (Límite de cuota alcanzado). Espera a un humano.";
-        }
-        console.error('Gemini Generate Error:', error);
-        return `ERROR_API: ${error.message}`; // Fallback con info
+        console.error('Groq Generate Error:', error);
+        return `ERROR_API: ${error.message}`;
     }
 }
 
