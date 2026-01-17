@@ -107,10 +107,39 @@ REGLAS DE ACTUACIÓN:
 // Palabras prohibidas (Filtro local rápido)
 const BAD_WORDS = ['pendejo', 'imbecil', 'idiota', 'estupido', 'verga', 'puto', 'mierda', 'chinga', 'tonto', 'inutil'];
 
-// --- Helper: Visión desactivada temporalmente ---
+// --- Helper: Analizar Imagen con Hugging Face BLIP (Gratis, lento) ---
 async function getImageDescription(imageUrl) {
-    // Sin Gemini funcional, pedir descripción manual
-    return "⚠️ No puedo ver imágenes por ahora. Por favor describe qué contiene la captura.";
+    try {
+        console.log('🔍 Analizando imagen con Hugging Face BLIP (puede tardar 20-30 seg)...');
+
+        // Descargar imagen
+        const response = await axios.get(imageUrl, { responseType: 'arraybuffer' });
+        const imageBuffer = Buffer.from(response.data);
+
+        // Llamar a Hugging Face Inference API (público, sin auth)
+        const hfResponse = await axios.post(
+            'https://api-inference.huggingface.co/models/Salesforce/blip-image-captioning-large',
+            imageBuffer,
+            {
+                headers: { 'Content-Type': 'application/octet-stream' },
+                timeout: 60000
+            }
+        );
+
+        const description = hfResponse.data[0]?.generated_text || "No se pudo generar descripción";
+        console.log('✅ Hugging Face análisis completo:', description);
+
+        return `[Descripción básica]: ${description}. NOTA: Para detalles específicos de ER:LC (nombres, niveles, chat exacto), descríbelos tú.`;
+
+    } catch (err) {
+        console.error("❌ Hugging Face Error:", err.message);
+
+        if (err.response?.status === 503) {
+            return "⏳ Modelo cargándose (~30 seg). Reenvía la imagen en 30 segundos.";
+        }
+
+        return "⚠️ Error analizando imagen. Describe qué contiene la captura.";
+    }
 }
 
 
@@ -118,9 +147,12 @@ async function getImageDescription(imageUrl) {
 async function generateAIResponse(query, imageUrl = null) {
     let visualContext = "";
 
-    // 1. Pre-procesar Imagen (si existe) - DESACTIVADO
+
+    // 1. Pre-procesar Imagen con Hugging Face (si existe)
     if (imageUrl) {
-        query += "\\n\\n[SISTEMA: El usuario envió una imagen, pero la visión está desactivada. Pídele que describa qué contiene.]";
+        const description = await getImageDescription(imageUrl);
+        visualContext = `\n\n[SISTEMA - ANÁLISIS VISUAL]: El usuario adjuntó una imagen. Hugging Face BLIP la describe así:\n"${description}"\n\n(Usa esta descripción como referencia).`;
+        query += visualContext;
     }
 
     if (!groqClient || GROQ_KEYS.length === 0) {
