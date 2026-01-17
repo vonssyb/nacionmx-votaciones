@@ -204,6 +204,23 @@ module.exports = {
         if (EXCLUDED_CHANNELS.includes(message.channel.id)) return;
         if (!message.channel.name.includes('-') && !message.channel.topic?.includes('Ticket')) return;
 
+        // SEGURIDAD: Solo el dueño del ticket puede hablar con la IA
+        const supabase = client.supabase;
+        try {
+            const { data: ticket } = await supabase
+                .from('tickets')
+                .select('user_id')
+                .eq('channel_id', message.channel.id)
+                .maybeSingle();
+
+            // Si el ticket existe y el mensaje NO es del dueño, ignorar
+            if (ticket && ticket.user_id !== message.author.id) {
+                return; // Solo el dueño del ticket puede usar la IA
+            }
+        } catch (err) {
+            console.error('Error verificando dueño del ticket:', err);
+        }
+
         // Si el staff fue llamado, el bot se silencia hasta que staff responda
         const state = ticketStates.get(message.channel.id) || {};
         if (state.staffCalled) {
