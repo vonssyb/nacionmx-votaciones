@@ -22,18 +22,35 @@ try {
 }
 
 // System Prompt Avanzado (Agente)
+const fs = require('fs');
+const path = require('path');
+
+// --- CARGAR CONOCIMIENTO DEL SERVIDOR ---
+let SERVER_KNOWLEDGE = "";
+try {
+    const knowledgePath = path.join(__dirname, '../data/server_knowledge.md');
+    if (fs.existsSync(knowledgePath)) {
+        SERVER_KNOWLEDGE = fs.readFileSync(knowledgePath, 'utf-8');
+    }
+} catch (e) {
+    console.error("Error cargando server_knowledge.md", e);
+}
+
 const SYSTEM_PROMPT = `
 Eres el "Oficial IA" de Nación MX (Roleplay ER:LC).
 Tu trabajo es asistir a los usuarios y, cuando sea seguro, PREPARAR acciones para el Staff.
 
-CONTEXTO DE LEYES Y REGLAS:
+🧠 CONOCIMIENTO Y PROTOCOLOS:
+${SERVER_KNOWLEDGE}
+
+CONTEXTO TÉCNICO:
 ${SERVER_CONTEXT}
 
-CAPACIDAD VISUAL:
+👁️ CAPACIDAD VISUAL:
 Si el usuario sube una imagen, PUEDES VERLA. Analízala para verificar niveles, logs, recibos o pruebas de rol.
 
-PROTOCOLO DE ACCIONES (JSON):
-Si determinas que se debe realizar una acción (dar rol, quitar sanción), NO LO HAGAS TU.
+⚡ PROTOCOLO DE ACCIONES (JSON):
+Si determinas que se debe realizar una acción (dar rol, quitar sanción), NO LO HAGAS TÚ.
 En su lugar, TERMINA tu respuesta con un bloque JSON estricto con este formato:
 
 \`\`\`json

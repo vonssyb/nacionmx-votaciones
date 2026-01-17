@@ -479,6 +479,78 @@ module.exports = {
             return true;
         }
 
+        // --- 🤖 AI ACTION CONFIRMATION ---
+        if (customId.startsWith('ai_confirm_')) {
+            // 1. Verify Staff Permission
+            const member = interaction.member;
+            if (!member.permissions.has(PermissionFlagsBits.ManageRoles) && !member.roles.cache.has(TICKET_CONFIG.ROLE_COMMON)) {
+                return interaction.reply({ content: '⛔ Solo el Staff puede confirmar acciones de la IA.', ephemeral: true });
+            }
+
+            // 2. Parse JSON from Embed
+            const embed = interaction.message.embeds[0];
+            if (!embed || !embed.description) return interaction.reply({ content: '❌ Error: No se encontró la descripción de la acción.', ephemeral: true });
+
+            const jsonMatch = embed.description.match(/```json\n([\s\S]*?)\n```/);
+            if (!jsonMatch) return interaction.reply({ content: '❌ Error: No se pudo leer el JSON de la acción.', ephemeral: true });
+
+            let actionData;
+            try {
+                actionData = JSON.parse(jsonMatch[1]);
+            } catch (e) {
+                return interaction.reply({ content: '❌ Error al procesar datos de la acción.', ephemeral: true });
+            }
+
+            await interaction.deferReply();
+
+            // 3. Execute Action
+            if (customId.includes('GRANT_ROLE')) {
+                const { role_name, user_id } = actionData;
+                let targetMember;
+
+                try {
+                    // Try to fetch member strictly. If user_id is missing, try to find the ticket owner?
+                    if (!user_id) {
+                        // Fallback attempt: Get ticket owner from DB? Too slow?
+                        // Let's rely on AI providing it. The prompt says it should.
+                        return interaction.editReply('❌ El JSON de la IA no incluía el ID del usuario.');
+                    }
+                    targetMember = await interaction.guild.members.fetch(user_id);
+                } catch (err) {
+                    return interaction.editReply(`❌ No se encontró al usuario con ID: ${user_id}`);
+                }
+
+                // Find Role (Name or ID)
+                const role = interaction.guild.roles.cache.find(r => r.name.toLowerCase() === role_name.toLowerCase() || r.id === role_name);
+                if (!role) return interaction.editReply(`❌ No encontré el rol: **${role_name}**. Verifica que el nombre sea exacto.`);
+
+                try {
+                    await targetMember.roles.add(role);
+                    await interaction.channel.send(`✅ **Acción Ejecutada:** Rol ${role} asignado a ${targetMember} por IA (Confirmado por ${interaction.user}).`);
+                    await interaction.message.delete(); // Delete proposal
+                } catch (err) {
+                    await interaction.editReply(`❌ Error de permisos al dar rol: \`${err.message}\`. Revisa la jerarquía del Bot.`);
+                }
+            } else if (customId.includes('REMOVE_SANCTION')) {
+                // Placeholder for future DB integration
+                await interaction.editReply('ℹ️ La eliminación automática de sanciones aún no está conectada. Por favor, hazlo manualmente.');
+            } else {
+                await interaction.editReply('❓ Acción desconocida.');
+            }
+
+            return true;
+        }
+
+        if (customId === 'ai_reject') {
+            const member = interaction.member;
+            if (!member.permissions.has(PermissionFlagsBits.ManageRoles) && !member.roles.cache.has(TICKET_CONFIG.ROLE_COMMON)) {
+                return interaction.reply({ content: '⛔ Solo Staff.', ephemeral: true });
+            }
+            await interaction.message.delete();
+            await interaction.reply({ content: '🗑️ Propuesta rechazada.', ephemeral: true });
+            return true;
+        }
+
         return false;
     }
 };
