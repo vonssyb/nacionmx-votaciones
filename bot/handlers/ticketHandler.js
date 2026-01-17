@@ -110,9 +110,18 @@ module.exports = {
                     new TextInputBuilder().setCustomId('q_reason').setLabel("Descubre el fallo/bug").setStyle(TextInputStyle.Paragraph).setRequired(true),
                     new TextInputBuilder().setCustomId('q_impede').setLabel("¿Te impide jugar/rolear?").setStyle(TextInputStyle.Short).setRequired(true)
                 );
+            } else if (ticketTypeKey === 'ticket_vip') {
+                fields.push(
+                    new TextInputBuilder().setCustomId('q_vip_user').setLabel("Usuario Roblox").setStyle(TextInputStyle.Short).setRequired(true),
+                    new TextInputBuilder().setCustomId('q_vip_type').setLabel("Tipo (Compra/Soporte/Renovación)").setStyle(TextInputStyle.Short).setRequired(true),
+                    new TextInputBuilder().setCustomId('q_reason').setLabel("Detalles de su consulta").setStyle(TextInputStyle.Paragraph).setRequired(true)
+                );
             } else {
-                // General & VIP
-                fields.push(new TextInputBuilder().setCustomId('q_reason').setLabel("Describe tu problema o duda").setStyle(TextInputStyle.Paragraph).setRequired(true).setMaxLength(1000));
+                // ticket_general
+                fields.push(
+                    new TextInputBuilder().setCustomId('q_subject').setLabel("Asunto del Ticket").setStyle(TextInputStyle.Short).setRequired(true).setMaxLength(50),
+                    new TextInputBuilder().setCustomId('q_reason').setLabel("Descripción Detallada").setStyle(TextInputStyle.Paragraph).setRequired(true).setMaxLength(1000)
+                );
             }
 
             fields.forEach(f => modal.addComponents(new ActionRowBuilder().addComponents(f)));
