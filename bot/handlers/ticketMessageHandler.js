@@ -6,7 +6,7 @@ const path = require('path');
 // Inicializar Groq
 // NOTA: El usuario debe poner GROQ_API_KEY en su .env
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
-const AI_MODEL = "llama3-8b-8192"; // Modelo rápido y gratuito
+const AI_MODEL = "llama-3.3-70b-versatile"; // Modelo actualizado y gratuito
 
 // Cargar Contexto desde Archivo
 let SERVER_CONTEXT = '';
