@@ -194,6 +194,20 @@ module.exports = {
                     permissionOverwrites
                 });
 
+                // --- CRM: USER HISTORY QUERY ---
+                let userHistoryText = "• Primer Ticket";
+                try {
+                    const { count: ticketCount } = await supabase.from('tickets').select('*', { count: 'exact', head: true }).eq('creator_id', interaction.user.id);
+                    // Suponiendo tabla 'sanctions' o 'fines' existente. Si no, comentar.
+                    const { count: sanctionCount } = await supabase.from('arrests_fines').select('*', { count: 'exact', head: true }).eq('discord_user_id', interaction.user.id);
+
+                    if (ticketCount > 0) {
+                        userHistoryText = `• Tickets Previos: **${ticketCount}**\n• Sanciones/Arrestos: **${sanctionCount || 0}**`;
+                    }
+                } catch (crmError) {
+                    console.error('CRM Error:', crmError);
+                }
+
                 await supabase.from('tickets').insert([{
                     guild_id: interaction.guild.id,
                     channel_id: ticketChannel.id,
@@ -205,6 +219,7 @@ module.exports = {
                 const embed = new EmbedBuilder()
                     .setTitle(`${config.emoji} ${config.title}`)
                     .setDescription(description.substring(0, 4000))
+                    .addFields({ name: '👤 Historial del Ciudadano (CRM)', value: userHistoryText, inline: false })
                     .setColor(0x5865F2)
                     .setFooter({ text: 'Sistema de Soporte' }).setTimestamp();
 
@@ -350,13 +365,25 @@ module.exports = {
         }
 
         if (customId === 'btn_ai_close') {
-            // Reutilizamos la lógica de cierre confirmada
-            // O directamente saltamos a la confirmación
-            const row = new ActionRowBuilder().addComponents(
-                new ButtonBuilder().setCustomId('btn_close_ticket_confirm').setLabel('Confirmar Cerrar').setStyle(ButtonStyle.Danger),
-                new ButtonBuilder().setCustomId('btn_cancel_close').setLabel('Cancelar').setStyle(ButtonStyle.Secondary)
-            );
-            await interaction.reply({ content: '¿Cerrar ticket?', components: [row] });
+            // MARK AS AI SOLVED
+            await supabase.from('tickets').update({
+                status: 'CLOSED',
+                closed_at: new Date().toISOString(),
+                closed_by_ai: true,
+                rating: 5 // Asumimos 5 estrellas si la cierra el usuario feliz
+            }).eq('channel_id', interaction.channel.id);
+
+            // Log simple
+            console.log(`[AI-STATS] Ticket ${interaction.channel.name} closed by AI.`);
+
+            await interaction.reply({ content: '🤖 ¡Me alegra haber ayudado! Cerrando ticket...' });
+
+            // Generate Transcript and Delete (reuse logic or simple delete)
+            const attachment = await discordTranscripts.createTranscript(interaction.channel, { limit: -1, returnType: 'attachment', filename: `ai-close-${interaction.channel.name}.html`, saveImages: true });
+            const logChannel = client.channels.cache.get(TICKET_CONFIG.LOG_TRANSCRIPTS);
+            if (logChannel) await logChannel.send({ content: `🤖 **Ticket Resuelto por IA**`, files: [attachment] });
+
+            setTimeout(() => interaction.channel.delete().catch(() => { }), 4000);
             return true;
         }
 
