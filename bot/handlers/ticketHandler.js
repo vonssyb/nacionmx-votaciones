@@ -88,7 +88,7 @@ module.exports = {
                 fields.push(
                     new TextInputBuilder().setCustomId('q_staff').setLabel("Staff que aplicó la sanción:").setStyle(TextInputStyle.Short).setRequired(true),
                     new TextInputBuilder().setCustomId('q_reason').setLabel("Tipo y motivo de la sanción (ban/warn):").setStyle(TextInputStyle.Short).setRequired(true),
-                    new TextInputBuilder().setCustomId('q_defense').setLabel("Explica por qué consideras que debe retirarse:").setStyle(TextInputStyle.Paragraph).setRequired(true).setMaxLength(900)
+                    new TextInputBuilder().setCustomId('q_defense').setLabel("Explica por qué debería retirarse:").setStyle(TextInputStyle.Paragraph).setRequired(true).setMaxLength(900)
                 );
             } else if (ticketTypeKey === 'ticket_ck') {
                 fields.push(
