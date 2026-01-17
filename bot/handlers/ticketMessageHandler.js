@@ -5,8 +5,6 @@ const path = require('path');
 
 // Inicializar Groq
 // NOTA: El usuario debe poner GROQ_API_KEY en su .env
-// Inicializar Groq
-// NOTA: El usuario debe poner GROQ_API_KEY en su .env
 let groq;
 try {
     if (process.env.GROQ_API_KEY) {
@@ -18,9 +16,8 @@ try {
     console.error('Error inicializando Groq:', e);
 }
 
-// FALLBACK: Vision models (90b/11b) decomissioned. Using robust text model.
+// FALLBACK: User requested Groq specifically. Vision deactivated.
 const AI_MODEL = "llama-3.3-70b-versatile";
-
 
 // Cargar Contexto desde Archivo
 let SERVER_CONTEXT = '';
@@ -57,7 +54,8 @@ CONTEXTO TÉCNICO:
 ${SERVER_CONTEXT}
 
 👁️ CAPACIDAD VISUAL:
-Si el usuario sube una imagen, PUEDES VERLA. Analízala para verificar niveles, logs, recibos o pruebas de rol.
+ACTUALMENTE DESACTIVADA (Tu proveedor Groq no soporta visión).
+Si el usuario sube una imagen, NO PUEDES VERLA. Pídele que describa lo que hay en ella o el texto relevante.
 
 ⚡ PROTOCOLO DE ACCIONES (JSON):
 Si determinas que se debe realizar una acción (dar rol, quitar sanción), NO LO HAGAS TÚ.
@@ -85,69 +83,16 @@ REGLAS DE ACTUACIÓN:
 const BAD_WORDS = ['pendejo', 'imbecil', 'idiota', 'estupido', 'verga', 'puto', 'mierda', 'chinga', 'tonto', 'inutil'];
 
 // Función interna reutilizable para generar respuesta
-const { GoogleGenerativeAI } = require("@google/generative-ai");
-const axios = require('axios');
-
-// --- AI CONFIGURATION ---
-// Priority: Gemini (Vision+Text) > Groq (Text Only)
-
-let geminiModel = null;
-if (process.env.GEMINI_API_KEY) {
-    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    geminiModel = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-}
-
-// ... Groq init (Keep as fallback or secondary) ...
-// (Already existing code for Groq can stay or be minimized)
-// For simplicity, we will wrap the logic to prefer Gemini.
-
 async function generateAIResponse(query, imageUrl = null) {
-    // 1. Try GEMINI (Best for Vision & Context)
-    if (geminiModel) {
-        try {
-            let promptParts = [SYSTEM_PROMPT + "\n\n" + query];
-
-            if (imageUrl) {
-                // Fetch image as buffer/base64
-                const response = await axios.get(imageUrl, { responseType: 'arraybuffer' });
-                const imagePart = {
-                    inlineData: {
-                        data: Buffer.from(response.data).toString("base64"),
-                        mimeType: response.headers['content-type'] || "image/png"
-                    }
-                };
-                promptParts = [query, imagePart]; // System prompt is usually set in config or prepended
-                // Gemini supports system instructions in model config, but prepending works too.
-                // Better approach for chat:
-
-                // For simplified single-turn:
-                const result = await geminiModel.generateContent([
-                    { text: SYSTEM_PROMPT },
-                    { text: query },
-                    imagePart
-                ]);
-                return result.response.text();
-            } else {
-                // Text Only Gemini
-                const result = await geminiModel.generateContent([
-                    { text: SYSTEM_PROMPT },
-                    { text: query }
-                ]);
-                return result.response.text();
-            }
-        } catch (err) {
-            console.error("❌ Gemini Error:", err.message);
-            // Fallback to Groq if Gemini fails
-        }
-    }
-
-    // 2. Fallback to GROQ (Text Only)
-    if (!process.env.GROQ_API_KEY) {
-        return "⚠️ Error: No hay ninguna IA configurada (Falta GEMINI_API_KEY o GROQ_API_KEY).";
-    }
-
+    // 1. Check for Image (Vision is DEAD on Groq)
     if (imageUrl) {
-        return "⚠️ **Limitación:** El sistema de visión (Gemini) no está activo. Solo puedo leer texto por ahora.";
+        // Inject system note about blindness
+        query += "\n\n[SISTEMA: El usuario envió una imagen, pero tu modelo (Groq) NO TIENE visión. Ignora la imagen explícitamente y avisa al usuario que no puedes verla.]";
+    }
+
+    if (!process.env.GROQ_API_KEY) {
+        console.error('[GROQ] API Key is missing');
+        return "ERROR_MISSING_KEY: La variable GROQ_API_KEY no está definida en el entorno.";
     }
 
     try {
@@ -156,13 +101,14 @@ async function generateAIResponse(query, imageUrl = null) {
                 { role: "system", content: SYSTEM_PROMPT },
                 { role: "user", content: query }
             ],
-            model: AI_MODEL, // llama-3.3-70b (Text)
+            model: AI_MODEL,
             temperature: 0.5,
             max_tokens: 800,
         });
+
         return chatCompletion.choices[0]?.message?.content || "";
     } catch (error) {
-        console.error('Groq Error:', error);
+        console.error('Groq Generate Error:', error);
         return `ERROR_API: ${error.message}`;
     }
 }
