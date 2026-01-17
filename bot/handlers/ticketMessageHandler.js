@@ -1,24 +1,42 @@
 const { EmbedBuilder, PermissionFlagsBits } = require('discord.js');
-const fs = require('fs');
-const { GoogleGenerativeAI } = require('@google/generative-ai');
+const Groq = require('groq-sdk');
+const axios = require('axios');
 
-// MOTOR ÚNICO: Gemini 2.0 Flash - TEXTO + VISIÓN (1.5M tokens/día gratis)
-// Version: 4.0 - Gemini 2.0 Flash Unified Engine
+// SISTEMA DE ROTACIÓN: 4 API Keys de Groq (400K tokens/día total)
+// Version: 5.0 - Groq Multi-Key Rotation System
 
-// Inicializar Gemini 2.0 Flash (TODO: texto + visión)
-let geminiModel = null;
-if (process.env.GEMINI_API_KEY) {
-    try {
-        const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-        geminiModel = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
-        console.log('✅ Gemini 2.0 Flash inicializado (texto + visión, 1.5M tokens/día)');
-    } catch (e) {
-        console.error('❌ Error inicializando Gemini:', e);
+// Configurar todas las API keys disponibles
+const GROQ_KEYS = [
+    process.env.GROQ_API_KEY,
+    process.env.GROQ_API_KEY_2,
+    process.env.GROQ_API_KEY_3,
+    process.env.GROQ_API_KEY_4
+].filter(Boolean); // Eliminar undefined
+
+let currentKeyIndex = 0;
+let groqClient = null;
+
+function initializeGroq() {
+    if (GROQ_KEYS.length === 0) {
+        console.warn('⚠️ No hay API keys de Groq configuradas');
+        return null;
     }
-} else {
-    console.warn('⚠️ GEMINI_API_KEY no encontrada - IA desactivada');
+    const key = GROQ_KEYS[currentKeyIndex];
+    console.log(`✅ Groq inicializado con API Key #${currentKeyIndex + 1}/${GROQ_KEYS.length}`);
+    return new Groq({ apiKey: key });
 }
-const visionModel = geminiModel; // Alias para compatibilidad
+
+function rotateGroqKey() {
+    if (GROQ_KEYS.length <= 1) return false; // No hay más keys
+
+    currentKeyIndex = (currentKeyIndex + 1) % GROQ_KEYS.length;
+    groqClient = initializeGroq();
+    console.log(`🔄 Rotando a Groq API Key #${currentKeyIndex + 1}`);
+    return true;
+}
+
+groqClient = initializeGroq();
+const AI_MODEL_CHAT = "llama-3.3-70b-versatile";
 
 // Cargar Contexto desde Archivo
 let SERVER_CONTEXT = '';
