@@ -152,17 +152,30 @@ module.exports = {
 
             // Append fields dynamically
             const labelMap = {
+                // General
                 'q_topic': 'Tema',
                 'q_situation': 'Situación',
-                'q_vip_needs': 'Solicitud VIP',
-                'q_report_who': 'Usuario Reportado',
-                'q_report_reason': 'Razón',
-                'q_ck_target': 'Objetivo CK',
-                'q_ck_motive': 'Motivo CK',
-                'q_work_area': 'Área de Trabajo',
-                'q_work_portfolio': 'Portafolio/Exp',
-                'q_bug_desc': 'Descripción del Bug',
-                'q_bug_steps': 'Pasos para reproducir'
+                // Reportes
+                'q_who': 'Reportado',
+                'q_infraction': 'Infracción',
+                'q_context': 'Contexto',
+                'q_proofs': 'Pruebas',
+                // Blacklist / Apelación
+                'q_staff': 'Staff Sancionador',
+                'q_reason': 'Razón',
+                'q_defense': 'Justificación',
+                // CK
+                'q_char_name': 'Personaje',
+                'q_target_name': 'Objetivo',
+                'q_lore': 'Lore / Historia',
+                // Facciones
+                'q_faction': 'Facción',
+                'q_roles': 'Roles Previos',
+                // Bugs
+                'q_location': 'Ubicación',
+                'q_desc': 'Descripción',
+                // VIP
+                'q_vip_needs': 'Solicitud VIP'
             };
 
             interaction.fields.fields.forEach(field => {
