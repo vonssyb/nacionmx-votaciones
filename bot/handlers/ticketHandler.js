@@ -63,13 +63,8 @@ module.exports = {
                 return interaction.reply({ content: '🚫 Estás vetado del sistema de soporte.', ephemeral: true });
             }
 
-            // B) Check Horario (Non-blocking warning)
-            const hora = new Date().toLocaleString('es-MX', { timeZone: 'America/Mexico_City', hour: 'numeric', hour12: false });
-            const isNight = (hora >= 2 && hora < 9);
-            if (isNight) {
-                // Do NOT await this, let it fire and forget so we can show Modal fast
-                interaction.channel.send({ content: `💤 <@${interaction.user.id}>, nuestro staff descansa. Te responderemos en la mañana.`, ephemeral: true }).catch(() => { });
-            }
+            // Night-time warning removed - was causing duplicates
+
 
             const config = TICKET_TYPES[ticketTypeKey];
             if (!config) return false;
