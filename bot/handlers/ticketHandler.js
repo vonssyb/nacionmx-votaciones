@@ -79,44 +79,43 @@ module.exports = {
 
             if (ticketTypeKey === 'ticket_reportes') {
                 fields.push(
-                    new TextInputBuilder().setCustomId('q_who').setLabel("Usuario a Reportar").setStyle(TextInputStyle.Short).setRequired(true),
-                    new TextInputBuilder().setCustomId('q_rule').setLabel("Infracción Cometida (Ej: ROL-X, CDM)").setStyle(TextInputStyle.Short).setRequired(true),
-                    new TextInputBuilder().setCustomId('q_story').setLabel("Narra los hechos (Contexto para IA)").setStyle(TextInputStyle.Paragraph).setRequired(true).setMaxLength(700),
-                    new TextInputBuilder().setCustomId('q_proof').setLabel("Pruebas (Links video/foto obligatorios)").setStyle(TextInputStyle.Paragraph).setRequired(true)
+                    new TextInputBuilder().setCustomId('q_who').setLabel("Usuario a reportar:").setStyle(TextInputStyle.Short).setRequired(true),
+                    new TextInputBuilder().setCustomId('q_infraction').setLabel("Tipo de infracción cometida:").setStyle(TextInputStyle.Short).setRequired(true),
+                    new TextInputBuilder().setCustomId('q_context').setLabel("Describe lo sucedido (contexto completo):").setStyle(TextInputStyle.Paragraph).setRequired(true).setMaxLength(900),
+                    new TextInputBuilder().setCustomId('q_proofs').setLabel("Cuentas con pruebas claras?").setStyle(TextInputStyle.Short).setRequired(true)
                 );
             } else if (ticketTypeKey === 'ticket_blacklist') {
                 fields.push(
-                    new TextInputBuilder().setCustomId('q_sanction').setLabel("¿Quién te sancionó?").setStyle(TextInputStyle.Short).setRequired(true),
-                    new TextInputBuilder().setCustomId('q_reason').setLabel("Razón del Ban/Warn").setStyle(TextInputStyle.Short).setRequired(true),
-                    new TextInputBuilder().setCustomId('q_regret').setLabel("Apelación: ¿Por qué debemos quitarla?").setStyle(TextInputStyle.Paragraph).setRequired(true).setMaxLength(800)
+                    new TextInputBuilder().setCustomId('q_staff').setLabel("Staff que aplicó la sanción:").setStyle(TextInputStyle.Short).setRequired(true),
+                    new TextInputBuilder().setCustomId('q_reason').setLabel("Tipo y motivo de la sanción (ban/warn):").setStyle(TextInputStyle.Short).setRequired(true),
+                    new TextInputBuilder().setCustomId('q_defense').setLabel("Explica por qué consideras que debe retirarse:").setStyle(TextInputStyle.Paragraph).setRequired(true).setMaxLength(900)
                 );
             } else if (ticketTypeKey === 'ticket_ck') {
                 fields.push(
-                    new TextInputBuilder().setCustomId('q_char').setLabel("Nombre de tu Personaje").setStyle(TextInputStyle.Short).setRequired(true),
-                    new TextInputBuilder().setCustomId('q_target').setLabel("Nombre del Objetivo (CK)").setStyle(TextInputStyle.Short).setRequired(true),
-                    new TextInputBuilder().setCustomId('q_lore').setLabel("Historia/Motivo del Asesinato (Lore)").setStyle(TextInputStyle.Paragraph).setRequired(true).setMaxLength(800),
-                    new TextInputBuilder().setCustomId('q_proof').setLabel("Pruebas de Rol Previo (Links)").setStyle(TextInputStyle.Paragraph).setRequired(true)
+                    new TextInputBuilder().setCustomId('q_char_name').setLabel("Nombre de tu personaje:").setStyle(TextInputStyle.Short).setRequired(true),
+                    new TextInputBuilder().setCustomId('q_target_name').setLabel("Nombre del objetivo:").setStyle(TextInputStyle.Short).setRequired(true),
+                    new TextInputBuilder().setCustomId('q_lore').setLabel("Historia y justificación del rol (lore):").setStyle(TextInputStyle.Paragraph).setRequired(true).setMaxLength(900),
+                    new TextInputBuilder().setCustomId('q_proofs').setLabel("Pruebas del rol (+16 horas):").setStyle(TextInputStyle.Paragraph).setRequired(true)
                 );
             } else if (ticketTypeKey === 'ticket_trabajo') {
                 fields.push(
-                    new TextInputBuilder().setCustomId('q_role').setLabel("¿Qué facción/trabajo buscas?").setStyle(TextInputStyle.Short).setRequired(true),
-                    new TextInputBuilder().setCustomId('q_exp').setLabel("Experiencia Previa / Detalles").setStyle(TextInputStyle.Paragraph).setRequired(true).setMaxLength(600)
+                    new TextInputBuilder().setCustomId('q_faction').setLabel("¿A qué facción deseas postularte?:").setStyle(TextInputStyle.Short).setRequired(true),
+                    new TextInputBuilder().setCustomId('q_roles').setLabel("ya tienes roles?").setStyle(TextInputStyle.Short).setRequired(true)
                 );
             } else if (ticketTypeKey === 'ticket_bug') {
                 fields.push(
-                    new TextInputBuilder().setCustomId('q_location').setLabel("¿Dónde ocurre? (Discord / Roblox)").setStyle(TextInputStyle.Short).setRequired(true),
-                    new TextInputBuilder().setCustomId('q_desc').setLabel("Describe el fallo detalladamente").setStyle(TextInputStyle.Paragraph).setRequired(true).setMaxLength(800)
+                    new TextInputBuilder().setCustomId('q_location').setLabel("¿En qué parte ocurre el error?").setStyle(TextInputStyle.Short).setRequired(true),
+                    new TextInputBuilder().setCustomId('q_desc').setLabel("Describe el fallo y cómo reproducirlo:").setStyle(TextInputStyle.Paragraph).setRequired(true).setMaxLength(900)
                 );
             } else if (ticketTypeKey === 'ticket_vip') {
                 fields.push(
-                    new TextInputBuilder().setCustomId('q_user_roblox').setLabel("Tu Usuario de Roblox").setStyle(TextInputStyle.Short).setRequired(true),
-                    new TextInputBuilder().setCustomId('q_vip_request').setLabel("¿En qué necesitas atención prioritaria?").setStyle(TextInputStyle.Paragraph).setRequired(true).setMaxLength(800)
+                    new TextInputBuilder().setCustomId('q_vip_needs').setLabel("¿En qué necesitas atención prioritaria?").setStyle(TextInputStyle.Paragraph).setRequired(true).setMaxLength(800)
                 );
             } else {
                 // ticket_general
                 fields.push(
-                    new TextInputBuilder().setCustomId('q_topic').setLabel("Tema (Duda, Queja, Sugerencia)").setStyle(TextInputStyle.Short).setRequired(true),
-                    new TextInputBuilder().setCustomId('q_details').setLabel("Explica tu situación a la IA/Staff").setStyle(TextInputStyle.Paragraph).setRequired(true).setMaxLength(900)
+                    new TextInputBuilder().setCustomId('q_topic').setLabel("Tema: (Duda / Queja / Sugerencia)").setStyle(TextInputStyle.Short).setRequired(true),
+                    new TextInputBuilder().setCustomId('q_situation').setLabel("Explica tu situación clara y detallada:").setStyle(TextInputStyle.Paragraph).setRequired(true).setMaxLength(1000)
                 );
             }
 
