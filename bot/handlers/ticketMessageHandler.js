@@ -53,9 +53,6 @@ try {
         console.warn('⚠️ No se encontró server_knowledge.md, usando contexto vacío.');
     }
 } catch (err) {
-    console.error('Error cargando contexto IA:', err);
-    SERVER_CONTEXT = fs.readFileSync(path.join(__dirname, '../knowledge/server_knowledge.md'), 'utf-8');
-} catch (err) {
     console.error('Error cargando contexto IA:', err.message);
 }
 
