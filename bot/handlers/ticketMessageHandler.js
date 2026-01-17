@@ -28,9 +28,12 @@ if (process.env.GEMINI_API_KEY) {
     try {
         const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
         visionModel = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        console.log('✅ Gemini Vision inicializado correctamente');
     } catch (e) {
-        console.error("Error inicializando Gemini (Visión):", e);
+        console.error("❌ Error inicializando Gemini (Visión):", e);
     }
+} else {
+    console.warn('⚠️ GEMINI_API_KEY no encontrada - Visión desactivada');
 }
 
 // Cargar Contexto desde Archivo
@@ -128,8 +131,11 @@ SÉ ESPECÍFICO. Cita textos exactos entre comillas. Menciona colores de UI y de
         ]);
         return result.response.text();
     } catch (err) {
-        console.error("Vision Analyze Error:", err.message);
-        return "Error analizando la imagen (Fallo técnico).";
+        console.error("❌ Vision Analyze Error (FULL):", err);
+        console.error("Error name:", err.name);
+        console.error("Error message:", err.message);
+        console.error("Error stack:", err.stack);
+        return `Error analizando la imagen: ${err.message || 'Fallo técnico desconocido'}`;
     }
 }
 
