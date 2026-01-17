@@ -9,6 +9,7 @@ const axios = require('axios');
 // CEREBRO: Groq (Llama 3.3 70b) - Genera las respuestas de chat.
 // OJOS: Hugging Face - Análisis de imágenes GRATIS (lento pero funciona).
 // Version: 3.0 - Hugging Face Vision Final
+// Build: 2026-01-17-02:54
 
 // 1. Inicializar Groq (Cerebro)
 let groq;
@@ -92,51 +93,40 @@ REGLAS DE ACTUACIÓN:
 // Palabras prohibidas (Filtro local rápido)
 const BAD_WORDS = ['pendejo', 'imbecil', 'idiota', 'estupido', 'verga', 'puto', 'mierda', 'chinga', 'tonto', 'inutil'];
 
-// --- Helper: Analizar Imagen con Gemini ---
+// --- Helper: Analizar Imagen con Hugging Face ---
 async function getImageDescription(imageUrl) {
-    if (!visionModel) return "Error: Sistema de visión (Gemini) no configurado. Falta GEMINI_API_KEY.";
-
     try {
-        console.log('🔍 Analizando imagen con Gemini 1.5 Flash...');
+        console.log('🔍 Analizando imagen con Hugging Face (puede tardar 20-30 seg)...');
 
+        // Descargar imagen
         const response = await axios.get(imageUrl, { responseType: 'arraybuffer' });
-        const imagePart = {
-            inlineData: {
-                data: Buffer.from(response.data).toString("base64"),
-                mimeType: response.headers['content-type'] || "image/png"
-            }
-        };
+        const imageBuffer = Buffer.from(response.data);
 
-        const result = await visionModel.generateContent([
+        // Llamar a Hugging Face Inference API (Sin auth, público)
+        const hfResponse = await axios.post(
+            `https://api-inference.huggingface.co/models/${HF_MODEL}`,
+            imageBuffer,
             {
-                text: `Analiza esta captura de pantalla de Emergency Response: Liberty County (ER:LC).
+                headers: {
+                    'Content-Type': 'application/octet-stream',
+                },
+                timeout: 60000 // 60 segundos timeout
+            }
+        );
 
-IDENTIFICA Y REPORTA:
-1. **Nombre del jugador** (esquina superior o UI)
-2. **Rango/Nivel/Rol** visible en la pantalla
-3. **Chat visible**: Lee EXACTAMENTE lo que dice el chat (palabra por palabra)
-4. **Logs del sistema**: Mensajes de kill, spawn, arrestos, etc.
-5. **Estadísticas**: Dinero, nivel, experiencia si es visible
-6. **Infracciones evidentes**: RDM, VDM, spawn kill, etc.
-7. **Contexto visual**: Ubicación, armas, vehículos, situación
+        const description = hfResponse.data[0]?.generated_text || "No se pudo generar descripción";
+        console.log('✅ Hugging Face análisis completo:', description);
 
-SÉ ESPECÍFICO. Cita textos exactos entre comillas. Menciona colores de UI y detalles clave.`
-            },
-            imagePart
-        ]);
-
-        const description = result.response.text();
-        console.log('✅ Gemini análisis completo');
-        return description;
+        return `[Descripción básica de la imagen]: ${description}. NOTA: Para detalles específicos de ER:LC (nombres de jugadores, niveles exactos, chat), por favor descríbelos tú mismo.`;
 
     } catch (err) {
-        console.error("❌ Gemini Vision Error:", err.message);
+        console.error("❌ Hugging Face Vision Error:", err.message);
 
-        if (err.message?.includes('API key')) {
-            return "⚠️ API key de Gemini inválida o expirada. Genera una nueva en https://aistudio.google.com/app/apikey";
+        if (err.response?.status === 503) {
+            return "⏳ El modelo de visión está cargándose (tarda ~30 seg la primera vez). Por favor, vuelve a enviar la imagen en 30 segundos.";
         }
 
-        return `Error analizando imagen: ${err.message}. Intenta de nuevo o describe verbalmente.`;
+        return `Error analizando imagen. Por favor describe verbalmente lo que contiene la captura.`;
     }
 }
 
@@ -148,10 +138,10 @@ async function generateAIResponse(query, imageUrl = null) {
     if (imageUrl) {
         if (visionModel) {
             const description = await getImageDescription(imageUrl);
-            visualContext = `\n\n[SISTEMA - ANÁLISIS VISUAL]: El usuario adjuntó una imagen. Gemini la describe así:\n"${description}"\n\n(Usa esta descripción para validar pruebas).`;
+            visualContext = `\n\n[SISTEMA - ANÁLISIS VISUAL]: El usuario adjuntó una imagen. Hugging Face la describe así:\n"${description}"\n\n(Usa esta descripción para validar pruebas).`;
             query += visualContext;
         } else {
-            query += "\n\n[SISTEMA: El usuario envió una imagen, pero el módulo de visión (Gemini) NO está activo. Avisa que no puedes verla.]";
+            query += "\n\n[SISTEMA: El usuario envió una imagen, pero el módulo de visión (Hugging Face) NO está activo. Avisa que no puedes verla.]";
         }
     }
 
