@@ -35,7 +35,20 @@ ${SERVER_CONTEXT}
 // Palabras prohibidas (Filtro local rápido)
 const BAD_WORDS = ['pendejo', 'imbecil', 'idiota', 'estupido', 'verga', 'puto', 'mierda', 'chinga', 'tonto', 'inutil'];
 
+// Función interna reutilizable para generar respuesta
+async function generateAIResponse(query) {
+    try {
+        const fullPrompt = `${SYSTEM_PROMPT}\nUsuario pregunta: "${query}"\nRespuesta:`;
+        const result = await model.generateContent(fullPrompt);
+        return result.response.text();
+    } catch (error) {
+        console.error('Gemini Generate Error:', error);
+        return null; // Fallback
+    }
+}
+
 module.exports = {
+    generateAIResponse,
     async handleTicketMessage(message, client, supabase) {
         if (message.author.bot) return;
         if (message.channel.type !== 0) return;
@@ -72,10 +85,7 @@ module.exports = {
             // Indicar que está escribiendo...
             await message.channel.sendTyping();
 
-            const fullPrompt = `${SYSTEM_PROMPT}\nUsuario pregunta: "${message.content}"\nRespuesta:`;
-
-            const result = await model.generateContent(fullPrompt);
-            const response = result.response.text();
+            const response = await generateAIResponse(message.content);
 
             if (response) {
                 const embed = new EmbedBuilder()
@@ -87,8 +97,7 @@ module.exports = {
                 await message.channel.send({ embeds: [embed] });
             }
         } catch (error) {
-            console.error('Gemini Error:', error);
-            // Fallback silencioso (no enviamos nada si la IA falla)
+            console.error('Gemini Handler Error:', error);
         }
     }
 };

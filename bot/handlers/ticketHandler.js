@@ -187,8 +187,11 @@ module.exports = {
                 await ticketChannel.send({ content: pings, embeds: [embed], components: [row] });
 
                 // --- IA ANALYSIS ---
+                console.log(`[DEBUG] Ticket Created. Attempting AI Analysis for: ${channelName}`);
                 try {
                     const aiAnswer = await generateAIResponse(description);
+                    console.log(`[DEBUG] AI Response Result:`, aiAnswer ? "Reviewing..." : "NULL");
+
                     if (aiAnswer) {
                         const aiRow = new ActionRowBuilder().addComponents(
                             new ButtonBuilder().setCustomId('btn_ai_close').setLabel('✅ Me sirvió, cerrar ticket').setStyle(ButtonStyle.Success).setEmoji('🔒'),
@@ -202,11 +205,14 @@ module.exports = {
                             .setFooter({ text: '¿Te ayudó esta respuesta?' });
 
                         await ticketChannel.send({ content: `<@${interaction.user.id}>`, embeds: [aiEmbed], components: [aiRow] });
+                        console.log(`[DEBUG] AI Embed sent to ${channelName}`);
                     } else {
                         // Fallback: Si la IA falla o no responde, hacemos ping al staff manual
+                        console.log(`[DEBUG] AI returned null, pinging staff.`);
                         if (config.role) await ticketChannel.send({ content: `📢 <@&${config.role}>` });
                     }
                 } catch (e) {
+                    console.error('[DEBUG] AI Error in Ticket Handler:', e);
                     // Fallback error
                     if (config.role) await ticketChannel.send({ content: `📢 <@&${config.role}>` });
                 }
