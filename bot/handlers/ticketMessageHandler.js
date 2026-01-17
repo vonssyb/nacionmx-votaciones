@@ -253,15 +253,11 @@ module.exports = {
 
 
             // --- CONVERSATIONAL MEMORY ---
-            // Leer últimos 10 mensajes para contexto de la conversación
-            const ticketHistory = await message.channel.messages.fetch({ limit: 10 });
+            // 0. CONTEXTO MASIVO: Obtener historial extendido (50 mensajes)
+            const ticketHistory = await message.channel.messages.fetch({ limit: 50 });
             const conversationContext = ticketHistory
                 .reverse()
-                .map(m => {
-                    const author = m.author.bot ? '🤖 IA' : m.author.username;
-                    const content = m.content || '(imagen adjunta)';
-                    return `[${author}]: ${content}`;
-                })
+                .map(m => `[${m.author.tag}]: ${m.content || '(imagen)'}`.substring(0, 200))
                 .join('\n');
 
             // Tema original del ticket (contexto principal)
@@ -306,14 +302,57 @@ module.exports = {
                 userContext += `\n(⚠️ No se pudo acceder a la base de datos de sanciones)\n`;
             }
 
+            // 4. TICKETS PREVIOS del usuario
+            let ticketHistory = '';
+            try {
+                const { data: previousTickets } = await supabase
+                    .from('tickets')
+                    .select('category, created_at, closed_at')
+                    .eq('user_id', message.author.id)
+                    .neq('channel_id', message.channel.id)
+                    .order('created_at', { ascending: false })
+                    .limit(5);
+
+                if (previousTickets && previousTickets.length > 0) {
+                    ticketHistory = previousTickets.map(t =>
+                        `- [${new Date(t.created_at).toLocaleDateString()}] ${t.category}${t.closed_at ? ' (Cerrado)' : ''}`
+                    ).join('\n');
+                    userContext += `\n📜 TICKETS ANTERIORES:\n${ticketHistory}\n`;
+                } else {
+                    userContext += `\n📜 TICKETS ANTERIORES: Primera vez abriendo ticket.\n`;
+                }
+            } catch (err) {
+                console.error("Error fetching ticket history:", err);
+            }
+
+            // 5. ACTIVIDAD DEL SERVIDOR (logs recientes si existen)
+            let serverActivity = '';
+            try {
+                const { data: recentLogs } = await supabase
+                    .from('mod_logs')
+                    .select('action, reason, created_at')
+                    .order('created_at', { ascending: false })
+                    .limit(10);
+
+                if (recentLogs && recentLogs.length > 0) {
+                    serverActivity = recentLogs.slice(0, 5).map(log =>
+                        `- [${new Date(log.created_at).toLocaleDateString()}] ${log.action}: ${log.reason?.substring(0, 50)}`
+                    ).join('\n');
+                }
+            } catch (err) {
+                // Tabla puede no existir, ignorar silenciosamente
+            }
+
             const queryWithContext = `
+🌐 CONTEXTO COMPLETO DEL SERVIDOR:
+${serverActivity ? `🚨 ACTIVIDAD RECIENTE DEL SERVIDOR:\n${serverActivity}\n\n` : ''}
 📋 TEMA DEL TICKET:
 ${ticketTopic}
 
-💬 CONVERSACIÓN PREVIA (últimos 10 mensajes):
+💬 CONVERSACIÓN COMPLETA (50 mensajes):
 ${conversationContext}
 
-👤 CONTEXTO DEL USUARIO:
+👤 PERFIL COMPLETO DEL USUARIO:
 ${userContext}
 
 📨 MENSAJE ACTUAL:
