@@ -155,7 +155,48 @@ module.exports = {
                 }
             }
 
-            const aiResult = await generateAIResponse(message.content || "(Imagen enviada)", imageUrl);
+            // --- USER CONTEXT (Sanctions & Info) ---
+            let userContext = `Usuario: <@${message.author.id}> (${message.author.username})\n`;
+
+            // 1. Fetch Identity (Citizens)
+            try {
+                const { data: citizen } = await supabase
+                    .from('citizens')
+                    .select('full_name, dni')
+                    .eq('discord_id', message.author.id)
+                    .maybeSingle(); // Safe if not found
+
+                if (citizen) {
+                    userContext += `🆔 IDENTIDAD RP: ${citizen.full_name} | DNI: ${citizen.dni || 'N/A'}\n`;
+                } else {
+                    userContext += `🆔 IDENTIDAD RP: Sin registrar (No tiene DNI)\n`;
+                }
+            } catch (err) {
+                console.error("Error fetching citizen:", err);
+            }
+
+            // 2. Fetch Sanctions
+            if (client.services && client.services.sanctions) {
+                try {
+                    const sanctions = await client.services.sanctions.getUserSanctions(message.author.id);
+                    if (sanctions && sanctions.length > 0) {
+                        const history = sanctions.slice(0, 5).map(s =>
+                            `- [${new Date(s.created_at).toLocaleDateString()}] ${s.type.toUpperCase()}: ${s.reason} (${s.status})`
+                        ).join('\n');
+                        userContext += `\n📜 HISTORIAL DE SANCIONES (Últimas 5):\n${history}\n`;
+                    } else {
+                        userContext += `\n📜 HISTORIAL: Limpio (Sin sanciones activas).\n`;
+                    }
+                } catch (err) {
+                    console.error("Error fetching sanctions for AI context:", err);
+                }
+            } else {
+                userContext += `\n(⚠️ No se pudo acceder a la base de datos de sanciones)\n`;
+            }
+
+            const queryWithContext = `CONTEXTO DEL USUARIO:\n${userContext}\n\nMENSAJE DEL USUARIO:\n${message.content || "(Imagen enviada)"}`;
+
+            const aiResult = await generateAIResponse(queryWithContext, imageUrl);
             const responseText = typeof aiResult === 'object' ? aiResult.content : aiResult;
             const actionRequest = typeof aiResult === 'object' ? aiResult.action : null;
 
