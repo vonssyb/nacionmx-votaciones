@@ -19,6 +19,7 @@
         "@napi-rs/canvas": "^0.1.88",
         "@supabase/supabase-js": "^2.88.0",
         "axios": "^1.13.2",
+        "discord-html-transcripts": "^3.2.0",
         "discord-tts": "^1.2.2",
         "discord.js": "^14.25.1",
         "dotenv": "^16.6.1",

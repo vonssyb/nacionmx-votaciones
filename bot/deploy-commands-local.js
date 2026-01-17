@@ -11,7 +11,7 @@ const commands = [];
 
 // Load commands dynamically from folders
 const allCommandsByFolder = {};
-const commandFolders = ['moderation', 'utils', 'economy', 'business', 'games', 'gov', 'owner'];
+const commandFolders = ['moderation', 'utils', 'economy', 'business', 'games', 'gov', 'owner', 'tickets'];
 
 for (const folder of commandFolders) {
     const folderPath = path.join(__dirname, 'commands', folder);
@@ -42,7 +42,7 @@ const bots = [
         name: 'Portal (Moderación)',
         appId: '1450701617685991621',
         token: process.env.DISCORD_TOKEN,
-        commandFolders: ['moderation', 'utils', 'owner']
+        commandFolders: ['moderation', 'utils', 'owner', 'tickets']
     },
     {
         name: 'Economía',

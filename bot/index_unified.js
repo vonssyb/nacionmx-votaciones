@@ -158,7 +158,7 @@ async function startModerationBot() {
 
     // Load Commands
     const loader = require('./handlers/commandLoader');
-    await loader.loadCommands(client, path.join(__dirname, 'commands'), ['moderation', 'utils', 'owner']);
+    await loader.loadCommands(client, path.join(__dirname, 'commands'), ['moderation', 'utils', 'owner', 'tickets']);
 
     // AUTO-REGISTER COMMANDS (On Startup)
     const MOD_TOKEN = process.env.DISCORD_TOKEN_MOD;
@@ -566,11 +566,22 @@ async function startModerationBot() {
         return channel;
     }
 
+    // Ticket Handler
+    const { handleTicketInteraction } = require('./handlers/ticketHandler');
+
     // Interaction Handler
     client.on('interactionCreate', async interaction => {
+        // Tickets specific handling (Buttons/Modals)
+        try {
+            const handled = await handleTicketInteraction(interaction, client, supabase);
+            if (handled) return;
+        } catch (err) {
+            console.error('[TICKET] Error in handler:', err);
+        }
+
         if (!interaction.isChatInputCommand()) {
             try {
-                // FALLBACK TO LEGACY (Handles Buttons, Modals, Menus)
+                // FALLBACK TO LEGACY (Handles Other Buttons, Modals, Menus)
                 await handleModerationLegacy(interaction, client, client.supabase);
             } catch (e) {
                 console.error('[MOD] Legacy Handler Error:', e);
