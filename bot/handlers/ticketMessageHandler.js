@@ -1,33 +1,25 @@
 const { EmbedBuilder, PermissionFlagsBits } = require('discord.js');
 const Groq = require('groq-sdk');
 const fs = require('fs');
-const path = require('path');
-const axios = require('axios');
-// Gemini removed - using Hugging Face instead (100% free, no auth needed)
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 
-// --- CONFIGURACIÓN HÍBRIDA ---
-// CEREBRO: Groq (Llama 3.3 70b) - Genera las respuestas de chat.
-// OJOS: Hugging Face - Análisis de imágenes GRATIS (lento pero funciona).
-// Version: 3.0 - Hugging Face Vision Final
-// Build: 2026-01-17-02:54
+// MOTOR ÚNICO: Gemini 2.0 Flash - TEXTO + VISIÓN (1.5M tokens/día gratis)
+// Version: 4.0 - Gemini 2.0 Flash Unified Engine
 
-// 1. Inicializar Groq (Cerebro)
-let groq;
-try {
-    if (process.env.GROQ_API_KEY) {
-        groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
-    } else {
-        console.warn('⚠️ GROQ_API_KEY no encontrada. La IA de tickets no funcionará.');
+// Inicializar Gemini 2.0 Flash (TODO: texto + visión)
+let geminiModel = null;
+if (process.env.GEMINI_API_KEY) {
+    try {
+        const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+        geminiModel = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
+        console.log('✅ Gemini 2.0 Flash inicializado (texto + visión, 1.5M tokens/día)');
+    } catch (e) {
+        console.error('❌ Error inicializando Gemini:', e);
     }
-} catch (e) {
-    console.error('Error inicializando Groq:', e);
+} else {
+    console.warn('⚠️ GEMINI_API_KEY no encontrada - IA desactivada');
 }
-const AI_MODEL_CHAT = "llama-3.3-70b-versatile";
-
-// 2. Hugging Face Vision (Sin API key - 100% GRATIS)
-const HF_MODEL = "Salesforce/blip-image-captioning-large";
-console.log('✅ Hugging Face Vision configurado (gratis, sin API key)');
-const visionModel = true; // HF no necesita modelo, solo flag
+const visionModel = geminiModel; // Alias para compatibilidad
 
 // Cargar Contexto desde Archivo
 let SERVER_CONTEXT = '';
