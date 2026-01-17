@@ -2,12 +2,12 @@ const { EmbedBuilder, PermissionFlagsBits } = require('discord.js');
 const Groq = require('groq-sdk');
 const fs = require('fs');
 const path = require('path');
-// Gemini removed - using Hugging Face instead (100% free)
+const OpenAI = require('openai');
 const axios = require('axios');
 
 // --- CONFIGURACIÓN HÍBRIDA ---
 // CEREBRO: Groq (Llama 3.3 70b) - Genera las respuestas de chat.
-// OJOS: Hugging Face (BLIP) - Describe las imágenes GRATIS.
+// OJOS: OpenAI GPT-4o Vision - Análisis de imágenes profesional.
 
 // 1. Inicializar Groq (Cerebro)
 let groq;
@@ -22,9 +22,14 @@ try {
 }
 const AI_MODEL_CHAT = "llama-3.3-70b-versatile";
 
-// 2. Hugging Face Vision (Sin API key - 100% GRATIS)
-const HF_MODEL = "Salesforce/blip-image-captioning-large";
-console.log('✅ Hugging Face Vision configurado (BLIP - Gratis)');
+// 2. Inicializar OpenAI (Visión)
+let openai = null;
+if (process.env.OPENAI_API_KEY) {
+    openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    console.log('✅ OpenAI GPT-4o Vision inicializado correctamente');
+} else {
+    console.warn('⚠️ OPENAI_API_KEY no encontrada - Visión desactivada');
+}
 
 // Cargar Contexto desde Archivo
 let SERVER_CONTEXT = '';
@@ -135,12 +140,12 @@ async function generateAIResponse(query, imageUrl = null) {
 
     // 1. Pre-procesar Imagen (si existe)
     if (imageUrl) {
-        if (visionModel) {
+        if (openai) {
             const description = await getImageDescription(imageUrl);
-            visualContext = `\n\n[SISTEMA - ANÁLISIS VISUAL]: El usuario adjuntó una imagen. Un módulo de visión la describe así:\n"${description}"\n\n(Usa esta descripción para validar pruebas).`;
+            visualContext = `\n\n[SISTEMA - ANÁLISIS VISUAL]: El usuario adjuntó una imagen. GPT-4o Vision la describe así:\n"${description}"\n\n(Usa esta descripción para validar pruebas).`;
             query += visualContext;
         } else {
-            query += "\n\n[SISTEMA: El usuario envió una imagen, pero el módulo de visión (Gemini) NO está activo. Avisa que no puedes verla.]";
+            query += "\n\n[SISTEMA: El usuario envió una imagen, pero el módulo de visión (OpenAI) NO está activo. Avisa que no puedes verla.]";
         }
     }
 
