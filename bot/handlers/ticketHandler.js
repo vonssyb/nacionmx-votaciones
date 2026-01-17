@@ -224,14 +224,17 @@ module.exports = {
                         await ticketChannel.send({ content: `<@${interaction.user.id}>`, embeds: [aiEmbed], components: [aiRow] });
                         console.log(`[DEBUG] AI Embed sent to ${channelName}`);
                     } else {
-                        // Fallback: Si la IA falla o no responde, hacemos ping al staff manual
-                        console.log(`[DEBUG] AI returned null, pinging staff.`);
+                        // ACOPLAMIENTO: Si la IA falla (null) o no hay key
+                        console.log(`[DEBUG] AI returned null (Check API Key).`);
                         if (config.role) await ticketChannel.send({ content: `📢 <@&${config.role}>` });
+                        // Mensaje de debug para el admin (puedes quitarlo luego)
+                        await ticketChannel.send({ content: '⚠️ **Debug IA:** No se pudo generar respuesta (Posiblemente falta API KEY en Koyeb/Render).' });
                     }
                 } catch (e) {
                     console.error('[DEBUG] AI Error in Ticket Handler:', e);
                     // Fallback error
                     if (config.role) await ticketChannel.send({ content: `📢 <@&${config.role}>` });
+                    await ticketChannel.send({ content: `⚠️ **Debug IA:** Error interno (${e.message}). Revisar logs.` });
                 }
 
                 await interaction.editReply(`✅ Ticket creado: ${ticketChannel}`);
