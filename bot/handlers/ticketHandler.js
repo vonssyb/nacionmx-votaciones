@@ -417,7 +417,7 @@ module.exports = {
             }
 
             await interaction.channel.send('✅ Cerrando...');
-            setTimeout(() => interaction.channel.delete().catch(() => { }), 5000);
+            setTimeout(() => { if (interaction.channel) interaction.channel.delete().catch(() => { }); }, 4000);
             return true;
         }
 
