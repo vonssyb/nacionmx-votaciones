@@ -2,12 +2,12 @@ const { EmbedBuilder, PermissionFlagsBits } = require('discord.js');
 const Groq = require('groq-sdk');
 const fs = require('fs');
 const path = require('path');
-const Replicate = require('replicate');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 const axios = require('axios');
 
 // --- CONFIGURACIÓN HÍBRIDA ---
 // CEREBRO: Groq (Llama 3.3 70b) - Genera las respuestas de chat.
-// OJOS: Replicate (BLIP) - Análisis de imágenes con créditos gratis.
+// OJOS: Gemini 1.5 Flash - Análisis de imágenes (GRATIS).
 
 // 1. Inicializar Groq (Cerebro)
 let groq;
@@ -22,15 +22,18 @@ try {
 }
 const AI_MODEL_CHAT = "llama-3.3-70b-versatile";
 
-// 2. Inicializar Replicate (Visión)
-let replicate = null;
-if (process.env.REPLICATE_API_TOKEN) {
-    replicate = new Replicate({
-        auth: process.env.REPLICATE_API_TOKEN,
-    });
-    console.log('✅ Replicate Vision inicializado correctamente (BLIP)');
+// 2. Inicializar Gemini (Visión)
+let visionModel = null;
+if (process.env.GEMINI_API_KEY) {
+    try {
+        const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+        visionModel = genAI.getGenerativeModel({ model: 'gemini-1.5-flash-latest' });
+        console.log('✅ Gemini 1.5 Flash Vision inicializado correctamente');
+    } catch (e) {
+        console.error('❌ Error inicializando Gemini:', e);
+    }
 } else {
-    console.warn('⚠️ REPLICATE_API_TOKEN no encontrada - Visión desactivada');
+    console.warn('⚠️ GEMINI_API_KEY no encontrada - Visión desactivada');
 }
 
 // Cargar Contexto desde Archivo
@@ -100,10 +103,10 @@ const BAD_WORDS = ['pendejo', 'imbecil', 'idiota', 'estupido', 'verga', 'puto', 
 // --- Helper: Analizar Imagen con Replicate BLIP ---
 async function getImageDescription(imageUrl) {
     if (!replicate) return "Error: Sistema de visión (Replicate) no configurado. Falta REPLICATE_API_TOKEN.";
-    
+
     try {
         console.log('🔍 Analizando imagen con Replicate BLIP...');
-        
+
         const output = await replicate.run(
             "salesforce/blip:2e1dddc8621f72155f24cf2e0adbde548458d3cab9f00c0139eea840d0ac4746",
             {
@@ -113,20 +116,20 @@ async function getImageDescription(imageUrl) {
                 }
             }
         );
-        
+
         const description = output || "No se pudo generar descripción";
         console.log('✅ Replicate análisis completo:', description);
-        
+
         // Mejorar contexto para ER:LC
         return `[Análisis visual]: ${description}. NOTA: Esta es una descripción automática general. Para detalles específicos de ER:LC (nombres, niveles, chat exacto), pide al usuario que los escriba.`;
-        
+
     } catch (err) {
         console.error("❌ Replicate Vision Error:", err.message);
-        
+
         if (err.message?.includes('insufficient credits')) {
             return "⚠️ Sin créditos en Replicate. Revisa tu cuenta en https://replicate.com/account/billing";
         }
-        
+
         return `Error analizando imagen: ${err.message}. Intenta de nuevo o describe verbalmente.`;
     }
 }
