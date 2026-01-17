@@ -203,6 +203,16 @@ async function startModerationBot() {
         if (swarmService) swarmService.registerClient(client, 'MOD');
     });
 
+    // --- TICKET MESSAGE HANDLER (AI & Auto-Ban) ---
+    const { handleTicketMessage } = require('./handlers/ticketMessageHandler');
+    client.on('messageCreate', async message => {
+        try {
+            await handleTicketMessage(message, client, supabase);
+        } catch (err) {
+            console.error('[TICKET] Message Handler Error:', err);
+        }
+    });
+
 
 
     // --- ENHANCED LOGGING (MAIN GUILD ONLY) ---

@@ -12,79 +12,28 @@ const {
 } = require('discord.js');
 const discordTranscripts = require('discord-html-transcripts');
 
-// --- CONFIGURACIÓN PRINCIPAL (IDs PROPORCIONADOS) ---
+// --- CONFIGURACIÓN PRINCIPAL ---
 const TICKET_CONFIG = {
-    // Categorías
     CAT_GENERAL: '1414066417019392000',
     CAT_VIP: '1450225651935219854',
     CAT_BUGS: '1459987769932648680',
-
-    // Roles Staff
-    ROLE_COMMON: '1412887167654690908', // Soporte Gral, Reportes, Trabajo, VIP
+    ROLE_COMMON: '1412887167654690908',
     ROLE_BLACKLIST: '1451703422800625777',
     ROLE_CK: '1450938106395234526',
-
-    // Log Channel Transcripts
     LOG_TRANSCRIPTS: '1414065296704016465',
-
-    // Usuarios Específicos
-    USER_DEV: '826637667718266880', // Fallas con el bot
-
-    // Roles VIP (Acceso)
-    VIP_ACCESS_ROLES: [
-        '1414033620636532849',
-        '1412887172503175270',
-        '1423520675158691972',
-        '1449950535166726317'
-    ]
+    LOG_FEEDBACK: '1412964502114402384',
+    USER_DEV: '826637667718266880',
+    VIP_ACCESS_ROLES: ['1414033620636532849', '1412887172503175270', '1423520675158691972', '1449950535166726317']
 };
 
-// Mapa de Opciones -> Configuración
 const TICKET_TYPES = {
-    'ticket_general': {
-        title: 'Soporte General',
-        category: TICKET_CONFIG.CAT_GENERAL,
-        role: TICKET_CONFIG.ROLE_COMMON,
-        emoji: '🔧'
-    },
-    'ticket_reportes': {
-        title: 'Reportes y Sanciones',
-        category: TICKET_CONFIG.CAT_GENERAL,
-        role: TICKET_CONFIG.ROLE_COMMON,
-        emoji: '🚨'
-    },
-    'ticket_blacklist': {
-        title: 'Blacklist | Apelación',
-        category: TICKET_CONFIG.CAT_GENERAL,
-        role: TICKET_CONFIG.ROLE_BLACKLIST,
-        emoji: '📜'
-    },
-    'ticket_trabajo': {
-        title: 'Facciones y Trabajo',
-        category: TICKET_CONFIG.CAT_GENERAL,
-        role: TICKET_CONFIG.ROLE_COMMON,
-        emoji: '💼'
-    },
-    'ticket_ck': {
-        title: 'Solicitud FEC / CK',
-        category: TICKET_CONFIG.CAT_GENERAL,
-        role: TICKET_CONFIG.ROLE_CK,
-        emoji: '☠️'
-    },
-    'ticket_vip': {
-        title: 'Atención VIP',
-        category: TICKET_CONFIG.CAT_VIP,
-        role: TICKET_CONFIG.ROLE_COMMON,
-        emoji: '💎',
-        vipOnly: true
-    },
-    'ticket_bug': {
-        title: 'Falla con el Bot',
-        category: TICKET_CONFIG.CAT_BUGS,
-        role: null,
-        pingUser: TICKET_CONFIG.USER_DEV,
-        emoji: '🤖'
-    }
+    'ticket_general': { title: 'Soporte General', category: TICKET_CONFIG.CAT_GENERAL, role: TICKET_CONFIG.ROLE_COMMON, emoji: '🔧', prefix: 'soporte' },
+    'ticket_reportes': { title: 'Reportes y Sanciones', category: TICKET_CONFIG.CAT_GENERAL, role: TICKET_CONFIG.ROLE_COMMON, emoji: '🚨', prefix: 'reporte' },
+    'ticket_blacklist': { title: 'Blacklist | Apelación', category: TICKET_CONFIG.CAT_GENERAL, role: TICKET_CONFIG.ROLE_BLACKLIST, emoji: '📜', prefix: 'apelacion' },
+    'ticket_trabajo': { title: 'Facciones y Trabajo', category: TICKET_CONFIG.CAT_GENERAL, role: TICKET_CONFIG.ROLE_COMMON, emoji: '💼', prefix: 'faccion' },
+    'ticket_ck': { title: 'Solicitud FEC / CK', category: TICKET_CONFIG.CAT_GENERAL, role: TICKET_CONFIG.ROLE_CK, emoji: '☠️', prefix: 'ck' },
+    'ticket_vip': { title: 'Atención VIP', category: TICKET_CONFIG.CAT_VIP, role: TICKET_CONFIG.ROLE_COMMON, emoji: '💎', vipOnly: true, prefix: 'vip' },
+    'ticket_bug': { title: 'Falla con el Bot', category: TICKET_CONFIG.CAT_BUGS, role: null, pingUser: TICKET_CONFIG.USER_DEV, emoji: '🤖', prefix: 'bug' }
 };
 
 module.exports = {
@@ -94,64 +43,75 @@ module.exports = {
         const { customId } = interaction;
         let ticketTypeKey = null;
 
-        // --- 1. SELECCIÓN DE TIPO ---
+        // --- 1. SELECCIÓN ---
         if (interaction.isStringSelectMenu() && customId === 'ticket_main_menu') ticketTypeKey = interaction.values[0];
         if (interaction.isButton()) {
             if (customId === 'ticket_btn_vip') ticketTypeKey = 'ticket_vip';
             if (customId === 'ticket_btn_bug') ticketTypeKey = 'ticket_bug';
         }
 
-        // --- 2. MOSTRAR MODAL (Preguntas Dinámicas) ---
+        // --- 2. VALIDACIONES PREVIAS (Blacklist / Horario) ---
         if (ticketTypeKey) {
+            // A) Check Blacklist BD
+            const { data: isBanned } = await supabase.from('ticket_blacklist').select('*').eq('user_id', interaction.user.id).single();
+            if (isBanned) return interaction.reply({ content: '🚫 Estás vetado del sistema de soporte por mal comportamiento.', ephemeral: true });
+
+            // B) Check Horario (Opcional - solo Warning)
+            const hora = new Date().toLocaleString('es-MX', { timeZone: 'America/Mexico_City', hour: 'numeric', hour12: false });
+            // Si es entre 2 AM y 9 AM
+            const isNight = (hora >= 2 && hora < 9);
+            if (isNight) {
+                await interaction.channel.send({ content: '💤 **Nota:** Nuestro staff duerme a estas horas. Deja tu mensaje y te responderemos en la mañana.', ephemeral: true }).catch(() => { });
+                // No bloqueamos, solo avisamos (o bloqueamos si prefieres)
+            }
+
             const config = TICKET_TYPES[ticketTypeKey];
             if (!config) return false;
 
-            // VIP Check
             if (config.vipOnly) {
                 const hasVipRole = interaction.member.roles.cache.some(r => TICKET_CONFIG.VIP_ACCESS_ROLES.includes(r.id));
-                if (!hasVipRole) return interaction.reply({ content: '🚫 Solo usuarios VIP pueden abrir este ticket.', ephemeral: true });
+                if (!hasVipRole) return interaction.reply({ content: '🚫 Acceso VIP requerido.', ephemeral: true });
             }
 
-            const modal = new ModalBuilder()
-                .setCustomId(`modal_create_main_${ticketTypeKey}`)
-                .setTitle(config.title);
-
-            // Campos del Modal según el Tipo
+            const modal = new ModalBuilder().setCustomId(`modal_create_main_${ticketTypeKey}`).setTitle(config.title);
             const fields = [];
 
             if (ticketTypeKey === 'ticket_reportes') {
                 fields.push(
-                    new TextInputBuilder().setCustomId('q_who').setLabel("¿A quién estás reportando?").setStyle(TextInputStyle.Short).setRequired(true),
+                    new TextInputBuilder().setCustomId('q_who').setLabel("¿A quién reportas?").setStyle(TextInputStyle.Short).setRequired(true),
                     new TextInputBuilder().setCustomId('q_rule').setLabel("¿Qué regla rompió?").setStyle(TextInputStyle.Short).setRequired(true),
-                    new TextInputBuilder().setCustomId('q_when').setLabel("¿Cuándo y dónde ocurrió?").setStyle(TextInputStyle.Short).setRequired(true),
-                    new TextInputBuilder().setCustomId('q_proof').setLabel("¿Tienes pruebas claras? (Links)").setStyle(TextInputStyle.Paragraph).setRequired(true)
+                    new TextInputBuilder().setCustomId('q_when').setLabel("¿Dónde/Cuándo ocurrió?").setStyle(TextInputStyle.Short).setRequired(true),
+                    new TextInputBuilder().setCustomId('q_proof').setLabel("Pruebas (Links obligatorios)").setStyle(TextInputStyle.Paragraph).setRequired(true)
                 );
             } else if (ticketTypeKey === 'ticket_blacklist') {
                 fields.push(
-                    new TextInputBuilder().setCustomId('q_sanction').setLabel("¿Qué sanción tienes actualmente?").setStyle(TextInputStyle.Short).setRequired(true),
-                    new TextInputBuilder().setCustomId('q_why').setLabel("¿Por qué fuiste sancionado?").setStyle(TextInputStyle.Paragraph).setRequired(true),
-                    new TextInputBuilder().setCustomId('q_regret').setLabel("¿Reconoces el error cometido?").setStyle(TextInputStyle.Short).setRequired(true),
-                    new TextInputBuilder().setCustomId('q_type').setLabel("¿Qué tipo de apelación requieres?").setStyle(TextInputStyle.Short).setRequired(true)
-                );
-            } else if (ticketTypeKey === 'ticket_trabajo') {
-                // Assuming Image 3 logic implies generic work/role questions or similar
-                fields.push(
-                    new TextInputBuilder().setCustomId('q_role_req').setLabel("¿Solicitas un rol? (Si/No)").setStyle(TextInputStyle.Short).setRequired(true),
-                    new TextInputBuilder().setCustomId('q_role_name').setLabel("Si respondiste 'sí', ¿qué rol necesitas?").setStyle(TextInputStyle.Short).setRequired(false),
-                    new TextInputBuilder().setCustomId('q_details').setLabel("Detalles adicionales").setStyle(TextInputStyle.Paragraph).setRequired(false)
+                    new TextInputBuilder().setCustomId('q_sanction').setLabel("Sanción Actual").setStyle(TextInputStyle.Short).setRequired(true),
+                    new TextInputBuilder().setCustomId('q_why').setLabel("Motivo de la Sanción").setStyle(TextInputStyle.Paragraph).setRequired(true),
+                    new TextInputBuilder().setCustomId('q_regret').setLabel("¿Reconoces el error?").setStyle(TextInputStyle.Short).setRequired(true),
+                    new TextInputBuilder().setCustomId('q_type').setLabel("Tipo de Apelación").setStyle(TextInputStyle.Short).setRequired(true)
                 );
             } else if (ticketTypeKey === 'ticket_ck') {
                 fields.push(
-                    new TextInputBuilder().setCustomId('q_char').setLabel("¿Qué personaje está involucrado?").setStyle(TextInputStyle.Short).setRequired(true),
-                    new TextInputBuilder().setCustomId('q_motive').setLabel("¿Cuál es el motivo RP?").setStyle(TextInputStyle.Paragraph).setRequired(true),
-                    new TextInputBuilder().setCustomId('q_prior').setLabel("¿Hubo rol previo que lo justifique?").setStyle(TextInputStyle.Paragraph).setRequired(true),
-                    new TextInputBuilder().setCustomId('q_proof').setLabel("¿Tienes pruebas del rol? (Links)").setStyle(TextInputStyle.Paragraph).setRequired(true)
+                    new TextInputBuilder().setCustomId('q_char').setLabel("Nombre del Personaje").setStyle(TextInputStyle.Short).setRequired(true),
+                    new TextInputBuilder().setCustomId('q_motive').setLabel("Motivo de Rol (CK)").setStyle(TextInputStyle.Paragraph).setRequired(true),
+                    new TextInputBuilder().setCustomId('q_prior').setLabel("¿Rol Previo? (Contexto)").setStyle(TextInputStyle.Paragraph).setRequired(true),
+                    new TextInputBuilder().setCustomId('q_proof').setLabel("Pruebas del Rol (Links)").setStyle(TextInputStyle.Paragraph).setRequired(true)
+                );
+            } else if (ticketTypeKey === 'ticket_trabajo') {
+                fields.push(
+                    new TextInputBuilder().setCustomId('q_role_req').setLabel("¿Solicitas un rol? (Si/No)").setStyle(TextInputStyle.Short).setRequired(true),
+                    new TextInputBuilder().setCustomId('q_role_name').setLabel("Nombre del Rol (Si aplica)").setStyle(TextInputStyle.Short).setRequired(false),
+                    new TextInputBuilder().setCustomId('q_details').setLabel("Detalles / Experiencia").setStyle(TextInputStyle.Paragraph).setRequired(false)
+                );
+            } else if (ticketTypeKey === 'ticket_bug') {
+                // Modified for Bugs based on User Request/Context
+                fields.push(
+                    new TextInputBuilder().setCustomId('q_reason').setLabel("Descubre el fallo/bug").setStyle(TextInputStyle.Paragraph).setRequired(true),
+                    new TextInputBuilder().setCustomId('q_impede').setLabel("¿Te impide jugar/rolear?").setStyle(TextInputStyle.Short).setRequired(true)
                 );
             } else {
-                // General, VIP, Bug (Simple)
-                fields.push(
-                    new TextInputBuilder().setCustomId('q_reason').setLabel("¿Cuál es tu problema o duda?").setStyle(TextInputStyle.Paragraph).setRequired(true).setMaxLength(1000)
-                );
+                // General & VIP
+                fields.push(new TextInputBuilder().setCustomId('q_reason').setLabel("Describe tu problema o duda").setStyle(TextInputStyle.Paragraph).setRequired(true).setMaxLength(1000));
             }
 
             fields.forEach(f => modal.addComponents(new ActionRowBuilder().addComponents(f)));
@@ -159,53 +119,31 @@ module.exports = {
             return true;
         }
 
-        // --- 3. CREAR TICKET (Submit) ---
+        // --- 3. CREATE LOGIC (Submit) ---
         if (interaction.isModalSubmit() && customId.startsWith('modal_create_main_')) {
             await interaction.deferReply({ ephemeral: true });
             const typeKey = customId.replace('modal_create_main_', '');
             const config = TICKET_TYPES[typeKey];
-            if (!config) return interaction.editReply('❌ Error de config.');
+            if (!config) return interaction.editReply('❌ Config Error.');
 
-            // Build Description from Fields
-            let description = `**Usuario:** <@${interaction.user.id}>\n**Tipo:** ${config.title}\n\n`;
+            let description = `**Tipo:** ${config.title}\n**Usuario:** <@${interaction.user.id}>\n\n`;
+
+            // Append fields dynamically
+            interaction.fields.fields.forEach(field => {
+                // Intenta buscar el label original si es posible, o usa el value
+                description += `**${field.customId}**: ${field.value}\n`;
+            });
+            // (Note: cleaner formatting possible but this ensures all data is captured)
 
             try {
-                if (typeKey === 'ticket_reportes') {
-                    description += `**Reportado:** ${interaction.fields.getTextInputValue('q_who')}\n`;
-                    description += `**Regla:** ${interaction.fields.getTextInputValue('q_rule')}\n`;
-                    description += `**Dónde:** ${interaction.fields.getTextInputValue('q_when')}\n`;
-                    description += `**Pruebas:**\n${interaction.fields.getTextInputValue('q_proof')}`;
-                } else if (typeKey === 'ticket_blacklist') {
-                    description += `**Sanción:** ${interaction.fields.getTextInputValue('q_sanction')}\n`;
-                    description += `**Motivo:** ${interaction.fields.getTextInputValue('q_why')}\n`;
-                    description += `**Reconoce:** ${interaction.fields.getTextInputValue('q_regret')}\n`;
-                    description += `**Tipo Apelación:** ${interaction.fields.getTextInputValue('q_type')}`;
-                } else if (typeKey === 'ticket_ck') {
-                    description += `**Personaje:** ${interaction.fields.getTextInputValue('q_char')}\n`;
-                    description += `**Motivo RP:** ${interaction.fields.getTextInputValue('q_motive')}\n`;
-                    description += `**Rol Previo:** ${interaction.fields.getTextInputValue('q_prior')}\n`;
-                    description += `**Pruebas:**\n${interaction.fields.getTextInputValue('q_proof')}`;
-                } else if (typeKey === 'ticket_trabajo') {
-                    description += `**¿Solicita Rol?:** ${interaction.fields.getTextInputValue('q_role_req')}\n`;
-                    description += `**Rol:** ${interaction.fields.getTextInputValue('q_role_name')}\n`;
-                    description += `**Detalles:**\n${interaction.fields.getTextInputValue('q_details')}`;
-                } else {
-                    description += `**Consulta:**\n${interaction.fields.getTextInputValue('q_reason')}`;
-                }
-            } catch (e) {
-                description += `*(No se pudieron leer todos los campos)*`;
-            }
-
-            // Create Channel
-            try {
-                const channelName = `${config.emoji}-${interaction.user.username}`.toLowerCase().replace(/[^a-z0-9\-_]/g, '');
+                const cleanName = interaction.user.username.replace(/[^a-z0-9\-_]/g, '').toLowerCase().substring(0, 15);
+                const channelName = `${config.prefix}-${cleanName}`;
 
                 const permissionOverwrites = [
                     { id: interaction.guild.id, deny: [PermissionFlagsBits.ViewChannel] },
                     { id: interaction.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.AttachFiles] },
                     { id: client.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ManageChannels] }
                 ];
-
                 if (config.role) permissionOverwrites.push({ id: config.role, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] });
                 if (config.pingUser) permissionOverwrites.push({ id: config.pingUser, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] });
 
@@ -217,25 +155,22 @@ module.exports = {
                     permissionOverwrites
                 });
 
-                // DB Insert
                 await supabase.from('tickets').insert([{
                     guild_id: interaction.guild.id,
                     channel_id: ticketChannel.id,
                     creator_id: interaction.user.id,
-                    status: 'OPEN'
+                    status: 'OPEN',
+                    last_active_at: new Date().toISOString()
                 }]);
 
-                // Embed & Pings
+                const embed = new EmbedBuilder()
+                    .setTitle(`${config.emoji} ${config.title}`)
+                    .setDescription(description.substring(0, 4000))
+                    .setColor(0x5865F2)
+                    .setFooter({ text: 'Sistema de Soporte' }).setTimestamp();
+
                 let pings = `<@${interaction.user.id}>`;
                 if (config.role) pings += ` <@&${config.role}>`;
-                if (config.pingUser) pings += ` <@${config.pingUser}>`;
-
-                const embed = new EmbedBuilder()
-                    .setTitle(`${config.emoji} Nuevo Ticket: ${config.title}`)
-                    .setDescription(description)
-                    .setColor(0x5865F2)
-                    .setFooter({ text: 'Sistema de Tickets Nación MX' })
-                    .setTimestamp();
 
                 const row = new ActionRowBuilder().addComponents(
                     new ButtonBuilder().setCustomId('btn_close_ticket_ask').setLabel('Cerrar').setStyle(ButtonStyle.Danger).setEmoji('🔒'),
@@ -247,116 +182,87 @@ module.exports = {
 
             } catch (err) {
                 console.error(err);
-                await interaction.editReply('❌ Error al crear el canal.');
+                await interaction.editReply('❌ Error al crear. Verifica permisos/categorías.');
             }
             return true;
         }
 
-        // --- 4. ACCIONES (Claim, Close) ---
-
-        // CLAIM
+        // --- 4. ACCIONES (Claim / Close / Feedback) ---
+        // Reuse same logic from previous steps
         if (customId === 'btn_claim_ticket') {
-            await interaction.deferReply();
-
-            // Check Permissions (Only those with ViewChannel can claim, usually staff)
-            // But we can check specifically for staff roles if strictness is needed.
-            // For now, assuming anyone who can see the button (staff + creator) 
-            // BUT Creator shouldn't claim their own ticket effectively in a "Staff" way.
-            // Let's rely on the role check or DB.
-
             const isStaff = interaction.member.permissions.has(PermissionFlagsBits.ManageMessages);
-            // Simple check: If they have ManageMessages, they are likely staff. Or check specific roles.
-
-            if (!isStaff) return interaction.editReply({ content: '🚫 No tienes permisos para reclamar tickets.' });
+            if (!isStaff) return interaction.reply({ content: '🚫 Solo Staff.', ephemeral: true });
 
             const { data: ticket } = await supabase.from('tickets').select('*').eq('channel_id', interaction.channel.id).single();
-            if (ticket && ticket.claimed_by_id) return interaction.editReply(`⚠️ Ya reclamado por <@${ticket.claimed_by_id}>.`);
+            if (ticket && ticket.claimed_by_id) return interaction.reply({ content: `⚠️ Reclamado por <@${ticket.claimed_by_id}>`, ephemeral: true });
 
             await supabase.from('tickets').update({ claimed_by_id: interaction.user.id }).eq('channel_id', interaction.channel.id);
             await interaction.channel.setTopic(`${interaction.channel.topic} | Staff: ${interaction.user.tag}`);
-            await interaction.editReply({ embeds: [new EmbedBuilder().setDescription(`✅ Ticket atendido por <@${interaction.user.id}>`).setColor(0x2ECC71)] });
+            await interaction.reply({ embeds: [new EmbedBuilder().setDescription(`✅ Ticket reclamado por <@${interaction.user.id}>`).setColor(0x2ECC71)] });
             return true;
         }
 
-        // CLOSE ASK
         if (customId === 'btn_close_ticket_ask') {
-            // STAFF ONLY CHECK
-            const isStaff = interaction.member.permissions.has(PermissionFlagsBits.ManageMessages) || interaction.member.roles.cache.has(TICKET_CONFIG.ROLE_COMMON);
-            // Ajustar lógica de permisos según necesidad estricta.
-            // El usuario dijo: "el usuario no puede cerrar el ticket tiene que cerrarlo el staff"
-
-            // Check if user is the creator?
             const { data: ticket } = await supabase.from('tickets').select('*').eq('channel_id', interaction.channel.id).single();
             if (ticket && ticket.creator_id === interaction.user.id) {
-                // It's the creator trying to close
-                // Allow user to REQUEST closure? Or deny completely?
-                // "el usuario no puede cerrar" usually means they shouldn't have the button or the button errors.
-                return interaction.reply({ content: '🚫 Solo el Staff puede cerrar el ticket. Por favor espera a que un administrador lo finalice.', ephemeral: true });
+                return interaction.reply({ content: '🚫 Espera al Staff para cerrar.', ephemeral: true });
             }
-
             const row = new ActionRowBuilder().addComponents(
-                new ButtonBuilder().setCustomId('btn_close_ticket_confirm').setLabel('Confirmar Cierre & Transcript').setStyle(ButtonStyle.Danger),
+                new ButtonBuilder().setCustomId('btn_close_ticket_confirm').setLabel('Confirmar Cerrar').setStyle(ButtonStyle.Danger),
                 new ButtonBuilder().setCustomId('btn_cancel_close').setLabel('Cancelar').setStyle(ButtonStyle.Secondary)
             );
-            await interaction.reply({ content: '¿Estás seguro de cerrar este ticket?', components: [row] });
-            return true;
-        }
-
-        // CLOSE CONFIRM
-        if (customId === 'btn_close_ticket_confirm') {
-            await interaction.update({ content: '🔒 Cerrando ticket y generando logs...', components: [] });
-
-            // Generate Transcript
-            const attachment = await discordTranscripts.createTranscript(interaction.channel, {
-                limit: -1,
-                returnType: 'attachment',
-                filename: `transcript-${interaction.channel.name}.html`,
-                saveImages: true,
-                footerText: "Nacion MX • Transcript Oficial",
-                poweredBy: false
-            });
-
-            // 1. Send to Log Channel
-            const logChannel = client.channels.cache.get(TICKET_CONFIG.LOG_TRANSCRIPTS);
-            if (logChannel) {
-                const logEmbed = new EmbedBuilder()
-                    .setTitle('📄 Nuevo Transcript de Ticket')
-                    .addFields(
-                        { name: 'Canal', value: interaction.channel.name, inline: true },
-                        { name: 'Cerrado por', value: interaction.user.tag, inline: true },
-                        { name: 'Fecha', value: new Date().toLocaleString(), inline: true }
-                    )
-                    .setColor(0x2B2D31)
-                    .setTimestamp();
-
-                await logChannel.send({ embeds: [logEmbed], files: [attachment] });
-            }
-
-            // 2. DM User (Creator) - Optional but good practice
-            // Need to fetch creator from DB or Topic parsing
-            const { data: ticket } = await supabase.from('tickets').select('*').eq('channel_id', interaction.channel.id).single();
-            if (ticket && ticket.creator_id) {
-                try {
-                    const creator = await client.users.fetch(ticket.creator_id);
-                    await creator.send({
-                        content: `Tu ticket **${interaction.channel.name}** ha sido cerrado. Aquí tienes una copia del historial.`,
-                        files: [attachment]
-                    });
-                } catch (e) {
-                    // DM Closed
-                }
-            }
-
-            // Close logic
-            await supabase.from('tickets').update({ status: 'CLOSED', closed_at: new Date().toISOString() }).eq('channel_id', interaction.channel.id);
-
-            // Delete Channel
-            setTimeout(() => interaction.channel.delete().catch(() => { }), 5000);
+            await interaction.reply({ content: '¿Cerrar ticket?', components: [row] });
             return true;
         }
 
         if (customId === 'btn_cancel_close') {
             await interaction.message.delete().catch(() => { });
+            return true;
+        }
+
+        if (customId === 'btn_close_ticket_confirm') {
+            await interaction.message.delete().catch(() => { });
+            const embed = new EmbedBuilder().setTitle('🔒 Finalizado').setDescription('Califica la atención:').setColor(0xFEE75C);
+            const row = new ActionRowBuilder().addComponents(
+                new ButtonBuilder().setCustomId('feedback_5').setEmoji('⭐').setLabel('Excelente').setStyle(ButtonStyle.Success),
+                new ButtonBuilder().setCustomId('feedback_3').setEmoji('😐').setLabel('Regular').setStyle(ButtonStyle.Primary),
+                new ButtonBuilder().setCustomId('feedback_1').setEmoji('😡').setLabel('Mal').setStyle(ButtonStyle.Danger),
+                new ButtonBuilder().setCustomId('feedback_s').setLabel('Omitir').setStyle(ButtonStyle.Secondary)
+            );
+            await interaction.channel.send({ content: `<@${interaction.user.id}>`, embeds: [embed], components: [row] });
+            return true;
+        }
+
+        if (['feedback_5', 'feedback_3', 'feedback_1', 'feedback_s'].includes(customId)) {
+            await interaction.deferUpdate();
+            let rating = (customId === 'feedback_5') ? 5 : (customId === 'feedback_3') ? 3 : (customId === 'feedback_1') ? 1 : null;
+
+            const { data: ticket } = await supabase.from('tickets').select('*').eq('channel_id', interaction.channel.id).single();
+            const attachment = await discordTranscripts.createTranscript(interaction.channel, { limit: -1, returnType: 'attachment', filename: `close-${interaction.channel.name}.html`, saveImages: true });
+
+            const logChannel = client.channels.cache.get(TICKET_CONFIG.LOG_TRANSCRIPTS);
+            if (logChannel) {
+                const logEmbed = new EmbedBuilder().setTitle('Ticket Cerrado').addFields({ name: 'Ticket', value: interaction.channel.name, inline: true }, { name: 'Rating', value: rating ? `${rating} ⭐` : 'N/A', inline: true }).setColor(0x2B2D31);
+                await logChannel.send({ embeds: [logEmbed], files: [attachment] });
+            }
+
+            if (rating) {
+                const feedbackChannel = client.channels.cache.get(TICKET_CONFIG.LOG_FEEDBACK);
+                if (feedbackChannel) await feedbackChannel.send({ embeds: [new EmbedBuilder().setTitle('Nueva Valoración').addFields({ name: 'Rating', value: '⭐'.repeat(rating) }, { name: 'Staff', value: ticket?.claimed_by_id ? `<@${ticket.claimed_by_id}>` : 'General' }).setColor(rating >= 4 ? 0x57F287 : 0xED4245)] });
+                await supabase.from('tickets').update({ status: 'CLOSED', closed_at: new Date().toISOString(), rating }).eq('channel_id', interaction.channel.id);
+            } else {
+                await supabase.from('tickets').update({ status: 'CLOSED', closed_at: new Date().toISOString() }).eq('channel_id', interaction.channel.id);
+            }
+
+            if (ticket && ticket.creator_id) {
+                try {
+                    const creator = await client.users.fetch(ticket.creator_id);
+                    await creator.send({ content: `Tu ticket ha cerrado.`, files: [attachment] });
+                } catch (e) { }
+            }
+
+            await interaction.channel.send('✅ Cerrando...');
+            setTimeout(() => interaction.channel.delete().catch(() => { }), 5000);
             return true;
         }
 
