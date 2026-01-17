@@ -46,6 +46,10 @@ async function generateAIResponse(query) {
         const result = await model.generateContent(fullPrompt);
         return result.response.text();
     } catch (error) {
+        if (error.status === 429 || error.message.includes('429')) {
+            console.warn('[GEMINI] Quota Exceeded');
+            return "Lo siento, mi cerebro de IA está saturado por hoy (Límite de cuota alcanzado). Espera a un humano.";
+        }
         console.error('Gemini Generate Error:', error);
         return `ERROR_API: ${error.message}`; // Fallback con info
     }
@@ -60,12 +64,15 @@ module.exports = {
         // Solo en canales de tickets
         if (!message.channel.name.includes('-') && !message.channel.topic?.includes('Ticket')) return;
 
-        // 1. AUTO-BAN (Filtro de Groserías)
+        // 1. AUTO-MOD (Shadow Moderation)
         const contentLower = message.content.toLowerCase();
         if (BAD_WORDS.some(w => contentLower.includes(w))) {
             if (message.member.permissions.has(PermissionFlagsBits.ManageMessages)) return; // Ignorar Staff
+
             await message.delete().catch(() => { });
-            return message.channel.send(`⚠️ <@${message.author.id}>, modera tu lenguaje.`);
+            const warningMsg = await message.channel.send(`⚠️ <@${message.author.id}>, mantén el respeto en el ticket o serás sancionado.`);
+            setTimeout(() => warningMsg.delete().catch(() => { }), 5000);
+            return;
         }
 
         // 2. IA RESPONSES (Solo si no es Staff y nadie ha respondido recientemente)
