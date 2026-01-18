@@ -11,7 +11,7 @@ class TemporaryChannelManager {
         this.cleanupInterval = null;
         this.CLEANUP_INTERVAL_MS = 5 * 60 * 1000; // 5 minutos
         this.MAX_CHANNELS_PER_USER = 3;
-        this.DEFAULT_CATEGORY_ID = '1412882245605396617'; // Ajustar a tu categoría
+        this.DEFAULT_CATEGORY_ID = null; // Se determinará dinámicamente
     }
 
     /**
@@ -56,11 +56,22 @@ class TemporaryChannelManager {
                 console.warn('[TemporaryChannelManager] No se pudo verificar límite (DB no disponible), continuando...');
             }
 
+            // Buscar o crear categoría para canales temporales
+            let categoryId = options.categoryId || this.DEFAULT_CATEGORY_ID;
+
+            if (!categoryId) {
+                // Buscar categoría "VOICE" o similar
+                const voiceCategory = guild.channels.cache.find(
+                    ch => ch.type === ChannelType.GuildCategory &&
+                        (ch.name.toLowerCase().includes('voice') || ch.name.toLowerCase().includes('voz'))
+                );
+                categoryId = voiceCategory?.id || null; // null = sin categoría
+            }
+
             // Configuración del canal
             const channelOptions = {
                 name: options.name || `${owner.user.username}'s Channel`,
                 type: ChannelType.GuildVoice,
-                parent: options.categoryId || this.DEFAULT_CATEGORY_ID,
                 userLimit: options.userLimit || 0,
                 bitrate: options.bitrate || 64000,
                 permissionOverwrites: [
@@ -82,8 +93,16 @@ class TemporaryChannelManager {
                 ],
             };
 
+            // Agregar parent si existe
+            if (categoryId) {
+                channelOptions.parent = categoryId;
+            }
+
             // Crear el canal en Discord
-            const channel = await guild.channels.create(channelOptions);
+            const channel = await guild.channels.create(channelOptions).catch(err => {
+                console.error('[TemporaryChannelManager] Error de Discord API:', err);
+                throw new Error(`Error de permisos: ${err.message}. Verifica que el bot tenga permisos de "Manage Channels"`);
+            });
 
             // Calcular expiración (si se especifica)
             const expiresAt = options.durationMinutes
