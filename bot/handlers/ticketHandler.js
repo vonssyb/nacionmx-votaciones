@@ -558,9 +558,21 @@ module.exports = {
 
             // Verificar permisos por tipo de acción
             const ACTION_PERMISSIONS = {
-                refund_money: ['1412882245735420006', '1412887195014557787'], // JD, Co-Owner
-                remove_sanction: ['1412887167654690908', '1412882245735420006'], // Staff, JD
-                grant_role: ['1412887167654690908', '1412882245735420006'] // Staff, JD
+                refund_money: [
+                    '1457554145719488687', // Encargado de Economía
+                    '1412882245735420006', // Junta Directiva
+                    '1412887195014557787'  // Co-Owner
+                ],
+                remove_sanction: [
+                    '1451703422800625777', // Encargado de Apelaciones
+                    '1412882245735420006', // Junta Directiva
+                    '1412887195014557787'  // Co-Owner
+                ],
+                grant_role: [
+                    '1412887167654690908', // Staff (ROLE_COMMON)
+                    '1412882245735420006', // Junta Directiva
+                    '1412887195014557787'  // Co-Owner
+                ]
             };
 
             const requiredRoles = ACTION_PERMISSIONS[actionType] || [];
