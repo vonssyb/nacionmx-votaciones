@@ -551,6 +551,125 @@ module.exports = {
             return true;
         }
 
+        // --- APROBACIÓN DE ACCIONES IA ---
+        if (customId.startsWith('approve_action:')) {
+            const [_, actionType, userId, actionData, encodedReason] = customId.split(':');
+            const reason = decodeURIComponent(encodedReason);
+
+            // Verificar permisos por tipo de acción
+            const ACTION_PERMISSIONS = {
+                refund_money: ['1412882245735420006', '1412887195014557787'], // JD, Co-Owner
+                remove_sanction: ['1412887167654690908', '1412882245735420006'], // Staff, JD
+                grant_role: ['1412887167654690908', '1412882245735420006'] // Staff, JD
+            };
+
+            const requiredRoles = ACTION_PERMISSIONS[actionType] || [];
+            const hasPermission = interaction.member.roles.cache.some(r => requiredRoles.includes(r.id));
+
+            if (!hasPermission) {
+                await interaction.reply({
+                    content: '❌ No tienes permisos para aprobar esta acción.',
+                    ephemeral: true
+                });
+                return true;
+            }
+
+            await interaction.deferReply({ ephemeral: false });
+
+            try {
+                const supabase = interaction.client.supabase;
+                const targetUser = await interaction.client.users.fetch(userId.replace(/[<@>]/g, ''));
+
+                let resultMessage = '';
+
+                switch (actionType) {
+                    case 'refund_money':
+                        const amount = parseInt(actionData);
+                        // Dar dinero al usuario
+                        const { error: moneyError } = await supabase.rpc('increment_balance', {
+                            p_discord_id: targetUser.id,
+                            p_amount: amount
+                        });
+
+                        if (moneyError) throw moneyError;
+
+                        resultMessage = `✅ **Devolución Aprobada**\n\n💰 Monto: $${amount.toLocaleString()}\n👤 Usuario: ${targetUser}\n👮 Aprobado por: ${interaction.user}\n📝 Razón: ${reason}`;
+
+                        // Notificar al usuario
+                        try {
+                            await targetUser.send(`💰 Se te han devuelto $${amount.toLocaleString()} por: ${reason}`);
+                        } catch (e) {
+                            // DMs cerrados
+                        }
+                        break;
+
+                    case 'remove_sanction':
+                        const sanctionId = parseInt(actionData);
+                        const { error: sanctionError } = await supabase
+                            .from('sanctions')
+                            .update({ status: 'revoked', revoked_by: interaction.user.id, revoked_reason: reason })
+                            .eq('id', sanctionId);
+
+                        if (sanctionError) throw sanctionError;
+
+                        resultMessage = `✅ **Sanción Removida**\n\n🆔 ID Sanción: #${sanctionId}\n👤 Usuario: ${targetUser}\n👮 Aprobado por: ${interaction.user}\n📝 Razón: ${reason}`;
+
+                        // Notificar al usuario
+                        try {
+                            await targetUser.send(`✅ Tu sanción #${sanctionId} ha sido revocada. Razón: ${reason}`);
+                        } catch (e) { }
+                        break;
+
+                    case 'grant_role':
+                        const roleName = actionData;
+                        const role = interaction.guild.roles.cache.find(r => r.name.toLowerCase() === roleName.toLowerCase());
+
+                        if (!role) {
+                            throw new Error(`Rol "${roleName}" no encontrado`);
+                        }
+
+                        const member = await interaction.guild.members.fetch(targetUser.id);
+                        await member.roles.add(role);
+
+                        resultMessage = `✅ **Rol Otorgado**\n\n👑 Rol: ${role}\n👤 Usuario: ${targetUser}\n👮 Aprobado por: ${interaction.user}\n📝 Razón: ${reason}`;
+
+                        // Notificar al usuario
+                        try {
+                            await targetUser.send(`👑 Se te ha otorgado el rol **${role.name}**. Razón: ${reason}`);
+                        } catch (e) { }
+                        break;
+                }
+
+                // Audit log
+                if (interaction.client.logAudit) {
+                    await interaction.client.logAudit(
+                        `Acción IA Aprobada: ${actionType}`,
+                        resultMessage,
+                        interaction.user,
+                        targetUser,
+                        0x00FF00
+                    );
+                }
+
+                await interaction.editReply({ content: resultMessage });
+
+                // Deshabilitar botón
+                const disabledButton = ButtonBuilder.from(interaction.message.components[0].components[0])
+                    .setDisabled(true)
+                    .setLabel('✅ Aprobado');
+                const disabledRow = new ActionRowBuilder().addComponents(disabledButton);
+                await interaction.message.edit({ components: [disabledRow] });
+
+            } catch (error) {
+                console.error('Error ejecutando acción:', error);
+                await interaction.editReply({
+                    content: `❌ Error ejecutando acción: ${error.message}`
+                });
+            }
+
+            return true;
+        }
+
         // --- ESCALAMIENTO MANUAL A STAFF ---
         if (customId === 'escalate_to_staff') {
             await interaction.deferUpdate();

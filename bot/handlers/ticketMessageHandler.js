@@ -70,9 +70,8 @@ Eres un asistente de tickets para Nación MX (servidor ER:LC).
 REGLAS ESTRICTAS:
 1. Respuestas de 1-2 párrafos MAX
 2. USA SOLO datos reales que te den
-3. NO inventes JSON de acciones  
-4. NO inventes procedimientos
-5. NO des "recomendaciones genéricas"
+3. NO inventes JSON de acciones genéricos
+4. Sé directo y conciso
 
 CONOCIMIENTO:
 ${SERVER_CONTEXT}
@@ -83,10 +82,19 @@ CONSULTA DE SANCIONES:
 - Busca por palabra clave si piden una específica
 - Responde: "Encontré [N]: [lista breve]"
 
-APROBACIONES/ACCIONES:
-Responde: "No puedo hacer eso. Solo staff puede aprobar acciones."
+CUANDO STAFF SOLICITA APROBAR UNA ACCIÓN:
+Si staff pide explícitamente proceder con una acción (devolver dinero, quitar sanción, dar rol), 
+responde brevemente Y agrega al FINAL:
 
-NUNCA inventes JSON ni procedimientos. Solo informa con datos reales.
+---
+ACCIÓN_PROPUESTA
+tipo: [refund_money|remove_sanction|grant_role]
+usuario: [user_id o @mention]
+datos: [monto|sanction_id|role_name]
+razon: [explicación breve]
+---
+
+NUNCA propongas acciones sin que staff lo solicite explícitamente.
 `;
 
 // Palabras prohibidas (Filtro local rápido)
@@ -417,7 +425,35 @@ ${message.content || "(Imagen enviada)"}
                         .setStyle(ButtonStyle.Secondary)
                 );
 
-                await message.channel.send({ embeds: [embed], components: [row] });
+                // PARSER DE ACCIONES PROPUESTAS
+                let actionRow = null;
+                const actionMatch = responseText.match(/---\s*ACCIÓN_PROPUESTA\s+tipo:\s*(\w+)\s+usuario:\s*(.+?)\s+datos:\s*(.+?)\s+razon:\s*(.+?)\s+---/is);
+
+                if (actionMatch) {
+                    const [_, actionType, userId, actionData, reason] = actionMatch;
+
+                    // Crear botón de aprobación basado en tipo de acción
+                    const actionLabels = {
+                        refund_money: '💰 Aprobar Devolución',
+                        remove_sanction: '✅ Aprobar Quitar Sanción',
+                        grant_role: '👑 Aprobar Dar Rol'
+                    };
+
+                    const actionButton = new ButtonBuilder()
+                        .setCustomId(`approve_action:${actionType}:${userId.trim()}:${actionData.trim()}:${encodeURIComponent(reason.trim())}`)
+                        .setLabel(actionLabels[actionType] || '✅ Aprobar Acción')
+                        .setStyle(ButtonStyle.Success);
+
+                    actionRow = new ActionRowBuilder().addComponents(actionButton);
+
+                    // Limpiar la respuesta para no mostrar el formato interno
+                    embed.setDescription(responseText.replace(/---\s*ACCIÓN_PROPUESTA[\s\S]*?---/gi, '').trim());
+                }
+
+                await message.channel.send({
+                    embeds: [embed],
+                    components: actionRow ? [actionRow, row] : [row]
+                });
 
                 // Auto-escalamiento con recopilación de información
                 if (needsStaff) {
