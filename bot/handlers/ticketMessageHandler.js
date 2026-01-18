@@ -220,22 +220,13 @@ module.exports = {
             console.error('Error verificando dueño del ticket:', err);
         }
 
-        // Si el staff fue llamado, el bot se silencia hasta que staff responda
+        // Si el staff fue llamado, el bot se silencia permanentemente
+        // Solo responde si es mencionado (@bot)
         const state = ticketStates.get(message.channel.id) || {};
-
-        // Permitir responder si el bot es mencionado (@bot)
         const botMentioned = message.mentions.has(client.user);
 
         if (state.staffCalled && !botMentioned) {
-            // Si el mensaje es de staff, resetear el estado
-            const staffRoles = ['1412887167654690908', '1398526164253888640']; // ROLE_COMMON y ROLE_ADMIN
-            const isStaff = message.member?.roles.cache.some(r => staffRoles.includes(r.id));
-
-            if (isStaff) {
-                ticketStates.delete(message.channel.id); // Resetear estado
-                console.log(`✅ Staff respondió en ${message.channel.id}, bot reactivado`);
-            }
-            return; // Bot silenciado hasta que staff responda
+            return; // Bot silenciado, solo responde con @mención
         }
 
         // 1. AUTO-MOD (Shadow Moderation)
