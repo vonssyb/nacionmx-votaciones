@@ -21,28 +21,13 @@ module.exports = {
         const channelId = member.voice.channelId;
         const voiceChannel = member.voice.channel;
         const channelInfo = voiceConfig.getChannelInfo(channelId);
+        const channelName = voiceChannel?.name || 'Canal Desconocido';
 
-        // Permitir TTS en canales de whisper y temporales sin verificación de whitelist
-        const channelName = voiceChannel?.name || '';
-        const isWhisperChannel = channelName.startsWith('🤫 Whisper') || channelName.toLowerCase().includes('whisper');
-        const isTempChannel = channelName.includes("'s Channel") ||
-            channelName.includes("'s channel") ||
-            channelName.toLowerCase().includes('temp') ||
-            channelName.toLowerCase().includes('temporal');
+        // Logging para debugging
+        console.log(`[Talk CMD] Usando TTS en canal: "${channelName}" (${channelId})`);
 
-        // Log para debugging
-        if (isWhisperChannel || isTempChannel) {
-            console.log(`[Talk CMD] Permitiendo TTS en canal temporal/whisper: "${channelName}" (${channelId})`);
-        }
-
-        // Whitelist check (excepto para canales temporales y whisper)
-        if (!isWhisperChannel && !isTempChannel && !channelInfo) {
-            console.log(`[Talk CMD] Refused: Channel "${channelName}" (${channelId}) not valid.`);
-            return interaction.editReply({
-                content: `❌ No se permite el uso de TTS en este canal. (ID Detectado: **${channelId}** - No está en whitelist)`
-            });
-        }
-
+        // Solo bloquear TTS si el canal tiene explícitamente noTTS = true
+        // Permite TTS por defecto en todos los canales (incluidos temporales creados con /vcreate)
         if (channelInfo && channelInfo.noTTS) {
             return interaction.editReply({
                 content: `❌ El canal **${channelInfo.name}** tiene el TTS desactivado.`
@@ -62,7 +47,7 @@ module.exports = {
 
             if (swarmService) {
                 await swarmService.speak(member.guild.id, channelId, `${member.displayName} dice: ${message}`);
-                console.log(`[Slash Command] 🗣️ /talk: ${member.user.tag} said "${message}" in ${channelInfo.name}`);
+                console.log(`[Slash Command] 🗣️ /talk: ${member.user.tag} said "${message}" in channel "${channelName}"`);
             } else {
                 console.warn('[Slash Command] /talk: Swarm Service not found via client.services.swarm');
                 // Fallback attempt: if attached directly to client
