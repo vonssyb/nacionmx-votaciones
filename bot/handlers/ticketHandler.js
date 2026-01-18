@@ -614,6 +614,26 @@ module.exports = {
                     case 'refund_money':
                         const amount = parseInt(data);
 
+                        // Dar dinero usando UnbelievaBoat API
+                        const UnbelievaBoatService = require('../services/UnbelievaBoatService');
+                        const ubToken = process.env.UNBELIEVABOAT_TOKEN;
+                        if (!ubToken) throw new Error('UNBELIEVABOAT_TOKEN no configurado');
+
+                        const ubService = new UnbelievaBoatService(ubToken, supabase);
+                        const transactionResult = await ubService.addMoney(
+                            interaction.guildId,
+                            targetUser.id,
+                            amount,
+                            `Devolución: ${reason}`,
+                            'cash'
+                        );
+
+                        if (!transactionResult || !transactionResult.newBalance) {
+                            throw new Error('Transacción fallida');
+                        }
+
+                        const newCash = transactionResult.newBalance.cash;
+
                         resultMessage = `✅ **Devolución Aprobada**\n\n💰 Monto: $${amount.toLocaleString()}\n👤 Usuario: ${targetUser}\n👮 Aprobado por: ${interaction.user}\n📝 Razón: ${reason}`;
 
                         // Notificar al usuario
