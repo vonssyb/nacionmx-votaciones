@@ -583,6 +583,11 @@ module.exports = {
                     '1412887167654690908', // Staff (ROLE_COMMON)
                     '1412882245735420006', // Junta Directiva
                     '1412887195014557787'  // Co-Owner
+                ],
+                apply_ck: [
+                    '1412887167654690908', // Encargado de CK (usa ROLE_COMMON por ahora)
+                    '1412882245735420006', // Junta Directiva
+                    '1412887195014557787'  // Co-Owner
                 ]
             };
 
