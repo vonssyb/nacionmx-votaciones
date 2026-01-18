@@ -202,7 +202,18 @@ module.exports = {
         ];
 
         if (EXCLUDED_CHANNELS.includes(message.channel.id)) return;
-        if (!message.channel.name.includes('-') && !message.channel.topic?.includes('Ticket')) return;
+
+        // VERIFICAR SI ES UN TICKET REAL EN LA BASE DE DATOS
+        const { data: ticketCheck } = await supabase
+            .from('tickets')
+            .select('channel_id')
+            .eq('channel_id', message.channel.id)
+            .maybeSingle();
+
+        // Si NO es un ticket registrado, ignorar (a menos que sea @mención)
+        if (!ticketCheck && !message.mentions.has(client.user)) {
+            return;
+        }
 
         // SEGURIDAD: Solo el dueño del ticket puede hablar con la IA automáticamente
         try {
