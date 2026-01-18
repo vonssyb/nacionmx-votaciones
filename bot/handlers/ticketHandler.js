@@ -613,13 +613,6 @@ module.exports = {
                 switch (actionType) {
                     case 'refund_money':
                         const amount = parseInt(data);
-                        // Dar dinero al usuario
-                        const { error: moneyError } = await supabase.rpc('increment_balance', {
-                            p_discord_id: targetUser.id,
-                            p_amount: amount
-                        });
-
-                        if (moneyError) throw moneyError;
 
                         resultMessage = `✅ **Devolución Aprobada**\n\n💰 Monto: $${amount.toLocaleString()}\n👤 Usuario: ${targetUser}\n👮 Aprobado por: ${interaction.user}\n📝 Razón: ${reason}`;
 
