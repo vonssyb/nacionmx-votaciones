@@ -479,9 +479,12 @@ ${message.content || "(Imagen enviada)"}
                     embed.setDescription(responseText.replace(/ACCIÓN_PROPUESTA[\s\S]*?(?=\n\n|$)/gi, '').trim());
                 }
 
+                // Siempre enviar botón "Necesito Staff", con action button opcional
+                const components = actionRow ? [actionRow, row] : [row];
+
                 await message.channel.send({
                     embeds: [embed],
-                    components: actionRow ? [actionRow, row] : [row]
+                    components
                 });
 
                 // Auto-escalamiento con recopilación de información
