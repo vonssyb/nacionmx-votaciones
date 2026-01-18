@@ -635,7 +635,7 @@ module.exports = {
                         const newCash = transactionResult.newBalance.cash;
 
                         resultMessage = `✅ **Devolución Aprobada**\n\n💰 Monto: $${amount.toLocaleString()}\n👤 Usuario: ${targetUser}\n👮 Aprobado por: ${interaction.user}\n📝 Razón: ${reason}`;
-
+                        resultMessage = `✅ **Devolución Aprobada**\n\n💰 Monto: $${amount.toLocaleString()}\n👤 Usuario: ${targetUser}\n💼 Nuevo Balance: $${newCash.toLocaleString()}\n👮 Aprobado por: ${interaction.user}\n📝 Razón: ${reason}`;
                         // Notificar al usuario
                         try {
                             await targetUser.send(`💰 Se te han devuelto $${amount.toLocaleString()} por: ${reason}`);
