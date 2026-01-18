@@ -648,6 +648,29 @@ module.exports = {
                         } catch (e) { }
                         break;
 
+                    case 'apply_ck':
+                        const ckCommand = interaction.client.commands.get('ck');
+                        if (!ckCommand) throw new Error('Comando CK no encontrado');
+
+                        const fakeInteraction = {
+                            ...interaction,
+                            options: {
+                                getUser: () => targetUser,
+                                getString: (name) => name === 'razon' ? data : null
+                            }
+                        };
+
+                        try {
+                            await ckCommand.execute(fakeInteraction);
+                            resultMessage = `✅ **CK Aplicado**\n\n👤 Usuario: ${targetUser}\n👮 Aprobado por: ${interaction.user}\n📝 Razón: ${data}`;
+                            try {
+                                await targetUser.send(`🔴 CK aplicado. Razón: ${data}`);
+                            } catch (e) { }
+                        } catch (ckError) {
+                            throw new Error(`Error: ${ckError.message}`);
+                        }
+                        break;
+
                     case 'grant_role':
                         const roleName = data;
                         const role = interaction.guild.roles.cache.find(r => r.name.toLowerCase() === roleName.toLowerCase());
