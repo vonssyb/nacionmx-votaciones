@@ -214,8 +214,11 @@ module.exports = {
             .eq('channel_id', message.channel.id)
             .maybeSingle();
 
-        // Si NO es un ticket registrado, ignorar (a menos que sea @mención)
-        if (!ticketCheck && !message.mentions.has(client.user)) {
+        // Verificar si es mención DIRECTA al bot (no @everyone, @here, ni roles)
+        const isDirectMention = message.mentions.users.has(client.user.id);
+
+        // Si NO es un ticket registrado Y NO es mención directa, ignorar
+        if (!ticketCheck && !isDirectMention) {
             return;
         }
 
@@ -230,11 +233,10 @@ module.exports = {
             // Detectar si es staff
             const staffRoles = ['1412887167654690908', '1398526164253888640', '1412882245735420006']; // ROLE_COMMON, ROLE_ADMIN, Junta Directiva
             const isStaff = message.member?.roles.cache.some(r => staffRoles.includes(r.id));
-            const botMentioned = message.mentions.has(client.user);
 
-            // Si es staff y NO menciona al bot, ignorar
-            if (isStaff && !botMentioned) {
-                return; // Staff no activa bot a menos que lo mencione
+            // Si es staff y NO hay mención directa, ignorar
+            if (isStaff && !isDirectMention) {
+                return; // Staff no activa bot a menos que lo mencione directamente
             }
 
             // Si NO es staff y NO es el dueño del ticket, ignorar
@@ -246,12 +248,11 @@ module.exports = {
         }
 
         // Si el staff fue llamado, el bot se silencia permanentemente
-        // Solo responde si es mencionado (@bot)
+        // Solo responde si hay mención DIRECTA (@bot)
         const state = ticketStates.get(message.channel.id) || {};
-        const botMentioned = message.mentions.has(client.user);
 
-        if (state.staffCalled && !botMentioned) {
-            return; // Bot silenciado, solo responde con @mención
+        if (state.staffCalled && !isDirectMention) {
+            return; // Bot silenciado, solo responde con mención directa
         }
 
         // 1. AUTO-MOD (Shadow Moderation)
