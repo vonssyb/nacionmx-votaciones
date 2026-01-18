@@ -45,10 +45,15 @@ class TemporaryChannelManager {
      */
     async createTemporaryChannel(guild, owner, options = {}) {
         try {
-            // Verificar límite de canales por usuario
-            const userChannelCount = await this.getUserChannelCount(owner.id);
-            if (userChannelCount >= this.MAX_CHANNELS_PER_USER) {
-                throw new Error(`Ya tienes el máximo de ${this.MAX_CHANNELS_PER_USER} canales temporales activos`);
+            // Verificar límite de canales por usuario (solo si DB está disponible)
+            let userChannelCount = 0;
+            try {
+                userChannelCount = await this.getUserChannelCount(owner.id);
+                if (userChannelCount >= this.MAX_CHANNELS_PER_USER) {
+                    throw new Error(`Ya tienes el máximo de ${this.MAX_CHANNELS_PER_USER} canales temporales activos`);
+                }
+            } catch (dbError) {
+                console.warn('[TemporaryChannelManager] No se pudo verificar límite (DB no disponible), continuando...');
             }
 
             // Configuración del canal
@@ -85,31 +90,36 @@ class TemporaryChannelManager {
                 ? new Date(Date.now() + options.durationMinutes * 60 * 1000).toISOString()
                 : null;
 
-            // Guardar en base de datos
-            const { data, error } = await this.supabase
-                .from('temporary_voice_channels')
-                .insert({
-                    channel_id: channel.id,
-                    owner_id: owner.id,
-                    name: channel.name,
-                    user_limit: channelOptions.userLimit,
-                    bitrate: channelOptions.bitrate,
-                    category_id: channelOptions.parent,
-                    expires_at: expiresAt,
-                    metadata: {
-                        guild_id: guild.id,
-                        created_by_command: options.commandName || 'vcreate',
-                        custom_permissions: options.customPermissions || false,
-                    }
-                })
-                .select()
-                .single();
+            // Intentar guardar en base de datos (opcional, no bloqueante)
+            let data = null;
+            try {
+                const result = await this.supabase
+                    .from('temporary_voice_channels')
+                    .insert({
+                        channel_id: channel.id,
+                        owner_id: owner.id,
+                        name: channel.name,
+                        user_limit: channelOptions.userLimit,
+                        bitrate: channelOptions.bitrate,
+                        category_id: channelOptions.parent,
+                        expires_at: expiresAt,
+                        metadata: {
+                            guild_id: guild.id,
+                            created_by_command: options.commandName || 'vcreate',
+                            custom_permissions: options.customPermissions || false,
+                        }
+                    })
+                    .select()
+                    .single();
 
-            if (error) {
-                console.error('[TemporaryChannelManager] Error guardando canal en DB:', error);
-                // Intentar eliminar el canal si falló la DB
-                await channel.delete().catch(() => { });
-                throw new Error('Error al guardar el canal en la base de datos');
+                if (result.error) {
+                    console.warn('[TemporaryChannelManager] No se pudo guardar en DB (tabla no existe?), canal creado igual:', result.error.message);
+                } else {
+                    data = result.data;
+                }
+            } catch (dbError) {
+                console.warn('[TemporaryChannelManager] Error de DB (modo fallback activo):', dbError.message);
+                console.warn('💡 Ejecuta la migración de base de datos para habilitar todas las funcionalidades');
             }
 
             console.log(`[TemporaryChannelManager] Canal temporal creado: ${channel.name} (${channel.id}) por ${owner.user.tag}`);
