@@ -648,8 +648,19 @@ module.exports = {
                         const fakeInteraction = {
                             ...interaction,
                             options: {
-                                getUser: () => targetUser,
-                                getString: (name) => name === 'razon' ? data : null
+                                getSubcommand: () => 'aplicar',
+                                getUser: (name) => name === 'usuario' ? targetUser : null,
+                                getString: (name) => {
+                                    if (name === 'tipo') return 'CK Administrativo';
+                                    if (name === 'razon') return data;
+                                    return null;
+                                },
+                                getAttachment: (name) => {
+                                    if (name === 'evidencia') {
+                                        return { url: 'https://via.placeholder.com/300.png?text=CK', contentType: 'image/png' };
+                                    }
+                                    return null;
+                                }
                             }
                         };
 
