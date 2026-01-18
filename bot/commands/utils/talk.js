@@ -19,17 +19,22 @@ module.exports = {
         }
 
         const channelId = member.voice.channelId;
+        const voiceChannel = member.voice.channel;
         const channelInfo = voiceConfig.getChannelInfo(channelId);
 
-        // Whitelist check
-        if (!channelInfo) {
+        // Permitir TTS en canales de whisper y temporales sin verificación de whitelist
+        const isWhisperChannel = voiceChannel && voiceChannel.name.startsWith('🤫 Whisper');
+        const isTempChannel = voiceChannel && voiceChannel.name.includes("'s Channel");
+
+        // Whitelist check (excepto para canales temporales y whisper)
+        if (!isWhisperChannel && !isTempChannel && !channelInfo) {
             console.log(`[Talk CMD] Refused: Channel ${channelId} not valid.`);
             return interaction.editReply({
                 content: `❌ No se permite el uso de TTS en este canal. (ID Detectado: **${channelId}** - No está en whitelist)`
             });
         }
 
-        if (channelInfo.noTTS) {
+        if (channelInfo && channelInfo.noTTS) {
             return interaction.editReply({
                 content: `❌ El canal **${channelInfo.name}** tiene el TTS desactivado.`
             });
