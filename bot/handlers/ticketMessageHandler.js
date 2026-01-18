@@ -222,7 +222,11 @@ module.exports = {
 
         // Si el staff fue llamado, el bot se silencia hasta que staff responda
         const state = ticketStates.get(message.channel.id) || {};
-        if (state.staffCalled) {
+
+        // Permitir responder si el bot es mencionado (@bot)
+        const botMentioned = message.mentions.has(client.user);
+
+        if (state.staffCalled && !botMentioned) {
             // Si el mensaje es de staff, resetear el estado
             const staffRoles = ['1412887167654690908', '1398526164253888640']; // ROLE_COMMON y ROLE_ADMIN
             const isStaff = message.member?.roles.cache.some(r => staffRoles.includes(r.id));
