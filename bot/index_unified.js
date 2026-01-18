@@ -122,8 +122,18 @@ async function startModerationBot() {
     const CasinoService = require('./services/CasinoService');
     const StockService = require('./services/StockService');
 
+    // Voice System Managers
+    const TemporaryChannelManager = require('./utils/temporaryChannelManager');
+    const VoicePermissionManager = require('./utils/voicePermissionManager');
+    const VoiceActivityHandler = require('./handlers/voiceActivityHandler');
+
     const sanctionService = new SanctionService(supabase);
     client.missionManager = new DailyMissionManager(supabase);
+
+    // Initialize Voice Managers
+    client.tempChannelManager = new TemporaryChannelManager(client, supabase);
+    client.voicePermissionManager = new VoicePermissionManager(supabase);
+    client.voiceActivityHandler = new VoiceActivityHandler(client, supabase);
 
     // ERLC Scheduler (Offline Queue)
     const ErlcScheduler = require('./services/ErlcScheduler');
@@ -206,8 +216,22 @@ async function startModerationBot() {
     // Events
     client.once('ready', () => {
         log('🟢', `[MOD] Logged in as ${client.user.tag}`);
+
         // Register Mod bot as a drone
         if (swarmService) swarmService.registerClient(client, 'MOD');
+
+        // Start Voice System
+        if (client.tempChannelManager) {
+            client.tempChannelManager.startCleanup();
+            console.log('🎙️ [Voice] Temporary Channel Manager started');
+        }
+
+        if (client.voiceActivityHandler) {
+            client.voiceActivityHandler.initialize();
+            // Cleanup open sessions from previous runs
+            client.voiceActivityHandler.cleanupOpenSessions();
+            console.log('🎤 [Voice] Activity Handler initialized');
+        }
     });
 
     // --- TICKET MESSAGE HANDLER (AI & Auto-Ban) ---

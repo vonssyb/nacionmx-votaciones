@@ -1112,6 +1112,15 @@ const handleModerationLegacy = async (interaction, client, supabase) => {
     // Inject services from client
     billingService = client.services.billing; // Global assignment
 
+    // Voice Control Buttons Handler
+    if (interaction.isButton() && interaction.customId.startsWith('vc_')) {
+        const { handleVoiceControlButtons } = require('./voiceControlHandler');
+        const handled = await handleVoiceControlButtons(interaction, client, supabase);
+        if (handled) return;
+    }
+
+    if (!interaction.isButton() && !interaction.isStringSelectMenu() && !interaction.isModalSubmit() && !interaction.isChatInputCommand()) return;
+
     // IGNORE CK BUTTONS (Handled by ck.js collector)
     if (interaction.customId && interaction.customId.startsWith('ck_confirm')) return;
 
