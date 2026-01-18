@@ -403,9 +403,14 @@ ${message.content || "(Imagen enviada)"}
                 if (needsStaff) {
                     const state = ticketStates.get(message.channel.id) || {};
 
+                    // MARCAR COMO SILENCIADO INMEDIATAMENTE
+                    if (!state.staffCalled) {
+                        ticketStates.set(message.channel.id, { staffCalled: true });
+                    }
+
                     // Si NO hemos pedido info aún, pedirla primero
-                    if (!state.awaitingInfo && !state.staffCalled) {
-                        ticketStates.set(message.channel.id, { awaitingInfo: true, staffCalled: false });
+                    if (!state.infoRequested) {
+                        ticketStates.set(message.channel.id, { staffCalled: true, infoRequested: true });
 
                         const infoEmbed = new EmbedBuilder()
                             .setTitle('📋 Antes de llamar al staff...')
@@ -424,9 +429,8 @@ Responde con toda esta información en tu siguiente mensaje.`)
                         return; // No llamar al staff todavía
                     }
 
-                    // Si YA pedimos info y el usuario respondió, ahora sí llamamos al staff
-                    if (state.awaitingInfo && !state.staffCalled) {
-                        ticketStates.set(message.channel.id, { awaitingInfo: false, staffCalled: true });
+                    // Si YA pedimos info, notificar al staff
+                    if (state.infoRequested) {
 
                         const STAFF_ROLE_ID = '1412887167654690908';
 
