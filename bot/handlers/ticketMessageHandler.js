@@ -445,8 +445,24 @@ ${message.content || "(Imagen enviada)"}
                         grant_role: '👑 Aprobar Dar Rol'
                     };
 
+                    // Generar hash corto para evitar límite de 100 chars
+                    const crypto = require('crypto');
+                    const actionHash = crypto.createHash('md5')
+                        .update(`${actionType}:${userId}:${actionData.trim()}:${reason.trim()}:${Date.now()}`)
+                        .digest('hex')
+                        .substring(0, 8);
+
+                    // Guardar datos completos en Map global
+                    if (!global.pendingActions) global.pendingActions = new Map();
+                    global.pendingActions.set(actionHash, {
+                        type: actionType,
+                        userId: userId,
+                        data: actionData.trim(),
+                        reason: reason.trim()
+                    });
+
                     const actionButton = new ButtonBuilder()
-                        .setCustomId(`approve_action:${actionType}:${userId.trim()}:${actionData.trim()}:${encodeURIComponent(reason.trim())}`)
+                        .setCustomId(`approve_action:${actionHash}`)
                         .setLabel(actionLabels[actionType] || '✅ Aprobar Acción')
                         .setStyle(ButtonStyle.Success);
 
