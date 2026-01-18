@@ -1,6 +1,9 @@
 const { SlashCommandBuilder, ChannelType, PermissionFlagsBits } = require('discord.js');
 const VoiceEmbeds = require('../../utils/voiceEmbeds');
 
+// Cache de whispers activos para prevenir duplicados
+const activeWhispers = new Map(); // key: `${fromUserId}-${toUserId}`, value: timestamp
+
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('whisper')
@@ -21,8 +24,30 @@ module.exports = {
         const targetUser = interaction.options.getUser('usuario');
         const duration = interaction.options.getInteger('duracion') || 30;
 
+        // Crear clave única para este whisper
+        const whisperKey = `${member.id}-${targetUser.id}`;
+
+        // Verificar si ya hay un whisper activo (anti-spam)
+        const existingWhisper = activeWhispers.get(whisperKey);
+        if (existingWhisper && (Date.now() - existingWhisper) < 5000) {
+            return interaction.editReply({
+                content: '⏳ Ya hay un whisper iniciándose. Espera un momento...'
+            });
+        }
+
+        // Marcar whisper como activo
+        activeWhispers.set(whisperKey, Date.now());
+
+        // Limpiar entradas antiguas del cache (más de 1 minuto)
+        for (const [key, timestamp] of activeWhispers.entries()) {
+            if (Date.now() - timestamp > 60000) {
+                activeWhispers.delete(key);
+            }
+        }
+
         // Verificar que el usuario ejecutor esté en un canal de voz
         if (!member.voice.channelId) {
+            activeWhispers.delete(whisperKey);
             return interaction.editReply({
                 content: '❌ Debes estar en un canal de voz para usar whisper.'
             });
