@@ -649,7 +649,7 @@ module.exports = {
                         break;
 
                     case 'grant_role':
-                        const roleName = actionData;
+                        const roleName = data;
                         const role = interaction.guild.roles.cache.find(r => r.name.toLowerCase() === roleName.toLowerCase());
 
                         if (!role) {
