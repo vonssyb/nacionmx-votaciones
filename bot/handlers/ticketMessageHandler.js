@@ -326,17 +326,25 @@ module.exports = {
                 console.error("Error fetching citizen:", err);
             }
 
-            // 2. Fetch Sanctions
+            // 2. Fetch Sanctions (del usuario mencionado O del autor)
             if (client.services && client.services.sanctions) {
                 try {
-                    const sanctions = await client.services.sanctions.getUserSanctions(message.author.id);
+                    // Si staff menciona a otro usuario, consultar ese usuario
+                    let targetUserId = message.author.id;
+                    const mentionedUser = message.mentions.users.filter(u => !u.bot).first();
+                    if (mentionedUser && isStaff) {
+                        targetUserId = mentionedUser.id;
+                        userContext += `👤 CONSULTANDO USUARIO: ${mentionedUser.tag} (<@${mentionedUser.id}>)\n`;
+                    }
+
+                    const sanctions = await client.services.sanctions.getUserSanctions(targetUserId);
                     if (sanctions && sanctions.length > 0) {
-                        const history = sanctions.slice(0, 5).map(s =>
-                            `- [${new Date(s.created_at).toLocaleDateString()}] ${s.type.toUpperCase()}: ${s.reason} (${s.status})`
+                        const history = sanctions.slice(0, 10).map((s, idx) =>
+                            `${idx + 1}. [${new Date(s.created_at).toLocaleDateString()}] **${s.type.toUpperCase()}** - ID: ${s.id}\n   Razón: ${s.reason}\n   Estado: ${s.status} | Staff: ${s.staff_name || 'N/A'}`
                         ).join('\n');
-                        userContext += `\n📜 HISTORIAL DE SANCIONES (Últimas 5):\n${history}\n`;
+                        userContext += `\n📜 HISTORIAL DE SANCIONES (${sanctions.length} total, mostrando últimas 10):\n${history}\n`;
                     } else {
-                        userContext += `\n📜 HISTORIAL: Limpio (Sin sanciones activas).\n`;
+                        userContext += `\n📜 HISTORIAL: Limpio (Sin sanciones).\ n`;
                     }
                 } catch (err) {
                     console.error("Error fetching sanctions for AI context:", err);
