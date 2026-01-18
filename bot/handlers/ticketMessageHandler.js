@@ -83,16 +83,21 @@ CONSULTA DE SANCIONES:
 - Responde: "Encontré [N]: [lista breve]"
 
 CUANDO STAFF SOLICITA APROBAR UNA ACCIÓN:
-Si staff pide explícitamente proceder con una acción (devolver dinero, quitar sanción, dar rol), 
-responde brevemente Y agrega al FINAL:
+Si staff pide explícitamente proceder con una acción, responde brevemente Y agrega al FINAL:
 
 ---
 ACCIÓN_PROPUESTA
-tipo: [refund_money|remove_sanction|grant_role]
+tipo: [refund_money|remove_sanction|grant_role|apply_ck]
 usuario: [user_id o @mention]
-datos: [monto|sanction_id|role_name]
+datos: [monto|sanction_id|role_name|razon]
 razon: [explicación breve]
 ---
+
+TIPOS DE ACCIONES:
+- refund_money: devolver dinero (datos = monto)
+- remove_sanction: quitar sanción (datos = sanction_id)
+- grant_role: dar rol (datos = nombre_rol)
+- apply_ck: aplicar CK (datos = razón del CK)
 
 NUNCA propongas acciones sin que staff lo solicite explícitamente.
 `;
@@ -442,7 +447,8 @@ ${message.content || "(Imagen enviada)"}
                     const actionLabels = {
                         refund_money: '💰 Aprobar Devolución',
                         remove_sanction: '✅ Aprobar Quitar Sanción',
-                        grant_role: '👑 Aprobar Dar Rol'
+                        grant_role: '👑 Aprobar Dar Rol',
+                        apply_ck: '🔴 Aprobar CK'
                     };
 
                     // Generar hash corto para evitar límite de 100 chars
