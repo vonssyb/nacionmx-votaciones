@@ -133,6 +133,81 @@ module.exports = {
         }
 
         // --- 3. CREATE LOGIC (Submit) ---
+        // MODAL DE CALIFICACIÓN SUBMISSION
+        if (interaction.isModalSubmit() && customId === 'rating_modal') {
+            await interaction.deferReply({ ephemeral: true });
+
+            const ratingStars = interaction.fields.getTextInputValue('rating_stars');
+            const comments = interaction.fields.getTextInputValue('rating_comments') || 'Sin comentarios';
+
+            // Validar que sea 1-5
+            const rating = parseInt(ratingStars);
+            if (isNaN(rating) || rating < 1 || rating > 5) {
+                await interaction.editReply('❌ La calificación debe ser un número entre 1 y 5.');
+                return true;
+            }
+
+            // Procesar cierre de ticket
+            const { data: ticket } = await supabase.from('tickets').select('*').eq('channel_id', interaction.channel.id).single();
+            const discordTranscripts = require('discord-html-transcripts');
+            const attendance = await discordTranscripts.createTranscript(interaction.channel, { limit: -1, returnType: 'attachment', filename: `close-${interaction.channel.name}.html`, saveImages: true });
+
+            // Log Transcripts
+            const logChannel = client.channels.cache.get(TICKET_CONFIG.LOG_TRANSCRIPTS);
+            if (logChannel) {
+                const logEmbed = new EmbedBuilder()
+                    .setTitle('Ticket Cerrado')
+                    .addFields(
+                        { name: 'Ticket', value: interaction.channel.name, inline: true },
+                        { name: 'Rating', value: `${'⭐'.repeat(rating)}`, inline: true },
+                        { name: 'Comentarios', value: comments.substring(0, 200), inline: false }
+                    )
+                    .setColor(0x2B2D31);
+                await logChannel.send({ embeds: [logEmbed], files: [attachment] });
+            }
+
+            // Log Feedback
+            const feedbackChannel = client.channels.cache.get(TICKET_CONFIG.LOG_FEEDBACK);
+            if (feedbackChannel) {
+                await feedbackChannel.send({
+                    embeds: [new EmbedBuilder()
+                        .setTitle('Nueva Valoración')
+                        .addFields(
+                            { name: 'Rating', value: '⭐'.repeat(rating), inline: true },
+                            { name: 'Staff', value: ticket?.claimed_by_id ? `<@${ticket.claimed_by_id}>` : 'General', inline: true },
+                            { name: 'Comentarios', value: comments.substring(0, 1000), inline: false }
+                        )
+                        .setColor(rating >= 4 ? 0x57F287 : 0xED4245)
+                    ]
+                });
+            }
+
+            // Actualizar ticket en DB
+            await supabase.from('tickets').update({
+                status: 'CLOSED',
+                closed_at: new Date().toISOString(),
+                rating,
+                feedback_comments: comments
+            }).eq('channel_id', interaction.channel.id);
+
+            // DM al creador
+            if (ticket && ticket.creator_id) {
+                try {
+                    const creator = await client.users.fetch(ticket.creator_id);
+                    await creator.send({ content: `Tu ticket ha sido cerrado. Gracias por tu feedback.`, files: [attachment] });
+                } catch (e) { }
+            }
+
+            await interaction.editReply('✅ ¡Gracias por tu calificación!');
+            await interaction.channel.send('✅ Cerrando...');
+
+            setTimeout(() => {
+                interaction.channel.delete().catch(e => console.log('Channel already deleted'));
+            }, 3000);
+
+            return true;
+        }
+
         if (interaction.isModalSubmit() && customId.startsWith('modal_create_main_')) {
             try {
                 await interaction.deferReply({ ephemeral: true });
@@ -390,14 +465,46 @@ module.exports = {
             const { data: ticket } = await supabase.from('tickets').select('creator_id').eq('channel_id', interaction.channel.id).single();
             const targetUser = ticket?.creator_id || interaction.user.id;
 
-            const embed = new EmbedBuilder().setTitle('🔒 Finalizado').setDescription('Califica la atención:').setColor(0xFEE75C);
+            const embed = new EmbedBuilder().setTitle('🔒 Finalizado').setDescription('Califica la atención:\n\n⭐ Da clic en **Calificar** para escribir tu calificación (1-5 estrellas) y comentarios.').setColor(0xFEE75C);
             const row = new ActionRowBuilder().addComponents(
-                new ButtonBuilder().setCustomId('feedback_5').setEmoji('⭐').setLabel('Excelente').setStyle(ButtonStyle.Success),
-                new ButtonBuilder().setCustomId('feedback_3').setEmoji('😐').setLabel('Regular').setStyle(ButtonStyle.Primary),
-                new ButtonBuilder().setCustomId('feedback_1').setEmoji('😡').setLabel('Mal').setStyle(ButtonStyle.Danger),
+                new ButtonBuilder().setCustomId('open_rating_modal').setEmoji('✍️').setLabel('Calificar').setStyle(ButtonStyle.Primary),
                 new ButtonBuilder().setCustomId('feedback_s').setLabel('Omitir').setStyle(ButtonStyle.Secondary)
             );
             await interaction.channel.send({ content: `<@${targetUser}>`, embeds: [embed], components: [row] });
+            return true;
+        }
+
+        // MODAL DE CALIFICACIÓN
+        if (customId === 'open_rating_modal') {
+            const { ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
+
+            const modal = new ModalBuilder()
+                .setCustomId('rating_modal')
+                .setTitle('📝 Calificar Atención');
+
+            const ratingInput = new TextInputBuilder()
+                .setCustomId('rating_stars')
+                .setLabel('⭐ Calificación (1-5 estrellas)')
+                .setPlaceholder('Escribe un número del 1 al 5')
+                .setStyle(TextInputStyle.Short)
+                .setMinLength(1)
+                .setMaxLength(1)
+                .setRequired(true);
+
+            const commentsInput = new TextInputBuilder()
+                .setCustomId('rating_comments')
+                .setLabel('💬 Comentarios')
+                .setPlaceholder('Escribe tus comentarios sobre la atención recibida...')
+                .setStyle(TextInputStyle.Paragraph)
+                .setMinLength(10)
+                .setMaxLength(500)
+                .setRequired(false);
+
+            const row1 = new ActionRowBuilder().addComponents(ratingInput);
+            const row2 = new ActionRowBuilder().addComponents(commentsInput);
+
+            modal.addComponents(row1, row2);
+            await interaction.showModal(modal);
             return true;
         }
 
