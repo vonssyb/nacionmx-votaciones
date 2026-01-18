@@ -204,7 +204,7 @@ module.exports = {
         if (EXCLUDED_CHANNELS.includes(message.channel.id)) return;
         if (!message.channel.name.includes('-') && !message.channel.topic?.includes('Ticket')) return;
 
-        // SEGURIDAD: Solo el dueño del ticket puede hablar con la IA
+        // SEGURIDAD: Solo el dueño del ticket puede hablar con la IA automáticamente
         try {
             const { data: ticket } = await supabase
                 .from('tickets')
@@ -212,8 +212,18 @@ module.exports = {
                 .eq('channel_id', message.channel.id)
                 .maybeSingle();
 
-            // Si el ticket existe y el mensaje NO es del dueño, ignorar
-            if (ticket && ticket.user_id !== message.author.id) {
+            // Detectar si es staff
+            const staffRoles = ['1412887167654690908', '1398526164253888640', '1412882245735420006']; // ROLE_COMMON, ROLE_ADMIN, Junta Directiva
+            const isStaff = message.member?.roles.cache.some(r => staffRoles.includes(r.id));
+            const botMentioned = message.mentions.has(client.user);
+
+            // Si es staff y NO menciona al bot, ignorar
+            if (isStaff && !botMentioned) {
+                return; // Staff no activa bot a menos que lo mencione
+            }
+
+            // Si NO es staff y NO es el dueño del ticket, ignorar
+            if (!isStaff && ticket && ticket.user_id !== message.author.id) {
                 return; // Solo el dueño del ticket puede usar la IA
             }
         } catch (err) {
