@@ -553,8 +553,19 @@ module.exports = {
 
         // --- APROBACIÓN DE ACCIONES IA ---
         if (customId.startsWith('approve_action:')) {
-            const [_, actionType, userId, actionData, encodedReason] = customId.split(':');
-            const reason = decodeURIComponent(encodedReason);
+            const actionHash = customId.split(':')[1];
+
+            // Recuperar datos de la acción
+            const actionData = global.pendingActions?.get(actionHash);
+            if (!actionData) {
+                await interaction.reply({
+                    content: '❌ Esta acción ha expirado o ya fue procesada.',
+                    ephemeral: true
+                });
+                return true;
+            }
+
+            const { type: actionType, userId, data, reason } = actionData;
 
             // Verificar permisos por tipo de acción
             const ACTION_PERMISSIONS = {
