@@ -425,12 +425,18 @@ ${message.content || "(Imagen enviada)"}
                         .setStyle(ButtonStyle.Secondary)
                 );
 
-                // PARSER DE ACCIONES PROPUESTAS
+                // PARSER DE ACCIONES PROPUESTAS (más flexible)
                 let actionRow = null;
-                const actionMatch = responseText.match(/---\s*ACCIÓN_PROPUESTA\s+tipo:\s*(\w+)\s+usuario:\s*(.+?)\s+datos:\s*(.+?)\s+razon:\s*(.+?)\s+---/is);
+                // Buscar ACCIÓN_PROPUESTA con o sin delimitadores
+                const actionMatch = responseText.match(/ACCIÓN_PROPUESTA\s+tipo:\s*(\w+)\s+usuario:\s*([^\n]+)\s+datos:\s*([^\n]+)\s+razon:\s*([^\n]+)/i);
+
 
                 if (actionMatch) {
-                    const [_, actionType, userId, actionData, reason] = actionMatch;
+                    const [_, actionType, userIdRaw, actionData, reason] = actionMatch;
+
+                    // Extraer user ID de menciones o texto
+                    const userIdMatch = userIdRaw.match(/<@!?(\d+)>|@([^\s|]+)/);
+                    const userId = userIdMatch ? (userIdMatch[1] || userIdMatch[2]) : userIdRaw.trim();
 
                     // Crear botón de aprobación basado en tipo de acción
                     const actionLabels = {
@@ -447,7 +453,7 @@ ${message.content || "(Imagen enviada)"}
                     actionRow = new ActionRowBuilder().addComponents(actionButton);
 
                     // Limpiar la respuesta para no mostrar el formato interno
-                    embed.setDescription(responseText.replace(/---\s*ACCIÓN_PROPUESTA[\s\S]*?---/gi, '').trim());
+                    embed.setDescription(responseText.replace(/ACCIÓN_PROPUESTA[\s\S]*?(?=\n\n|$)/gi, '').trim());
                 }
 
                 await message.channel.send({
