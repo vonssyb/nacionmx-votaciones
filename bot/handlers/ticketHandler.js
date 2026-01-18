@@ -150,7 +150,7 @@ module.exports = {
             // Procesar cierre de ticket
             const { data: ticket } = await supabase.from('tickets').select('*').eq('channel_id', interaction.channel.id).single();
             const discordTranscripts = require('discord-html-transcripts');
-            const attendance = await discordTranscripts.createTranscript(interaction.channel, { limit: -1, returnType: 'attachment', filename: `close-${interaction.channel.name}.html`, saveImages: true });
+            const attachment = await discordTranscripts.createTranscript(interaction.channel, { limit: -1, returnType: 'attachment', filename: `close-${interaction.channel.name}.html`, saveImages: true });
 
             // Log Transcripts
             const logChannel = client.channels.cache.get(TICKET_CONFIG.LOG_TRANSCRIPTS);
