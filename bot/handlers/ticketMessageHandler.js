@@ -346,10 +346,14 @@ module.exports = {
                 userContext += `\n(⚠️ No se pudo acceder a la base de datos de sanciones)\n`;
             }
 
-            // 4. TICKETS PREVIOS del usuario
-            let ticketHistory = '';
+            // Contexto de sanciones para la IA
+            let sanctionsContext = '';
             try {
-                const { data: previousTickets } = await supabase
+                // Detectar si es staff
+                const staffRoles = ['1412887167654690908', '1398526164253888640', '1412882245735420006'];
+                const isStaff = message.member?.roles.cache.some(r => staffRoles.includes(r.id));
+
+                if (isStaff) { data: previousTickets } = await supabase
                     .from('tickets')
                     .select('category, created_at, closed_at')
                     .eq('user_id', message.author.id)
