@@ -319,6 +319,10 @@ module.exports = {
                 console.error("Error fetching citizen:", err);
             }
 
+            // Detectar si es staff
+            const staffRoles = ['1412887167654690908', '1398526164253888640', '1412882245735420006'];
+            const isStaff = message.member?.roles.cache.some(r => staffRoles.includes(r.id));
+
             // 2. Fetch Sanctions (del usuario mencionado O del autor)
             if (client.services && client.services.sanctions) {
                 try {
@@ -337,7 +341,7 @@ module.exports = {
                         ).join('\n');
                         userContext += `\n📜 HISTORIAL DE SANCIONES (${sanctions.length} total, mostrando últimas 10):\n${history}\n`;
                     } else {
-                        userContext += `\n📜 HISTORIAL: Limpio (Sin sanciones).\ n`;
+                        userContext += `\n📜 HISTORIAL: Limpio (Sin sanciones).\n`;
                     }
                 } catch (err) {
                     console.error("Error fetching sanctions for AI context:", err);
@@ -346,14 +350,10 @@ module.exports = {
                 userContext += `\n(⚠️ No se pudo acceder a la base de datos de sanciones)\n`;
             }
 
-            // Contexto de sanciones para la IA
-            let sanctionsContext = '';
+            // 4. TICKETS PREVIOS del usuario
+            let ticketHistory = '';
             try {
-                // Detectar si es staff
-                const staffRoles = ['1412887167654690908', '1398526164253888640', '1412882245735420006'];
-                const isStaff = message.member?.roles.cache.some(r => staffRoles.includes(r.id));
-
-                if (isStaff) { data: previousTickets } = await supabase
+                const { data: previousTickets } = await supabase
                     .from('tickets')
                     .select('category, created_at, closed_at')
                     .eq('user_id', message.author.id)
