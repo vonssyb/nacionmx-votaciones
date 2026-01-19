@@ -28,19 +28,29 @@ module.exports = {
                 return interaction.editReply('✅ No estás arrestado actualmente.');
             }
 
-            // Get active arrest
+            // Get active arrest (even if time expired, as long as role is still active)
             const { data: arrest, error: arrestError } = await supabase
                 .from('arrests')
                 .select('*')
                 .eq('user_id', interaction.user.id)
-                .gte('release_time', new Date().toISOString())
                 .is('bail_paid', null) // Not paid yet
                 .order('created_at', { ascending: false })
                 .limit(1)
                 .maybeSingle();
 
-            if (arrestError || !arrest) {
-                return interaction.editReply('❌ No se encontró un arresto activo.');
+            console.log(`[Fianza Debug] User: ${interaction.user.id}, Arrest found:`, arrest ? `Yes (ID: ${arrest.id})` : 'No');
+
+            if (arrestError) {
+                console.error('[Fianza Error] Database error:', arrestError);
+                return interaction.editReply('❌ Error al buscar tu arresto. Contacta a un administrador.');
+            }
+
+            if (!arrest) {
+                console.log(`[Fianza Debug] No arrest in DB but user has role. Possible desync.`);
+                return interaction.editReply(
+                    '❌ No se encontró un arresto activo en el sistema.\n' +
+                    '💡 Si tienes el rol de arrestado, contacta a un administrador para que corrija tu caso.'
+                );
             }
 
             if (subcommand === 'calcular') {
