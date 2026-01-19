@@ -29,20 +29,35 @@ module.exports = {
             }
 
             // Get active arrest (even if time expired, as long as role is still active)
-            const { data: arrest, error: arrestError } = await supabase
-                .from('arrests')
-                .select('*')
-                .eq('user_id', interaction.user.id)
-                .is('bail_paid', null) // Not paid yet
-                .order('created_at', { ascending: false })
-                .limit(1)
-                .maybeSingle();
+            let arrest = null;
+            let arrestError = null;
 
-            console.log(`[Fianza Debug] User: ${interaction.user.id}, Arrest found:`, arrest ? `Yes (ID: ${arrest.id})` : 'No');
+            try {
+                const result = await supabase
+                    .from('arrests')
+                    .select('*')
+                    .eq('user_id', interaction.user.id)
+                    .is('bail_paid', null) // Not paid yet
+                    .order('created_at', { ascending: false })
+                    .limit(1)
+                    .maybeSingle();
+
+                arrest = result.data;
+                arrestError = result.error;
+            } catch (queryError) {
+                console.error('[Fianza] Query exception:', queryError);
+                arrestError = queryError;
+            }
+
+            console.log(`[Fianza Debug] User: ${interaction.user.id}, Arrest found:`, arrest ? `Yes (ID: ${arrest.id})` : 'No', 'Error:', arrestError);
 
             if (arrestError) {
-                console.error('[Fianza Error] Database error:', arrestError);
-                return interaction.editReply('❌ Error al buscar tu arresto. Contacta a un administrador.');
+                console.error('[Fianza Error] Database error details:', JSON.stringify(arrestError));
+                return interaction.editReply(
+                    '❌ Error al buscar tu arresto en la base de datos.\n' +
+                    `Detalles técnicos: ${arrestError.message || arrestError.code || 'Unknown'}\n` +
+                    'Contacta a un administrador con esta información.'
+                );
             }
 
             if (!arrest) {
