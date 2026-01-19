@@ -147,6 +147,18 @@ module.exports = {
                 return true;
             }
 
+            // Verificar que sea el creador del ticket
+            const { data: ticketOwner } = await supabase
+                .from('tickets')
+                .select('creator_id')
+                .eq('channel_id', interaction.channel.id)
+                .single();
+
+            if (!ticketOwner || ticketOwner.creator_id !== interaction.user.id) {
+                await interaction.editReply('❌ Solo el creador del ticket puede calificar.');
+                return true;
+            }
+
             // Procesar cierre de ticket
             const { data: ticket } = await supabase.from('tickets').select('*').eq('channel_id', interaction.channel.id).single();
             const discordTranscripts = require('discord-html-transcripts');
@@ -476,6 +488,20 @@ module.exports = {
 
         // MODAL DE CALIFICACIÓN
         if (customId === 'open_rating_modal') {
+            // Solo el creador puede calificar
+            const { data: ticketData } = await supabase
+                .from('tickets')
+                .select('creator_id')
+                .eq('channel_id', interaction.channel.id)
+                .single();
+
+            if (!ticketData || ticketData.creator_id !== interaction.user.id) {
+                return interaction.reply({
+                    content: '❌ Solo el creador del ticket puede calificar la atención.',
+                    ephemeral: true
+                });
+            }
+
             const { ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
 
             const modal = new ModalBuilder()
