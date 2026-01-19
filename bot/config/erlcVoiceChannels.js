@@ -109,13 +109,15 @@ module.exports = {
         '1461133946703314985': { name: 'Policía Federal 1', requiredRole: 'POLICIA_FEDERAL', noTTS: false },
         '1461133995944185998': { name: 'Policía Federal 2', requiredRole: 'POLICIA_FEDERAL', noTTS: false },
 
-        // AIC (acceso compartido con emergencias)
-        '1461129202450300988': { name: 'AIC 1', requiredRole: 'EMERGENCIAS', noTTS: false },
-        '1461129229277335765': { name: 'AIC 2', requiredRole: 'EMERGENCIAS', noTTS: false },
+        // AIC (solo usuarios con rol AIC)
+        '1461129202450300988': { name: 'AIC 1', requiredRole: 'AIC', noTTS: false },
+        '1461129229277335765': { name: 'AIC 2', requiredRole: 'AIC', noTTS: false },
 
-        // Emergencias (acceso compartido entre paramédicos, bomberos y AIC)
-        '1459948822024159262': { name: 'Médico General', requiredRole: 'EMERGENCIAS' },
-        '1459948849601712381': { name: 'Bomberos General', requiredRole: 'EMERGENCIAS' },
+        // Paramédicos (solo usuarios con rol PARAMEDICO)
+        '1459948822024159262': { name: 'Médico General', requiredRole: 'PARAMEDICO' },
+
+        // Bomberos (solo usuarios con rol BOMBERO)
+        '1459948849601712381': { name: 'Bomberos General', requiredRole: 'BOMBERO' },
 
         // Cartel
         '1459646308145955019': { name: 'Cartel General', requiredRole: 'CARTEL' },
