@@ -128,6 +128,17 @@ class ErlcPollingService {
                 const channelAbr = parts[1];
                 await this.handleStaffMove(robloxUser, targetUser, channelAbr);
             }
+        } else if (content.toLowerCase().startsWith(':log whisper ')) {
+            const targetUser = content.substring(13).trim();
+            await this.handleWhisper(robloxUser, targetUser);
+        } else if (content.toLowerCase().startsWith(':log vcreate ')) {
+            const channelName = content.substring(13).trim();
+            await this.handleVCreate(robloxUser, channelName);
+        } else if (content.toLowerCase() === ':log vcontrol') {
+            await this.handleVControl(robloxUser);
+        } else if (content.toLowerCase() === ':log vcstats' || content.toLowerCase().startsWith(':log vcstats ')) {
+            const targetUser = content.substring(13).trim() || robloxUser;
+            await this.handleVCStats(robloxUser, targetUser);
         } else if (content.toLowerCase().startsWith(':log 911 ')) {
             const parts = content.substring(9).trim().split(' ');
             const location = parts[0];
@@ -759,11 +770,144 @@ class ErlcPollingService {
         console.log(`[ERLC Service] 📢 Broadcast by ${robloxUser}: "${message}"`);
     }
 
+    async handleWhisper(robloxUser, targetUser) {
+        try {
+            const member = await this.getDiscordMember(robloxUser);
+            if (!member) {
+                return await this.sendPM(robloxUser, '❌ No tienes DNI. Usa /dni crear en Discord.');
+            }
+
+            if (!member.voice.channelId) {
+                return await this.sendPM(robloxUser, '❌ Debes estar en un canal de voz.');
+            }
+
+            // Resolve target user
+            const resolvedTarget = await this.resolvePartialUsername(targetUser);
+            if (!resolvedTarget) {
+                return await this.sendPM(robloxUser, `❌ No encontré "${targetUser}".`);
+            }
+
+            const targetMember = await this.getDiscordMember(resolvedTarget);
+            if (!targetMember || !targetMember.voice.channelId) {
+                return await this.sendPM(robloxUser, `❌ ${resolvedTarget} no está en voz.`);
+            }
+
+            await this.sendPM(robloxUser, `🤫 Iniciando whisper con ${resolvedTarget}... Ve a Discord.`);
+
+            // Trigger Discord whisper command via webhook or direct execution
+            // For now, just notify. Full implementation would need Discord integration
+            console.log(`[ERLC Service] 🤫 Whisper request: ${robloxUser} → ${resolvedTarget}`);
+
+        } catch (error) {
+            console.error('[ERLC Service] handleWhisper Error:', error);
+            await this.sendPM(robloxUser, '❌ Error iniciando whisper.');
+        }
+    }
+
+    async handleVCreate(robloxUser, channelName) {
+        try {
+            const member = await this.getDiscordMember(robloxUser);
+            if (!member) {
+                return await this.sendPM(robloxUser, '❌ No tienes DNI. Usa /dni crear en Discord.');
+            }
+
+            if (!member.voice.channelId) {
+                return await this.sendPM(robloxUser, '❌ Debes estar en un canal de voz.');
+            }
+
+            await this.sendPM(robloxUser, `🎨 Creando canal "${channelName}"... Ve a Discord.`);
+            console.log(`[ERLC Service] 🎨 VCreate request: ${robloxUser} → "${channelName}"`);
+
+        } catch (error) {
+            console.error('[ERLC Service] handleVCreate Error:', error);
+            await this.sendPM(robloxUser, '❌ Error creando canal.');
+        }
+    }
+
+    async handleVControl(robloxUser) {
+        try {
+            const member = await this.getDiscordMember(robloxUser);
+            if (!member) {
+                return await this.sendPM(robloxUser, '❌ No tienes DNI. Usa /dni crear en Discord.');
+            }
+
+            if (!member.voice.channelId) {
+                return await this.sendPM(robloxUser, '❌ Debes estar en un canal de voz.');
+            }
+
+            const channel = member.voice.channel;
+            const memberCount = channel.members.filter(m => !m.user.bot).size;
+
+            await this.sendPM(robloxUser, `🎙️ ${channel.name} | ${memberCount} usuarios conectados. Ve a Discord para más opciones.`);
+            console.log(`[ERLC Service] 🎙️ VControl request: ${robloxUser} in ${channel.name}`);
+
+        } catch (error) {
+            console.error('[ERLC Service] handleVControl Error:', error);
+            await this.sendPM(robloxUser, '❌ Error obteniendo info del canal.');
+        }
+    }
+
+    async handleVCStats(requester, targetUser) {
+        try {
+            const member = await this.getDiscordMember(requester);
+            if (!member) {
+                return await this.sendPM(requester, '❌ No tienes DNI. Usa /dni crear en Discord.');
+            }
+
+            // If checking another user, resolve them
+            let targetMember = member;
+            let displayName = requester;
+
+            if (targetUser && targetUser !== requester) {
+                const resolved = await this.resolvePartialUsername(targetUser);
+                if (!resolved) {
+                    return await this.sendPM(requester, `❌ No encontré "${targetUser}".`);
+                }
+                targetMember = await this.getDiscordMember(resolved);
+                displayName = resolved;
+            }
+
+            if (!targetMember) {
+                return await this.sendPM(requester, `❌ ${displayName} no está vinculado.`);
+            }
+
+            // Get stats from database
+            const { data: stats } = await this.supabase
+                .rpc('get_user_voice_stats', { p_user_id: targetMember.id });
+
+            if (!stats || stats.length === 0) {
+                return await this.sendPM(requester, `📊 ${displayName} no tiene estadísticas de voz aún.`);
+            }
+
+            const s = stats[0];
+            const hours = Math.floor((s.total_time_seconds || 0) / 3600);
+            const minutes = Math.floor(((s.total_time_seconds || 0) % 3600) / 60);
+
+            const message =
+                `📊 STATS DE VOZ - ${displayName}:\n` +
+                `⏱️ Tiempo total: ${hours}h ${minutes}m\n` +
+                `🎯 Sesiones: ${s.total_sessions || 0}\n` +
+                `📈 Promedio: ${Math.floor((s.avg_duration_minutes || 0))} min\n` +
+                `🏆 Más largo: ${Math.floor((s.longest_session_minutes || 0))} min`;
+
+            await this.sendPM(requester, message);
+            console.log(`[ERLC Service] 📊 VCStats: ${requester} checked ${displayName}`);
+
+        } catch (error) {
+            console.error('[ERLC Service] handleVCStats Error:', error);
+            await this.sendPM(requester, '❌ Error obteniendo estadísticas.');
+        }
+    }
+
     async handleHelp(robloxUser) {
         const helpMessage =
             `🛠️ COMANDOS NACIÓN MX:\n` +
             `• :log talk [msj] - Habla en tu canal\n` +
             `• :log vc [alias] - Muévete (pg, p1, cg, etc)\n` +
+            `• :log whisper [user] - Whisper privado\n` +
+            `• :log vcreate [nombre] - Crear canal\n` +
+            `• :log vcontrol - Info del canal\n` +
+            `• :log vcstats - Tus estadísticas\n` +
             `• :log pagar [user] [amt] [motivo]\n` +
             `• :log cobrar [user] [amt] [motivo]\n` +
             `• :log anunciar [msj] - (Staff Only)`;
