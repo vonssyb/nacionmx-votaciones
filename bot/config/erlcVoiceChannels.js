@@ -25,7 +25,15 @@ module.exports = {
         ],
         CARTEL: ['1459649033222684702'], // Rol Cartel
         AIC: ['1412898916021829903'], // Rol AIC Exclusivo
-        POLICIA_FEDERAL: ['1412898913345863760'] // Rol PF Exclusivo
+        POLICIA_FEDERAL: ['1412898913345863760'], // Rol PF Exclusivo
+        PARAMEDICO: ['1413540726100332574'], // Rol Paramédico
+        BOMBERO: ['1413540768471838761'], // Rol Bombero
+        // Grupo de emergencias (Paramédicos + Bomberos + AIC para colaboración)
+        EMERGENCIAS: [
+            '1413540726100332574', // Paramédico
+            '1413540768471838761', // Bombero
+            '1412898916021829903'  // AIC (colaboración)
+        ]
     },
 
     // ABREVIACIONES FÁCILES
@@ -101,13 +109,13 @@ module.exports = {
         '1461133946703314985': { name: 'Policía Federal 1', requiredRole: 'POLICIA_FEDERAL', noTTS: false },
         '1461133995944185998': { name: 'Policía Federal 2', requiredRole: 'POLICIA_FEDERAL', noTTS: false },
 
-        // AIC
-        '1461129202450300988': { name: 'AIC 1', requiredRole: 'AIC', noTTS: false },
-        '1461129229277335765': { name: 'AIC 2', requiredRole: 'AIC', noTTS: false },
+        // AIC (acceso compartido con emergencias)
+        '1461129202450300988': { name: 'AIC 1', requiredRole: 'EMERGENCIAS', noTTS: false },
+        '1461129229277335765': { name: 'AIC 2', requiredRole: 'EMERGENCIAS', noTTS: false },
 
-        // Emergencias
-        '1459948822024159262': { name: 'Médico General', requiredRole: null },
-        '1459948849601712381': { name: 'Bomberos General', requiredRole: null },
+        // Emergencias (acceso compartido entre paramédicos, bomberos y AIC)
+        '1459948822024159262': { name: 'Médico General', requiredRole: 'EMERGENCIAS' },
+        '1459948849601712381': { name: 'Bomberos General', requiredRole: 'EMERGENCIAS' },
 
         // Cartel
         '1459646308145955019': { name: 'Cartel General', requiredRole: 'CARTEL' },
