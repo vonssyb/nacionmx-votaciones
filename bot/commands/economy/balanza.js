@@ -82,6 +82,10 @@ module.exports = {
             const netWorthMxn = cash + bank - totalCreditUsedMxn;
             const netWorthUsd = usdCash - totalCreditUsedUsd;
 
+            // Available Credit
+            const availableCreditMxn = totalCreditLimitMxn - totalCreditUsedMxn;
+            const availableCreditUsd = totalCreditLimitUsd - totalCreditUsedUsd;
+
 
             // --- CONSTRUIR EMBED ---
             const embed = new EmbedBuilder()
@@ -95,6 +99,7 @@ module.exports = {
                             `💵 **Efectivo:** $${cash.toLocaleString()}\n` +
                             `🏦 **Banco:** $${bank.toLocaleString()}\n` +
                             `💳 **Deuda Crédito:** $${totalCreditUsedMxn.toLocaleString()}\n` +
+                            `💰 **Crédito Disponible:** $${availableCreditMxn.toLocaleString()}\n` +
                             `🧾 **Patrimonio Neto:** $${netWorthMxn.toLocaleString()}`,
                         inline: true
                     },
@@ -102,6 +107,7 @@ module.exports = {
                         name: '🇺🇸 USD (Dólares)', value:
                             `💵 **Efectivo:** $${usdCash.toLocaleString()}\n` +
                             `💳 **Deuda Crédito:** $${totalCreditUsedUsd.toLocaleString()}\n` +
+                            `💰 **Crédito Disponible:** $${availableCreditUsd.toLocaleString()}\n` +
                             `🧾 **Patrimonio Neto:** $${netWorthUsd.toLocaleString()}`,
                         inline: true
                     }
