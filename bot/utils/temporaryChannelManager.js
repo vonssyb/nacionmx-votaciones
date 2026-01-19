@@ -16,8 +16,13 @@ class TemporaryChannelManager {
 
     /**
      * Iniciar el sistema de cleanup automático
+     * NOTA: Desactivado hasta que se ejecute la migración de base de datos
      */
     startCleanup() {
+        console.log('[TemporaryChannelManager] ⚠️ Cleanup desactivado - ejecuta la migración de BD primero');
+        // Desactivado temporalmente para evitar spam de errores
+        // Descomentar después de ejecutar create_voice_system_tables.sql
+        /*
         if (this.cleanupInterval) {
             clearInterval(this.cleanupInterval);
         }
@@ -28,6 +33,7 @@ class TemporaryChannelManager {
         }, this.CLEANUP_INTERVAL_MS);
 
         console.log('[TemporaryChannelManager] Cleanup automático iniciado');
+        */
     }
 
     /**
