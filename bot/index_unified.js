@@ -1,37 +1,38 @@
 const fs = require('fs');
-console.log("🚀 [DEBUG] Starting index_unified.js..."); // DEBUG LOG
 const path = require('path');
 const envPath = fs.existsSync(path.join(__dirname, '.env')) ? path.join(__dirname, '.env') : path.join(__dirname, '../.env');
 require('dotenv').config({ path: envPath });
-console.log("🚀 [DEBUG] Environment loaded."); // DEBUG LOG
 const { Client, GatewayIntentBits, Partials, Collection, REST, Routes, EmbedBuilder, ButtonStyle } = require('discord.js');
 const { createClient } = require('@supabase/supabase-js');
 const express = require('express');
-console.log("🚀 [DEBUG] Imports core done. Requiring handlers...");
 const { handleModerationLegacy } = require('./handlers/legacyModerationHandler');
 const { handleBankingInteraction } = require('./handlers/bankingHandler');
 const StateManager = require('./services/StateManager');
-console.log("🚀 [DEBUG] Handlers loaded.");
+const logger = require('./services/Logger');
+
+logger.info('Starting index_unified.js');
+logger.info('Environment loaded');
+logger.info('Core imports and handlers loaded');
 
 // --- LOGGING ---
-const log = (prefix, msg) => console.log(`${prefix} ${msg}`);
+const log = (prefix, msg) => logger.info(`${prefix} ${msg}`);
 
 // --- CONFIGURATION ---
 const INSTANCE_ID = Math.random().toString(36).substring(7).toUpperCase();
-console.log(`🆔 BOT INSTANCE STARTED: ${INSTANCE_ID}`);
+logger.info(`Bot instance started: ${INSTANCE_ID}`);
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
-console.log(`🚀 [DEBUG] Supabase connecting to: ${SUPABASE_URL ? SUPABASE_URL.substring(0, 15) + '...' : 'UNDEFINED'}`);
+logger.info(`Supabase connecting to: ${SUPABASE_URL ? SUPABASE_URL.substring(0, 15) + '...' : 'UNDEFINED'}`);
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // --- GLOBAL ERROR HANDLERS (Prevent Exit Code 1) ---
 process.on('uncaughtException', (err) => {
-    console.error('💥 [CRASH PREVENTION] Uncaught Exception:', err);
+    logger.errorWithContext('Uncaught Exception - Crash Prevention', err, { source: 'global' });
     // Keep process alive if possible, but log critical error
 });
 
 process.on('unhandledRejection', (reason, promise) => {
-    console.error('💥 [CRASH PREVENTION] Unhandled Rejection at:', promise, 'reason:', reason);
+    logger.error('Unhandled Rejection - Crash Prevention', { reason, promise });
 });
 
 // --- SHARED WEB SERVER (Health Check) ---
@@ -70,7 +71,7 @@ async function safeDefer(interaction, options = {}) {
             // Silently ignore "Unknown interaction" (Race condition or Timeout)
             return false;
         }
-        console.error(`[Wrapper] Defer Failed (${interaction.commandName || 'component'}):`, e);
+        logger.error(`Defer failed for ${interaction.commandName || 'component'}`, { error: e.message });
         return false;
     }
 }
@@ -231,14 +232,14 @@ async function startModerationBot() {
         // Start Voice System
         if (client.tempChannelManager) {
             client.tempChannelManager.startCleanup();
-            console.log('🎙️ [Voice] Temporary Channel Manager started');
+            logger.info('Temporary Channel Manager started', { module: 'Voice' });
         }
 
         if (client.voiceActivityHandler) {
             client.voiceActivityHandler.initialize();
             // Cleanup open sessions from previous runs
             client.voiceActivityHandler.cleanupOpenSessions();
-            console.log('🎤 [Voice] Activity Handler initialized');
+            logger.info('Voice Activity Handler initialized');
         }
     });
 
@@ -248,7 +249,7 @@ async function startModerationBot() {
         try {
             await handleTicketMessage(message, client, supabase);
         } catch (err) {
-            console.error('[TICKET] Message Handler Error:', err);
+            logger.errorWithContext('Ticket message handler error', err);
         }
     });
 
@@ -292,7 +293,7 @@ async function startModerationBot() {
             await logChannel.send({ embeds: [embed], files: files });
 
         } catch (err) {
-            console.error('[MOD] Error logging delete:', err);
+            logger.errorWithContext('Error logging message deletion', err, { module: 'MOD' });
         }
     });
 
@@ -338,7 +339,7 @@ async function startModerationBot() {
             });
 
         } catch (err) {
-            console.error('[MOD] Error in welcome system:', err);
+            logger.errorWithContext('Welcome system error', err, { module: 'MOD' });
         }
     });
 
@@ -362,7 +363,7 @@ async function startModerationBot() {
             // 1. Check Incompatible Roles (Police vs Cartel)
             if (JobValidator.hasIncompatibleRoles(newMember)) {
                 // Conflict Detected
-                console.log(`[MOD] 🛡️ Role Conflict detected for ${newMember.user.tag}. Removing conflicting roles.`);
+                logger.warn(`Role conflict detected for user`, { user: newMember.user.tag, module: 'MOD' });
 
                 // Remove the newly added conflicting roles
                 await newMember.roles.remove(addedRoles);
@@ -399,7 +400,7 @@ async function startModerationBot() {
                 const prevPrincipal = JobValidator.getPrincipalJobCount(oldMember);
                 if (currentPrincipal > prevPrincipal) {
                     const roleNames = addedRoles.map(r => r.name).join(', ');
-                    console.log(`[MOD] 🛡️ Job Limit Exceeded for ${newMember.user.tag}. Roles Added: [${roleNames}]. Limit: ${limits.principal}, Count: ${currentPrincipal}`);
+                    logger.warn(`Job limit exceeded for user`, { user: newMember.user.tag, roles: roleNames, limit: limits.principal, count: currentPrincipal });
                     await newMember.roles.remove(addedRoles);
                     try {
                         await newMember.send(`⚠️ **Límite de Trabajos Alcanzado**: Tu nivel de membresía actual (**${limits.tier}**) solo permite **${limits.principal}** trabajos principales (Gobierno/Cartel).\nRoles intentados: ${roleNames}\nActualiza tu membresía (Booster/Premium) para obtener más espacios.`);
@@ -409,7 +410,7 @@ async function startModerationBot() {
 
 
         } catch (err) {
-            console.error('[MOD] Role Conflict Handler Error:', err);
+            logger.errorWithContext('Role conflict handler error', err, { module: 'MOD' });
         }
     });
 
@@ -442,7 +443,7 @@ async function startModerationBot() {
             await logChannel.send({ embeds: [embed] });
 
         } catch (err) {
-            console.error('[MOD] Error logging update:', err);
+            logger.errorWithContext('Error logging message update', err, { module: 'MOD' });
         }
     });
 
@@ -467,12 +468,12 @@ async function startModerationBot() {
         if (humans.size === 0) {
             // Channel is empty (only bots or just me)
             if (!vcDisconnectTimers.has(channel.id)) {
-                console.log(`[VC] ⏳ Channel ${channel.name} empty. Disconnecting in 20s...`);
+                logger.info(`Voice channel empty, disconnecting in 20s`, { channel: channel.name });
                 const timeout = setTimeout(() => {
                     if (botVoice.channelId === channel.id) { // Still in same channel?
                         const currentHumans = channel.members.filter(m => !m.user.bot);
                         if (currentHumans.size === 0) {
-                            console.log(`[VC] 🔌 Disconnecting from ${channel.name} due to inactivity.`);
+                            logger.info(`Disconnecting from voice channel due to inactivity`, { channel: channel.name });
                             const { getVoiceConnection } = require('@discordjs/voice');
                             const connection = getVoiceConnection(oldState.guild.id);
                             if (connection) connection.destroy();
@@ -485,7 +486,7 @@ async function startModerationBot() {
         } else {
             // Channel is not empty, cancel any pending timer
             if (vcDisconnectTimers.has(channel.id)) {
-                console.log(`[VC] 👤 User joined ${channel.name}. Cancelling disconnect timer.`);
+                logger.info(`User joined voice channel, cancelling disconnect`, { channel: channel.name });
                 clearTimeout(vcDisconnectTimers.get(channel.id));
                 vcDisconnectTimers.delete(channel.id);
             }
@@ -604,7 +605,7 @@ async function startModerationBot() {
                                 }
 
                             } catch (err) {
-                                console.error('[APP] 💥 Error assigning roles:', err);
+                                logger.errorWithContext('Error assigning roles to approved applicant', err);
                             }
                         }
                     }
@@ -625,7 +626,7 @@ async function startModerationBot() {
             const handled = await handleTicketInteraction(interaction, client, supabase);
             if (handled) return;
         } catch (err) {
-            console.error('[TICKET] Error in handler:', err);
+            logger.errorWithContext('Ticket handler error', err);
         }
 
         if (!interaction.isChatInputCommand()) {
@@ -638,7 +639,7 @@ async function startModerationBot() {
                 // Fallback to legacy moderation handler
                 await handleModerationLegacy(interaction, client, client.supabase);
             } catch (e) {
-                console.error('[MOD] Legacy Handler Error:', e);
+                logger.errorWithContext('Legacy moderation handler error', e, { module: 'MOD' });
             }
             return;
         }
@@ -670,7 +671,7 @@ async function startModerationBot() {
                     await logChannel.send({ embeds: [embed] });
                 }
             } catch (logErr) {
-                console.error('[LOG] Error logging command:', logErr);
+                logger.errorWithContext('Error logging command usage', logErr);
             }
         }
 
@@ -679,7 +680,7 @@ async function startModerationBot() {
             try {
                 await command.execute(interaction, client, supabase);
             } catch (e) {
-                console.error('[MOD] Command Error:', e);
+                logger.errorWithContext('MOD command execution error', e);
                 const msg = '❌ Error fatal ejecutando el comando.';
                 if (interaction.replied || interaction.deferred) await interaction.editReply(msg).catch(() => { });
                 else await interaction.reply({ content: msg, ephemeral: true }).catch(() => { });
@@ -729,7 +730,7 @@ async function startEconomyBot() {
 
     // Billing Service (Safe Instantiation)
     let billingService;
-    try { billingService = new BillingService(client, supabase); } catch (e) { console.error('Eco Billing Error:', e); }
+    try { billingService = new BillingService(client, supabase); } catch (e) { logger.errorWithContext('Economy billing service error', e); }
 
     // Exchange Rate Service
     const ExchangeRateService = require('./services/ExchangeRateService');
@@ -773,7 +774,7 @@ async function startEconomyBot() {
     if (ECO_TOKEN && TARGET_GUILDS.length > 0) {
         // Run in background
         (async () => {
-            console.log(`🔄 [ECO] Auto-registering commands for ${TARGET_GUILDS.length} guilds (Background)...`);
+            logger.info(`Auto-registering ECO commands for ${TARGET_GUILDS.length} guilds`);
             const rest = new REST({ version: '10' }).setToken(ECO_TOKEN);
 
             try {
@@ -787,13 +788,13 @@ async function startEconomyBot() {
                             Routes.applicationGuildCommands(clientId, guildId),
                             { body: allCommands }
                         );
-                        console.log(`✅ [ECO] Registered ${allCommands.length} commands to Guild ID: ${guildId}`);
+                        logger.info(`Registered ${allCommands.length} ECO commands to guild`, { guildId });
                     } catch (guildError) {
-                        console.error(`❌ [ECO] Failed to register commands for Guild ID ${guildId}:`, guildError);
+                        logger.errorWithContext(`Failed to register ECO commands for guild`, guildError, { guildId });
                     }
                 }
             } catch (regError) {
-                console.error('❌ [ECO] Critical Auto-registration failure:', regError);
+                logger.errorWithContext('Critical ECO auto-registration failure', regError);
             }
         })();
     }
@@ -827,13 +828,13 @@ async function startEconomyBot() {
         const command = interaction.isChatInputCommand() ? client.commands.get(interaction.commandName) : null;
         if (command) {
             try { await command.execute(interaction, client, supabase); } catch (e) {
-                console.error('[ECO] Command Error:', e);
+                logger.errorWithContext('ECO command execution error', e);
                 await interaction.editReply('❌ Error ejecutando comando.').catch(() => { });
             }
         } else if (client.legacyHandler) {
             // FALLBACK TO LEGACY (Handles Buttons, Modals, Menus not caught above)
             try { await client.legacyHandler(interaction, client, supabase); } catch (e) {
-                console.error('[ECO] Legacy Error:', e);
+                logger.errorWithContext('Legacy economy handler error', e);
                 // Don't reply here as legacy handler might have handled it or it's an unrelated interaction
             }
         }
@@ -899,7 +900,7 @@ async function startGovernmentBot() {
     if (GOV_TOKEN && TARGET_GUILDS.length > 0) {
         // Run in background
         (async () => {
-            console.log(`🔄 Auto-registering Gov commands for ${TARGET_GUILDS.length} guilds (Background)...`);
+            logger.info(`Auto-registering GOV commands for ${TARGET_GUILDS.length} guilds`);
             const rest = new REST({ version: '10' }).setToken(GOV_TOKEN);
 
             try {
@@ -913,13 +914,13 @@ async function startGovernmentBot() {
                             Routes.applicationGuildCommands(clientId, guildId),
                             { body: allCommands }
                         );
-                        console.log(`✅ Registered ${allCommands.length} Gov commands to Guild ID: ${guildId}`);
+                        logger.info(`Registered ${allCommands.length} GOV commands to guild`, { guildId });
                     } catch (guildError) {
-                        console.error(`❌ Failed to register commands for Guild ID ${guildId}:`, guildError);
+                        logger.errorWithContext(`Failed to register GOV commands for guild`, guildError, { guildId });
                     }
                 }
             } catch (regError) {
-                console.error('❌ Critical Gov Auto-registration failure:', regError);
+                logger.errorWithContext('Critical GOV auto-registration failure', regError);
             }
         })();
     }
@@ -941,7 +942,7 @@ async function startGovernmentBot() {
             try {
                 await visaPaymentHandler.execute(interaction, client, interaction.customId);
             } catch (error) {
-                console.error('[GOV] Visa Payment Error:', error);
+                logger.errorWithContext('Visa payment error', error, { module: 'GOV' });
                 await interaction.editReply({ content: '❌ Error processing payment.', components: [] }).catch(() => { });
             }
             return;
@@ -1006,10 +1007,10 @@ async function startGovernmentBot() {
                     ephemeral: true
                 });
 
-                console.log(`[ERLC] Emergency ${emergencyId} joined by ${interaction.user.tag}`);
+                logger.info(`Emergency joined`, { emergencyId, user: interaction.user.tag });
 
             } catch (error) {
-                console.error('[ERLC] Emergency respond error:', error);
+                logger.errorWithContext('Emergency respond error', error);
                 await interaction.followUp({ content: '❌ Error al unirse a la emergencia.', ephemeral: true });
             }
             return;
@@ -1098,10 +1099,10 @@ async function startGovernmentBot() {
                 const requester = await interaction.guild.members.fetch(request.requester_discord_id);
                 await requester.send(`💰 <@${interaction.user.id}> aceptó tu cobro de $${request.amount.toLocaleString()}. Concepto: ${request.concept}`).catch(() => { });
 
-                console.log(`[ERLC] Payment request ${requestId} accepted`);
+                logger.info(`Payment request accepted`, { requestId });
 
             } catch (error) {
-                console.error('[ERLC] Payment accept error:', error);
+                logger.errorWithContext('Payment accept error', error);
                 await interaction.followUp({ content: '❌ Error procesando pago.', ephemeral: true });
             }
             return;
@@ -1150,10 +1151,10 @@ async function startGovernmentBot() {
                 const requester = await interaction.guild.members.fetch(request.requester_discord_id);
                 await requester.send(`❌ <@${interaction.user.id}> rechazó tu cobro de $${request.amount.toLocaleString()}. Concepto: ${request.concept}`).catch(() => { });
 
-                console.log(`[ERLC] Payment request ${requestId} rejected`);
+                logger.info(`Payment request rejected`, { requestId });
 
             } catch (error) {
-                console.error('[ERLC] Payment reject error:', error);
+                logger.errorWithContext('Payment reject error', error);
                 await interaction.followUp({ content: '❌ Error procesando rechazo.', ephemeral: true });
             }
             return;
@@ -1167,7 +1168,7 @@ async function startGovernmentBot() {
         const command = client.commands.get(interaction.commandName);
         if (command) {
             try { await command.execute(interaction, client, supabase); } catch (e) {
-                console.error('[GOV] Command Error:', e);
+                logger.errorWithContext('GOV command execution error', e);
                 await interaction.editReply('❌ Error ejecutando comando.').catch(() => { });
             }
         }
@@ -1187,7 +1188,7 @@ async function loginWithRetry(client, token, botName) {
     try {
         await client.login(token);
     } catch (error) {
-        console.error(`❌ [${botName}] Login Failed:`, error.message);
+        logger.error(`${botName} login failed`, { error: error.message });
         setTimeout(() => loginWithRetry(client, token, botName), 10000);
     }
 }
@@ -1210,7 +1211,7 @@ async function loginWithRetry(client, token, botName) {
         const MAX_ATTEMPTS = 9; // 9 * 5s = 45s (Reduced from 2m)
 
         if (!acquired) {
-            console.log(`⏳ [Startup] Another instance is active. Waiting for lock... (Max 45s)`);
+            logger.info('Another bot instance is active, waiting for lock (max 45s)');
 
             while (!acquired && attempts < MAX_ATTEMPTS) {
                 await new Promise(resolve => setTimeout(resolve, 5000)); // Wait 5s
