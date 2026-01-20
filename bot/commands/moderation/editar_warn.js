@@ -63,13 +63,18 @@ module.exports = {
                         executor: interaction.user,
                         target: interaction.user,
                         guildId: interaction.guildId,
-                        details: `Intento de auto-edición de sanción\nID: ${sanctionId}\n${newReason ? `Nuevo Motivo: ${newReason}` : ''}`,
+                        details: `Intento de auto-edición de sanción\nID: ${sanctionId}\n${newReason ? `Nuevo Motivo: ${newReason}` : ''}${newEvidence ? `\nNueva Evidencia: ${newEvidence}` : ''}`,
                         approveButtonId: `sa_approve_editwarn_${requestId}_${sanctionId}`,
                         rejectButtonId: `sa_reject_editwarn_${requestId}`,
                         metadata: {
                             sanctionId: sanctionId,
-                            newReason: newReason || 'Sin cambios',
-                            newEvidence: newEvidence || 'Sin cambios'
+                            newReason: newReason,
+                            newEvidence: newEvidence,
+                            // Store what needs to be updated
+                            updates: {
+                                ...(newReason && { reason: newReason }),
+                                ...(newEvidence && { evidence_url: newEvidence })
+                            }
                         }
                     });
 

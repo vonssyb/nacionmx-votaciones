@@ -280,9 +280,75 @@ async function handleRemoveSanctionApproval(parts, interaction, client, supabase
 }
 
 async function handleEditWarnApproval(parts, interaction, client, supabase) {
-    // This would require storing the edit details somewhere, for now we return success
-    // In a full implementation, you'd need to store pending edits in DB
-    return { success: true };
+    // parts: [editwarn, requestId, sanctionId]
+    const sanctionId = parts[2];
+
+    // Get the metadata from the embed to retrieve the pending updates
+    const embed = interaction.message.embeds[0];
+
+    // Try to extract metadata from embed fields
+    // The metadata was stored when the approval request was created
+    // We need to parse it from the embed or reconstruct it
+
+    // For now, we'll extract from the "Detalles" field
+    const detailsField = embed.fields.find(f => f.name === '📝 Detalles');
+    if (!detailsField) {
+        return { success: false, error: 'No se encontraron los detalles de edición' };
+    }
+
+    const details = detailsField.value;
+    const reasonMatch = details.match(/Nuevo Motivo: (.+?)(?:\n|$)/);
+    const evidenceMatch = details.match(/Nueva Evidencia: (.+?)(?:\n|$)/);
+
+    const updates = {};
+    if (reasonMatch && reasonMatch[1] !== 'Sin cambios') {
+        updates.reason = reasonMatch[1];
+    }
+    if (evidenceMatch && evidenceMatch[1] !== 'Sin cambios') {
+        updates.evidence_url = evidenceMatch[1];
+    }
+
+    if (Object.keys(updates).length === 0) {
+        return { success: false, error: 'No hay cambios para aplicar' };
+    }
+
+    if (!client.services || !client.services.sanctions) {
+        return { success: false, error: 'Servicio de sanciones no disponible' };
+    }
+
+    try {
+        await client.services.sanctions.updateSanction(sanctionId, updates);
+
+        // Notify the user about the edit
+        const existing = await client.services.sanctions.getSanctionById(sanctionId);
+        if (existing && existing.discord_user_id) {
+            try {
+                const user = await client.users.fetch(existing.discord_user_id);
+                const { EmbedBuilder } = require('discord.js');
+
+                const dmEmbed = new EmbedBuilder()
+                    .setTitle('✏️ Sanción Editada / Actualizada')
+                    .setColor('#FFA500')
+                    .setDescription(`Los detalles de tu sanción en **${interaction.guild.name}** han sido modificados (aprobado por superior).`)
+                    .addFields({ name: '🆔 ID Sanción', value: `\`${sanctionId}\``, inline: true });
+
+                if (updates.reason) dmEmbed.addFields({ name: '📄 Nuevo Motivo', value: updates.reason, inline: false });
+                if (updates.evidence_url) {
+                    dmEmbed.addFields({ name: '📎 Nueva Evidencia', value: updates.evidence_url, inline: false });
+                    dmEmbed.setImage(updates.evidence_url);
+                }
+
+                await user.send({ embeds: [dmEmbed] });
+            } catch (dmError) {
+                console.error('[EditWarn] Could not DM user:', dmError);
+            }
+        }
+
+        return { success: true };
+    } catch (error) {
+        console.error('[EditWarn] Error applying edit:', error);
+        return { success: false, error: error.message };
+    }
 }
 
 async function handleClearHistoryApproval(parts, interaction, client, supabase) {
