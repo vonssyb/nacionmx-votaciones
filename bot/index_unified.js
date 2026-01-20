@@ -9,6 +9,7 @@ const { createClient } = require('@supabase/supabase-js');
 const express = require('express');
 console.log("🚀 [DEBUG] Imports core done. Requiring handlers...");
 const { handleModerationLegacy } = require('./handlers/legacyModerationHandler');
+const { handleBankingInteraction } = require('./handlers/bankingHandler');
 console.log("🚀 [DEBUG] Handlers loaded.");
 
 // --- LOGGING ---
@@ -623,6 +624,11 @@ async function startModerationBot() {
         if (!interaction.isChatInputCommand()) {
             try {
                 // FALLBACK TO LEGACY (Handles Other Buttons, Modals, Menus)
+                // Try banking handler first (for banco_ prefixes)
+                const bankingHandled = await handleBankingInteraction(interaction, client, client.supabase);
+                if (bankingHandled) return;
+
+                // Fallback to legacy moderation handler
                 await handleModerationLegacy(interaction, client, client.supabase);
             } catch (e) {
                 console.error('[MOD] Legacy Handler Error:', e);
