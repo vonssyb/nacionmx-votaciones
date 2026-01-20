@@ -1,3 +1,5 @@
+const logger = require("./Logger");
+
 class MissionService {
     constructor(supabaseClient, levelService) {
         this.supabase = supabaseClient;
@@ -5,7 +7,7 @@ class MissionService {
     }
     async initializeDailyMissions(userId) {
         try {
-            console.log(`Initializing daily missions for user ${userId}`);
+            logger.info('Initializing daily missions', { userId });
 
             const { data: missions, error: fetchError } = await this.supabase
                 .from('missions')
@@ -16,7 +18,7 @@ class MissionService {
 
             if (fetchError) throw fetchError;
             if (!missions || missions.length === 0) {
-                console.warn('No daily missions available');
+                logger.warn('No daily missions available');
                 return [];
             }
 
