@@ -690,8 +690,10 @@ module.exports = {
         if (customId.startsWith('approve_action:')) {
             const actionHash = customId.split(':')[1];
 
-            // Recuperar datos de la acción
-            const actionData = global.pendingActions?.get(actionHash);
+            // Recuperar datos de la acción usando StateManager
+            const stateManager = interaction.client.services?.stateManager;
+            const actionData = stateManager ? await stateManager.getPendingAction(actionHash) : null;
+
             if (!actionData) {
                 await interaction.reply({
                     content: '❌ Esta acción ha expirado o ya fue procesada.',

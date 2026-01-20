@@ -463,14 +463,17 @@ ${message.content || "(Imagen enviada)"}
                         .digest('hex')
                         .substring(0, 8);
 
-                    // Guardar datos completos en Map global
-                    if (!global.pendingActions) global.pendingActions = new Map();
-                    global.pendingActions.set(actionHash, {
-                        type: actionType,
-                        userId: userId,
-                        data: actionData.trim(),
-                        reason: reason.trim()
-                    });
+                    // Guardar datos completos en StateManager (con TTL de 1 hora)
+                    const stateManager = client.services?.stateManager;
+                    if (stateManager) {
+                        await stateManager.setPendingAction(actionHash, {
+                            type: actionType,
+                            userId: userId,
+                            data: actionData.trim(),
+                            reason: reason.trim(),
+                            ticketChannelId: message.channel.id
+                        }, 3600); // 1 hora de expiración
+                    }
 
                     const actionButton = new ButtonBuilder()
                         .setCustomId(`approve_action:${actionHash}`)

@@ -10,6 +10,7 @@ const express = require('express');
 console.log("🚀 [DEBUG] Imports core done. Requiring handlers...");
 const { handleModerationLegacy } = require('./handlers/legacyModerationHandler');
 const { handleBankingInteraction } = require('./handlers/bankingHandler');
+const StateManager = require('./services/StateManager');
 console.log("🚀 [DEBUG] Handlers loaded.");
 
 // --- LOGGING ---
@@ -162,6 +163,11 @@ async function startModerationBot() {
     const erlcPollingService = new ErlcPollingService(supabase, client, swarmService, erlcService);
     erlcPollingService.start();
 
+    // Initialize StateManager
+    const stateManager = new StateManager(supabase);
+    await stateManager.initialize();
+    stateManager.startPeriodicCleanup(5); // Cleanup every 5 minutes
+
     client.services = {
         sanctions: sanctionService,
         billing: new BillingService(client, supabase),
@@ -171,7 +177,8 @@ async function startModerationBot() {
         erlc: erlcService,
         erlcLogManager: erlcLogManager,
         erlcPolling: erlcPollingService,
-        swarm: swarmService
+        swarm: swarmService,
+        stateManager: stateManager
     };
 
     // Load Commands
@@ -732,6 +739,10 @@ async function startEconomyBot() {
     const casinoService = new CasinoService(supabase);
     const stockService = new StockService(supabase);
 
+    // Initialize StateManager
+    const stateManager = new StateManager(supabase);
+    await stateManager.initialize();
+
     client.services = {
         billing: billingService,
         tax: new TaxService(supabase),
@@ -744,7 +755,8 @@ async function startEconomyBot() {
         store: storeService,
         casino: casinoService,
         stocks: stockService,
-        exchangeRate: new ExchangeRateService(supabase)
+        exchangeRate: new ExchangeRateService(supabase),
+        stateManager: stateManager
     };
 
     // Load Commands
@@ -859,12 +871,17 @@ async function startGovernmentBot() {
     const billingService = new BillingService(client, supabase);
     const exchangeService = new ExchangeService(supabase, billingService.ubService);
 
+    // Initialize StateManager
+    const stateManager = new StateManager(supabase);
+    await stateManager.initialize();
+
     client.services = {
         levels: levelService,
         missions: missionService,
         achievements: achievementService,
         billing: billingService,
-        exchange: exchangeService
+        exchange: exchangeService,
+        stateManager: stateManager
     };
 
     // Load Commands

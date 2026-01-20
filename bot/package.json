@@ -6,6 +6,9 @@
     "scripts": {
         "start": "node index_unified.js",
         "dev": "nodemon index_unified.js",
+        "test": "jest",
+        "test:watch": "jest --watch",
+        "test:coverage": "jest --coverage",
         "deploy:local": "node deploy-commands-local.js",
         "deploy:mod": "node register_moderacion.js",
         "deploy:eco": "node register_economia.js",
@@ -35,5 +38,28 @@
         "sodium-native": "^5.0.10",
         "winston": "^3.19.0",
         "winston-daily-rotate-file": "^5.0.0"
+    },
+    "devDependencies": {
+        "@types/jest": "^29.5.14",
+        "jest": "^29.7.0"
+    },
+    "jest": {
+        "testEnvironment": "node",
+        "coverageDirectory": "./coverage",
+        "collectCoverageFrom": [
+            "commands/**/*.js",
+            "handlers/**/*.js",
+            "services/**/*.js",
+            "utils/**/*.js",
+            "!**/node_modules/**",
+            "!**/legacy/**"
+        ],
+        "testMatch": [
+            "**/__tests__/**/*.js",
+            "**/?(*.)+(spec|test).js"
+        ],
+        "setupFilesAfterEnv": [
+            "<rootDir>/tests/setup.js"
+        ]
     }
 }
