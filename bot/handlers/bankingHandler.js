@@ -393,9 +393,12 @@ async function createBankingTicket(interaction, serviceType, client, supabase) {
         // Build description from modal fields
         let description = `**Tipo:** Solicitud Bancaria - ${serviceType.toUpperCase()}\n**Usuario:** <@${interaction.user.id}>\n\n`;
 
-        interaction.fields.fields.forEach(field => {
-            description += `**${field.customId.replace(/_/g, ' ').toUpperCase()}:** ${field.value}\n`;
-        });
+        // Iterate through modal fields correctly
+        const fields = interaction.fields.fields;
+        for (const [key, field] of fields) {
+            const label = field.customId.replace(/_/g, ' ').toUpperCase();
+            description += `**${label}:** ${field.value}\n`;
+        }
 
         const embed = new EmbedBuilder()
             .setTitle(`🏦 Solicitud Bancaria: ${serviceType.toUpperCase()}`)
