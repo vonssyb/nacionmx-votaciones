@@ -16,6 +16,10 @@ module.exports = {
         .addStringOption(option =>
             option.setName('nueva_evidencia')
                 .setDescription('Nueva URL de evidencia')
+                .setRequired(false))
+        .addStringOption(option =>
+            option.setName('nueva_descripcion')
+                .setDescription('Nueva descripción de la sanción')
                 .setRequired(false)),
 
     async execute(interaction) {
@@ -37,9 +41,10 @@ module.exports = {
         const sanctionId = interaction.options.getString('id_sancion');
         const newReason = interaction.options.getString('nuevo_motivo');
         const newEvidence = interaction.options.getString('nueva_evidencia');
+        const newDescription = interaction.options.getString('nueva_descripcion');
 
-        if (!newReason && !newEvidence) {
-            return interaction.editReply('⚠️ Debes proporcionar al menos un campo para cambiar (Motivo o Evidencia).');
+        if (!newReason && !newEvidence && !newDescription) {
+            return interaction.editReply('⚠️ Debes proporcionar al menos un campo para cambiar (Motivo, Evidencia o Descripción).');
         }
 
         try {
@@ -63,17 +68,19 @@ module.exports = {
                         executor: interaction.user,
                         target: interaction.user,
                         guildId: interaction.guildId,
-                        details: `Intento de auto-edición de sanción\nID: ${sanctionId}\n${newReason ? `Nuevo Motivo: ${newReason}` : ''}${newEvidence ? `\nNueva Evidencia: ${newEvidence}` : ''}`,
+                        details: `Intento de auto-edición de sanción\nID: ${sanctionId}\n${newReason ? `Nuevo Motivo: ${newReason}` : ''}${newEvidence ? `\nNueva Evidencia: ${newEvidence}` : ''}${newDescription ? `\nNueva Descripción: ${newDescription}` : ''}`,
                         approveButtonId: `sa_approve_editwarn_${requestId}_${sanctionId}`,
                         rejectButtonId: `sa_reject_editwarn_${requestId}`,
                         metadata: {
                             sanctionId: sanctionId,
                             newReason: newReason,
                             newEvidence: newEvidence,
+                            newDescription: newDescription,
                             // Store what needs to be updated
                             updates: {
                                 ...(newReason && { reason: newReason }),
-                                ...(newEvidence && { evidence_url: newEvidence })
+                                ...(newEvidence && { evidence_url: newEvidence }),
+                                ...(newDescription && { description: newDescription })
                             }
                         }
                     });
@@ -87,6 +94,7 @@ module.exports = {
             const updates = {};
             if (newReason) updates.reason = newReason;
             if (newEvidence) updates.evidence_url = newEvidence;
+            if (newDescription) updates.description = newDescription;
 
             await service.updateSanction(sanctionId, updates);
 
@@ -105,6 +113,7 @@ module.exports = {
                         .setTimestamp();
 
                     if (newReason) dmEmbed.addFields({ name: '📄 Nuevo Motivo', value: newReason, inline: false });
+                    if (newDescription) dmEmbed.addFields({ name: '📋 Nueva Descripción', value: newDescription, inline: false });
                     if (newEvidence) {
                         dmEmbed.addFields({ name: '📎 Nueva Evidencia', value: newEvidence, inline: false });
                         dmEmbed.setImage(newEvidence); // Optional: show image
@@ -116,7 +125,7 @@ module.exports = {
                 }
             }
 
-            await interaction.editReply(`✅ **Sanción #${sanctionId} actualizada correctamente.**\n${newReason ? `📄 Motivo: ${newReason}\n` : ''}${newEvidence ? `📎 Evidencia: [Ver](${newEvidence})` : ''}`);
+            await interaction.editReply(`✅ **Sanción #${sanctionId} actualizada correctamente.**\n${newReason ? `📄 Motivo: ${newReason}\n` : ''}${newDescription ? `📋 Descripción: ${newDescription}\n` : ''}${newEvidence ? `📎 Evidencia: [Ver](${newEvidence})` : ''}`);
 
         } catch (error) {
             console.error(error);
