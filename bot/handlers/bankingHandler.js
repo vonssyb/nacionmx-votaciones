@@ -15,24 +15,38 @@ async function handleBankingInteraction(interaction, client, supabase) {
 
     const { customId } = interaction;
 
-    // Banking Select Menu
-    if (customId === 'banco_servicios') {
-        const selectedService = interaction.values[0];
-        return handleBankServiceSelection(selectedService, interaction, client, supabase);
-    }
+    try {
+        // Banking Select Menu
+        if (customId === 'banco_servicios') {
+            const selectedService = interaction.values[0];
+            return await handleBankServiceSelection(selectedService, interaction, client, supabase);
+        }
 
-    // Banking Quick Buttons
-    if (customId.startsWith('banco_btn_')) {
-        const service = customId.replace('banco_btn_', '');
-        return handleBankButtonPress(service, interaction, client, supabase);
-    }
+        // Banking Quick Buttons
+        if (customId.startsWith('banco_btn_')) {
+            const service = customId.replace('banco_btn_', '');
+            return await handleBankButtonPress(service, interaction, client, supabase);
+        }
 
-    // Banking Modal Submissions
-    if (customId.startsWith('modal_banco_')) {
-        return handleBankModalSubmit(customId, interaction, client, supabase);
-    }
+        // Banking Modal Submissions
+        if (customId.startsWith('modal_banco_')) {
+            return await handleBankModalSubmit(customId, interaction, client, supabase);
+        }
 
-    return false;
+        return false;
+    } catch (error) {
+        console.error('[Banking Handler] Error:', error);
+        try {
+            if (!interaction.replied && !interaction.deferred) {
+                await interaction.reply({ content: '❌ Error al procesar la solicitud bancaria.', ephemeral: true });
+            } else {
+                await interaction.editReply('❌ Error al procesar la solicitud bancaria.');
+            }
+        } catch (e) {
+            console.error('[Banking Handler] Failed to send error message:', e);
+        }
+        return true; // Mark as handled even if error
+    }
 }
 
 async function handleBankServiceSelection(service, interaction, client, supabase) {
