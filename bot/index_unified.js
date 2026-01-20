@@ -623,10 +623,15 @@ async function startModerationBot() {
 
         if (!interaction.isChatInputCommand()) {
             try {
+                console.log('[DEBUG] Non-command interaction:', interaction.customId, 'Type:', interaction.isButton() ? 'Button' : interaction.isStringSelectMenu() ? 'Menu' : interaction.isModalSubmit() ? 'Modal' : 'Other');
+
                 // FALLBACK TO LEGACY (Handles Other Buttons, Modals, Menus)
                 // Try banking handler first (for banco_ prefixes)
                 const bankingHandled = await handleBankingInteraction(interaction, client, client.supabase);
-                if (bankingHandled) return;
+                if (bankingHandled) {
+                    console.log('[DEBUG] Banking handler processed the interaction');
+                    return;
+                }
 
                 // Fallback to legacy moderation handler
                 await handleModerationLegacy(interaction, client, client.supabase);
