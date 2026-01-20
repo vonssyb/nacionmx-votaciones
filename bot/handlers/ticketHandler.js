@@ -389,7 +389,9 @@ module.exports = {
         // Reuse same logic from previous steps
         // --- 4. ACCIONES (Claim / Unclaim Logic) ---
         if (customId === 'btn_claim_ticket') {
-            const isStaff = interaction.member.permissions.has(PermissionFlagsBits.ManageMessages);
+            const isStaff = interaction.member.permissions.has(PermissionFlagsBits.ManageMessages) ||
+                interaction.member.roles.cache.has('1412887167654690908') || // Staff
+                interaction.member.roles.cache.has('1412882248411381872'); // Administración
             if (!isStaff) return interaction.reply({ content: '🚫 Solo Staff.', ephemeral: true });
 
             const { data: ticket } = await supabase.from('tickets').select('*').eq('channel_id', interaction.channel.id).single();
