@@ -30,6 +30,36 @@ module.exports = {
         const role = interaction.options.getRole('rol');
         const razon = interaction.options.getString('razon') || 'No especificada';
 
+        // SELF-ACTION DETECTION
+        if (targetUser.id === interaction.user.id) {
+            const SelfActionService = require('../../services/SelfActionService');
+            const selfActionService = new SelfActionService(interaction.client, interaction.client.supabase);
+
+            // Check if user can approve their own actions
+            if (!selfActionService.canApproveSelfAction(interaction.member)) {
+                // Send approval request to superiors
+                const requestId = `${Date.now()}_${interaction.user.id}`;
+                await selfActionService.requestSuperiorApproval({
+                    actionType: 'role_add',
+                    executor: interaction.user,
+                    target: targetUser,
+                    guildId: interaction.guildId,
+                    details: `Intento de auto-asignación del rol **${role.name}**\nRazón: ${razon}`,
+                    approveButtonId: `sa_approve_role_${requestId}_${role.id}`,
+                    rejectButtonId: `sa_reject_role_${requestId}`,
+                    metadata: {
+                        role: `<@&${role.id}> (${role.name})`,
+                        roleId: role.id,
+                        reason: razon
+                    }
+                });
+
+                return interaction.editReply('⚠️ **Auto-Asignación Detectada**\n\nNo puedes asignarte roles a ti mismo sin aprobación.\nSe ha enviado una solicitud a un superior para revisión.\n\nRecibirás una notificación cuando sea aprobada o rechazada.');
+            }
+            // If user CAN approve (is superior), log but allow
+            console.log(`[SelfAction] Superior ${interaction.user.tag} self-assigning role ${role.name} - Allowed`);
+        }
+
         try {
             const member = await interaction.guild.members.fetch(targetUser.id);
 

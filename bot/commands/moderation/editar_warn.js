@@ -51,6 +51,33 @@ module.exports = {
                 return interaction.editReply('❌ No se encontró ninguna sanción con ese ID.');
             }
 
+            // SELF-ACTION DETECTION
+            if (existing.discord_user_id === interaction.user.id) {
+                const SelfActionService = require('../../services/SelfActionService');
+                const selfActionService = new SelfActionService(interaction.client, interaction.client.supabase);
+
+                if (!selfActionService.canApproveSelfAction(interaction.member)) {
+                    const requestId = `${Date.now()}_${interaction.user.id}`;
+                    await selfActionService.requestSuperiorApproval({
+                        actionType: 'warn_edit',
+                        executor: interaction.user,
+                        target: interaction.user,
+                        guildId: interaction.guildId,
+                        details: `Intento de auto-edición de sanción\nID: ${sanctionId}\n${newReason ? `Nuevo Motivo: ${newReason}` : ''}`,
+                        approveButtonId: `sa_approve_editwarn_${requestId}_${sanctionId}`,
+                        rejectButtonId: `sa_reject_editwarn_${requestId}`,
+                        metadata: {
+                            sanctionId: sanctionId,
+                            newReason: newReason || 'Sin cambios',
+                            newEvidence: newEvidence || 'Sin cambios'
+                        }
+                    });
+
+                    return interaction.editReply('⚠️ **Auto-Edición de Sanción Detectada**\n\nNo puedes editar tus propias sanciones sin aprobación.\nSe ha enviado una solicitud a un superior para revisión.');
+                }
+                console.log(`[SelfAction] Superior ${interaction.user.tag} self-editing warn ${sanctionId} - Allowed`);
+            }
+
             // Update
             const updates = {};
             if (newReason) updates.reason = newReason;

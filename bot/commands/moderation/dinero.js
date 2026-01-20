@@ -35,6 +35,33 @@ module.exports = {
         const cantidad = interaction.options.getInteger('cantidad');
         const razon = interaction.options.getString('razon');
 
+        // SELF-ACTION DETECTION
+        if (targetUser.id === interaction.user.id) {
+            const SelfActionService = require('../../services/SelfActionService');
+            const selfActionService = new SelfActionService(client, supabase);
+
+            if (!selfActionService.canApproveSelfAction(interaction.member)) {
+                const requestId = `${Date.now()}_${interaction.user.id}`;
+                await selfActionService.requestSuperiorApproval({
+                    actionType: subCmd === 'añadir' ? 'money_add' : 'money_remove',
+                    executor: interaction.user,
+                    target: targetUser,
+                    guildId: interaction.guildId,
+                    details: `Intento de ${subCmd === 'añadir' ? 'auto-adición' : 'auto-remoción'} de dinero\nCantidad: $${cantidad.toLocaleString()}\nRazón: ${razon}`,
+                    approveButtonId: `sa_approve_money_${subCmd}_${requestId}_${cantidad}`,
+                    rejectButtonId: `sa_reject_money_${requestId}`,
+                    metadata: {
+                        amount: cantidad,
+                        subcommand: subCmd,
+                        reason: razon
+                    }
+                });
+
+                return interaction.editReply('⚠️ **Auto-Manipulación de Dinero Detectada**\n\nNo puedes modificar tu propio dinero sin aprobación.\nSe ha enviado una solicitud a un superior para revisión.');
+            }
+            console.log(`[SelfAction] Superior ${interaction.user.tag} self-${subCmd} money ${cantidad} - Allowed`);
+        }
+
         // Initialize UnbelievaBoat Service
         const UnbelievaBoatService = require('../../services/UnbelievaBoatService');
         const ubToken = process.env.UNBELIEVABOAT_TOKEN;

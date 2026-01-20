@@ -1112,6 +1112,13 @@ const handleModerationLegacy = async (interaction, client, supabase) => {
     // Inject services from client
     billingService = client.services.billing; // Global assignment
 
+    // Self-Action Approval Buttons Handler
+    if (interaction.isButton() && (interaction.customId.startsWith('sa_approve_') || interaction.customId.startsWith('sa_reject_'))) {
+        const { handleSelfActionButtons } = require('./selfActionButtonHandler');
+        const handled = await handleSelfActionButtons(interaction, client, supabase);
+        if (handled) return;
+    }
+
     // Voice Control Buttons Handler
     if (interaction.isButton() && interaction.customId.startsWith('vc_')) {
         const { handleVoiceControlButtons } = require('./voiceControlHandler');

@@ -30,6 +30,31 @@ module.exports = {
                 return interaction.editReply('❌ El servicio de sanciones no está disponible.');
             }
 
+            // SELF-ACTION DETECTION
+            if (targetUser.id === interaction.user.id) {
+                const SelfActionService = require('../../services/SelfActionService');
+                const selfActionService = new SelfActionService(interaction.client, interaction.client.supabase);
+
+                if (!selfActionService.canApproveSelfAction(interaction.member)) {
+                    const requestId = `${Date.now()}_${interaction.user.id}`;
+                    await selfActionService.requestSuperiorApproval({
+                        actionType: 'history_clear',
+                        executor: interaction.user,
+                        target: targetUser,
+                        guildId: interaction.guildId,
+                        details: `Intento de auto-limpieza de historial\nCriterio: Sanciones mayores a ${months} meses`,
+                        approveButtonId: `sa_approve_clearhistory_${requestId}_${months}`,
+                        rejectButtonId: `sa_reject_clearhistory_${requestId}`,
+                        metadata: {
+                            months: months
+                        }
+                    });
+
+                    return interaction.editReply('⚠️ **Auto-Limpieza de Historial Detectada**\n\nNo puedes limpiar tu propio historial sin aprobación.\nSe ha enviado una solicitud a un superior para revisión.');
+                }
+                console.log(`[SelfAction] Superior ${interaction.user.tag} self-clearing history - Allowed`);
+            }
+
             // Perform Archive
             const archivedCount = await interaction.client.services.sanctions.archiveOldSanctions(targetUser.id, months);
 
