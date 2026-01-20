@@ -12,6 +12,7 @@ const {
 } = require('discord.js');
 const discordTranscripts = require('discord-html-transcripts');
 const { generateAIResponse } = require('./ticketMessageHandler');
+const logger = require('../services/Logger');
 
 // --- CONFIGURACIÓN PRINCIPAL ---
 const TICKET_CONFIG = {
@@ -228,7 +229,7 @@ module.exports = {
                     console.warn(`[TICKET] Interaction obsolete (Defer): ${err.message}`);
                     return;
                 }
-                console.error('[TICKET] Defer Error:', err);
+                logger.errorWithContext('[TICKET] Defer Error', err);
                 return;
             }
             const typeKey = customId.replace('modal_create_main_', '');
@@ -311,7 +312,7 @@ module.exports = {
                         userHistoryText = `• Tickets Previos: **${ticketCount}**\n• Sanciones/Arrestos: **${sanctionCount || 0}**`;
                     }
                 } catch (crmError) {
-                    console.error('CRM Error:', crmError);
+                    logger.errorWithContext('CRM Error', crmError);
                 }
 
                 await supabase.from('tickets').insert([{
@@ -341,7 +342,7 @@ module.exports = {
                 await welcomeMsg.pin().catch(() => { }); // PIN WELCOME MESSAGE
 
                 // --- IA ANALYSIS ---
-                console.log(`[DEBUG] Ticket Created. Attempting AI Analysis for: ${channelName}`);
+                logger.info(`[DEBUG] Ticket Created. Attempting AI Analysis for: ${channelName}`);
                 try {
                     const aiAnswer = await generateAIResponse(description);
                     console.log(`[DEBUG] AI Response Result:`, aiAnswer?.startsWith('ERROR') ? "FAIL" : "SUCCESS");
@@ -359,11 +360,11 @@ module.exports = {
                             .setFooter({ text: '¿Te ayudó esta respuesta?' });
 
                         await ticketChannel.send({ content: `<@${interaction.user.id}>`, embeds: [aiEmbed], components: [aiRow] });
-                        console.log(`[DEBUG] AI Embed sent to ${channelName}`);
+                        logger.info(`[DEBUG] AI Embed sent to ${channelName}`);
                     } else {
                         // ACOPLAMIENTO: Si la IA falla o no trae respuesta
                         const errorMsg = aiAnswer || "Respuesta nula desconocida";
-                        console.log(`[DEBUG] AI Failed: ${errorMsg}`);
+                        logger.info(`[DEBUG] AI Failed: ${errorMsg}`);
 
                         if (config.role) await ticketChannel.send({ content: `📢 <@&${config.role}>` });
 
@@ -371,7 +372,7 @@ module.exports = {
                         await ticketChannel.send({ content: `⚠️ **Debug IA:** ${errorMsg}` });
                     }
                 } catch (e) {
-                    console.error('[DEBUG] AI Error in Ticket Handler:', e);
+                    logger.errorWithContext('[DEBUG] AI Error in Ticket Handler', e);
                     if (config.role) await ticketChannel.send({ content: `📢 <@&${config.role}>` });
                     await ticketChannel.send({ content: `⚠️ **Debug IA:** Excepción Fatal (${e.message})` });
                 }
@@ -579,7 +580,7 @@ module.exports = {
             }).eq('channel_id', interaction.channel.id);
 
             // Log simple
-            console.log(`[AI-STATS] Ticket ${interaction.channel.name} closed by AI.`);
+            logger.info(`[AI-STATS] Ticket ${interaction.channel.name} closed by AI.`);
 
             await interaction.reply({ content: '🤖 ¡Me alegra haber ayudado! Cerrando ticket...' });
 
@@ -873,7 +874,7 @@ module.exports = {
                 await interaction.message.edit({ components: [disabledRow] });
 
             } catch (error) {
-                console.error('Error ejecutando acción:', error);
+                logger.errorWithContext('Error ejecutando acción', error);
                 await interaction.editReply({
                     content: `❌ Error ejecutando acción: ${error.message}`
                 });

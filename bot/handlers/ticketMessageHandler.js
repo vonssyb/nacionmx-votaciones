@@ -3,6 +3,7 @@ const Groq = require('groq-sdk');
 const fs = require('fs');
 const path = require('path');
 const axios = require('axios');
+const logger = require('../services/Logger');
 
 // SISTEMA DE ROTACIÓN: 4 API Keys de Groq (400K tokens/día total)
 // Version: 5.0 - Groq Multi-Key Rotation System
@@ -20,11 +21,11 @@ let groqClient = null;
 
 function initializeGroq() {
     if (GROQ_KEYS.length === 0) {
-        console.warn('⚠️ No hay API keys de Groq configuradas');
+        logger.warn('No hay API keys de Groq configuradas');
         return null;
     }
     const key = GROQ_KEYS[currentKeyIndex];
-    console.log(`✅ Groq inicializado con API Key #${currentKeyIndex + 1}/${GROQ_KEYS.length}`);
+    logger.info(`Groq inicializado con API Key #${currentKeyIndex + 1}/${GROQ_KEYS.length}`);
     return new Groq({ apiKey: key });
 }
 
@@ -33,7 +34,7 @@ function rotateGroqKey() {
 
     currentKeyIndex = (currentKeyIndex + 1) % GROQ_KEYS.length;
     groqClient = initializeGroq();
-    console.log(`🔄 Rotando a Groq API Key #${currentKeyIndex + 1}`);
+    logger.info(`Rotando a Groq API Key #${currentKeyIndex + 1}`);
     return true;
 }
 
@@ -50,10 +51,10 @@ try {
     if (fs.existsSync(contextPath)) {
         SERVER_CONTEXT = fs.readFileSync(contextPath, 'utf-8');
     } else {
-        console.warn('⚠️ No se encontró server_knowledge.md, usando contexto vacío.');
+        logger.warn('No se encontró server_knowledge.md, usando contexto vacío.');
     }
 } catch (err) {
-    console.error('Error cargando contexto IA:', err.message);
+    logger.errorWithContext('Error cargando contexto IA', err.message);
 }
 
 // Cargar Conocimiento Administrativo
@@ -61,7 +62,7 @@ let ADMIN_KNOWLEDGE = '';
 try {
     ADMIN_KNOWLEDGE = fs.readFileSync(path.join(__dirname, '../knowledge/admin_guide.md'), 'utf-8');
 } catch (err) {
-    console.warn('⚠️ admin_guide.md no encontrado, IA tendrá conocimiento limitado de normativa');
+    logger.warn('admin_guide.md no encontrado, IA tendrá conocimiento limitado de normativa');
 }
 
 const SYSTEM_PROMPT = `
@@ -108,7 +109,7 @@ const BAD_WORDS = ['pendejo', 'imbecil', 'idiota', 'estupido', 'verga', 'puto', 
 // --- Helper: Analizar Imagen con Hugging Face BLIP (Gratis, lento) ---
 async function getImageDescription(imageUrl) {
     try {
-        console.log('🔍 Analizando imagen con Hugging Face BLIP (puede tardar 20-30 seg)...');
+        logger.info('Analizando imagen con Hugging Face BLIP (puede tardar 20-30 seg)...');
 
         // Descargar imagen
         const response = await axios.get(imageUrl, { responseType: 'arraybuffer' });
@@ -154,7 +155,7 @@ async function generateAIResponse(query, imageUrl = null) {
     }
 
     if (!groqClient || GROQ_KEYS.length === 0) {
-        console.error('[GROQ] No hay API keys configuradas');
+        logger.error('No hay API keys configuradas', { module: 'GROQ' });
         return "ERROR_MISSING_KEY: No hay API keys de Groq configuradas.";
     }
 
@@ -182,7 +183,7 @@ async function generateAIResponse(query, imageUrl = null) {
             // Si es rate limit (429), rotar a la siguiente key
             if (err.status === 429 && rotateGroqKey()) {
                 attempts++;
-                console.log(`🔄 Intentando con siguiente API key (${attempts}/${maxAttempts})...`);
+                logger.info(`Intentando con siguiente API key (${attempts}/${maxAttempts})...`);
                 continue;
             }
 
@@ -244,7 +245,7 @@ module.exports = {
                 return; // Solo el dueño del ticket puede usar la IA
             }
         } catch (err) {
-            console.error('Error verificando dueño del ticket:', err);
+            logger.errorWithContext('Error verificando dueño del ticket', err);
         }
 
         // Si el staff fue llamado, el bot se silencia permanentemente
@@ -574,7 +575,7 @@ ${conversationContext.substring(0, 500)}...`)
                 await message.channel.send({ content: '🕵️ **Propuesta para Staff:**', embeds: [actionEmbed], components: [row] });
             }
         } catch (error) {
-            console.error('Gemini Handler Error:', error);
+            logger.errorWithContext('Gemini Handler Error', error);
         }
     }
 };

@@ -37,7 +37,7 @@ const logToChannel = async (provider, channelId, embed) => {
     try {
         const channel = await provider.channels.fetch(channelId).catch(() => null);
         if (channel) await channel.send({ embeds: [embed] });
-    } catch (e) { console.error('Log Error:', e); }
+    } catch (e) { logger.errorWithContext('Log Error', e); }
 };
 
 // Global Session Tracking for Cooldowns
@@ -152,11 +152,11 @@ const handleEconomyLegacy = async (interaction, client, supabase) => {
         // I MUST use `replace_file_content` to ONLY replace the top section (Lines 1-1277) with the imports.
 
     } catch (error) {
-        console.error('CMD Error:', error);
+        logger.errorWithContext('CMD Error', error);
     }
 
 
-    // console.log(`[DEBUG] Handling Legacy Economy: ${interaction.commandName || interaction.customId}`);
+    // logger.info(`[DEBUG] Handling Legacy Economy: ${interaction.commandName || interaction.customId}`);
 
     // Deduplicate interactions
     if (processedInteractions.has(interaction.id)) {
@@ -263,7 +263,7 @@ const handleEconomyLegacy = async (interaction, client, supabase) => {
             });
 
         } catch (e) {
-            console.error('[Upgrade] Error:', e);
+            logger.errorWithContext('[Upgrade] Error', e);
             await interaction.followUp({ content: '❌ Error procesando el upgrade.', ephemeral: true });
         }
         return;
@@ -392,10 +392,10 @@ const handleEconomyLegacy = async (interaction, client, supabase) => {
                                     embeds: [notifPayload.embeds[0]]
                                 });
 
-                                console.log(`[BLACKLIST] Notification sent to channel ${blChannelId} for user ${targetId} (Economy Bot)`);
+                                logger.info(`[BLACKLIST] Notification sent to channel ${blChannelId} for user ${targetId} (Economy Bot)`);
                             }
                         } catch (blNotifyError) {
-                            console.error('[BLACKLIST] Failed to send notification (Economy Bot):', blNotifyError);
+                            logger.errorWithContext('[BLACKLIST] Failed to send notification (Economy Bot)', blNotifyError);
                         }
                     } else if (type === 'sa') {
                         // SA Auto-Role Logic (Simplified)
@@ -409,6 +409,7 @@ const handleEconomyLegacy = async (interaction, client, supabase) => {
                 // 3. Notify User (DM)
                 try {
                     const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const logger = require('../services/Logger');
                     const appealButtons = new ActionRowBuilder().addComponents(
                         new ButtonBuilder()
                             .setLabel('📩 Apelar (Baneo/Perm)')
@@ -444,7 +445,7 @@ const handleEconomyLegacy = async (interaction, client, supabase) => {
                 }
 
             } catch (err) {
-                console.error('Error approving sanction:', err);
+                logger.errorWithContext('Error approving sanction', err);
                 interaction.followUp({ content: `❌ Error ejecutando la sanción: ${err.message}`, flags: [64] });
             }
             return;
@@ -526,7 +527,7 @@ const handleEconomyLegacy = async (interaction, client, supabase) => {
             .eq('id', cardId);
 
         if (updateError) {
-            console.error('[upgrade] Error:', updateError);
+            logger.errorWithContext('[upgrade] Error', updateError);
             // Rollback the money deduction
             await billingService.ubService.addMoney(
                 interaction.guildId,
@@ -790,7 +791,7 @@ const handleEconomyLegacy = async (interaction, client, supabase) => {
             }
 
         } catch (error) {
-            console.error('Payment error:', error);
+            logger.errorWithContext('Payment error', error);
             await interaction.followUp({
                 content: '❌ Error procesando el pago. Contacta a un administrador.',
                 flags: [64]
@@ -912,7 +913,7 @@ const handleEconomyLegacy = async (interaction, client, supabase) => {
             await interaction.editReply({ content: report, components: [] });
 
         } catch (error) {
-            console.error('[payroll_select] Error:', error);
+            logger.errorWithContext('[payroll_select] Error', error);
             await interaction.editReply({
                 content: `❌ Error procesando nómina: ${error.message}`,
                 components: []
@@ -982,7 +983,7 @@ const handleEconomyLegacy = async (interaction, client, supabase) => {
             await interaction.editReply({ embeds: [successEmbed], components: [] });
 
         } catch (error) {
-            console.error('[pay_biz_debt] Error:', error);
+            logger.errorWithContext('[pay_biz_debt] Error', error);
             await interaction.followUp({
                 content: `❌ Error procesando pago: ${error.message}`,
                 flags: [64]
@@ -1033,7 +1034,7 @@ const handleEconomyLegacy = async (interaction, client, supabase) => {
             await interaction.editReply({ embeds: [embed], components: [row] });
 
         } catch (error) {
-            console.error('[company_payroll] Error:', error);
+            logger.errorWithContext('[company_payroll] Error', error);
             await interaction.editReply({ content: '❌ Error obteniendo grupos de nómina.' });
         }
 
@@ -1125,7 +1126,7 @@ const handleEconomyLegacy = async (interaction, client, supabase) => {
             await interaction.followUp({ embeds: [resultEmbed] });
 
         } catch (error) {
-            console.error('[company_withdraw] Error:', error);
+            logger.errorWithContext('[company_withdraw] Error', error);
             await interaction.editReply({ content: `❌ Error: ${error.message}` });
         }
 
@@ -1443,7 +1444,7 @@ const handleEconomyLegacy = async (interaction, client, supabase) => {
             await interaction.editReply({ embeds: [embed] });
 
         } catch (error) {
-            console.error('[company_stats] Error:', error);
+            logger.errorWithContext('[company_stats] Error', error);
             await interaction.editReply({ content: '❌ Error obteniendo estadísticas.' });
         }
 
@@ -1519,9 +1520,9 @@ const handleEconomyLegacy = async (interaction, client, supabase) => {
                     .eq('session_id', sessionId);
 
                 if (voteError) {
-                    // console.error('[VOTE DEBUG] Error fetching votes:', voteError);
+                    // logger.errorWithContext('[VOTE DEBUG] Error fetching votes', voteError);
                 } else {
-                    // console.log(`[VOTE DEBUG] Votes fetched for ${sessionId}: ${votes?.length || 0}`);
+                    // logger.info(`[VOTE DEBUG] Votes fetched for ${sessionId}: ${votes?.length || 0}`);
                 }
 
                 const yesVotes = votes?.filter(v => v.vote_type === 'yes') || [];
@@ -1583,7 +1584,7 @@ const handleEconomyLegacy = async (interaction, client, supabase) => {
                         updatedEmbed.setTimestamp();
 
                         await message.edit({ embeds: [updatedEmbed] });
-                        // console.log('[VOTE DEBUG] Message edited successfully');
+                        // logger.info('[VOTE DEBUG] Message edited successfully');
 
                         // Check if minimum votes reached AND Staff requirement met
                         if (counts.yes >= session.minimum_votes && staffMet && session.status === 'active') {
@@ -1625,14 +1626,14 @@ const handleEconomyLegacy = async (interaction, client, supabase) => {
                             // --- TRIGGER PENDING ERLC ACTIONS (QUEUE FLUSH) ---
                             // This ensures any /rango commands queued while offline are executed NOW.
                             if (client.services.erlcScheduler) {
-                                console.log('[Server Open] Triggering ERLC Scheduler to process pending actions...');
+                                logger.info('[Server Open] Triggering ERLC Scheduler to process pending actions...');
                                 // Don't await this to prevent blocking the main flow
-                                client.services.erlcScheduler.checkPendingActions().catch(e => console.error('Scheduler Trigger Error:', e));
+                                client.services.erlcScheduler.checkPendingActions().catch(e => logger.errorWithContext('Scheduler Trigger Error', e));
                             }
                             // --------------------------------------------------
 
                             if (votersData && votersData.length > 0) {
-                                console.log(`[Server Open] Granting permissions to ${votersData.length} voters...`);
+                                logger.info(`[Server Open] Granting permissions to ${votersData.length} voters...`);
 
                                 for (const voter of votersData) {
                                     try {
@@ -1659,11 +1660,11 @@ const handleEconomyLegacy = async (interaction, client, supabase) => {
                                             if (citizen && citizen.roblox_username) {
                                                 // 4. Run Command
                                                 const cmd = `:${rankCommand} ${citizen.roblox_username}`;
-                                                console.log(`[Server Open] Executing: ${cmd}`);
+                                                logger.info(`[Server Open] Executing: ${cmd}`);
                                                 // Execute via service
                                                 await client.services.erlc.runCommand(cmd);
                                             } else {
-                                                console.log(`[Server Open] User <@${voter.user_id}> has no linked Roblox username.`);
+                                                logger.info(`[Server Open] User <@${voter.user_id}> has no linked Roblox username.`);
                                             }
                                         }
                                     } catch (permErr) {
@@ -1677,11 +1678,11 @@ const handleEconomyLegacy = async (interaction, client, supabase) => {
                             await channel.send({ content: `<@&${PING_ROLE_ID}> 🚨 ¡SERVIDOR ABIERTO! 🚨`, embeds: [openEmbed], components: [joinButton] });
                         }
                     } catch (err) {
-                        console.error('Error updating voting message:', err);
+                        logger.errorWithContext('Error updating voting message', err);
                     }
                 }
             } catch (error) {
-                console.error('Error processing vote:', error);
+                logger.errorWithContext('Error processing vote', error);
                 return interaction.reply({ content: '❌ Error al procesar el voto.', flags: [64] });
             }
         }
@@ -1859,7 +1860,7 @@ const handleEconomyLegacy = async (interaction, client, supabase) => {
 
         try {
             // SAFEGUARD: Wrap entire command in try/catch to prevent process crash
-            console.log(`[DEBUG] /registrar-tarjeta invoked by ${interaction.user.tag}`);
+            logger.info(`[DEBUG] /registrar-tarjeta invoked by ${interaction.user.tag}`);
             // === ROLE-BASED AUTHORIZATION ===
             const BANKER_ROLES = {
                 REGULAR: '1450591546524307689',      // Banquero
@@ -1878,7 +1879,7 @@ const handleEconomyLegacy = async (interaction, client, supabase) => {
             const targetUser = interaction.options.getUser('usuario');
             if (!targetUser) return interaction.editReply('❌ Debes especificar un usuario.');
 
-            console.log(`[registrar-tarjeta] Starting for user ${targetUser.id} by moderator ${interaction.user.id}`);
+            logger.info(`[registrar-tarjeta] Starting for user ${targetUser.id} by moderator ${interaction.user.id}`);
 
 
             // SECURITY: Self-Target Check
@@ -2126,7 +2127,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                                     await notifChannel.send({ embeds: [notifEmbed] });
                                 }
                             } catch (notifError) {
-                                console.error('[registrar-tarjeta] Notification error:', notifError);
+                                logger.errorWithContext('[registrar-tarjeta] Notification error', notifError);
                             }
 
                             await message.edit({
@@ -2185,7 +2186,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             });
 
         } catch (error) {
-            console.error('[registrar-tarjeta] Critical Error:', error);
+            logger.errorWithContext('[registrar-tarjeta] Critical Error', error);
             if (interaction.deferred || interaction.replied) {
                 await interaction.editReply({ content: `❌ **Error Crítico:** ${error.message}` }).catch(() => { });
             } else {
@@ -2389,11 +2390,11 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                         cCred.on('end', c => { if (c.size === 0) interaction.editReply({ content: '⏱️ Tiempo agotado.', components: [] }); });
                         return;
                     } catch (err) {
-                        console.error('[credito] Error:', err);
+                        logger.errorWithContext('[credito] Error', err);
                         return interaction.editReply({ content: '❌ Error procesando pago.', flags: [64] });
                     }
                 } catch (err) {
-                    console.error('[credito-pagar] Error:', err);
+                    logger.errorWithContext('[credito-pagar] Error', err);
                     return interaction.editReply({ content: '❌ Error procesando solicitud.', flags: isPrivate ? [64] : [] });
                 }
             }
@@ -2777,7 +2778,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
 
             // Helper function to rename channel based on state
         } catch (error) {
-            console.error('[Legacy] Credito Error:', error);
+            logger.errorWithContext('[Legacy] Credito Error', error);
             await interaction.editReply('❌ Error al procesar crédito.').catch(() => { });
         }
     }
@@ -2789,7 +2790,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             const { data: companies, error } = await supabase.from('companies').select('*').order('created_at', { ascending: false });
 
             if (error) {
-                console.error('[/info] Error:', error);
+                logger.errorWithContext('[/info] Error', error);
                 return interaction.editReply('❌ Error obteniendo información de empresas.');
             }
 
@@ -2875,7 +2876,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 collector.on('end', () => interaction.editReply({ components: [] }).catch(() => { }));
             }
         } catch (err) {
-            console.error('[/info] Error:', err);
+            logger.errorWithContext('[/info] Error', err);
             return interaction.editReply('❌ Error inesperado.');
         }
 
@@ -2936,7 +2937,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                         published = true;
                     }
                 } catch (e) {
-                    console.error('Error publishing report:', e);
+                    logger.errorWithContext('Error publishing report', e);
                 }
             }
 
@@ -2978,7 +2979,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             // Auto-register "John Doe" so we can fine him
             // Use targetUser.globalName or username as fallback
             const displayName = targetUser.globalName || targetUser.username;
-            console.log(`Auto-registering ${displayName} for fine...`);
+            logger.info(`Auto-registering ${displayName} for fine...`);
      
             const { data: newCit, error: createError } = await supabase.from('citizens').insert([{
                 discord_id: targetUser.id,
@@ -3168,7 +3169,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             await interaction.editReply({ embeds: [embed] });
 
         } catch (error) {
-            console.error('[saldo] Error:', error);
+            logger.errorWithContext('[saldo] Error', error);
             await interaction.editReply('❌ Error al obtener el saldo.');
         }
 
@@ -3259,7 +3260,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                         await i.deferUpdate();
 
                         const method = i.customId.replace('emp_pay_', '').replace('emp_', '');
-                        console.log(`[empresa] Payment attempt: Method=${method}, Owner=${dueño.id}, Executor=${i.user.id}`);
+                        logger.info(`[empresa] Payment attempt: Method=${method}, Owner=${dueño.id}, Executor=${i.user.id}`);
 
                         // Process payment based on method - DUEÑO PAYS
                         if (method === 'cash' || method === 'bank') {
@@ -3341,7 +3342,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                         }).select().single();
 
                         if (error) {
-                            console.error('[empresa] DB Error:', error);
+                            logger.errorWithContext('[empresa] DB Error', error);
                             paymentProcessed = false;
                             // Refund money since DB insert failed
                             try {
@@ -3358,10 +3359,10 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                             const role = interaction.guild.roles.cache.find(r => r.name === 'Empresario'); // Adjust role name
                             if (role) await member.roles.add(role);
                         } catch (e) {
-                            console.error('Error adding role:', e);
+                            logger.errorWithContext('Error adding role', e);
                         }
 
-                        console.log(`[empresa] Company created: ${newCompany.name} (${newCompany.id})`);
+                        logger.info(`[empresa] Company created: ${newCompany.name} (${newCompany.id})`);
 
                         const embed = new EmbedBuilder()
                             .setColor('#00FF00')
@@ -3902,7 +3903,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             }
 
         } catch (error) {
-            console.error('[empresa] Error:', error);
+            logger.errorWithContext('[empresa] Error', error);
             return interaction.editReply('❌ Error procesando el comando de empresa.');
         }
 
@@ -3934,7 +3935,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             const fInv = i => i.user.id === interaction.user.id && i.customId.startsWith('inv_pay_');
             const cInv = interaction.channel.createMessageComponentCollector({ filter: fInv, time: 60000, max: 1 });
             cInv.on('collect', async (i) => {
-                try { await i.deferUpdate(); } catch (err) { console.error('[inv] defer:', err.message); return; }
+                try { await i.deferUpdate(); } catch (err) { logger.errorWithContext('[inv] defer', err.message); return; }
                 const prInv = await processPayment(client.services.billing, supabase, i.customId.replace('inv_pay_', ''), interaction.user.id, interaction.guildId, amount, 'Inversión Plazo Fijo', pmInv);
                 if (!prInv.success) return i.editReply({ content: prInv.error, components: [] });
 
@@ -3971,7 +3972,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                     await client.services.missions.updateProgress(interaction.user.id, 'invest', { amount: amount });
 
                 } catch (gameErr) {
-                    console.error('Gamification Error:', gameErr);
+                    logger.errorWithContext('Gamification Error', gameErr);
                 }
             });
             cInv.on('end', c => { if (c.size === 0) interaction.editReply({ content: '⏱️ Tiempo agotado.', components: [] }); });
@@ -4555,7 +4556,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             }
 
         } catch (error) {
-            console.error('Error distribuyendo robo:', error);
+            logger.errorWithContext('Error distribuyendo robo', error);
             await interaction.editReply('❌ Error al distribuir el dinero. Verifica que el usuario exista.');
         }
 
@@ -4737,7 +4738,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                     await client.services.missions.updateProgress(interaction.user.id, 'work', { amount: pay });
 
                 } catch (gameErr) {
-                    console.error('Gamification Error:', gameErr);
+                    logger.errorWithContext('Gamification Error', gameErr);
                 }
 
             } catch (error) {
@@ -4792,7 +4793,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
         // Defer with error handling to prevent "Unknown interaction"
         try {
         } catch (err) {
-            console.error('[ERROR] Failed to defer balanza:', err);
+            logger.errorWithContext('[ERROR] Failed to defer balanza', err);
             return; // Exit early if defer fails
         }
 
@@ -5194,7 +5195,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                         }
 
                     } catch (error) {
-                        console.error('[licencia otorgar] Error:', error);
+                        logger.errorWithContext('[licencia otorgar] Error', error);
                         await i.editReply({ content: '❌ Error emitiendo licencia.', embeds: [], components: [] });
                     }
                 });
@@ -5206,7 +5207,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 });
 
             } catch (error) {
-                console.error('[licencia] Error:', error);
+                logger.errorWithContext('[licencia] Error', error);
                 await interaction.editReply('❌ Error procesando licencia.');
             }
         }
@@ -5312,7 +5313,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 });
 
             } catch (error) {
-                console.error('[tienda ver] Error:', error);
+                logger.errorWithContext('[tienda ver] Error', error);
                 await interaction.editReply('❌ Error cargando la tienda.');
             }
         }
@@ -5406,7 +5407,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                                 const member = await interaction.guild.members.fetch(userId);
                                 await member.roles.add(item.role_id);
                             } catch (roleError) {
-                                console.error('[tienda] Role assignment error:', roleError);
+                                logger.errorWithContext('[tienda] Role assignment error', roleError);
                             }
                         }
 
@@ -5441,7 +5442,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                         await i.editReply({ embeds: [successEmbed], components: [] });
 
                     } catch (error) {
-                        console.error('[tienda comprar] Error:', error);
+                        logger.errorWithContext('[tienda comprar] Error', error);
                         await i.editReply({ content: `❌ Error procesando la compra: ${error.message || 'Desconocido'}`, embeds: [], components: [] });
                     }
                 });
@@ -5453,7 +5454,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 });
 
             } catch (error) {
-                console.error('[tienda comprar] Error:', error);
+                logger.errorWithContext('[tienda comprar] Error', error);
                 await interaction.editReply(`❌ Error procesando la compra: ${error.message || 'Desconocido'}`);
             }
         }
@@ -5571,8 +5572,8 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             }
 
         } catch (error) {
-            console.error('[robar] Error:', error);
-            console.error('[robar] Error:', error);
+            logger.errorWithContext('[robar] Error', error);
+            logger.errorWithContext('[robar] Error', error);
             await interaction.editReply(`❌ Error procesando el robo: ${error.message}`);
         }
 
@@ -5592,20 +5593,20 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             .maybeSingle();
 
         if (dniError) {
-            console.error('[trabajar] DNI query error:', dniError);
+            logger.errorWithContext('[trabajar] DNI query error', dniError);
             return interaction.editReply({
                 content: '❌ **Error al verificar DNI**\n\nHubo un problema al consultar tu DNI. Contacta a un administrador.',
             });
         }
 
         if (!jobDni) {
-            console.log(`[trabajar] No DNI found for user ${interaction.user.id} in guild ${interaction.guildId}`);
+            logger.info(`[trabajar] No DNI found for user ${interaction.user.id} in guild ${interaction.guildId}`);
             return interaction.editReply({
                 content: '❌ **DNI Requerido**\n\nNecesitas un DNI válido para trabajar.\n\n**Crea uno usando:** `/dni crear`\n**Verifica tu DNI:** `/dni ver`',
             });
         }
 
-        console.log(`[trabajar] DNI validated for ${jobDni.nombre} ${jobDni.apellido} (${interaction.user.id})`);
+        logger.info(`[trabajar] DNI validated for ${jobDni.nombre} ${jobDni.apellido} (${interaction.user.id})`);
 
         const JOB_COOLDOWN = 60 * 60 * 1000;
         const jobKey = `job_${interaction.user.id}`;
@@ -5773,7 +5774,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                     const { finalAmount, appliedRole } = applyRoleBenefits(member, basePay, 'job');
                     // ...
                     if (isNaN(finalAmount) || finalAmount < 1) {
-                        console.error('[Job Payout] Invalid Amount:', { basePay, finalAmount, jobPay: job.pay });
+                        logger.errorWithContext('[Job Payout] Invalid Amount', { basePay, finalAmount, jobPay: job.pay });
                         return i.editReply({ content: `⚠️ **¡Error Interno!** El pago calculado es inválido ($${finalAmount}). Reporta esto.`, embeds: [], components: [] });
                     }
 
@@ -5782,7 +5783,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                         casinoSessions[jobKey] = Date.now();
                         await i.editReply({ content: `✅ **¡Excelente!** Ganaste **$${finalAmount.toLocaleString()}**.`, embeds: [], components: [] });
                     } catch (payError) {
-                        console.error('Payment Error (Trabajar):', payError.response?.data || payError.message);
+                        logger.errorWithContext('Payment Error (Trabajar)', payError.response?.data || payError.message);
                         await i.editReply({ content: `⚠️ **¡Bien hecho!** Pero hubo un error procesando tu pago: ${payError.response?.data?.message || payError.message}. Contacta a soporte.`, embeds: [], components: [] });
                     }
                 } else {
@@ -5807,7 +5808,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             .maybeSingle();
 
         if (crimenDniError) {
-            console.error('[crimen] DNI query error:', crimenDniError);
+            logger.errorWithContext('[crimen] DNI query error', crimenDniError);
             return interaction.editReply({
                 content: `❌ **Error al verificar DNI**\nDetalle: ${crimenDniError.message || JSON.stringify(crimenDniError)}\nContacta a un administrador.`,
             });
@@ -6115,7 +6116,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                     try {
                         // Prevent double-click processing
                         if (i.replied || i.deferred) {
-                            console.log('[bolsa comprar] Interaction already processed, skipping');
+                            logger.info('[bolsa comprar] Interaction already processed, skipping');
                             return;
                         }
 
@@ -6186,7 +6187,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                         await i.editReply({ embeds: [successEmbed], components: [] });
 
                     } catch (error) {
-                        console.error('[bolsa comprar] Error:', error);
+                        logger.errorWithContext('[bolsa comprar] Error', error);
                         await i.editReply({
                             content: '❌ Error procesando la compra.',
                             embeds: [],
@@ -6206,7 +6207,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 });
 
             } catch (error) {
-                console.error('[bolsa comprar] Error:', error);
+                logger.errorWithContext('[bolsa comprar] Error', error);
                 return interaction.editReply('❌ Error al iniciar la compra.');
             }
         }
@@ -6339,7 +6340,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 await client.services.missions.updateProgress(interaction.user.id, 'deposit', { amount: amount });
 
             } catch (gameErr) {
-                console.error('Gamification Error:', gameErr);
+                logger.errorWithContext('Gamification Error', gameErr);
             }
             return;
         }
@@ -6970,7 +6971,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             });
 
             if (insertError) {
-                console.error('[giro] Error:', insertError);
+                logger.errorWithContext('[giro] Error', insertError);
                 return interaction.editReply(`❌ Error creando giro.\nDetalles: ${insertError.message}`);
             }
 
@@ -7087,7 +7088,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                     try {
                         await interaction.member.roles.remove(EVASOR_FISCAL_ROLE_ID);
                     } catch (roleErr) {
-                        console.error('[impuestos] Failed to remove evasor role:', roleErr);
+                        logger.errorWithContext('[impuestos] Failed to remove evasor role', roleErr);
                     }
      
                     // Log to history
@@ -7181,7 +7182,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             }
      
         } catch (error) {
-            console.error('[impuestos] Error:', error);
+            logger.errorWithContext('[impuestos] Error', error);
             await interaction.editReply('❌ Error al procesar impuestos. Contacta a un administrador.');
         }
      
@@ -7199,7 +7200,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
         // DEFER REMOVED BY AUDIT
         try {
         } catch (err) {
-            console.error('[ERROR] Failed to defer stake:', err);
+            logger.errorWithContext('[ERROR] Failed to defer stake', err);
             return;
         }
 
@@ -7310,7 +7311,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
         // DEFER REMOVED BY AUDIT
         try {
         } catch (err) {
-            console.error('[ERROR] Failed to defer slots:', err);
+            logger.errorWithContext('[ERROR] Failed to defer slots', err);
             return;
         }
 
@@ -7378,7 +7379,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
         // DEFER REMOVED BY AUDIT
         try {
         } catch (err) {
-            console.error('[ERROR] Failed to defer fondos:', err);
+            logger.errorWithContext('[ERROR] Failed to defer fondos', err);
             return;
         }
 
@@ -7658,7 +7659,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
 
                 // Check if vault operation failed
                 if (vaultResult.error) {
-                    console.error('[boveda depositar] Vault error:', vaultResult.error);
+                    logger.errorWithContext('[boveda depositar] Vault error', vaultResult.error);
                     // ROLLBACK: Return money to user
                     await billingService.ubService.addMoney(interaction.guildId, userId, monto, 'Reembolso - Error depósito bóveda', 'cash');
                     return interaction.editReply(`❌ Error al guardar en bóveda. Tu dinero ha sido devuelto.\nContacta a un administrador.`);
@@ -7689,7 +7690,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
 
                 // Check if vault operation failed
                 if (vaultResult.error) {
-                    console.error('[boveda retirar] Vault error:', vaultResult.error);
+                    logger.errorWithContext('[boveda retirar] Vault error', vaultResult.error);
                     return interaction.editReply(`❌ Error al retirar de bóveda.\nIntenta de nuevo o contacta a un administrador.`);
                 }
 
@@ -8082,7 +8083,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
     // IMPORTANT: Only delegate if interaction was NOT handled above
     // This prevents duplicate processing causing "Unknown interaction" errors
     //     if (!interaction.replied && !interaction.deferred) {
-    //         console.log(`[DEBUG] Delegating interaction ${interaction.customId || interaction.commandName} to handleExtraCommands`);
+    //         logger.info(`[DEBUG] Delegating interaction ${interaction.customId || interaction.commandName} to handleExtraCommands`);
     // 
     //         await handleExtraCommands(interaction);
     //     }
@@ -8131,7 +8132,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 .single();
 
             if (error || !newSession) {
-                console.error('Error creating session:', error);
+                logger.errorWithContext('Error creating session', error);
                 return interaction.editReply('❌ Error creando la votación.');
             }
 
@@ -8206,7 +8207,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                     return interaction.editReply('❌ No se encontró el canal de votaciones.');
                 }
             } catch (channelError) {
-                console.error('Channel error:', channelError);
+                logger.errorWithContext('Channel error', channelError);
                 return interaction.editReply('❌ Error al acceder al canal de votaciones.');
             }
         }
@@ -8284,19 +8285,19 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             let embedUpdated = false;
             try {
                 if (!session.channel_id || !session.message_id) {
-                    console.error('Missing channel_id or message_id:', session);
+                    logger.errorWithContext('Missing channel_id or message_id', session);
                     return interaction.editReply('❌ No se pudo encontrar el mensaje de votación original.');
                 }
 
                 const channel = await client.channels.fetch(session.channel_id);
                 if (!channel) {
-                    console.error('Channel not found:', session.channel_id);
+                    logger.errorWithContext('Channel not found', session.channel_id);
                     return interaction.editReply('❌ No se encontró el canal de votaciones.');
                 }
 
                 const message = await channel.messages.fetch(session.message_id);
                 if (!message) {
-                    console.error('Message not found:', session.message_id);
+                    logger.errorWithContext('Message not found', session.message_id);
                     return interaction.editReply('❌ No se encontró el mensaje de votación.');
                 }
 
@@ -8312,7 +8313,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 embedUpdated = true;
                 console.log('Successfully updated voting embed for session:', session.id);
             } catch (updateError) {
-                console.error('Error updating voting message:', updateError);
+                logger.errorWithContext('Error updating voting message', updateError);
                 return interaction.editReply(`❌ Error actualizando el embed: ${updateError.message}`);
             }
 
@@ -8347,7 +8348,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                     await channel.send({ content: '<@&1412899401000685588>', embeds: [finalOpenEmbed], components: [joinButton] });
                 }
             } catch (sendError) {
-                console.error('Error sending open embed to clean channel:', sendError);
+                logger.errorWithContext('Error sending open embed to clean channel', sendError);
             }
 
             // Notify all voters
@@ -8401,7 +8402,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                         .eq('vote_type', 'yes');
 
                     if (votersData && votersData.length > 0) {
-                        console.log(`[Server Close] Revoking permissions from ${votersData.length} users...`);
+                        logger.info(`[Server Close] Revoking permissions from ${votersData.length} users...`);
 
                         for (const voter of votersData) {
                             try {
@@ -8434,7 +8435,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                                     }
 
                                     if (revokeCmd) {
-                                        console.log(`[Server Close] Executing: ${revokeCmd}`);
+                                        logger.info(`[Server Close] Executing: ${revokeCmd}`);
                                         await client.services.erlc.runCommand(revokeCmd);
                                         // Also try unmod if unadmin doesn't cover it? Usually they are separate.
                                         // Let's run both for Junta just in case.
@@ -8450,7 +8451,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                     }
                 }
             } catch (closeErr) {
-                console.error('[Server Close] Error in revocation logic:', closeErr);
+                logger.errorWithContext('[Server Close] Error in revocation logic', closeErr);
             }
             // -------------------------------------------------------
 
@@ -8492,7 +8493,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                     await channel.send({ embeds: [embed] });
                 }
             } catch (sendError) {
-                console.error('Error sending close embed:', sendError);
+                logger.errorWithContext('Error sending close embed', sendError);
             }
 
             return interaction.editReply({ content: '✅ Servidor cerrado. Canal limpiado y anuncio enviado.', flags: [64] });
