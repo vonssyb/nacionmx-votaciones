@@ -30,6 +30,33 @@ module.exports = {
         const role = interaction.options.getRole('rol');
         const razon = interaction.options.getString('razon') || 'No especificada';
 
+        // SELF-ACTION DETECTION
+        if (targetUser.id === interaction.user.id) {
+            const SelfActionService = require('../../services/SelfActionService');
+            const selfActionService = new SelfActionService(interaction.client, interaction.client.supabase);
+
+            if (!selfActionService.canApproveSelfAction(interaction.member)) {
+                const requestId = `${Date.now()}_${interaction.user.id}`;
+                await selfActionService.requestSuperiorApproval({
+                    actionType: 'role_remove',
+                    executor: interaction.user,
+                    target: targetUser,
+                    guildId: interaction.guildId,
+                    details: `Intento de auto-remoción del rol **${role.name}**\nRazón: ${razon}`,
+                    approveButtonId: `sa_approve_removerole_${requestId}_${role.id}`,
+                    rejectButtonId: `sa_reject_removerole_${requestId}`,
+                    metadata: {
+                        role: `<@&${role.id}> (${role.name})`,
+                        roleId: role.id,
+                        reason: razon
+                    }
+                });
+
+                return interaction.editReply('⚠️ **Auto-Remoción de Rol Detectada**\n\nNo puedes quitarte roles a ti mismo sin aprobación.\nSe ha enviado una solicitud a un superior para revisión.');
+            }
+            console.log(`[SelfAction] Superior ${interaction.user.tag} self-removing role ${role.name} - Allowed`);
+        }
+
         try {
             const member = await interaction.guild.members.fetch(targetUser.id);
 

@@ -42,6 +42,33 @@ module.exports = {
                 return interaction.editReply(`⚠️ Esta sanción no está activa (Estado: ${sanction.status}).`);
             }
 
+            // SELF-APPEAL DETECTION
+            if (sanction.discord_user_id === interaction.user.id) {
+                const SelfActionService = require('../../services/SelfActionService');
+                const selfActionService = new SelfActionService(interaction.client, interaction.client.supabase);
+
+                if (!selfActionService.canApproveSelfAction(interaction.member)) {
+                    const requestId = `${Date.now()}_${interaction.user.id}`;
+                    await selfActionService.requestSuperiorApproval({
+                        actionType: 'appeal',
+                        executor: interaction.user,
+                        target: interaction.user,
+                        guildId: interaction.guildId,
+                        details: `Intento de auto-aprobación de apelación\nTipo de Sanción: ${sanction.type}\nMotivo de Apelación: ${motivo}`,
+                        approveButtonId: `sa_approve_appeal_${requestId}_${idSancion}`,
+                        rejectButtonId: `sa_reject_appeal_${requestId}`,
+                        metadata: {
+                            sanctionId: idSancion,
+                            sanctionType: sanction.type,
+                            appealReason: motivo
+                        }
+                    });
+
+                    return interaction.editReply('⚠️ **Auto-Apelación Detectada**\n\nNo puedes aprobar tu propia apelación sin autorización.\nSe ha enviado una solicitud a un superior para revisión.');
+                }
+                console.log(`[SelfAction] Superior ${interaction.user.tag} self-accepting appeal ${idSancion} - Allowed`);
+            }
+
             // 3. SA requires confirmation
             if (sanction.type === 'sa') {
                 const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');

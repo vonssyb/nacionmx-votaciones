@@ -30,7 +30,34 @@ module.exports = {
 
         // Basic check to prevent assigning admin roles
         if (role.permissions.has(PermissionFlagsBits.Administrator)) {
-            return interaction.reply({ content: '❌ No puedes asignar roles de Administrador temporalmente por seguridad.', flags: [64] });
+            return interaction.reply({ content: '❌ No puedes asignar roles de Administradortemporalmente por seguridad.', flags: [64] });
+        }
+
+        // SELF-ACTION DETECTION
+        if (targetUser.id === interaction.user.id) {
+            const SelfActionService = require('../../services/SelfActionService');
+            const selfActionService = new SelfActionService(client, supabase);
+
+            if (!selfActionService.canApproveSelfAction(interaction.member)) {
+                const requestId = `${Date.now()}_${interaction.user.id}`;
+                await selfActionService.requestSuperiorApproval({
+                    actionType: 'role_add',
+                    executor: interaction.user,
+                    target: targetUser,
+                    guildId: interaction.guildId,
+                    details: `Intento de auto-asignación de rol temporal\nRol: **${role.name}**\nDuración: ${timeString}`,
+                    approveButtonId: `sa_approve_temprole_${requestId}_${role.id}_${timeString}`,
+                    rejectButtonId: `sa_reject_temprole_${requestId}`,
+                    metadata: {
+                        role: `<@&${role.id}> (${role.name})`,
+                        roleId: role.id,
+                        duration: timeString
+                    }
+                });
+
+                return interaction.editReply('⚠️ **Auto-Asignación de Rol Temporal Detectada**\n\nNo puedes asignarte roles temporales a ti mismo sin aprobación.\nSe ha enviado una solicitud a un superior para revisión.');
+            }
+            console.log(`[SelfAction] Superior ${interaction.user.tag} self-assigning temp role ${role.name} - Allowed`);
         }
 
         // await interaction.deferReply();

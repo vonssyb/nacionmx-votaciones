@@ -44,6 +44,33 @@ module.exports = {
                 return interaction.editReply('⚠️ Esta sanción ya está anulada.');
             }
 
+            // SELF-ACTION DETECTION
+            if (existing.discord_user_id === interaction.user.id) {
+                const SelfActionService = require('../../services/SelfActionService');
+                const selfActionService = new SelfActionService(interaction.client, interaction.client.supabase);
+
+                if (!selfActionService.canApproveSelfAction(interaction.member)) {
+                    const requestId = `${Date.now()}_${interaction.user.id}`;
+                    await selfActionService.requestSuperiorApproval({
+                        actionType: 'sanction_remove',
+                        executor: interaction.user,
+                        target: interaction.user,
+                        guildId: interaction.guildId,
+                        details: `Intento de auto-eliminación de sanción\nTipo: ${existing.type}\nRazón de Anulación: ${reason}`,
+                        approveButtonId: `sa_approve_removesanc_${requestId}_${sanctionId}`,
+                        rejectButtonId: `sa_reject_removesanc_${requestId}`,
+                        metadata: {
+                            sanctionId: sanctionId,
+                            sanctionType: existing.type,
+                            voidReason: reason
+                        }
+                    });
+
+                    return interaction.editReply('⚠️ **Auto-Eliminación de Sanción Detectada**\n\nNo puedes eliminar tus propias sanciones sin aprobación.\nSe ha enviado una solicitud a un superior para revisión.');
+                }
+                console.log(`[SelfAction] Superior ${interaction.user.tag} self-removing sanction ${sanctionId} - Allowed`);
+            }
+
             // Execute Void
             await interaction.client.services.sanctions.voidSanction(sanctionId, reason, interaction.user.id);
 
