@@ -722,6 +722,10 @@ async function startEconomyBot() {
     const CompanyService = require('./services/CompanyService');
     const StakingService = require('./services/StakingService');
     const SlotsService = require('./services/SlotsService');
+    const PaymentProcessor = require('./handlers/economy/PaymentProcessor'); // Phase 2.2
+
+    // Orchestrators (Phase 2.3)
+    const CompanyOrchestrator = require('./handlers/economy/company/orchestrator');
 
     const levelService = new LevelService(supabase);
     const missionService = new MissionService(supabase, levelService);
@@ -731,6 +735,12 @@ async function startEconomyBot() {
     // Billing Service (Safe Instantiation)
     let billingService;
     try { billingService = new BillingService(client, supabase); } catch (e) { logger.errorWithContext('Economy billing service error', e); }
+
+    // Init PaymentProcessor (Phase 2.2)
+    const paymentProcessor = new PaymentProcessor(supabase, billingService);
+
+    // Init CompanyOrchestrator (Phase 2.3)
+    const companyOrchestrator = new CompanyOrchestrator(client, supabase, paymentProcessor, billingService);
 
     // Exchange Rate Service
     const ExchangeRateService = require('./services/ExchangeRateService');
@@ -746,6 +756,8 @@ async function startEconomyBot() {
 
     client.services = {
         billing: billingService,
+        paymentProcessor: paymentProcessor, // Public for usage
+        companyOrchestrator: companyOrchestrator,
         tax: new TaxService(supabase),
         company: new CompanyService(supabase),
         staking: new StakingService(supabase),
@@ -832,6 +844,13 @@ async function startEconomyBot() {
                 await interaction.editReply('❌ Error ejecutando comando.').catch(() => { });
             }
         } else if (client.legacyHandler) {
+
+            // Phase 2.3: Company Orchestrator
+            if (client.services.companyOrchestrator) {
+                const handled = await client.services.companyOrchestrator.handleInteraction(interaction);
+                if (handled) return;
+            }
+
             // FALLBACK TO LEGACY (Handles Buttons, Modals, Menus not caught above)
             try { await client.legacyHandler(interaction, client, supabase); } catch (e) {
                 logger.errorWithContext('Legacy economy handler error', e);
