@@ -13,9 +13,10 @@ const CompanyVehicleHandler = require('./vehicles');
 const CompanyPayrollHandler = require('./payroll');
 const CompanyWithdrawHandler = require('./withdraw');
 const CompanyDebtHandler = require('./debt');
+// ManagementHandler is passed in constructor to avoid circular dependency or duplicate instantiation
 
 class CompanyOrchestrator {
-    constructor(client, supabase, paymentProcessor, billingService) {
+    constructor(client, supabase, paymentProcessor, billingService, managementHandler) {
         this.client = client;
         this.supabase = supabase;
 
@@ -24,6 +25,9 @@ class CompanyOrchestrator {
         this.payrollHandler = new CompanyPayrollHandler(client, supabase, paymentProcessor, billingService);
         this.withdrawHandler = new CompanyWithdrawHandler(client, supabase, billingService);
         this.debtHandler = new CompanyDebtHandler(client, supabase, paymentProcessor);
+
+        // Injected
+        this.managementHandler = managementHandler;
     }
 
     /**
@@ -35,7 +39,14 @@ class CompanyOrchestrator {
         if (!interaction.customId) return false;
         const cid = interaction.customId;
 
-        // 1. Company Debt
+        // 1. Company Creation / Management
+        if (this.managementHandler) {
+            if (cid.startsWith('company_create_pay_')) {
+                return await this.managementHandler.handleInteraction(interaction);
+            }
+        }
+
+        // 2. Company Debt
         if (cid.startsWith('pay_biz_debt_')) {
             return await this.debtHandler.handleInteraction(interaction);
         }

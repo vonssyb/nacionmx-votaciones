@@ -739,9 +739,6 @@ async function startEconomyBot() {
     // Init PaymentProcessor (Phase 2.2)
     const paymentProcessor = new PaymentProcessor(supabase, billingService);
 
-    // Init CompanyOrchestrator (Phase 2.3)
-    const companyOrchestrator = new CompanyOrchestrator(client, supabase, paymentProcessor, billingService);
-
     // Exchange Rate Service
     const ExchangeRateService = require('./services/ExchangeRateService');
     const CasinoService = require('./services/CasinoService');
@@ -754,10 +751,18 @@ async function startEconomyBot() {
     const stateManager = new StateManager(supabase);
     await stateManager.initialize();
 
+    // Init Company Management (Phase 2.3)
+    const CompanyManagementHandler = require('./handlers/economy/company/management');
+    const companyManagementHandler = new CompanyManagementHandler(client, supabase, paymentProcessor, billingService, stateManager);
+
+    // Init CompanyOrchestrator (Phase 2.3) - DEPENDS ON MANAGEMENT
+    const companyOrchestrator = new CompanyOrchestrator(client, supabase, paymentProcessor, billingService, companyManagementHandler);
+
     client.services = {
         billing: billingService,
         paymentProcessor: paymentProcessor, // Public for usage
         companyOrchestrator: companyOrchestrator,
+        companyManagement: companyManagementHandler,
         tax: new TaxService(supabase),
         company: new CompanyService(supabase),
         staking: new StakingService(supabase),

@@ -8,6 +8,27 @@ module.exports = {
         .setDescription('🏢 Gestión Avanzada de Empresa')
         .addSubcommand(subcommand =>
             subcommand
+                .setName('crear')
+                .setDescription('Crear una nueva empresa')
+                .addStringOption(option => option.setName('nombre').setDescription('Nombre de la empresa').setRequired(true))
+                .addUserOption(option => option.setName('dueño').setDescription('Dueño de la empresa').setRequired(true))
+                .addStringOption(option =>
+                    option.setName('tipo_local')
+                        .setDescription('Tamaño del local (Costo varía)')
+                        .setRequired(false)
+                        .addChoices(
+                            { name: 'Pequeño ($850k)', value: 'pequeño' },
+                            { name: 'Mediano ($1.75M)', value: 'mediano' },
+                            { name: 'Grande ($3.2M)', value: 'grande' },
+                            { name: 'Gigante ($5M)', value: 'gigante' }
+                        ))
+                .addAttachmentOption(option => option.setName('logo').setDescription('Logo de la empresa').setRequired(false))
+                .addStringOption(option => option.setName('ubicacion').setDescription('Ubicación (Calles)').setRequired(false))
+                .addAttachmentOption(option => option.setName('foto_local').setDescription('Foto del local').setRequired(false))
+                .addUserOption(option => option.setName('co_dueño').setDescription('Co-Dueño inicial (opcional)').setRequired(false))
+                .addBooleanOption(option => option.setName('es_privada').setDescription('Empresa privada (no listada en directorio)').setRequired(false)))
+        .addSubcommand(subcommand =>
+            subcommand
                 .setName('contratar')
                 .setDescription('Contratar un empleado para tu empresa')
                 .addUserOption(option =>
@@ -103,8 +124,16 @@ module.exports = {
         // Note: deferReply is handled automatically by index_economia.js monkey-patch
         const subcommand = interaction.options.getSubcommand();
 
-
         try {
+            // === PHASE 2.3: CENTRALIZED HANDLERS ===
+            if (subcommand === 'crear') {
+                if (client.services && client.services.companyManagement) {
+                    return await client.services.companyManagement.handleCreateCommand(interaction);
+                } else {
+                    return interaction.editReply('❌ Servicio de gestión de empresas no disponible (Fase 2.3 Handler Missing).');
+                }
+            }
+
             // Get user's company (Owner OR Employee)
             let company = null;
             let employeeRecord = null;
