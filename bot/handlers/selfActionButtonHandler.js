@@ -299,6 +299,7 @@ async function handleEditWarnApproval(parts, interaction, client, supabase) {
     const details = detailsField.value;
     const reasonMatch = details.match(/Nuevo Motivo: (.+?)(?:\n|$)/);
     const evidenceMatch = details.match(/Nueva Evidencia: (.+?)(?:\n|$)/);
+    const descriptionMatch = details.match(/Nueva Descripción: (.+?)(?:\n|$)/);
 
     const updates = {};
     if (reasonMatch && reasonMatch[1] !== 'Sin cambios') {
@@ -306,6 +307,9 @@ async function handleEditWarnApproval(parts, interaction, client, supabase) {
     }
     if (evidenceMatch && evidenceMatch[1] !== 'Sin cambios') {
         updates.evidence_url = evidenceMatch[1];
+    }
+    if (descriptionMatch && descriptionMatch[1] !== 'Sin cambios') {
+        updates.description = descriptionMatch[1];
     }
 
     if (Object.keys(updates).length === 0) {
@@ -333,6 +337,7 @@ async function handleEditWarnApproval(parts, interaction, client, supabase) {
                     .addFields({ name: '🆔 ID Sanción', value: `\`${sanctionId}\``, inline: true });
 
                 if (updates.reason) dmEmbed.addFields({ name: '📄 Nuevo Motivo', value: updates.reason, inline: false });
+                if (updates.description) dmEmbed.addFields({ name: '📋 Nueva Descripción', value: updates.description, inline: false });
                 if (updates.evidence_url) {
                     dmEmbed.addFields({ name: '📎 Nueva Evidencia', value: updates.evidence_url, inline: false });
                     dmEmbed.setImage(updates.evidence_url);
