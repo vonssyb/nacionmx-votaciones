@@ -14,6 +14,7 @@ async function handleBankingInteraction(interaction, client, supabase) {
     if (!interaction.isStringSelectMenu() && !interaction.isButton() && !interaction.isModalSubmit()) return false;
 
     const { customId } = interaction;
+    console.log('[Banking Handler] Interaction received:', customId);
 
     try {
         // Banking Select Menu
@@ -50,6 +51,7 @@ async function handleBankingInteraction(interaction, client, supabase) {
 }
 
 async function handleBankServiceSelection(service, interaction, client, supabase) {
+    console.log('[Banking] Menu service selected:', service);
     switch (service) {
         case 'banco_debito':
             return showModalDebito(interaction);
@@ -74,6 +76,7 @@ async function handleBankServiceSelection(service, interaction, client, supabase
 }
 
 async function handleBankButtonPress(service, interaction, client, supabase) {
+    console.log('[Banking] Button pressed:', service);
     switch (service) {
         case 'creditoexpress':
             return showModalPrestamo(interaction);
