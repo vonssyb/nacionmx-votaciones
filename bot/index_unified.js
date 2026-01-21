@@ -764,7 +764,7 @@ async function startEconomyBot() {
     const CompanyService = require('./services/CompanyService');
     const StakingService = require('./services/StakingService');
     const SlotsService = require('./services/SlotsService');
-    const PaymentProcessor = require('./handlers/economy/PaymentProcessor'); // Phase 2.2
+    const PaymentProcessor = require('./utils/paymentProcessor'); // Fixed path
 
     // Orchestrators (Phase 2.3)
     const CompanyOrchestrator = require('./handlers/economy/company/orchestrator');
