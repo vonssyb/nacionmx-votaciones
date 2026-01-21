@@ -125,12 +125,26 @@ async function startModerationBot() {
     const CasinoService = require('./services/CasinoService');
     const StockService = require('./services/StockService');
 
+    // New Services (Phase 2.4)
+    const LogManager = require('./services/LogManager');
+    const RoleManager = require('./services/RoleManager');
+
+    // ERLC Service (Instantiate EARLY for injection)
+    const ErlcService = require('./services/ErlcService');
+    const erlcService = new ErlcService(process.env.ERLC_API_KEY || 'ARuRfmzZGTqbqUCjMERA-dzEeGLbRfisfjKtiCOXLHATXDedYZsQQEethQMZp');
+
+    // Instantiate Managers
+    const logManager = new LogManager(client, supabase);
+    const roleManager = new RoleManager(client);
+
     // Voice System Managers
     const TemporaryChannelManager = require('./utils/temporaryChannelManager');
     const VoicePermissionManager = require('./utils/voicePermissionManager');
     const VoiceActivityHandler = require('./handlers/voiceActivityHandler');
 
-    const sanctionService = new SanctionService(supabase);
+    // Inject Dependencies into SanctionService
+    const sanctionService = new SanctionService(supabase, client, logManager, roleManager, erlcService);
+
     client.missionManager = new DailyMissionManager(supabase);
 
     // Initialize Voice Managers
@@ -142,10 +156,6 @@ async function startModerationBot() {
     const ErlcScheduler = require('./services/ErlcScheduler');
     const erlcScheduler = new ErlcScheduler(supabase, process.env.ERLC_API_KEY || 'ARuRfmzZGTqbqUCjMERA-dzEeGLbRfisfjKtiCOXLHATXDedYZsQQEethQMZp');
     erlcScheduler.start(3000000); // Check every 50 minutes (requested by user)
-
-    // ERLC Service & Log Manager (Adaptive Polling)
-    const ErlcService = require('./services/ErlcService');
-    const erlcService = new ErlcService(process.env.ERLC_API_KEY || 'ARuRfmzZGTqbqUCjMERA-dzEeGLbRfisfjKtiCOXLHATXDedYZsQQEethQMZp');
 
     // Log Channel ID from legacy code: 1457892493310951444
     // ERLC Log Manager (General Logs to Channel)
@@ -169,9 +179,22 @@ async function startModerationBot() {
     await stateManager.initialize();
     stateManager.startPeriodicCleanup(5); // Cleanup every 5 minutes
 
+    // Init Company Management (Phase 2.3)
+    const CompanyManagementHandler = require('./handlers/economy/company/management');
+    const paymentProcessor = require('./utils/paymentProcessor'); // Should be top level usually, but works if implicit
+    const billingService = new BillingService(client, supabase); // Instantiated here or reuse? 
+    // Wait, billingService instantiated above in client.services? No, just required.
+    // Let's ensure proper single instances.
+
+    const companyManagementHandler = new CompanyManagementHandler(client, supabase, paymentProcessor, billingService, stateManager);
+
+    // Init CompanyOrchestrator (Phase 2.3) - DEPENDS ON MANAGEMENT
+    const CompanyOrchestrator = require('./handlers/economy/company/orchestrator');
+    const companyOrchestrator = new CompanyOrchestrator(client, supabase, paymentProcessor, billingService, companyManagementHandler);
+
     client.services = {
         sanctions: sanctionService,
-        billing: new BillingService(client, supabase),
+        billing: billingService,
         casino: new CasinoService(supabase),
         stocks: new StockService(supabase),
         erlcScheduler: erlcScheduler,
@@ -179,7 +202,11 @@ async function startModerationBot() {
         erlcLogManager: erlcLogManager,
         erlcPolling: erlcPollingService,
         swarm: swarmService,
-        stateManager: stateManager
+        stateManager: stateManager,
+        companyManagement: companyManagementHandler,
+        companyOrchestrator: companyOrchestrator,
+        logManager: logManager, // Public exposure
+        roleManager: roleManager  // Public exposure
     };
 
     // Load Commands

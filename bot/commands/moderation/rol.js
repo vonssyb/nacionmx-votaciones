@@ -64,42 +64,47 @@ module.exports = {
                     reportEmbed.setImage(prueba1.url);
                 }
 
-                // Send to report channel
-                const channel = await client.channels.fetch(REPORT_CHANNEL_ID);
-                if (channel) {
-                    const messagePayload = { embeds: [reportEmbed] };
+                // Send to report channel via LogManager
+                if (client.services && client.services.logManager) {
+                    // Add second evidence if exists (Logic in LogManager handles single embed usually, 
+                    // but here we might want multiple. LogManager.log takes ONE embed.
+                    // We can just log twice or modify LogManager? 
+                    // Or just rely on the first embed. 'prueba2' is optional.
+                    // Let's keep it simple: Log the main embed. If prueba2 exists, we might miss it if LogManager doesn't support arrays.
+                    // The original code sent a payload { embeds: [e1, e2] }.
+                    // My LogManager.log implementation takes ONE embed.
+                    // I should probably update LogManager to accept an array of embeds OR just send one for now.
+                    // Given the constraint, I'll send the second evidence as a second log or just ignore it for now/append link to description.
 
-                    // If there's a second evidence, attach it separately
                     if (prueba2) {
-                        const secondEvidenceEmbed = new EmbedBuilder()
-                            .setTitle('📎 Evidencia Secundaria')
-                            .setImage(prueba2.url)
-                            .setColor('#95A5A6');
-                        messagePayload.embeds.push(secondEvidenceEmbed);
+                        reportEmbed.addFields({ name: '📎 Evidencia 2', value: `[Ver Imagen](${prueba2.url})`, inline: false });
                     }
 
-                    await channel.send(messagePayload);
+                    const success = await client.services.logManager.log('REPORT', reportEmbed);
 
-                    // Confirm to reporter
-                    await interaction.editReply({
-                        content: '✅ **Reporte de Cancelación enviado exitosamente**\n\n' +
-                            '📬 El equipo de moderación ha sido notificado.\n' +
-                            '📊 Tu reporte ha sido registrado en el canal de seguridad.\n\n' +
-                            `🆔 Usuario: **${usuario}**\n` +
-                            `📍 Ubicación: **${ubicacion}**`
-                    });
+                    if (success) {
+                        // Confirm to reporter
+                        await interaction.editReply({
+                            content: '✅ **Reporte de Cancelación enviado exitosamente**\n\n' +
+                                '📬 El equipo de moderación ha sido notificado.\n' +
+                                '📊 Tu reporte ha sido registrado en el canal de seguridad.\n\n' +
+                                `🆔 Usuario: **${usuario}**\n` +
+                                `📍 Ubicación: **${ubicacion}**`
+                        });
 
-                    // Log to audit
-                    await client.logAudit(
-                        'Rol Cancelado (Bad RP)',
-                        `Usuario afectado: ${usuario}\nUbicación: ${ubicacion}\nRazón: ${razon}`,
-                        interaction.user,
-                        null,
-                        0xE74C3C
-                    );
+                        // Log to audit
+                        await client.services.logManager.logAudit(
+                            'Rol Cancelado (Bad RP)',
+                            `Usuario afectado: ${usuario}\nUbicación: ${ubicacion}\nRazón: ${razon}`,
+                            interaction.user
+                        );
+                    } else {
+                        await interaction.editReply('❌ Error: No se pudo enviar al canal de reportes (LogManager fetch failed).');
+                    }
 
                 } else {
-                    await interaction.editReply('❌ Error: No se pudo encontrar el canal de reportes.');
+                    // Fallback if LogManager missing
+                    await interaction.editReply('❌ Error: Servicio de LogManager no disponible.');
                 }
 
             } catch (error) {

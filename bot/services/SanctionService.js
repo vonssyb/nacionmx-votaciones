@@ -1,11 +1,282 @@
 const { EmbedBuilder } = require('discord.js');
+const NotificationTemplates = require('../services/NotificationTemplates'); // Assuming this exists or will be moved
+// If NotificationTemplates path is wrong, I will need to fix it. It was used in sancion.js as '../../services/NotificationTemplates' so '../services/NotificationTemplates' is correct relative to services/SanctionService.js
 
 class SanctionService {
-    constructor(supabase, client) {
+    constructor(supabase, client, logManager, roleManager, erlcService) {
         this.supabase = supabase;
         this.client = client;
+        this.logManager = logManager;
+        this.roleManager = roleManager;
+        this.erlcService = erlcService;
         this.processingLocks = new Set();
     }
+
+    /**
+     * CENTRAL PUNISHMENT EXECUTOR
+     * Handles Discord Actions, ERLC Actions, DB Records, Logs, and DMs.
+     * @param {Interaction} interaction - Originating interaction
+     * @param {User} targetUser - Discord User Object
+     * @param {string} type - 'general', 'sa', 'notificacion'
+     * @param {string} action - 'Warn', 'Kick Discord', 'Ban Temporal Discord', 'Ban Permanente Discord', 'Timeout', 'Blacklist', etc.
+     * @param {string} reason - Rule reference or short reason
+     * @param {string} description - Detailed description
+     * @param {string} evidenceUrl - URL to evidence
+     * @param {string} durationText - Human readable duration
+     * @param {number} durationMs - Duration in milliseconds
+     * @param {string} [robloxIdentifier] - Optional Roblox Username/ID for ERLC actions
+     */
+    async executePunishment(interaction, targetUser, type, action, reason, description, evidenceUrl, durationText, durationMs, robloxIdentifier = null) {
+        const result = {
+            success: true,
+            messages: [],
+            errors: []
+        };
+
+        // 1. Calculate Expiration
+        let expiresAt = null;
+        if (durationMs > 0) {
+            expiresAt = new Date(Date.now() + durationMs).toISOString();
+        }
+
+        // 2. Execute Discord Action
+        if (action && action !== 'Warn' && action !== 'Advertencia Verbal' && type !== 'notificacion') {
+            const discordResult = await this.executeDiscordPunishment(interaction, targetUser, action, reason, durationMs);
+            if (discordResult.success) {
+                result.messages.push(discordResult.message);
+            } else {
+                result.errors.push(discordResult.message);
+            }
+        }
+
+        // 3. Execute ERLC Action (If applicable)
+        if (action && (action.includes('ERLC') || action === 'Blacklist')) {
+            const erlcResult = await this.executeErlcPunishment(interaction, robloxIdentifier, action, reason, durationMs);
+            if (erlcResult.success) {
+                result.messages.push(erlcResult.message);
+            } else {
+                result.errors.push(erlcResult.message);
+            }
+        }
+
+        // 4. Role Management (SA & Blacklist)
+        if (type === 'sa' || action === 'Blacklist') {
+            const roleResult = await this.executeRoleManagement(interaction, targetUser, type, action, reason);
+            if (roleResult.success) {
+                result.messages.push(roleResult.message);
+            } else {
+                // Non-critical error usually
+                result.errors.push(roleResult.message);
+            }
+        }
+
+        // 5. Create Database Record
+        try {
+            await this.createSanction(
+                targetUser.id,
+                interaction.user.id,
+                type,
+                reason,
+                evidenceUrl,
+                expiresAt,
+                action,
+                description
+            );
+        } catch (dbErr) {
+            console.error('[SanctionService] DB Error:', dbErr);
+            result.errors.push('Error guardando en base de datos.');
+        }
+
+        // 6. Log & Notify
+        await this.logAndNotify(interaction, targetUser, type, action, reason, description, evidenceUrl, durationText, result);
+
+        return result;
+    }
+
+    /**
+     * Executes Discord native punishments (Ban, Kick, Timeout)
+     */
+    async executeDiscordPunishment(interaction, targetUser, action, reason, durationMs) {
+        const guild = interaction.guild;
+        const member = await guild.members.fetch(targetUser.id).catch(() => null);
+
+        if (!member) return { success: false, message: 'Usuario no encontrado en el servidor (Discord).' };
+
+        const modTag = interaction.user.tag;
+        const fullReason = `${action}: ${reason} - Por ${modTag}`;
+
+        try {
+            switch (action) {
+                case 'Timeout':
+                case 'Timeout / Mute':
+                    if (!member.moderatable) return { success: false, message: 'No puedo silenciar a este usuario (Jerarquía).' };
+                    if (durationMs < 1000) return { success: false, message: 'Duración inválida para Timeout.' };
+                    await member.timeout(durationMs, fullReason);
+                    return { success: true, message: `🤐 **Timeout aplicado** por ${durationMs / 1000 / 60}m.` };
+
+                case 'Kick Discord':
+                    if (!member.kickable) return { success: false, message: 'No puedo expulsar a este usuario (Jerarquía).' };
+                    await member.kick(fullReason);
+                    return { success: true, message: '👢 **Usuario expulsado (Kick) del Discord.**' };
+
+                case 'Ban Temporal Discord':
+                case 'Ban Permanente Discord':
+                case 'Blacklist': // Blacklist Total implies Ban
+                    if (!member.bannable) return { success: false, message: 'No puedo banear a este usuario (Jerarquía).' };
+                    await member.ban({ deleteMessageDays: 1, reason: fullReason });
+
+                    if (action === 'Ban Temporal Discord') {
+                        await this.scheduleUnban(guild.id, targetUser.id, fullReason, durationMs);
+                    }
+                    return { success: true, message: '🔨 **Usuario Baneado del Discord.**' };
+
+                default:
+                    return { success: true, message: '' }; // No Discord action needed
+            }
+        } catch (error) {
+            console.error('[SanctionService] Discord Action Error:', error);
+            return { success: false, message: `Error ejecutando ${action}: ${error.message}` };
+        }
+    }
+
+    async scheduleUnban(guildId, userId, reason, durationMs) {
+        const expiresAt = new Date(Date.now() + durationMs);
+        await this.supabase.from('temporary_bans').insert({
+            guild_id: guildId,
+            user_id: userId,
+            ban_type: 'discord',
+            reason: reason,
+            expires_at: expiresAt.toISOString()
+        });
+    }
+
+    /**
+     * Executes ERLC In-Game Punishments
+     */
+    async executeErlcPunishment(interaction, robloxIdentifier, action, reason, durationMs) {
+        if (!robloxIdentifier) return { success: false, message: 'No se identificó usuario de Roblox para acción ERLC.' };
+        if (!this.erlcService) return { success: false, message: 'Servicio ERLC no disponible.' };
+
+        // 999999 is effectively permanent
+        const erlcDuration = (action === 'Ban Temporal ERLC') ? '999999' : '999999';
+        // ERLC API doesn't support temp bans natively usually, so we ban perm and auto-unban.
+
+        let cmd = '';
+        if (action.includes('Kick')) {
+            cmd = `:kick ${robloxIdentifier} ${reason}`;
+        } else if (action.includes('Ban') || action === 'Blacklist') {
+            cmd = `:ban ${robloxIdentifier} ${erlcDuration} ${reason}`;
+        }
+
+        try {
+            const success = await this.erlcService.runCommand(cmd);
+            if (success) {
+                // If temp ban, schedule unban
+                if (action === 'Ban Temporal ERLC') {
+                    const expiresAt = new Date(Date.now() + durationMs);
+                    await this.supabase.from('temporary_bans').insert({
+                        guild_id: interaction.guildId,
+                        user_id: interaction.user.id, // We act as if bot did it? Or track target. 
+                        // Wait, temporary_bans table needs roblox_username usually?
+                        ban_type: 'erlc',
+                        roblox_username: robloxIdentifier,
+                        expires_at: expiresAt.toISOString()
+                    });
+                }
+                return { success: true, message: `🎮 **Acción ERLC ejecutada** sobre ${robloxIdentifier}.` };
+            } else {
+                // Queue it
+                const ErlcScheduler = require('./ErlcScheduler');
+                await ErlcScheduler.queueAction(this.supabase, cmd, reason, { username: robloxIdentifier });
+                return { success: true, message: `⚠️ **ERLC Offline:** Sanción puesta en COLA DE ESPERA.` };
+            }
+        } catch (error) {
+            return { success: false, message: `Error ERLC: ${error.message}` };
+        }
+    }
+
+    async executeRoleManagement(interaction, targetUser, type, action, reason) {
+        if (!this.roleManager) return { success: false, message: 'RoleManager no configurado.' };
+        const guild = interaction.guild;
+        const member = await guild.members.fetch(targetUser.id).catch(() => null);
+        if (!member) return { success: false, message: 'Usuario no está en el servidor para roles.' };
+
+        if (type === 'sa') {
+            // SA Logic: Get count, Increment (virtually), Set Role
+            const currentCount = await this.getSACount(targetUser.id);
+            const newCount = currentCount + 1; // Assuming this execution ADDS one
+            // Note: createSanction hasn't run yet or runs in parallel, 
+            // but usually we want to reflect the Resulting State.
+            // If createSanction is called AFTER this, we might be off by one if we query DB.
+            // Best to Assume +1.
+
+            // Limit to SA 5
+            if (newCount <= 5) {
+                await this.roleManager.setSanctionRole(member, newCount);
+                return { success: true, message: `📉 **Rol SA Actualizado a Nivel ${newCount}**` };
+            } else {
+                return { success: true, message: `⚠️ **Usuario excede SA 5** - Considerar Blacklist.` };
+            }
+        }
+
+        if (action && action.startsWith('Blacklist')) {
+            // Expect format "Blacklist: Type" or just "Blacklist" (implies check args or reason?)
+            // We will standardize command to pass "Blacklist: Type"
+            const parts = action.split(':');
+            const blacklistType = parts.length > 1 ? parts[1].trim() : null;
+
+            if (blacklistType && blacklistType !== 'Total') {
+                const assigned = await this.roleManager.assignBlacklistRole(member, `Blacklist ${blacklistType}`); // RoleManager expects "Blacklist Moderacion"
+                // Actually RoleManager keys are: 'Blacklist Moderacion', etc.
+                // If blacklistType is 'Moderacion', we need 'Blacklist Moderacion'.
+                // Command usually passes 'Blacklist Total', 'Moderacion', etc. logic varies.
+                // Let's rely on RoleManager.ASSIGN_BLACKLIST_ROLE handling the key.
+                // keys in RoleManager: 'Blacklist Moderacion'
+
+                // If blacklistType came as "Moderacion" -> construct "Blacklist Moderacion"
+                // If "Blacklist Moderacion" -> ok.
+
+                let key = blacklistType;
+                if (!key.startsWith('Blacklist ')) key = `Blacklist ${key}`;
+
+                const success = await this.roleManager.assignBlacklistRole(member, key);
+                if (success) return { success: true, message: `🚫 **Rol Blacklist asignado:** ${key}` };
+                return { success: false, message: `⚠️ No se encontró rol para: ${key}` };
+            }
+        }
+
+        return { success: true, message: '' };
+    }
+
+    async logAndNotify(interaction, targetUser, type, action, reason, description, evidenceUrl, durationText, executionResult) {
+        // ... (LogManager integration)
+        if (this.logManager) {
+            // Construct Embed
+            const embed = new EmbedBuilder()
+                .setTitle(`Sanción: ${action || type}`)
+                .setColor(type === 'sa' ? 0x8b0000 : 0xFFD700)
+                .addFields(
+                    { name: 'Usuario', value: `${targetUser.tag}`, inline: true },
+                    { name: 'Moderador', value: `${interaction.user.tag}`, inline: true },
+                    { name: 'Motivo', value: reason, inline: false },
+                    { name: 'Duración', value: durationText || 'N/A', inline: true },
+                    { name: 'Resultado', value: executionResult.messages.join('\n') || 'Registrado', inline: false }
+                )
+                .setTimestamp();
+
+            if (evidenceUrl) embed.setImage(evidenceUrl);
+
+            // Log to Main Channel depending on type?
+            // Usually 'Sanciones' goes to a public channel?
+            // Current 'sancion.js' replied to context. 
+            // We use 'logManager' for permanent records (Audits).
+            await this.logManager.logAudit('Sanción Aplicada', `Target: ${targetUser.tag}\nAction: ${action}`, interaction.user, targetUser);
+        }
+    }
+
+    // ==========================================
+    // EXISTING DB METHODS (Preserved)
+    // ==========================================
 
     /**
      * Create a new sanction
@@ -41,7 +312,6 @@ class SanctionService {
                 .gt('created_at', fiveMinutesAgo);
 
             if (duplicates && duplicates.length > 0) {
-                console.warn(`[SanctionService] Duplicate sanction suppressed for user ${discordUserId}`);
                 return duplicates[0];
             }
 

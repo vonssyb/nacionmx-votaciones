@@ -1334,79 +1334,88 @@ const handleModerationLegacy = async (interaction, client, supabase) => {
             action = 'Ban Permanente ERLC';
         }
 
-        // EXECUTE SANCTION (Copy of sancion.js logic)
+        // EXECUTE SANCTION via SanctionService
         let actionResult = '';
+
+        // Construct finalAction string for Service
+        let serviceAction = action;
+        if (action === 'Blacklist' && blacklistType) {
+            serviceAction = `Blacklist: ${blacklistType}`;
+        }
+
+        // Resolve Roblox ID (DB Lookup)
+        let robloxIdentifier = null;
+        if (action === 'Blacklist' || action === 'Ban Permanente ERLC') {
+            const { data: citizen } = await client.supabase
+                .from('citizens')
+                .select('roblox_id, roblox_username')
+                .eq('discord_id', targetId)
+                .maybeSingle();
+            if (citizen) robloxIdentifier = citizen.roblox_username || citizen.roblox_id;
+        }
+
         try {
-            // 1. DB Create
-            await client.services.sanctions.createSanction(targetId, moderatorId, type, reason, evidence);
+            if (client.services && client.services.sanctions) {
+                const result = await client.services.sanctions.executePunishment(
+                    interaction,
+                    { id: targetId, tag: embed.fields[1].value }, // Target User Mock/Obj
+                    type,
+                    serviceAction, // "Blacklist: Moderacion"
+                    reason,
+                    null, // description
+                    evidence,
+                    null, // durationText
+                    0, // durationMs
+                    robloxIdentifier
+                );
 
-            // 2. Enforcement (Ban/Roles)
-            const guild = interaction.guild;
-            const member = await guild.members.fetch(targetId).catch(() => null);
+                actionResult = result.messages.join('\n');
+                if (result.errors.length > 0) actionResult += '\n⚠️ ' + result.errors.join('\n');
 
-            if (member) {
-                if (action === 'Blacklist') {
-                    const BLACKLIST_ROLES = {
-                        'Blacklist Moderacion': '1451860028653834300',
-                        'Blacklist Facciones Policiales': '1413714060423200778',
-                        'Blacklist Cartel': '1449930883762225253',
-                        'Blacklist Politica': '1413714467287470172',
-                        'Blacklist Empresas': '1413714540834852875',
-                        'Blacklist Total': 'PERM_BAN'
-                        // Note: The original code had a typo 'Blacklist Moderacion' vs 'Blacklist Moderacion'
-                        // Corrected to match the key used in the if condition.
-                    };
+            } else {
+                actionResult = '❌ Error: SanctionService no disponible via Client.';
+                // Fallback manual DB (unlikely if strictly coupled)
+            }
 
-                    if (blacklistType === 'Blacklist Total') {
-                        await member.ban({ reason: `Blacklist TOTAL (Aprobado): ${reason}` });
-                        actionResult = 'User Banned (Blacklist Total)';
+            // --- NOTIFY BLACKLIST CHANNEL (Retained Logic) ---
+            if (action === 'Blacklist') {
+                // --- NEW: NOTIFY BLACKLIST CHANNEL ---
+                const blChannelId = '1412957060168945747';
+                try {
+                    const blChannel = interaction.client.channels.cache.get(blChannelId);
+                    if (!blChannel) {
+                        console.error(`[BLACKLIST] Channel ${blChannelId} not found in cache`);
                     } else {
-                        const roleId = BLACKLIST_ROLES[`Blacklist ${blacklistType}`] || BLACKLIST_ROLES[blacklistType];
-                        if (roleId) await member.roles.add(roleId);
+                        // Re-create the embed using NotificationTemplates to ensure correct "Severe" styling
+                        const NotificationTemplates = require('../services/NotificationTemplates');
+                        const moment = require('moment-timezone');
+                        const date = moment().tz('America/Mexico_City').format('DD/MM/YYYY');
+                        const time = moment().tz('America/Mexico_City').format('HH:mm');
+
+                        // We fetch moderator and offender based on IDs we parsed
+                        const moderator = await interaction.client.users.fetch(moderatorId).catch(() => ({ username: 'Desconocido', displayAvatarURL: () => null }));
+                        const offender = await interaction.client.users.fetch(targetId).catch(() => ({ username: 'Desconocido', id: targetId }));
+
+                        const notifPayload = NotificationTemplates.officialSanction({
+                            date, time, offender, moderator,
+                            ruleCode: reason, description: 'Sanción Aprobada por Junta Directiva via Two-Man Rule',
+                            sanctionType: `BLACKLIST (${blacklistType})`,
+                            duration: null, evidenceUrl: evidence
+                        });
+
+                        await blChannel.send({
+                            content: '@everyone',
+                            embeds: [notifPayload.embeds[0]]
+                        });
+
+                        logger.info(`[BLACKLIST] Notification sent to channel ${blChannelId} for user ${targetId}`);
                     }
-
-                    // --- NEW: NOTIFY BLACKLIST CHANNEL ---
-                    const blChannelId = '1412957060168945747';
-                    try {
-                        const blChannel = interaction.client.channels.cache.get(blChannelId);
-                        if (!blChannel) {
-                            console.error(`[BLACKLIST] Channel ${blChannelId} not found in cache`);
-                        } else {
-                            // Re-create the embed using NotificationTemplates to ensure correct "Severe" styling
-                            const NotificationTemplates = require('../services/NotificationTemplates');
-                            const moment = require('moment-timezone');
-                            const date = moment().tz('America/Mexico_City').format('DD/MM/YYYY');
-                            const time = moment().tz('America/Mexico_City').format('HH:mm');
-
-                            // We fetch moderator and offender based on IDs we parsed
-                            const moderator = await interaction.client.users.fetch(moderatorId).catch(() => ({ username: 'Desconocido', displayAvatarURL: () => null }));
-                            const offender = await interaction.client.users.fetch(targetId).catch(() => ({ username: 'Desconocido', id: targetId }));
-
-                            const notifPayload = NotificationTemplates.officialSanction({
-                                date, time, offender, moderator,
-                                ruleCode: reason, description: 'Sanción Aprobada por Junta Directiva via Two-Man Rule',
-                                sanctionType: `BLACKLIST (${blacklistType})`,
-                                duration: null, evidenceUrl: evidence
-                            });
-
-                            await blChannel.send({
-                                content: '@everyone',
-                                embeds: [notifPayload.embeds[0]]
-                            });
-
-                            logger.info(`[BLACKLIST] Notification sent to channel ${blChannelId} for user ${targetId}`);
-                        }
-                    } catch (blNotifyError) {
-                        logger.errorWithContext('[BLACKLIST] Failed to send notification', blNotifyError);
-                    }
-                } else if (type === 'sa') {
-                    // SA Auto-Role Logic (Simplified)
-                    const count = await client.services.sanctions.getSACount(targetId);
-                    const SA_ROLES = { 1: '1450997809234051122', 2: '1454636391932756049', 3: '1456028699718586459', 4: '1456028797638934704', 5: '1456028933995630701' };
-                    const newRole = SA_ROLES[count];
-                    if (newRole) await member.roles.add(newRole);
+                } catch (blNotifyError) {
+                    logger.errorWithContext('[BLACKLIST] Failed to send notification', blNotifyError);
                 }
             }
+            // -------------------------------------------------
+
 
             // 3. Notify User (DM)
             try {

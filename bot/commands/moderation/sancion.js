@@ -413,258 +413,57 @@ module.exports = {
             }
 
             // --- ENFORCEMENT & BLACKLIST ROLE LOGIC (EXECUTED IF NO APPROVAL NEEDED OR APPROVED) ---
-            // Blacklist Role Mapping
-            const BLACKLIST_ROLES = {
-                'Blacklist Moderacion': '1451860028653834300',
-                'Blacklist Facciones Policiales': '1413714060423200778',
-                'Blacklist Cartel': '1449930883762225253',
-                'Blacklist Politica': '1413714467287470172',
-                'Blacklist Empresas': '1413714540834852875',
-                'Blacklist Influencer': '1459240544017453238'
-            };
 
-            if (accion) {
-                const member = await interaction.guild.members.fetch(targetUser.id).catch(() => null);
+            // 0. Resolve Roblox Identifier (Lifted from legacy logic)
+            let robloxIdentifier = null;
+            if (accion && (accion.includes('ERLC') || accion === 'Blacklist')) {
+                if (robloxInput) {
+                    if (robloxInput.match(/^\d+$/)) {
+                        robloxIdentifier = robloxInput;
+                    } else {
+                        // Minimal resolution attempt or pass raw username
+                        robloxIdentifier = robloxInput.trim();
+                    }
+                } else if (targetUser) {
+                    // Try from DB
+                    const { data: citizen } = await interaction.client.supabase
+                        .from('citizens')
+                        .select('roblox_id, roblox_username')
+                        .eq('discord_id', targetUser.id)
+                        .maybeSingle();
 
-                if (member) {
-                    try {
-                        // 1. BLACKLIST LOGIC
-                        if (accion === 'Blacklist') {
-                            if (tipoBlacklist === 'Blacklist Total') {
-                                if (!member.bannable) actionResult = '\n⚠️ No se pudo banear al usuario del Discord (Jerarquía).';
-                                else {
-                                    await member.ban({ reason: `Blacklist TOTAL: ${motivo} - Por ${interaction.user.tag}` });
-                                    actionResult = '\n🔨 **Usuario Baneado Permanentemente de Discord (Blacklist Total).**';
-                                }
-
-                                // --- ERLC BAN LOGIC FOR BLACKLIST TOTAL ---
-                                try {
-                                    let robloxIdentifierBL = null;
-
-                                    // 1. Try from Input options if provided and valid (though usually this command is run on Discord User)
-                                    if (robloxInput) {
-                                        robloxIdentifierBL = robloxInput.trim();
-                                        // Note: We don't do deep resolution here to save time/complexity, 
-                                        // or we can copy the logic from below if we want to be safe.
-                                    }
-
-                                    // 2. Try from DB (Most likely scenario for Blacklist)
-                                    if (!robloxIdentifierBL) {
-                                        const { data: citizenBL } = await interaction.client.supabase
-                                            .from('citizens')
-                                            .select('roblox_id, roblox_username')
-                                            .eq('discord_id', targetUser.id)
-                                            .maybeSingle();
-
-                                        if (citizenBL) {
-                                            robloxIdentifierBL = citizenBL.roblox_username || citizenBL.roblox_id;
-                                        }
-                                    }
-
-                                    if (robloxIdentifierBL) {
-                                        const ErlcService = require('../../services/ErlcService');
-                                        const erlcKey = process.env.ERLC_API_KEY || 'ARuRfmzZGTqbqUCjMERA-dzEeGLbRfisfjKtiCOXLHATXDedYZsQQEethQMZp';
-
-                                        if (erlcKey) {
-                                            const erlcService = new ErlcService(erlcKey);
-                                            // 999999 hours is effectively permanent in ERLC
-                                            const erlcCommand = `:ban ${robloxIdentifierBL} 999999 Blacklist Total: ${motivo.substring(0, 30)}`;
-
-                                            console.log(`[Sancion-BL] Sending ERLC command: ${erlcCommand}`);
-                                            const result = await erlcService.runCommand(erlcCommand);
-
-                                            if (result) {
-                                                actionResult += `\n🎮 **Usuario Baneado Permanentemente de ERLC** (${robloxIdentifierBL}).`;
-                                            } else {
-                                                // QUEUE IF FAILED
-                                                const ErlcScheduler = require('../../services/ErlcScheduler');
-                                                await ErlcScheduler.queueAction(interaction.client.supabase, erlcCommand, `Blacklist Total: ${motivo}`, { username: robloxIdentifierBL });
-                                                actionResult += `\n⚠️ **Servidor ERLC Inactivo/Error:** Se ha puesto el baneo en **COLA DE ESPERA**. Se aplicará automáticamente cuando el servidor responda.`;
-                                            }
-                                        }
-                                    } else {
-                                        actionResult += `\n⚠️ No se pudo banear en ERLC (No se encontró usuario de Roblox vinculado).`;
-                                    }
-
-                                } catch (erlcErr) {
-                                    console.error('Error executing ERLC Ban for Blacklist:', erlcErr);
-                                    actionResult += `\n⚠️ Error intentando banear en ERLC.`;
-                                }
-                                // ------------------------------------------
-
-                            } else {
-                                // Partial Blacklist - Assign Role
-                                const roleIdToAssign = BLACKLIST_ROLES[tipoBlacklist];
-                                if (roleIdToAssign) {
-                                    await member.roles.add(roleIdToAssign);
-                                    actionResult = `\n🚫 **Rol de Blacklist Asignado:** ${tipoBlacklist}`;
-                                } else {
-                                    actionResult = `\n⚠️ Tipo de blacklist registrado, pero no se encontró un Rol configurado para ID: ${tipoBlacklist}`;
-                                }
-                            }
-                        }
-                        // 3. TIMEOUT / MUTE LOGIC
-                        else if (accion === 'Timeout') {
-                            if (member.moderatable) {
-                                if (durationMs > 0) {
-                                    await member.timeout(durationMs, `Sanción: ${motivo} - Por ${interaction.user.tag}`);
-                                    actionResult = `\n🤐 **Usuario Silenciado (Timeout)** por **${durationText}**.`;
-                                } else {
-                                    actionResult = `\n⚠️ Solicitaste Timeout pero no especificaste duración válida. (Mínimo 1m).`;
-                                }
-                            } else {
-                                actionResult = '\n⚠️ No puedo silenciar a este usuario (Jerarquía de Roles).';
-                            }
-                        }
-                        // 4. KICK DISCORD LOGIC
-                        else if (accion === 'Kick Discord') {
-                            if (member.kickable) {
-                                await member.kick(`Sanción: ${motivo} - Por ${interaction.user.tag}`);
-                                actionResult = '\n👢 **Usuario Expulsado (Kick) del Discord.**';
-                            } else {
-                                actionResult = '\n⚠️ No puedo expulsar a este usuario (Jerarquía de Roles).';
-                            }
-                        }
-                        // 5. BAN DISCORD LOGIC (Temporary & Permanent)
-                        else if (accion === 'Ban Temporal Discord' || accion === 'Ban Permanente Discord') {
-                            if (member.bannable) {
-                                const deleteMessageDays = 1; // Delete 1 day of messages
-                                let banReason = `${accion} - ${motivo} - Por ${interaction.user.tag}`;
-
-                                await member.ban({
-                                    deleteMessageDays,
-                                    reason: banReason
-                                });
-
-                                if (accion === 'Ban Temporal Discord') {
-                                    // Save to DB for auto-unban
-                                    const expiresAt = new Date(Date.now() + durationMs);
-                                    await interaction.client.supabase
-                                        .from('temporary_bans')
-                                        .insert({
-                                            guild_id: interaction.guildId,
-                                            user_id: targetUser.id,
-                                            user_tag: targetUser.tag,
-                                            banned_by: interaction.user.id,
-                                            banned_by_tag: interaction.user.tag,
-                                            ban_type: 'discord',
-                                            reason: motivo,
-                                            duration_minutes: Math.ceil(durationMs / 60000),
-                                            expires_at: expiresAt.toISOString()
-                                        });
-
-                                    actionResult = `\n🔨 **Usuario Baneado TEMPORALMENTE** del Discord por **${durationText}**.\n✅ **Auto-Unban:** <t:${Math.floor(expiresAt / 1000)}:R>`;
-                                } else {
-                                    actionResult = '\n🔨 **Usuario Baneado PERMANENTEMENTE** del Discord.';
-                                }
-                            } else {
-                                actionResult = '\n⚠️ No puedo banear a este usuario (Jerarquía de Roles).';
-                            }
-                        }
-                        // 6. ERLC BAN/KICK LOGIC
-                        // 6. ERLC BAN/KICK LOGIC
-                        else if (accion === 'Ban Temporal ERLC' || accion === 'Ban Permanente ERLC' || accion === 'Kick ERLC') {
-                            // robloxInput is already defined at top of function
-                            let robloxIdentifier = null;
-
-                            // Priority: Manual fields > DB lookup
-                            if (robloxInput) {
-                                // Try to resolve via RobloxService
-                                if (robloxInput.match(/^\d+$/)) {
-                                    robloxIdentifier = robloxInput; // Already an ID
-                                } else {
-                                    try {
-                                        const RobloxService = require('../../services/RobloxService');
-                                        const resolvedUser = await RobloxService.getIdFromUsername(robloxInput.trim());
-                                        if (resolvedUser) {
-                                            robloxIdentifier = resolvedUser.name; // ERLC commands work best with Names usually, or ID? 
-                                            // ERLC API Usually takes Username for kicks/bans if player offline?
-                                            // Actually ERLC API docs usually take Roblox Username.
-                                            // Let's use the Name returned by API.
-                                        } else {
-                                            robloxIdentifier = robloxInput.trim(); // Fallback to raw input
-                                        }
-                                    } catch (err) {
-                                        robloxIdentifier = robloxInput.trim();
-                                    }
-                                }
-                            } else {
-                                // Try to get from DB
-                                const { data: citizen } = await interaction.client.supabase
-                                    .from('citizens')
-                                    .select('roblox_id, roblox_username')
-                                    .eq('discord_id', targetUser.id)
-                                    .maybeSingle();
-
-                                if (citizen && (citizen.roblox_username || citizen.roblox_id)) {
-                                    robloxIdentifier = citizen.roblox_username || citizen.roblox_id;
-                                }
-                            }
-
-                            if (robloxIdentifier) {
-                                const ErlcService = require('../../services/ErlcService');
-                                const erlcKey = process.env.ERLC_API_KEY || 'ARuRfmzZGTqbqUCjMERA-dzEeGLbRfisfjKtiCOXLHATXDedYZsQQEethQMZp';
-
-                                if (erlcKey) {
-                                    const erlcService = new ErlcService(erlcKey);
-                                    let erlcCommand = '';
-
-                                    if (accion === 'Kick ERLC') {
-                                        erlcCommand = `:kick ${robloxIdentifier} ${motivo.substring(0, 50)}`;
-                                    } else if (accion === 'Ban Temporal ERLC') {
-                                        // ERLC doesn't support time-based bans, so we just ban permanently
-                                        // Bot manages temporal aspect via DB and auto-unban
-                                        erlcCommand = `:ban ${robloxIdentifier} ${motivo.substring(0, 50)}`;
-
-                                        // Save to DB for auto-unban
-                                        const expiresAt = new Date(Date.now() + durationMs);
-                                        await interaction.client.supabase
-                                            .from('temporary_bans')
-                                            .insert({
-                                                guild_id: interaction.guildId,
-                                                user_id: targetUser.id,
-                                                user_tag: targetUser.tag,
-                                                banned_by: interaction.user.id,
-                                                banned_by_tag: interaction.user.tag,
-                                                ban_type: 'erlc',
-                                                reason: motivo,
-                                                duration_minutes: Math.ceil(durationMs / 60000),
-                                                expires_at: expiresAt.toISOString(),
-                                                roblox_id: robloxIdentifier.match(/^\d+$/) ? robloxIdentifier : null,
-                                                roblox_username: !robloxIdentifier.match(/^\d+$/) ? robloxIdentifier : null
-                                            });
-                                    } else if (accion === 'Ban Permanente ERLC') {
-                                        erlcCommand = `:ban ${robloxIdentifier} ${motivo.substring(0, 50)}`;
-                                    }
-
-                                    console.log(`[Sancion] Sending ERLC command: ${erlcCommand}`);
-                                    const result = await erlcService.runCommand(erlcCommand);
-
-                                    if (result) {
-                                        if (accion === 'Ban Temporal ERLC') {
-                                            const expiresAt = new Date(Date.now() + durationMs);
-                                            actionResult = `\n🎮 **Ban Temporal ejecutado en ERLC** (${robloxIdentifier} por ${durationText})\n✅ **Auto-Unban:** <t:${Math.floor(expiresAt / 1000)}:R>`;
-                                        } else {
-                                            actionResult = `\n🎮 **Acción ejecutada en ERLC** (${robloxIdentifier})`;
-                                        }
-                                    } else {
-                                        // QUEUE NORMAL SANCTIONS TOO
-                                        const ErlcScheduler = require('../../services/ErlcScheduler');
-                                        await ErlcScheduler.queueAction(interaction.client.supabase, erlcCommand, motivo, { username: robloxIdentifier });
-                                        actionResult = `\n⚠️ **Servidor ERLC Inactivo:** La sanción (${accion}) se ha guardado en la **COLA DE ESPERA** y se ejecutará automáticamente.`;
-                                    }
-                                } else {
-                                    actionResult = '\n⚠️ ERLC API Key no configurada';
-                                }
-                            } else {
-                                actionResult = '\n⚠️ No se encontró ID/Username de Roblox. Usa el campo `roblox_usuario` o asegura que el usuario esté vinculado.';
-                            }
-                        }
-
-                    } catch (e) {
-                        actionResult = `\n⚠️ Error ejecutando lógica de sanción/roles: ${e.message}`;
+                    if (citizen && (citizen.roblox_username || citizen.roblox_id)) {
+                        robloxIdentifier = citizen.roblox_username || citizen.roblox_id;
                     }
                 }
+            }
+
+            // 1. Execute via SanctionService
+            if (interaction.client.services && interaction.client.services.sanctions) {
+                try {
+                    const result = await interaction.client.services.sanctions.executePunishment(
+                        interaction,
+                        targetUser,
+                        type,
+                        finalActionType, // Use calculated type (e.g. 'Blacklist: Moderacion')
+                        motivo,
+                        descripcion,
+                        evidencia,
+                        durationText,
+                        durationMs,
+                        robloxIdentifier
+                    );
+
+                    actionResult = result.messages.join('\n');
+                    if (result.errors.length > 0) {
+                        actionResult += '\n⚠️ **Observaciones:**\n' + result.errors.join('\n');
+                    }
+                } catch (svcError) {
+                    console.error('[Sancion Cmd] Service Error:', svcError);
+                    actionResult = `\n❌ Error ejecutando sanción: ${svcError.message}`;
+                }
+            } else {
+                actionResult = '\n❌ Error: El Servicio de Sanciones no está inicializado.';
             }
 
 
