@@ -119,18 +119,17 @@ class SanctionService {
                     await member.kick(fullReason);
                     return { success: true, message: '👢 **Usuario expulsado (Kick) del Discord.**' };
 
-                case 'Ban Temporal Discord':
-                case 'Ban Permanente Discord':
-                case 'Blacklist': // Blacklist Total implies Ban
-                    if (!member.bannable) return { success: false, message: 'No puedo banear a este usuario (Jerarquía).' };
-                    await member.ban({ deleteMessageDays: 1, reason: fullReason });
-
-                    if (action === 'Ban Temporal Discord') {
-                        await this.scheduleUnban(guild.id, targetUser.id, fullReason, durationMs);
-                    }
-                    return { success: true, message: '🔨 **Usuario Baneado del Discord.**' };
-
                 default:
+                    // Check for partial matches like "Blacklist: Total" or "Ban Temporal (10m)"
+                    if (action.startsWith('Ban') || action.startsWith('Blacklist')) {
+                        if (!member.bannable) return { success: false, message: 'No puedo banear a este usuario (Jerarquía).' };
+                        await member.ban({ deleteMessageDays: 1, reason: fullReason });
+
+                        if (action.includes('Temporal')) {
+                            await this.scheduleUnban(guild.id, targetUser.id, fullReason, durationMs);
+                        }
+                        return { success: true, message: '🔨 **Usuario Baneado del Discord.**' };
+                    }
                     return { success: true, message: '' }; // No Discord action needed
             }
         } catch (error) {
@@ -201,6 +200,24 @@ class SanctionService {
         const member = await guild.members.fetch(targetUser.id).catch(() => null);
         if (!member) return { success: false, message: 'Usuario no está en el servidor para roles.' };
 
+        // PRIORITY: Check Blacklist First
+        if (action && action.startsWith('Blacklist')) {
+            // Expect format "Blacklist: Type" or just "Blacklist"
+            const parts = action.split(':');
+            const blacklistType = parts.length > 1 ? parts[1].trim() : null;
+
+            if (blacklistType && blacklistType !== 'Total') {
+                let key = blacklistType;
+                if (!key.startsWith('Blacklist ')) key = `Blacklist ${key}`;
+
+                const success = await this.roleManager.assignBlacklistRole(member, key);
+                if (success) return { success: true, message: `🚫 **Rol Blacklist asignado:** ${key}` };
+                return { success: false, message: `⚠️ No se encontró rol para: ${key}` };
+            }
+            // If Total, we already Banned in executeDiscordPunishment, so no Role needed (user is gone/banned).
+            return { success: true, message: '🚫 **Blacklist Total Aplicada (Ban)**' };
+        }
+
         if (type === 'sa') {
             // SA Logic: Get count, Increment (virtually), Set Role
             const currentCount = await this.getSACount(targetUser.id);
@@ -213,35 +230,31 @@ class SanctionService {
             // Limit to SA 5
             if (newCount <= 5) {
                 await this.roleManager.setSanctionRole(member, newCount);
+
+                // CRITICAL ALERT FOR 5 SAs
+                if (newCount === 5) {
+                    const ALERT_CHANNEL_ID = '1456021466356387861';
+                    const alertChannel = this.client.channels.cache.get(ALERT_CHANNEL_ID);
+                    if (alertChannel) {
+                        try {
+                            const { EmbedBuilder } = require('discord.js');
+                            const alertEmbed = new EmbedBuilder()
+                                .setTitle('🚨 ALERTA CRÍTICA: Límite de SAs Alcanzado')
+                                .setDescription(`🛑 **El usuario ha acumulado 5 Sanciones Administrativas (SA).**\n\n👤 **Usuario:** ${targetUser.tag} (<@${targetUser.id}>)\n⚖️ **Sanción Automática Requerida:** BAN PERMANENTE (Directo).\n📜 **Último Motivo:** ${reason}`)
+                                .setColor(0xFF0000)
+                                .setTimestamp();
+
+                            await alertChannel.send({ embeds: [alertEmbed] });
+                            return { success: true, message: `📉 **Rol SA Actualizado a Nivel ${newCount}**\n⛔ **CRÍTICO: El usuario ha alcanzado 5 SAs. Se ha notificado a la Administración.**` };
+                        } catch (err) {
+                            console.error('Error sending SA 5 Alert:', err);
+                        }
+                    }
+                }
+
                 return { success: true, message: `📉 **Rol SA Actualizado a Nivel ${newCount}**` };
             } else {
                 return { success: true, message: `⚠️ **Usuario excede SA 5** - Considerar Blacklist.` };
-            }
-        }
-
-        if (action && action.startsWith('Blacklist')) {
-            // Expect format "Blacklist: Type" or just "Blacklist" (implies check args or reason?)
-            // We will standardize command to pass "Blacklist: Type"
-            const parts = action.split(':');
-            const blacklistType = parts.length > 1 ? parts[1].trim() : null;
-
-            if (blacklistType && blacklistType !== 'Total') {
-                const assigned = await this.roleManager.assignBlacklistRole(member, `Blacklist ${blacklistType}`); // RoleManager expects "Blacklist Moderacion"
-                // Actually RoleManager keys are: 'Blacklist Moderacion', etc.
-                // If blacklistType is 'Moderacion', we need 'Blacklist Moderacion'.
-                // Command usually passes 'Blacklist Total', 'Moderacion', etc. logic varies.
-                // Let's rely on RoleManager.ASSIGN_BLACKLIST_ROLE handling the key.
-                // keys in RoleManager: 'Blacklist Moderacion'
-
-                // If blacklistType came as "Moderacion" -> construct "Blacklist Moderacion"
-                // If "Blacklist Moderacion" -> ok.
-
-                let key = blacklistType;
-                if (!key.startsWith('Blacklist ')) key = `Blacklist ${key}`;
-
-                const success = await this.roleManager.assignBlacklistRole(member, key);
-                if (success) return { success: true, message: `🚫 **Rol Blacklist asignado:** ${key}` };
-                return { success: false, message: `⚠️ No se encontró rol para: ${key}` };
             }
         }
 
