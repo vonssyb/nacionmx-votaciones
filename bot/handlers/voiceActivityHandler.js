@@ -2,6 +2,8 @@
  * Handler de Actividad de Voz
  * Gestiona eventos de voz: join, leave, tracking, cleanup
  */
+const logger = require('../services/Logger');
+
 class VoiceActivityHandler {
     constructor(client, supabase) {
         this.client = client;
@@ -17,7 +19,7 @@ class VoiceActivityHandler {
             await this.handleVoiceStateUpdate(oldState, newState);
         });
 
-        console.log('[VoiceActivityHandler] Handler inicializado');
+        logger.info('[VoiceActivityHandler] Handler inicializado');
     }
 
     /**
@@ -47,7 +49,7 @@ class VoiceActivityHandler {
                 await this.handleVoiceStateChange(oldState, newState);
             }
         } catch (error) {
-            console.error('[VoiceActivityHandler] Error en voiceStateUpdate:', error);
+            logger.errorWithContext('[VoiceActivityHandler] Error en voiceStateUpdate', error);
         }
     }
 
@@ -79,7 +81,7 @@ class VoiceActivityHandler {
                 .single();
 
             if (error) {
-                console.error('[VoiceActivityHandler] Error creando sesión de voz:', error);
+                logger.errorWithContext('[VoiceActivityHandler] Error creando sesión de voz', error);
                 return;
             }
 
@@ -92,17 +94,17 @@ class VoiceActivityHandler {
                 isDeafened: voiceState.deaf || false
             });
 
-            console.log(`[VoiceActivityHandler] 🎤 ${voiceState.member.user.tag} se unió a ${channel.name}`);
+            logger.info(`[VoiceActivityHandler] 🎤 ${voiceState.member.user.tag} se unió a ${channel.name}`);
 
             // Si el canal es temporal, cancelar su eliminación
             if (this.client.tempChannelManager) {
                 const tempInfo = await this.client.tempChannelManager.getChannelInfo(channelId);
                 if (tempInfo) {
-                    console.log(`[VoiceActivityHandler] Canal temporal ${channel.name} ahora tiene ${channel.members.size} usuario(s)`);
+                    logger.debug(`[VoiceActivityHandler] Canal temporal ${channel.name} ahora tiene ${channel.members.size} usuario(s)`);
                 }
             }
         } catch (error) {
-            console.error('[VoiceActivityHandler] Error en handleVoiceJoin:', error);
+            logger.errorWithContext('[VoiceActivityHandler] Error en handleVoiceJoin', error);
         }
     }
 
@@ -131,26 +133,26 @@ class VoiceActivityHandler {
                 .eq('id', session.sessionId);
 
             if (error) {
-                console.error('[VoiceActivityHandler] Error cerrando sesión de voz:', error);
+                logger.errorWithContext('[VoiceActivityHandler] Error cerrando sesión de voz', error);
             }
 
             // Remover de sesiones activas
             this.activeVoiceSessions.delete(userId);
 
-            console.log(`[VoiceActivityHandler] 👋 ${voiceState.member.user.tag} salió de ${channel?.name || 'canal'}`);
+            logger.info(`[VoiceActivityHandler] 👋 ${voiceState.member.user.tag} salió de ${channel?.name || 'canal'}`);
 
             // Si el canal es temporal y está vacío, programar eliminación
             if (channel && this.client.tempChannelManager) {
                 const tempInfo = await this.client.tempChannelManager.getChannelInfo(channelId);
                 if (tempInfo && channel.members.size === 0) {
-                    console.log(`[VoiceActivityHandler] Canal temporal ${channel.name} quedó vacío - será eliminado por cleanup`);
+                    logger.debug(`[VoiceActivityHandler] Canal temporal ${channel.name} quedó vacío - será eliminado por cleanup`);
                 }
             }
 
             // Actualizar estadísticas agregadas
             await this.updateDailyStats(userId);
         } catch (error) {
-            console.error('[VoiceActivityHandler] Error en handleVoiceLeave:', error);
+            logger.errorWithContext('[VoiceActivityHandler] Error en handleVoiceLeave', error);
         }
     }
 
@@ -171,7 +173,7 @@ class VoiceActivityHandler {
             // Opcionalmente actualizar en DB (para analytics)
             // Por ahora solo guardamos el estado inicial
         } catch (error) {
-            console.error('[VoiceActivityHandler] Error en handleVoiceStateChange:', error);
+            logger.errorWithContext('[VoiceActivityHandler] Error en handleVoiceStateChange', error);
         }
     }
 
@@ -191,10 +193,10 @@ class VoiceActivityHandler {
                 .limit(1);
 
             if (error && error.code !== 'PGRST116') {
-                console.error('[VoiceActivityHandler] Error cerrando sesión abierta:', error);
+                logger.errorWithContext('[VoiceActivityHandler] Error cerrando sesión abierta', error);
             }
         } catch (error) {
-            console.error('[VoiceActivityHandler] Error en closeOpenSession:', error);
+            logger.errorWithContext('[VoiceActivityHandler] Error en closeOpenSession', error);
         }
     }
 
@@ -214,7 +216,7 @@ class VoiceActivityHandler {
                 .not('left_at', 'is', null);
 
             if (statsError) {
-                console.error('[VoiceActivityHandler] Error obteniendo stats del día:', statsError);
+                logger.errorWithContext('[VoiceActivityHandler] Error obteniendo stats del día', statsError);
                 return;
             }
 
@@ -234,10 +236,10 @@ class VoiceActivityHandler {
                 });
 
             if (upsertError) {
-                console.error('[VoiceActivityHandler] Error actualizando stats summary:', upsertError);
+                logger.errorWithContext('[VoiceActivityHandler] Error actualizando stats summary', upsertError);
             }
         } catch (error) {
-            console.error('[VoiceActivityHandler] Error en updateDailyStats:', error);
+            logger.errorWithContext('[VoiceActivityHandler] Error en updateDailyStats', error);
         }
     }
 
@@ -253,7 +255,7 @@ class VoiceActivityHandler {
                 .single();
 
             if (error && error.code !== 'PGRST116') {
-                console.error('[VoiceActivityHandler] Error obteniendo stats de usuario:', error);
+                logger.errorWithContext('[VoiceActivityHandler] Error obteniendo stats de usuario', error);
                 return null;
             }
 
@@ -266,7 +268,7 @@ class VoiceActivityHandler {
                 last_voice_activity: null
             };
         } catch (error) {
-            console.error('[VoiceActivityHandler] Error en getUserStats:', error);
+            logger.errorWithContext('[VoiceActivityHandler] Error en getUserStats', error);
             return null;
         }
     }
@@ -282,13 +284,13 @@ class VoiceActivityHandler {
                 .limit(limit);
 
             if (error) {
-                console.error('[VoiceActivityHandler] Error obteniendo canales populares:', error);
+                logger.errorWithContext('[VoiceActivityHandler] Error obteniendo canales populares', error);
                 return [];
             }
 
             return data || [];
         } catch (error) {
-            console.error('[VoiceActivityHandler] Error en getPopularChannels:', error);
+            logger.errorWithContext('[VoiceActivityHandler] Error en getPopularChannels', error);
             return [];
         }
     }
@@ -298,7 +300,7 @@ class VoiceActivityHandler {
      */
     async cleanupOpenSessions() {
         try {
-            console.log('[VoiceActivityHandler] Limpiando sesiones abiertas...');
+            logger.info('[VoiceActivityHandler] Limpiando sesiones abiertas...');
 
             const { error } = await this.supabase
                 .from('voice_activity')
@@ -308,12 +310,12 @@ class VoiceActivityHandler {
                 .is('left_at', null);
 
             if (error) {
-                console.error('[VoiceActivityHandler] Error en cleanup:', error);
+                logger.errorWithContext('[VoiceActivityHandler] Error en cleanup', error);
             } else {
-                console.log('[VoiceActivityHandler] Sesiones abiertas cerradas correctamente');
+                logger.info('[VoiceActivityHandler] Sesiones abiertas cerradas correctamente');
             }
         } catch (error) {
-            console.error('[VoiceActivityHandler] Error en cleanupOpenSessions:', error);
+            logger.errorWithContext('[VoiceActivityHandler] Error en cleanupOpenSessions', error);
         }
     }
 

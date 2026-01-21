@@ -1,4 +1,4 @@
-const logger = require('./logger');
+const logger = require('../services/Logger');
 
 /**
  * Rate Limiter to prevent command spam
