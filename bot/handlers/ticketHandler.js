@@ -125,7 +125,7 @@ module.exports = {
                 await interaction.showModal(modal);
             } catch (err) {
                 if (err.code === 10062 || err.code === 40060) {
-                    console.warn(`[TICKET] Interaction obsolete (Modal): ${err.message}`);
+                    logger.warn(`[TICKET] Interaction obsolete (Modal): ${err.message}`);
                     return false;
                 }
                 throw err;
@@ -215,7 +215,7 @@ module.exports = {
             await interaction.channel.send('✅ Cerrando...');
 
             setTimeout(() => {
-                interaction.channel.delete().catch(e => console.log('Channel already deleted'));
+                interaction.channel.delete().catch(e => logger.debug('Channel already deleted', { error: e.message }));
             }, 3000);
 
             return true;
@@ -226,7 +226,7 @@ module.exports = {
                 await interaction.deferReply({ ephemeral: true });
             } catch (err) {
                 if (err.code === 10062 || err.code === 40060) {
-                    console.warn(`[TICKET] Interaction obsolete (Defer): ${err.message}`);
+                    logger.warn(`[TICKET] Interaction obsolete (Defer): ${err.message}`);
                     return;
                 }
                 logger.errorWithContext('[TICKET] Defer Error', err);
@@ -345,7 +345,7 @@ module.exports = {
                 logger.info(`[DEBUG] Ticket Created. Attempting AI Analysis for: ${channelName}`);
                 try {
                     const aiAnswer = await generateAIResponse(description);
-                    console.log(`[DEBUG] AI Response Result:`, aiAnswer?.startsWith('ERROR') ? "FAIL" : "SUCCESS");
+                    logger.debug(`[DEBUG] AI Response Result:`, { result: aiAnswer?.startsWith('ERROR') ? "FAIL" : "SUCCESS" });
 
                     if (aiAnswer && !aiAnswer.startsWith('ERROR')) {
                         const aiRow = new ActionRowBuilder().addComponents(
@@ -380,7 +380,7 @@ module.exports = {
                 await interaction.editReply(`✅ Ticket creado: ${ticketChannel}`);
 
             } catch (err) {
-                console.error(err);
+                logger.errorWithContext('Error creating ticket (Interaction Fail)', err);
                 await interaction.editReply('❌ Error al crear. Verifica permisos/categorías.');
             }
             return true;

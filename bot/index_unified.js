@@ -13,6 +13,7 @@ const { handleBankingInteraction } = require('./handlers/bankingHandler');
 // --- SERVICES ---
 const StateManager = require('./services/StateManager');
 const logger = require('./services/Logger');
+const rateLimiter = require('./utils/rateLimiter');
 
 logger.info('Starting index_unified.js');
 logger.info('Environment loaded');
@@ -132,6 +133,7 @@ async function startModerationBot() {
     // New Services (Phase 2.4)
     const LogManager = require('./services/LogManager');
     const RoleManager = require('./services/RoleManager');
+    const CacheService = require('./services/CacheService');
 
     // ERLC Service (Instantiate EARLY for injection)
     const ErlcService = require('./services/ErlcService');
@@ -140,6 +142,7 @@ async function startModerationBot() {
     // Instantiate Managers
     const logManager = new LogManager(client, supabase);
     const roleManager = new RoleManager(client);
+    const cacheService = new CacheService();
 
     // Voice System Managers
     const TemporaryChannelManager = require('./utils/temporaryChannelManager');
@@ -197,6 +200,7 @@ async function startModerationBot() {
     const companyOrchestrator = new CompanyOrchestrator(client, supabase, paymentProcessor, billingService, companyManagementHandler);
 
     client.services = {
+        cache: cacheService,
         sanctions: sanctionService,
         billing: billingService,
         casino: new CasinoService(supabase),
@@ -651,6 +655,14 @@ async function startModerationBot() {
 
     // Interaction Handler
     client.on('interactionCreate', async interaction => {
+        // RATE LIMIT CHECK
+        if (!rateLimiter.check(interaction.user.id)) {
+            if (!interaction.replied && !interaction.deferred) {
+                return interaction.reply({ content: '⏳ Calma, estás enviando comandos muy rápido. (Anti-Spam)', ephemeral: true });
+            }
+            return;
+        }
+
         // Tickets specific handling (Buttons/Modals)
         try {
             const handled = await handleTicketInteraction(interaction, client, supabase);
@@ -862,6 +874,11 @@ async function startEconomyBot() {
     });
 
     client.on('interactionCreate', async interaction => {
+        // RATE LIMIT CHECK
+        if (!rateLimiter.check(interaction.user.id)) {
+            return interaction.reply({ content: '⏳ Anti-Spam activado. Espera unos segundos.', ephemeral: true }).catch(() => { });
+        }
+
         try {
             // Handle Chat Commands (Generic)
             if (interaction.isChatInputCommand()) {
@@ -985,6 +1002,11 @@ async function startGovernmentBot() {
     });
 
     client.on('interactionCreate', async interaction => {
+        // RATE LIMIT CHECK
+        if (!rateLimiter.check(interaction.user.id)) {
+            return interaction.reply({ content: '⏳ Anti-Spam: Espera un momento.', ephemeral: true }).catch(() => { });
+        }
+
         // Handle button interactions
         if (interaction.isButton() && interaction.customId.startsWith('visa_pay_')) {
             const visaPaymentHandler = require('./handlers/visaPaymentHandler');

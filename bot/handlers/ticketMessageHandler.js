@@ -126,12 +126,12 @@ async function getImageDescription(imageUrl) {
         );
 
         const description = hfResponse.data[0]?.generated_text || "No se pudo generar descripción";
-        console.log('✅ Hugging Face análisis completo:', description);
+        logger.debug('✅ Hugging Face análisis completo:', { description });
 
         return `[Descripción básica]: ${description}. NOTA: Para detalles específicos de ER:LC (nombres, niveles, chat exacto), descríbelos tú.`;
 
     } catch (err) {
-        console.error("❌ Hugging Face Error:", err.message);
+        logger.errorWithContext("❌ Hugging Face Error", err);
 
         if (err.response?.status === 503) {
             return "⏳ Modelo cargándose (~30 seg). Reenvía la imagen en 30 segundos.";
@@ -178,7 +178,7 @@ async function generateAIResponse(query, imageUrl = null) {
             return chatCompletion.choices[0]?.message?.content || "";
 
         } catch (err) {
-            console.error(`Groq Error (Key #${currentKeyIndex + 1}):`, err.message);
+            logger.error(`Groq Error (Key #${currentKeyIndex + 1}):`, { error: err.message });
 
             // Si es rate limit (429), rotar a la siguiente key
             if (err.status === 429 && rotateGroqKey()) {
@@ -317,7 +317,7 @@ module.exports = {
                     userContext += `🆔 IDENTIDAD RP: Sin registrar (No tiene DNI)\n`;
                 }
             } catch (err) {
-                console.error("Error fetching citizen:", err);
+                logger.errorWithContext("Error fetching citizen", err);
             }
 
             // Detectar si es staff
@@ -345,7 +345,7 @@ module.exports = {
                         userContext += `\n📜 HISTORIAL: Limpio (Sin sanciones).\n`;
                     }
                 } catch (err) {
-                    console.error("Error fetching sanctions for AI context:", err);
+                    logger.errorWithContext("Error fetching sanctions for AI context", err);
                 }
             } else {
                 userContext += `\n(⚠️ No se pudo acceder a la base de datos de sanciones)\n`;
@@ -371,7 +371,7 @@ module.exports = {
                     userContext += `\n📜 TICKETS ANTERIORES: Primera vez abriendo ticket.\n`;
                 }
             } catch (err) {
-                console.error("Error fetching ticket history:", err);
+                logger.errorWithContext("Error fetching ticket history", err);
             }
 
             // 5. ACTIVIDAD DEL SERVIDOR (logs recientes si existen)

@@ -71,6 +71,14 @@ class CompanyOrchestrator {
             return await this.withdrawHandler.handleInteraction(interaction);
         }
 
+        // 5. Company Stats
+        if (cid.startsWith('company_stats_')) {
+            const { handleCompanyStats } = require('./stats');
+            return await handleCompanyStats(interaction, this.client, this.supabase);
+        }
+
+        return false;
+
         return false;
     }
 }
