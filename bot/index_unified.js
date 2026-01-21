@@ -5,8 +5,12 @@ require('dotenv').config({ path: envPath });
 const { Client, GatewayIntentBits, Partials, Collection, REST, Routes, EmbedBuilder, ButtonStyle } = require('discord.js');
 const { createClient } = require('@supabase/supabase-js');
 const express = require('express');
-const { handleModerationLegacy } = require('./handlers/legacyModerationHandler');
+// --- ORCHESTRATORS (New Phase 2.5) ---
+const { handleEconomyInteraction } = require('./handlers/economy/index');
+const { handleModerationInteraction } = require('./handlers/moderation/index');
 const { handleBankingInteraction } = require('./handlers/bankingHandler');
+
+// --- SERVICES ---
 const StateManager = require('./services/StateManager');
 const logger = require('./services/Logger');
 
@@ -279,7 +283,6 @@ async function startModerationBot() {
             logger.errorWithContext('Ticket message handler error', err);
         }
     });
-
 
 
     // --- ENHANCED LOGGING (MAIN GUILD ONLY) ---
@@ -658,15 +661,15 @@ async function startModerationBot() {
 
         if (!interaction.isChatInputCommand()) {
             try {
-                // FALLBACK TO LEGACY (Handles Other Buttons, Modals, Menus)
+                // FALLBACK TO ORCHESTRATOR / LEGACY (Handles Other Buttons, Modals, Menus)
                 // Try banking handler first (for banco_ prefixes)
                 const bankingHandled = await handleBankingInteraction(interaction, client, client.supabase);
                 if (bankingHandled) return;
 
-                // Fallback to legacy moderation handler
-                await handleModerationLegacy(interaction, client, client.supabase);
+                // Route to Moderation Orchestrator (wraps Legacy)
+                await handleModerationInteraction(interaction, client, client.supabase);
             } catch (e) {
-                logger.errorWithContext('Legacy moderation handler error', e, { module: 'MOD' });
+                logger.errorWithContext('Moderation Orchestrator error', e, { module: 'MOD' });
             }
             return;
         }
@@ -859,35 +862,30 @@ async function startEconomyBot() {
     });
 
     client.on('interactionCreate', async interaction => {
-        // Handle Buttons
-        if (interaction.isButton() && interaction.customId.startsWith('buy_item_')) {
-            await client.services.store.handleBuyButton(interaction);
-            return;
-        }
-        // Handle Commands
-        if (interaction.isChatInputCommand()) {
-            if (!await safeDefer(interaction)) return;
-        }
+        try {
+            // Handle Chat Commands (Generic)
+            if (interaction.isChatInputCommand()) {
+                if (!await safeDefer(interaction)) return;
 
-        const command = interaction.isChatInputCommand() ? client.commands.get(interaction.commandName) : null;
-        if (command) {
-            try { await command.execute(interaction, client, supabase); } catch (e) {
-                logger.errorWithContext('ECO command execution error', e);
-                await interaction.editReply('❌ Error ejecutando comando.').catch(() => { });
-            }
-        } else if (client.legacyHandler) {
-
-            // Phase 2.3: Company Orchestrator
-            if (client.services.companyOrchestrator) {
-                const handled = await client.services.companyOrchestrator.handleInteraction(interaction);
-                if (handled) return;
+                const command = client.commands.get(interaction.commandName);
+                if (command) {
+                    await command.execute(interaction, client, supabase);
+                    // Return here? Only if we assume commands don't need orchestrator routing.
+                    // Usually commands execute and finish.
+                    return;
+                }
             }
 
-            // FALLBACK TO LEGACY (Handles Buttons, Modals, Menus not caught above)
-            try { await client.legacyHandler(interaction, client, supabase); } catch (e) {
-                logger.errorWithContext('Legacy economy handler error', e);
-                // Don't reply here as legacy handler might have handled it or it's an unrelated interaction
-            }
+            // Route everything else (Buttons, Modals, etc.) to Orchestrator
+            // This includes:
+            // - Company System
+            // - Store (buy_item_)
+            // - Casino, Missions, Votes
+            // - Legacy Fallback
+            await handleEconomyInteraction(interaction, client, supabase);
+
+        } catch (error) {
+            logger.errorWithContext('Economy Base Interaction Error', error);
         }
     });
 
