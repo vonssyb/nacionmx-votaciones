@@ -150,6 +150,40 @@ async function handleCerrar(interaction, supabase) {
         .single();
 
     if (!ticket) {
+        // ORPHAN TICKET HANDLING
+        const isStaff = interaction.member.permissions.has(PermissionFlagsBits.ManageMessages);
+
+        if (isStaff) {
+            const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+
+            const row = new ActionRowBuilder().addComponents(
+                new ButtonBuilder()
+                    .setCustomId('force_close_ticket') // Handled by global interaction handler or need new one? 
+                    // Since buttons usually need a handler, we might need to handle this right here if it was a component collector, 
+                    // but for persistent buttons we rely on the main handler. 
+                    // HOWEVER, for simplicity in a quick fix, let's just use a confirmation interaction collector locally OR a distinct ID.
+                    // The existing button handler likely won't recognize 'force_close_ticket'.
+                    // Let's use a simple collector here since it's an edge case.
+                    .setLabel('🗑️ Forzar Eliminación (Orphan)')
+                    .setStyle(ButtonStyle.Danger)
+            );
+
+            const msg = await interaction.editReply({
+                content: '⚠️ **Error de Base de Datos**: Este canal no está registrado como ticket en el sistema.\n\n¿Deseas **forzar la eliminación** del canal de todas formas?',
+                components: [row]
+            });
+
+            const filter = i => i.customId === 'force_close_ticket' && i.user.id === interaction.user.id;
+            try {
+                const confirmation = await msg.awaitMessageComponent({ filter, time: 15000 });
+                await confirmation.update({ content: '🗑️ Eliminando canal huérfano...', components: [] });
+                await interaction.channel.delete('Ticket Huérfano - Forzado por Staff');
+            } catch (e) {
+                await interaction.editReply({ content: '❌ Cancelado / Tiempo agotado.', components: [] });
+            }
+            return;
+        }
+
         return interaction.editReply('❌ Este no es un canal de ticket válido.');
     }
 
