@@ -76,6 +76,69 @@ async function handleBankServiceSelection(service, interaction, client, supabase
     }
 }
 
+// --- MISSING MODAL FUNCTIONS IMPLEMENTATION ---
+
+async function showModalDebito(interaction) {
+    const modal = new ModalBuilder().setCustomId('modal_banco_debito').setTitle('💳 Solicitud Tarjeta Débito');
+    modal.addComponents(
+        new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('nombre_titular').setLabel('Nombre Completo').setStyle(TextInputStyle.Short).setRequired(true)),
+        new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('ocupacion').setLabel('Ocupación Principal').setStyle(TextInputStyle.Short).setRequired(true))
+    );
+    await interaction.showModal(modal);
+    return true;
+}
+
+async function showModalCredito(interaction) {
+    const modal = new ModalBuilder().setCustomId('modal_banco_credito').setTitle('💳 Solicitud Tarjeta Crédito');
+    modal.addComponents(
+        new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('ingresos_mensuales').setLabel('Ingresos Mensuales Estimados').setStyle(TextInputStyle.Short).setRequired(true)),
+        new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('motivo_solicitud').setLabel('Motivo de Solicitud').setStyle(TextInputStyle.Paragraph).setRequired(true))
+    );
+    await interaction.showModal(modal);
+    return true;
+}
+
+async function showModalPrestamo(interaction) {
+    const modal = new ModalBuilder().setCustomId('modal_banco_prestamo').setTitle('💰 Solicitud de Préstamo');
+    modal.addComponents(
+        new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('monto_solicitado').setLabel('Monto Solicitado').setStyle(TextInputStyle.Short).setRequired(true)),
+        new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('plazo_pago').setLabel('Plazo de Pago (Días/Semanas)').setStyle(TextInputStyle.Short).setRequired(true)),
+        new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('motivo_prestamo').setLabel('Destino del Crédito').setStyle(TextInputStyle.Paragraph).setRequired(true))
+    );
+    await interaction.showModal(modal);
+    return true;
+}
+
+async function showModalCambio(interaction) {
+    const modal = new ModalBuilder().setCustomId('modal_banco_cambio').setTitle('💱 Cambio de Divisas');
+    modal.addComponents(
+        new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('monto_origen').setLabel('Monto a Cambiar (MXN/USD)').setStyle(TextInputStyle.Short).setRequired(true)),
+        new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('tipo_cambio_deseado').setLabel('¿Compra o Venta?').setStyle(TextInputStyle.Short).setRequired(true))
+    );
+    await interaction.showModal(modal);
+    return true;
+}
+
+async function showModalEmpresa(interaction) {
+    const modal = new ModalBuilder().setCustomId('modal_banco_empresa').setTitle('🏢 Servicio Empresarial');
+    modal.addComponents(
+        new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('nombre_empresa').setLabel('Nombre de la Empresa').setStyle(TextInputStyle.Short).setRequired(true)),
+        new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('tipo_servicio').setLabel('Servicio Requerido (Cuenta/Nómina)').setStyle(TextInputStyle.Short).setRequired(true))
+    );
+    await interaction.showModal(modal);
+    return true;
+}
+
+async function showModalAhorro(interaction) {
+    const modal = new ModalBuilder().setCustomId('modal_banco_ahorro').setTitle('🐷 Cuenta de Ahorro');
+    modal.addComponents(
+        new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('monto_inicial').setLabel('Monto de Apertura').setStyle(TextInputStyle.Short).setRequired(true)),
+        new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('meta_ahorro').setLabel('Meta de Ahorro (Opcional)').setStyle(TextInputStyle.Short).setRequired(false))
+    );
+    await interaction.showModal(modal);
+    return true;
+}
+
 async function handleBankButtonPress(service, interaction, client, supabase) {
     // logger.info('[Banking] Button pressed', { service });
     switch (service) {
