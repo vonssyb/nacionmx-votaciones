@@ -256,27 +256,9 @@ module.exports = {
             return; // Bot silenciado, solo responde con mención directa
         }
 
-        // 1. AUTO-MOD (Shadow Moderation) - DISABLED BY USER REQUEST
-        /*
-        // DEBUG: Trace specific user
-        if (message.author.id === '1414386068266024990') {
-           logger.info(`[DEBUG-TRACE] Target User (1414386068266024990) sent message in ${message.channel.id}: "${message.content}"`);
-        }
+        // 1. AUTO-MOD (Shadow Moderation) - REMOVED BY USER REQUEST
+        // "no se elimina ningun mensaje"
 
-        const contentLower = message.content.toLowerCase();
-        const matchedWord = BAD_WORDS.find(w => contentLower.includes(w));
-        
-        if (matchedWord) {
-            if (message.member.permissions.has(PermissionFlagsBits.ManageMessages)) return; // Ignorar Staff
-
-            logger.info(`[AutoMod] DETECTED BAD WORD from ${message.author.tag} (${message.author.id}). Word: "${matchedWord}". Deleting message.`);
-            await message.delete().catch(e => logger.error(`[AutoMod] Failed to delete message: ${e.message}`));
-            
-            const warningMsg = await message.channel.send(`⚠️ <@${message.author.id}>, mantén el respeto en el ticket o serás sancionado.`);
-            setTimeout(() => warningMsg.delete().catch(() => { }), 5000);
-            return;
-        }
-        */
 
         // 2. IA RESPONSES (Solo si no es Staff y nadie ha respondido recientemente)
         const messages = await message.channel.messages.fetch({ limit: 5 });
