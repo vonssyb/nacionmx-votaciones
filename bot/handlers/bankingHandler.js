@@ -268,6 +268,25 @@ async function createBankingTicket(interaction, serviceType, client, supabase) {
             permissionOverwrites
         });
 
+        // Insert into DB first (Atomic Logic)
+        // Note: For banking tickets, we use the same 'tickets' table but with a distinct prefix/type managed by topic or category
+        // Actually, we should check if we want to store them in 'tickets'. Yes, it's consistent.
+
+        const { error: insertError } = await supabase.from('tickets').insert([{
+            guild_id: interaction.guild.id,
+            channel_id: ticketChannel.id,
+            creator_id: interaction.user.id,
+            status: 'OPEN',
+            last_active_at: new Date().toISOString(),
+            // panel_id: null // No panel for these custom ones
+        }]);
+
+        if (insertError) {
+            logger.errorWithContext('[BANKING-CRITICAL] DB Insert Failed. Rolling back.', insertError);
+            await ticketChannel.delete('DB Insert Failed - Atomic Rollback').catch(() => { });
+            return null; // Signal failure
+        }
+
         // Build description from modal fields
         let description = `**Tipo:** Solicitud Bancaria - ${serviceType.toUpperCase()}\n**Usuario:** <@${interaction.user.id}>\n\n`;
 
