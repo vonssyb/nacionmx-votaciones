@@ -315,13 +315,19 @@ module.exports = {
                     logger.errorWithContext('CRM Error', crmError);
                 }
 
-                await supabase.from('tickets').insert([{
+                const { error: insertError } = await supabase.from('tickets').insert([{
                     guild_id: interaction.guild.id,
                     channel_id: ticketChannel.id,
                     creator_id: interaction.user.id,
                     status: 'OPEN',
                     last_active_at: new Date().toISOString()
                 }]);
+
+                if (insertError) {
+                    logger.errorWithContext('[TICKET-CRITICAL] DB Insert Failed. Rolling back channel creation.', insertError);
+                    await ticketChannel.delete('DB Insert Failed - Atomic Rollback').catch(() => { });
+                    return interaction.editReply('❌ Error crítico: No se pudo registrar el ticket en la base de datos. Intenta de nuevo.');
+                }
 
                 const embed = new EmbedBuilder()
                     .setTitle(`${config.emoji} ${config.title}`)
