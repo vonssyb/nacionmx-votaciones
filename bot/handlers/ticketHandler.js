@@ -55,7 +55,7 @@ module.exports = {
         // --- 2. VALIDACIONES PREVIAS (Blacklist / Horario) ---
         if (ticketTypeKey) {
             // A) Check Blacklist BD (with 2s timeout to prevent Interaction Failure)
-            const checkBlacklist = supabase.from('ticket_blacklist').select('user_id').eq('user_id', interaction.user.id).single();
+            const checkBlacklist = supabase.from('ticket_blacklist').select('user_id').eq('user_id', interaction.user.id).maybeSingle();
             const timeoutPromise = new Promise(resolve => setTimeout(() => resolve({ timeout: true }), 2000));
 
             const result = await Promise.race([checkBlacklist, timeoutPromise]);
@@ -153,7 +153,7 @@ module.exports = {
                 .from('tickets')
                 .select('creator_id')
                 .eq('channel_id', interaction.channel.id)
-                .single();
+                .maybeSingle();
 
             if (!ticketOwner || ticketOwner.creator_id !== interaction.user.id) {
                 await interaction.editReply('❌ Solo el creador del ticket puede calificar.');
@@ -161,7 +161,7 @@ module.exports = {
             }
 
             // Procesar cierre de ticket
-            const { data: ticket } = await supabase.from('tickets').select('*').eq('channel_id', interaction.channel.id).single();
+            const { data: ticket } = await supabase.from('tickets').select('*').eq('channel_id', interaction.channel.id).maybeSingle();
             const discordTranscripts = require('discord-html-transcripts');
             const attachment = await discordTranscripts.createTranscript(interaction.channel, { limit: -1, returnType: 'attachment', filename: `close-${interaction.channel.name}.html`, saveImages: true });
 
@@ -401,7 +401,7 @@ module.exports = {
                 interaction.member.roles.cache.has('1412882248411381872'); // Administración
             if (!isStaff) return interaction.reply({ content: '🚫 Solo Staff.', ephemeral: true });
 
-            const { data: ticket } = await supabase.from('tickets').select('*').eq('channel_id', interaction.channel.id).single();
+            const { data: ticket } = await supabase.from('tickets').select('*').eq('channel_id', interaction.channel.id).maybeSingle();
             if (!ticket) return interaction.reply({ content: '❌ Error: Ticket no encontrado en DB.', ephemeral: true });
 
             // A) UNCLAIM (Si ya lo tiene reclamado el usuario actual)
@@ -414,8 +414,8 @@ module.exports = {
                 // Since we don't have the explicit role ID easily without a join, we can iterate channel overwrites or assume default.
 
                 // TRICK: Fetch panel config via panel_id
-                const { data: panel } = await supabase.from('ticket_panels').select('support_role_id').eq('id', ticket.panel_id).single();
-                const roleId = panel?.support_role_id;
+                const { data: panel } = await supabase.from('ticket_panels').select('support_role_id').eq('id', ticket.panel_id).maybeSingle();
+                const roleId = panel?.support_role_id || TICKET_CONFIG.ROLE_COMMON;
 
                 if (roleId) {
                     await interaction.channel.permissionOverwrites.edit(roleId, {
@@ -440,8 +440,8 @@ module.exports = {
             // C) CLAIM (Si está libre)
             await supabase.from('tickets').update({ claimed_by_id: interaction.user.id }).eq('channel_id', interaction.channel.id);
 
-            const { data: panel } = await supabase.from('ticket_panels').select('support_role_id').eq('id', ticket.panel_id).single();
-            const roleId = panel?.support_role_id;
+            const { data: panel } = await supabase.from('ticket_panels').select('support_role_id').eq('id', ticket.panel_id).maybeSingle();
+            const roleId = panel?.support_role_id || TICKET_CONFIG.ROLE_COMMON;
 
             // HIDE from other staff, SHOW for claimer
             if (roleId) {
@@ -462,7 +462,7 @@ module.exports = {
         }
 
         if (customId === 'btn_close_ticket_ask') {
-            const { data: ticket } = await supabase.from('tickets').select('*').eq('channel_id', interaction.channel.id).single();
+            const { data: ticket } = await supabase.from('tickets').select('*').eq('channel_id', interaction.channel.id).maybeSingle();
             if (ticket && ticket.creator_id === interaction.user.id) {
                 return interaction.reply({ content: '🚫 Espera al Staff para cerrar.', ephemeral: true });
             }
@@ -483,7 +483,7 @@ module.exports = {
             await interaction.message.delete().catch(() => { });
 
             // Get Creator ID to ping THEM, not the Staff closing it
-            const { data: ticket } = await supabase.from('tickets').select('creator_id').eq('channel_id', interaction.channel.id).single();
+            const { data: ticket } = await supabase.from('tickets').select('creator_id').eq('channel_id', interaction.channel.id).maybeSingle();
             const targetUser = ticket?.creator_id || interaction.user.id;
 
             const embed = new EmbedBuilder().setTitle('🔒 Finalizado').setDescription('Califica la atención:\n\n⭐ Da clic en **Calificar** para escribir tu calificación (1-5 estrellas) y comentarios.').setColor(0xFEE75C);
@@ -502,7 +502,7 @@ module.exports = {
                 .from('tickets')
                 .select('creator_id')
                 .eq('channel_id', interaction.channel.id)
-                .single();
+                .maybeSingle();
 
             if (!ticketData || ticketData.creator_id !== interaction.user.id) {
                 return interaction.reply({
@@ -547,7 +547,7 @@ module.exports = {
             await interaction.deferUpdate();
             let rating = (customId === 'feedback_5') ? 5 : (customId === 'feedback_3') ? 3 : (customId === 'feedback_1') ? 1 : null;
 
-            const { data: ticket } = await supabase.from('tickets').select('*').eq('channel_id', interaction.channel.id).single();
+            const { data: ticket } = await supabase.from('tickets').select('*').eq('channel_id', interaction.channel.id).maybeSingle();
             const attachment = await discordTranscripts.createTranscript(interaction.channel, { limit: -1, returnType: 'attachment', filename: `close-${interaction.channel.name}.html`, saveImages: true });
 
             const logChannel = client.channels.cache.get(TICKET_CONFIG.LOG_TRANSCRIPTS);
