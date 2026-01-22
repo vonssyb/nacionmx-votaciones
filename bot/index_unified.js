@@ -301,6 +301,33 @@ async function startModerationBot() {
             const logChannel = await client.channels.fetch(LOG_CHANNEL_ID).catch(() => null);
             if (!logChannel) return;
 
+            // --- AUDIT LOG FETCHING TO IDENTIFY DELETER ---
+            const { AuditLogEvent } = require('discord.js');
+            let executedBy = 'Desconocido/Usuario'; // Default assumes user self-delete if no log found
+
+            try {
+                // Fetch last deletions
+                const fetchedLogs = await message.guild.fetchAuditLogs({
+                    limit: 1,
+                    type: AuditLogEvent.MessageDelete,
+                });
+
+                // Check if the log is relevant (target matches Author and recent)
+                const deletionLog = fetchedLogs.entries.first();
+
+                if (deletionLog) {
+                    const { executor, target, createdTimestamp } = deletionLog;
+                    // Logic: If target is the message author AND it was created extremely recently (< 5s)
+                    if (target.id === message.author.id && (Date.now() - createdTimestamp) < 5000) {
+                        executedBy = `${executor.tag} (${executor.id})`;
+                        if (executor.bot) executedBy += ' 🤖 [BOT]';
+                    }
+                }
+            } catch (auditErr) {
+                console.log('Error fetching audit logs:', auditErr.message);
+            }
+            // ---------------------------------------------
+
             const { EmbedBuilder, AttachmentBuilder } = require('discord.js');
             const files = [];
 
@@ -319,6 +346,7 @@ async function startModerationBot() {
                 .addFields(
                     { name: 'Autor', value: `<@${message.author.id}>`, inline: true },
                     { name: 'Canal', value: `<#${message.channel.id}>`, inline: true },
+                    { name: 'Eliminado Por', value: `**${executedBy}**`, inline: false },
                     { name: 'Contenido', value: message.content ? message.content.substring(0, 1024) : '*(Sin contenido de texto)*' }
                 )
                 .setFooter({ text: `ID: ${message.id}` })
