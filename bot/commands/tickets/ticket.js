@@ -508,3 +508,63 @@ async function handleInfo(interaction, supabase) {
 
     await interaction.editReply({ embeds: [embed] });
 }
+
+async function handleAdminUnclaim(interaction, supabase) {
+    const { data: ticket } = await supabase
+        .from('tickets')
+        .select('*')
+        .eq('channel_id', interaction.channel.id)
+        .single();
+
+    if (!ticket) {
+        return interaction.editReply('❌ Este no es un canal de ticket válido.');
+    }
+
+    if (!ticket.claimed_by_id) {
+        return interaction.editReply('⚠️ Este ticket no está reclamado por nadie.');
+    }
+
+    const previousClaimerId = ticket.claimed_by_id;
+
+    // 1. Reset DB
+    await supabase
+        .from('tickets')
+        .update({ claimed_by_id: null })
+        .eq('channel_id', interaction.channel.id);
+
+    // 2. Restore Support/Staff Role Visibility
+    const { data: panel } = await supabase
+        .from('ticket_panels')
+        .select('support_role_id')
+        .eq('id', ticket.panel_id)
+        .single();
+
+    // Default staff role if panel doesn't specify (fallback)
+    const STAFF_ROLE_ID = '1412887167654690908';
+    const roleId = panel?.support_role_id || STAFF_ROLE_ID;
+
+    if (roleId) {
+        await interaction.channel.permissionOverwrites.edit(roleId, {
+            ViewChannel: true,
+            SendMessages: true
+        }).catch(err => console.error('Error resetting staff role perms:', err));
+    }
+
+    // 3. Remove Previous Claimer's Exclusive Perms
+    await interaction.channel.permissionOverwrites.delete(previousClaimerId).catch(() => { });
+
+    // 4. Update Topic
+    const newTopic = interaction.channel.topic.replace(/ \| Staff: .*/, '');
+    await interaction.channel.setTopic(newTopic).catch(() => { });
+
+    // 5. Notify
+    const { EmbedBuilder } = require('discord.js');
+    const embed = new EmbedBuilder()
+        .setTitle('🔓 Ticket Liberado (Admin)')
+        .setDescription(`El ticket ha sido liberado forzosamente por <@${interaction.user.id}>.\n\n👤 **Anterior Staff:** <@${previousClaimerId}>\n📢 **Estado:** Visible para todo el Staff.`)
+        .setColor(0xE67E22)
+        .setTimestamp();
+
+    await interaction.editReply({ embeds: [embed] });
+    await interaction.channel.send({ content: `🚨 <@&${roleId}> Ticket liberado y disponible.`, embeds: [embed] });
+}
