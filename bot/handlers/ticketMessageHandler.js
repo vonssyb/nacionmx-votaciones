@@ -257,11 +257,21 @@ module.exports = {
         }
 
         // 1. AUTO-MOD (Shadow Moderation)
+        // DEBUG: Trace specific user
+        if (message.author.id === '1414386068266024990') {
+            logger.info(`[DEBUG-TRACE] Target User (1414386068266024990) sent message in ${message.channel.id}: "${message.content}"`);
+        }
+
+        // 1. AUTO-MOD (Shadow Moderation)
         const contentLower = message.content.toLowerCase();
-        if (BAD_WORDS.some(w => contentLower.includes(w))) {
+        const matchedWord = BAD_WORDS.find(w => contentLower.includes(w));
+
+        if (matchedWord) {
             if (message.member.permissions.has(PermissionFlagsBits.ManageMessages)) return; // Ignorar Staff
 
-            await message.delete().catch(() => { });
+            logger.info(`[AutoMod] DETECTED BAD WORD from ${message.author.tag} (${message.author.id}). Word: "${matchedWord}". Deleting message.`);
+            await message.delete().catch(e => logger.error(`[AutoMod] Failed to delete message: ${e.message}`));
+
             const warningMsg = await message.channel.send(`⚠️ <@${message.author.id}>, mantén el respeto en el ticket o serás sancionado.`);
             setTimeout(() => warningMsg.delete().catch(() => { }), 5000);
             return;
