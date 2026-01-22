@@ -147,7 +147,7 @@ async function handleCerrar(interaction, supabase) {
         .from('tickets')
         .select('*')
         .eq('channel_id', interaction.channel.id)
-        .single();
+        .maybeSingle();
 
     if (!ticket) {
         // ORPHAN TICKET HANDLING
@@ -229,7 +229,7 @@ async function handleReclamar(interaction, supabase) {
         .from('tickets')
         .select('*')
         .eq('channel_id', interaction.channel.id)
-        .single();
+        .maybeSingle();
 
     if (!ticket) {
         return interaction.editReply('❌ Este no es un canal de ticket válido.');
@@ -256,7 +256,7 @@ async function handleReclamar(interaction, supabase) {
         .from('ticket_panels')
         .select('support_role_id')
         .eq('id', ticket.panel_id)
-        .single();
+        .maybeSingle();
 
     const roleId = panel?.support_role_id;
 
@@ -291,7 +291,7 @@ async function handleTransferir(interaction, supabase, client) {
         .from('tickets')
         .select('*')
         .eq('channel_id', interaction.channel.id)
-        .single();
+        .maybeSingle();
 
     if (!ticket) {
         return interaction.editReply('❌ Este no es un canal de ticket válido.');
@@ -333,7 +333,7 @@ async function handleAñadir(interaction, supabase) {
         .from('tickets')
         .select('*')
         .eq('channel_id', interaction.channel.id)
-        .single();
+        .maybeSingle();
 
     if (!ticket) {
         return interaction.editReply('❌ Este no es un canal de ticket válido.');
@@ -356,7 +356,7 @@ async function handleRemover(interaction, supabase) {
         .from('tickets')
         .select('*')
         .eq('channel_id', interaction.channel.id)
-        .single();
+        .maybeSingle();
 
     if (!ticket) {
         return interaction.editReply('❌ Este no es un canal de ticket válido.');
@@ -382,7 +382,7 @@ async function handleRenombrar(interaction, supabase) {
         .from('tickets')
         .select('*')
         .eq('channel_id', interaction.channel.id)
-        .single();
+        .maybeSingle();
 
     if (!ticket) {
         return interaction.editReply('❌ Este no es un canal de ticket válido.');
@@ -510,7 +510,7 @@ async function handleInfo(interaction, supabase) {
         .from('tickets')
         .select('*')
         .eq('channel_id', interaction.channel.id)
-        .single();
+        .maybeSingle();
 
     if (!ticket) {
         return interaction.editReply('❌ Este no es un canal de ticket válido.');

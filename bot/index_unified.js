@@ -301,46 +301,108 @@ async function startModerationBot() {
             const logChannel = await client.channels.fetch(LOG_CHANNEL_ID).catch(() => null);
             if (!logChannel) return;
 
-            // --- AUDIT LOG FETCHING TO IDENTIFY DELETER ---
+            // --- 🔍 ADVANCED DEBUG SYSTEM ---
             const { AuditLogEvent } = require('discord.js');
             let executedBy = 'Desconocido/Usuario'; // Default assumes user self-delete if no log found
+            let debugInfo = ''; // Extra debug data
 
+            // 1. CAPTURE MESSAGE FLAGS (Discord System Actions)
+            const messageFlags = [];
+            if (message.flags) {
+                const flagBits = message.flags.bitfield;
+                const flagNames = {
+                    1: 'CROSSPOSTED',
+                    2: 'IS_CROSSPOST',
+                    4: 'SUPPRESS_EMBEDS',
+                    8: 'SOURCE_MESSAGE_DELETED',
+                    16: 'URGENT',
+                    32: 'HAS_THREAD',
+                    64: 'EPHEMERAL',
+                    128: 'LOADING',
+                    256: 'FAILED_TO_MENTION_SOME_ROLES_IN_THREAD',
+                    4096: 'SUPPRESS_NOTIFICATIONS',
+                    8192: 'IS_VOICE_MESSAGE'
+                };
+
+                for (const [bit, name] of Object.entries(flagNames)) {
+                    if (flagBits & parseInt(bit)) messageFlags.push(name);
+                }
+            }
+
+            // 2. CAPTURE FILE DETAILS
+            let attachmentInfo = '';
+            if (message.attachments.size > 0) {
+                const att = message.attachments.first();
+                attachmentInfo = `\n📎 **Archivo:** ${att.name}\n📏 **Tamaño:** ${(att.size / 1024).toFixed(2)} KB\n🎬 **Tipo:** ${att.contentType || 'Desconocido'}`;
+            }
+
+            // 3. FETCH DETAILED AUDIT LOG
+            let auditDetails = '';
             try {
-                // Fetch last deletions
                 const fetchedLogs = await message.guild.fetchAuditLogs({
-                    limit: 1,
+                    limit: 5, // Get last 5 to see patterns
                     type: AuditLogEvent.MessageDelete,
                 });
 
-                // Check if the log is relevant (target matches Author and recent)
                 const deletionLog = fetchedLogs.entries.first();
 
                 if (deletionLog) {
-                    const { executor, target, createdTimestamp } = deletionLog;
-                    // Logic: If target is the message author AND it was created extremely recently (< 5s)
-                    if (target.id === message.author.id && (Date.now() - createdTimestamp) < 5000) {
+                    const { executor, target, createdTimestamp, extra } = deletionLog;
+                    const timeDiff = Date.now() - createdTimestamp;
+
+                    // Match by author AND recent timing
+                    if (target.id === message.author.id && timeDiff < 5000) {
                         executedBy = `${executor.tag} (${executor.id})`;
                         if (executor.bot) executedBy += ' 🤖 [BOT]';
+
+                        auditDetails = `\n🕒 **Audit Log Time:** ${timeDiff}ms ago\n📊 **Extra Data:** ${JSON.stringify(extra || {})}`;
+                    } else {
+                        auditDetails = `\n⚠️ **Audit Log:** No match (Target: ${target?.tag || 'N/A'}, Time: ${timeDiff}ms)`;
                     }
                 }
             } catch (auditErr) {
-                console.log('Error fetching audit logs:', auditErr.message);
+                auditDetails = `\n❌ **Audit Error:** ${auditErr.message}`;
             }
-            // ---------------------------------------------
 
+            // 4. CHECK IF WEBHOOK MESSAGE
+            let webhookInfo = '';
+            if (message.webhookId) {
+                webhookInfo = `\n🪝 **Webhook ID:** ${message.webhookId}`;
+            }
+
+            // 5. SYSTEM MESSAGE CHECK
+            let systemInfo = '';
+            if (message.system) {
+                systemInfo = `\n🤖 **System Message:** ${message.type}`;
+            }
+
+            // 6. COMPILE DEBUG STRING
+            debugInfo = `\n\n🔍 **DEBUG INFO:**\n🚩 **Flags:** ${messageFlags.length > 0 ? messageFlags.join(', ') : 'None'}${attachmentInfo}${auditDetails}${webhookInfo}${systemInfo}`;
+
+            // --- RE-UPLOAD ATTACHMENTS ---
             const { EmbedBuilder, AttachmentBuilder } = require('discord.js');
             const files = [];
 
-            // Handle Attachments (Re-upload)
             if (message.attachments.size > 0) {
                 message.attachments.forEach(att => {
-                    // Try using proxyURL as it lasts slightly longer, or url
                     files.push(new AttachmentBuilder(att.proxyURL || att.url, { name: att.name }));
                 });
             }
 
+            // --- CONSOLE DEBUG (Same output) ---
+            console.log(`\n${'='.repeat(60)}`);
+            console.log(`🗑️ MENSAJE ELIMINADO - DEBUG COMPLETO`);
+            console.log(`${'='.repeat(60)}`);
+            console.log(`👤 Autor: ${message.author.tag} (${message.author.id})`);
+            console.log(`📝 Canal: #${message.channel.name} (${message.channel.id})`);
+            console.log(`🗑️ Eliminado Por: ${executedBy}`);
+            console.log(`💬 Contenido: ${message.content || '(Sin texto)'}`);
+            console.log(debugInfo);
+            console.log(`${'='.repeat(60)}\n`);
+
+            // --- DISCORD EMBED ---
             const embed = new EmbedBuilder()
-                .setTitle(`🗑️ Mensaje Eliminado [${INSTANCE_ID}]`)
+                .setTitle(`🗑️ Mensaje Eliminado [${INSTANCE_ID}] - DEBUG MODE`)
                 .setColor('#FF0000')
                 .setAuthor({ name: message.author.tag, iconURL: message.author.displayAvatarURL() })
                 .addFields(
@@ -349,7 +411,8 @@ async function startModerationBot() {
                     { name: 'Eliminado Por', value: `**${executedBy}**`, inline: false },
                     { name: 'Contenido', value: message.content ? message.content.substring(0, 1024) : '*(Sin contenido de texto)*' }
                 )
-                .setFooter({ text: `ID: ${message.id}` })
+                .setDescription(debugInfo.substring(0, 4000)) // Discord limit
+                .setFooter({ text: `ID: ${message.id} | Bot Debug System Activo` })
                 .setTimestamp();
 
             await logChannel.send({ embeds: [embed], files: files });
