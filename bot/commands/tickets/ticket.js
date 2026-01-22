@@ -65,12 +65,19 @@ module.exports = {
                 .setRequired(false)))
         .addSubcommand(sub => sub
             .setName('info')
-            .setDescription('Ver información detallada del ticket actual')),
+            .setDescription('Ver información detallada del ticket actual'))
+        .addSubcommandGroup(group => group
+            .setName('admin')
+            .setDescription('Comandos administrativos de tickets')
+            .addSubcommand(sub => sub
+                .setName('unclaim')
+                .setDescription('Libera forzosamente un ticket reclamado'))),
 
     async execute(interaction, client, supabase) {
         await interaction.deferReply({ ephemeral: true });
 
         const subcommand = interaction.options.getSubcommand();
+        const subcommandGroup = interaction.options.getSubcommandGroup();
 
         // Staff role check for most commands
         const STAFF_ROLES = [
@@ -83,8 +90,22 @@ module.exports = {
             interaction.member.roles.cache.some(r => STAFF_ROLES.includes(r.id));
 
         // Commands that require staff permissions
-        if (['reclamar', 'transferir', 'añadir', 'remover', 'renombrar', 'blacklist', 'unblacklist'].includes(subcommand) && !isStaff) {
+        if (['reclamar', 'transferir', 'añadir', 'remover', 'renombrar', 'blacklist', 'unblacklist'].includes(subcommand) && !isStaff && !subcommandGroup) {
             return interaction.editReply('❌ Solo el Staff puede usar este comando.');
+        }
+
+        if (subcommandGroup === 'admin') {
+            // Admin check
+            const isAdmin = interaction.member.permissions.has(PermissionFlagsBits.Administrator) ||
+                interaction.member.roles.cache.has('1412882245735420006'); // Junta Directiva
+
+            if (!isAdmin) {
+                return interaction.editReply('❌ Solo Administradores o Junta Directiva pueden usar este comando.');
+            }
+
+            if (subcommand === 'unclaim') {
+                return handleAdminUnclaim(interaction, supabase);
+            }
         }
 
         switch (subcommand) {
