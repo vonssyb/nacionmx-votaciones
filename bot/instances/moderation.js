@@ -154,6 +154,11 @@ async function startModerationBot(supabase) {
         })();
     }
 
+    // Suggestion Handler
+    const SuggestionHandler = require('../handlers/suggestionHandler');
+    const suggestionHandler = new SuggestionHandler(client, supabase);
+    client.services.suggestions = suggestionHandler;
+
     // Events
     client.once('ready', () => {
         logger.info('🟢', `[MOD] Logged in as ${client.user.tag}`);
@@ -181,15 +186,26 @@ async function startModerationBot(supabase) {
     client.on('messageUpdate', (oldMessage, newMessage) => events.messageUpdate(client, oldMessage, newMessage, supabase));
     client.on('voiceStateUpdate', (oldState, newState) => events.voiceStateUpdate(client, oldState, newState, supabase));
 
-    // Ticket Handler
+    // Ticket & Suggestion Handlers
     client.on('messageCreate', async message => {
-        try { await handleTicketMessage(message, client, supabase); } catch (err) { logger.errorWithContext('Ticket msg error', err); }
+        try {
+            if (message.channel.id === CHANNELS.SUGGESTIONS) {
+                await suggestionHandler.handleNewSuggestion(message);
+            } else {
+                await handleTicketMessage(message, client, supabase);
+            }
+        } catch (err) { logger.errorWithContext('Msg Handler Error', err); }
     });
 
     client.on('interactionCreate', async interaction => {
         if (!rateLimiter.check(interaction.user.id)) return interaction.reply({ content: '⏳ Slow down.', ephemeral: true }).catch(() => { });
 
         try { await handleTicketInteraction(interaction, client, supabase); } catch (e) { }
+
+        // Suggestion Buttons
+        if (interaction.isButton() && interaction.customId.startsWith('suggestion_')) {
+            try { await suggestionHandler.handleButton(interaction); return; } catch (e) { }
+        }
 
         if (!interaction.isChatInputCommand()) {
             try {
