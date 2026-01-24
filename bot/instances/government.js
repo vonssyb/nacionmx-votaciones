@@ -17,7 +17,7 @@ const StateManager = require('../services/StateManager');
 async function startGovernmentBot(supabase) {
     logger.info('🏛️', 'Starting Government Bot...');
     const client = new Client({
-        intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages]
+        intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent]
     });
 
     client.commands = new Collection();
