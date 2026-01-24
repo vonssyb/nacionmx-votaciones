@@ -182,10 +182,9 @@ async function startModerationBot(supabase) {
     client.on('voiceStateUpdate', (oldState, newState) => events.voiceStateUpdate(client, oldState, newState, supabase));
 
     // Ticket Handler
-    // Ticket Handler - DISABLED TEMPORARILY FOR DEBUGGING
-    // client.on('messageCreate', async message => {
-    //     try { await handleTicketMessage(message, client, supabase); } catch (err) { logger.errorWithContext('Ticket msg error', err); }
-    // });
+    client.on('messageCreate', async message => {
+        try { await handleTicketMessage(message, client, supabase); } catch (err) { logger.errorWithContext('Ticket msg error', err); }
+    });
 
     client.on('interactionCreate', async interaction => {
         if (!rateLimiter.check(interaction.user.id)) return interaction.reply({ content: '⏳ Slow down.', ephemeral: true }).catch(() => { });
