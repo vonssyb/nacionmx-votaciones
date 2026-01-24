@@ -27,11 +27,14 @@ for (const folder of commandFolders) {
         try {
             const command = require(filePath);
             if ('data' in command && 'execute' in command) {
-                // If loaded via data.toJSON(), it's an object.
-                // Store using command name as key to avoid duplicates if we want, or just push.
-                // We'll prefer modular commands over legacy ones if duplicates exist.
-                commands.push(command.data.toJSON());
-                console.log(`[LOAD] Copiando comando modular: ${command.data.name}`);
+                // Check for duplicates before pushing
+                const cmdName = command.data.name;
+                if (commands.some(c => c.name === cmdName)) {
+                    console.warn(`[WARN] Comando duplicado omitido: ${cmdName} (${file})`);
+                } else {
+                    commands.push(command.data.toJSON());
+                    console.log(`[LOAD] Copiando comando modular: ${cmdName}`);
+                }
             } else {
                 console.warn(`[WARN] El comando en ${filePath} le falta 'data' o 'execute'.`);
             }
@@ -55,9 +58,10 @@ try {
 
     if (legacyCommands) {
         let legacyCount = 0;
+        const EXCLUDED_LEGACY = ['multa', 'tarjeta', 'saldo', 'robar', 'bolsa', 'casino', 'info', 'notificaciones', 'impuestos', 'nomina', 'giro', 'movimientos', 'top-morosos', 'top-ricos', 'slots', 'stake', 'dar-robo', 'fondos'];
         for (const cmd of legacyCommands) {
-            // Only add if not already present (Modular takes precedence)
-            if (!commands.find(c => c.name === cmd.name)) {
+            // Only add if not already present AND not excluded
+            if (!commands.find(c => c.name === cmd.name) && !EXCLUDED_LEGACY.includes(cmd.name)) {
                 commands.push(cmd);
                 legacyCount++;
             }
