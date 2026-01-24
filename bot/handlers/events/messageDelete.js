@@ -70,6 +70,8 @@ module.exports = async (client, message, supabase) => {
                     auditDetails = `\n🕒 **Audit Log Time:** ${timeDiff}ms ago\n📊 **Extra Data:** ${JSON.stringify(extra || {})}`;
                 } else {
                     auditDetails = `\n⚠️ **Audit Log:** No match (Target: ${target?.tag || 'N/A'}, Time: ${timeDiff}ms)`;
+                    executedBy = 'Usuario (Autoborrado)'; // Stronger inference: No log = User did it
+                    debugInfo += '\n💡 **NOTA TÉCNICA:** Si no hay registro de auditoría, Discord confirma que **fue el propio usuario** quien borró el mensaje (o una aplicación logueada en su cuenta). Los bots SIEMPRE dejan rastro.';
                 }
             }
         } catch (auditErr) {
