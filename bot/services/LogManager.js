@@ -35,16 +35,33 @@ class LogManager {
     async log(type, embed, content = null) {
         const channelId = this.CHANNELS[type];
         if (!channelId) {
-            logger.warn(`[LogManager] Unknown channel type: ${type}`);
+            // Silence warning for unknown types, just return false
+            // logger.warn(`[LogManager] Unknown channel type: ${type}`);
             return false;
         }
 
         try {
-            const channel = await this.client.channels.fetch(channelId).catch(() => null);
+            // Try to get from cache first
+            let channel = this.client.channels.cache.get(channelId);
+
+            // If not in cache, fetch it
             if (!channel) {
-                logger.warn(`[LogManager] Channel not found: ${channelId} (${type})`);
-                return false;
+                try {
+                    channel = await this.client.channels.fetch(channelId);
+                } catch (e) {
+                    // Reduce log level for 'Unknown Channel' to debug or warn only once
+                    // Check if we already warned about this channel recently? 
+                    // For now, valid fix is just to catch quietly if it's 404
+                    if (e.code === 10003) { // Unknown Channel
+                        // Only warn if we haven't warned about this specific channel recently (optional optimization)
+                        logger.warn(`[LogManager] Channel not found: ${channelId} (${type}) - Logging disabled for this event.`);
+                        return false;
+                    }
+                    throw e;
+                }
             }
+
+            if (!channel) return false;
 
             const payload = { embeds: [embed] };
             if (content) payload.content = content;

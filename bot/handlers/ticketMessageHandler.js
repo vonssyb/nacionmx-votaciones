@@ -121,7 +121,7 @@ async function getImageDescription(imageUrl) {
             imageBuffer,
             {
                 headers: { 'Content-Type': 'application/octet-stream' },
-                timeout: 60000
+                timeout: 30000 // Reduced timeout to fail faster
             }
         );
 
@@ -131,13 +131,20 @@ async function getImageDescription(imageUrl) {
         return `[Descripción básica]: ${description}. NOTA: Para detalles específicos de ER:LC (nombres, niveles, chat exacto), descríbelos tú.`;
 
     } catch (err) {
-        logger.errorWithContext("❌ Hugging Face Error", err);
-
+        // Reduced log level for expected instability of free tier
+        // 503 = Model Loading, 502/504 = Gateway timeout
         if (err.response?.status === 503) {
-            return "⏳ Modelo cargándose (~30 seg). Reenvía la imagen en 30 segundos.";
+            logger.warn("⚠️ Hugging Face model loading (503). Skipping visual analysis.");
+            return "(La IA no pudo ver la imagen porque el modelo se está cargando. Describe la imagen por favor)";
         }
 
-        return "⚠️ Error analizando imagen. Describe qué contiene la captura.";
+        if (err.code === 'ECONNABORTED' || err.response?.status === 504 || err.config?.timeout) {
+            logger.warn("⚠️ Hugging Face timed out. Skipping visual analysis.");
+            return "(La IA no pudo ver la imagen por timeout. Describe la imagen por favor)";
+        }
+
+        logger.warn("⚠️ Hugging Face Error (Non-critical): " + err.message);
+        return "(Error analizando imagen. Describe qué contiene la captura.)";
     }
 }
 
