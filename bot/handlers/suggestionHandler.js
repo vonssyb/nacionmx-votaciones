@@ -97,6 +97,11 @@ class SuggestionHandler {
                 return interaction.followUp({ content: '❌ No se encontró esta sugerencia en la base de datos.', ephemeral: true });
             }
 
+            // Prevent self-voting
+            if (suggestion.user_id === userId) {
+                return interaction.followUp({ content: '❌ No puedes votar en tu propia sugerencia.', ephemeral: true });
+            }
+
             let upvotes = suggestion.upvotes || [];
             let downvotes = suggestion.downvotes || [];
 
