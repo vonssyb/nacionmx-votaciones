@@ -132,6 +132,26 @@ class ErlcScheduler {
             return false;
         }
     }
+
+    async cleanupOldActions() {
+        try {
+            const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+
+            const { error, count } = await this.supabase
+                .from('erlc_pending_actions')
+                .delete({ count: 'exact' })
+                .lt('created_at', sevenDaysAgo)
+                .in('status', ['completed', 'failed']);
+
+            if (error) {
+                console.error('[ErlcScheduler] Cleanup Error:', error.message);
+            } else if (count > 0) {
+                console.log(`[ErlcScheduler] 🧹 Cleaned up ${count} old actions.`);
+            }
+        } catch (e) {
+            console.error('[ErlcScheduler] Cleanup Exception:', e.message);
+        }
+    }
 }
 
 module.exports = ErlcScheduler;
