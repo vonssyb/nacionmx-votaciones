@@ -573,8 +573,13 @@ module.exports = {
                         components: [appealButtons]
                     });
                 } catch (dmError) {
-                    console.error('[Sancion] Failed to send DM to user:', dmError);
-                    actionResult += '\n⚠️ No se pudo enviar MD al usuario (posiblemente bloqueado).';
+                    if (dmError.code === 50007) {
+                        console.warn(`[Sancion] Cannot DM user ${targetUser.tag} (DMs closed/blocked).`);
+                        actionResult += '\n⚠️ No se pudo enviar MD (Privacidad/Bloqueo).';
+                    } else {
+                        console.error('[Sancion] Failed to send DM to user:', dmError);
+                        actionResult += '\n⚠️ Error al enviar MD.';
+                    }
                 }
             }
 

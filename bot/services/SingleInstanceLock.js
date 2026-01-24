@@ -68,7 +68,7 @@ class SingleInstanceLock {
                 .eq('instance_id', this.instanceId); // Only update if WE still own it
 
             if (error) {
-                console.error('⚠️ [Lock] Heartbeat failed:', error.message);
+                console.error('⚠️ [Lock] Heartbeat failed:', error.message || error);
             }
         }, this.checkIntervalTime);
     }

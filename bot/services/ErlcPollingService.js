@@ -111,12 +111,18 @@ class ErlcPollingService {
             }
         } catch (error) {
             this.consecutiveErrors = (this.consecutiveErrors || 0) + 1;
+            const status = error.response?.status || 'Unknown';
+            const isCommonError = [403, 500, 502, 503, 504].includes(status);
 
             // Only log the first error, and then every 10th error to avoid spam
             // 502 = Bad Gateway (Upstream issue)
             // 403 = Forbidden (Invalid Key)
-            if (this.consecutiveErrors === 1 || this.consecutiveErrors % 10 === 0) {
-                console.error(`[ERLC Service] Polling Error (x${this.consecutiveErrors}): ${error.message} [Code: ${error.response?.status || 'Unknown'}]`);
+            if (this.consecutiveErrors === 1 || this.consecutiveErrors % 20 === 0) {
+                if (isCommonError && this.consecutiveErrors > 1) {
+                    console.warn(`[ERLC Service] Polling unstable (x${this.consecutiveErrors}): Code ${status}`);
+                } else {
+                    console.error(`[ERLC Service] Polling Error (x${this.consecutiveErrors}): ${error.message} [Code: ${status}]`);
+                }
             }
         }
     }

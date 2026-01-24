@@ -23,6 +23,11 @@ class ErlcService {
                     console.warn('[ErlcService] Rate Limited');
                     return null;
                 }
+                // Suppress expected API errors
+                if ([403, 500, 502, 503, 504].includes(response.status)) {
+                    console.warn(`[ErlcService] API Unavailable (${response.status}): ${response.statusText}`);
+                    return null;
+                }
                 throw new Error(`API Error: ${response.status} ${response.statusText}`);
             }
 
@@ -76,7 +81,12 @@ class ErlcService {
             if (!response.ok) return [];
             return await response.json();
         } catch (error) {
-            console.error('[ErlcService] Error fetching vehicles:', error.message);
+            // Suppress common errors
+            if (error.message.includes('502') || error.message.includes('403')) {
+                console.warn('[ErlcService] Failed to fetch vehicles (API Error)');
+            } else {
+                console.error('[ErlcService] Error fetching vehicles:', error.message);
+            }
             return [];
         }
     }

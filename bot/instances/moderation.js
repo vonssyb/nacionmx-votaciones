@@ -196,7 +196,13 @@ async function startModerationBot(supabase) {
                 const banking = await handleBankingInteraction(interaction, client, supabase);
                 if (banking) return;
                 await handleModerationInteraction(interaction, client, supabase);
-            } catch (e) { logger.errorWithContext('Mod Orchestrator Error', e); }
+            } catch (e) {
+                logger.errorWithContext('Mod Orchestrator Error', e, {
+                    command: interaction.commandName,
+                    user: interaction.user.tag,
+                    customId: interaction.customId
+                });
+            }
             return;
         }
 
