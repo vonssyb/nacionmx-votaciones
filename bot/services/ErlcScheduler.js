@@ -14,6 +14,9 @@ class ErlcScheduler {
         // Run immediately on start
         this.checkPendingActions();
 
+        // Cleanup old records on start
+        this.cleanupOldActions();
+
         this.interval = setInterval(() => {
             this.checkPendingActions();
         }, intervalMs);

@@ -137,7 +137,7 @@ async function startModerationBot() {
 
     // ERLC Service (Instantiate EARLY for injection)
     const ErlcService = require('./services/ErlcService');
-    const erlcService = new ErlcService(process.env.ERLC_API_KEY || 'ARuRfmzZGTqbqUCjMERA-dzEeGLbRfisfjKtiCOXLHATXDedYZsQQEethQMZp');
+    const erlcService = new ErlcService(process.env.ERLC_API_KEY);
 
     // Instantiate Managers
     const logManager = new LogManager(client, supabase);
@@ -160,9 +160,12 @@ async function startModerationBot() {
     client.voiceActivityHandler = new VoiceActivityHandler(client, supabase);
 
     // ERLC Scheduler (Offline Queue)
+    // ERLC Scheduler (Offline Queue)
     const ErlcScheduler = require('./services/ErlcScheduler');
-    const erlcScheduler = new ErlcScheduler(supabase, process.env.ERLC_API_KEY || 'ARuRfmzZGTqbqUCjMERA-dzEeGLbRfisfjKtiCOXLHATXDedYZsQQEethQMZp');
-    erlcScheduler.start(3000000); // Check every 50 minutes (requested by user)
+    const erlcScheduler = new ErlcScheduler(supabase, process.env.ERLC_API_KEY);
+    if (!process.env.ERLC_API_KEY) logger.warn('⚠️ ERLC_API_KEY missing in .env - Scheduler will fail to execute commands.');
+
+    erlcScheduler.start(120 * 1000); // Check every 2 minutes
 
     // Log Channel ID from legacy code: 1457892493310951444
     // ERLC Log Manager (General Logs to Channel)

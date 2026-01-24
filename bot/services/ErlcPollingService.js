@@ -128,56 +128,98 @@ class ErlcPollingService {
 
         console.log(`[ERLC Service] 📥 Processing: User="${robloxUser}" Cmd="${content}"`);
 
-        if (content.toLowerCase().startsWith(':log talk ')) {
-            const message = content.substring(10).trim();
-            await this.handleTalk(robloxUser, message);
-        } else if (content.toLowerCase().startsWith(':log vc ')) {
-            const abr = content.substring(8).trim();
-            await this.handleVC(robloxUser, abr);
-        } else if (content.toLowerCase().startsWith(':log mv ')) {
-            const parts = content.substring(8).trim().split(' ');
-            if (parts.length >= 2) {
-                const targetUser = parts[0];
-                const channelAbr = parts[1];
-                await this.handleStaffMove(robloxUser, targetUser, channelAbr);
+        // Command Dispatcher Map
+        const handlers = [
+            {
+                prefix: ':log talk ',
+                handler: async (msg) => this.handleTalk(robloxUser, msg)
+            },
+            {
+                prefix: ':log vc ',
+                handler: async (msg) => this.handleVC(robloxUser, msg)
+            },
+            {
+                prefix: ':log mv ',
+                handler: async (msg) => {
+                    const parts = msg.split(' ');
+                    if (parts.length >= 2) await this.handleStaffMove(robloxUser, parts[0], parts[1]);
+                }
+            },
+            {
+                prefix: ':log whisper ',
+                handler: async (msg) => this.handleWhisper(robloxUser, msg)
+            },
+            {
+                prefix: ':log vcreate ',
+                handler: async (msg) => this.handleVCreate(robloxUser, msg)
+            },
+            {
+                prefix: ':log vcontrol',
+                handler: async () => this.handleVControl(robloxUser)
+            },
+            {
+                prefix: ':log vcstats',
+                handler: async (msg) => {
+                    const target = msg ? msg.trim() : robloxUser;
+                    await this.handleVCStats(robloxUser, target);
+                }
+            },
+            {
+                prefix: ':log 911 ',
+                handler: async (msg) => {
+                    const parts = msg.split(' ');
+                    await this.handle911(robloxUser, parts[0], parts.slice(1).join(' '));
+                }
+            },
+            {
+                prefix: ':log pagar ',
+                handler: async (msg) => {
+                    const parts = msg.split(' ');
+                    if (parts.length >= 3) {
+                        await this.handlePagar(robloxUser, parts[0], parseInt(parts[1]), parts.slice(2).join(' '));
+                    }
+                }
+            },
+            {
+                prefix: ':log cobrar ',
+                handler: async (msg) => {
+                    const parts = msg.split(' ');
+                    if (parts.length >= 3) {
+                        await this.handleCobrar(robloxUser, parts[0], parseInt(parts[1]), parts.slice(2).join(' '));
+                    }
+                }
+            },
+            {
+                prefix: ':log anunciar ',
+                handler: async (msg) => this.handleAnuncio(robloxUser, msg)
+            },
+            {
+                prefix: ':log', // Fallback for help or empty
+                exact: true,
+                handler: async () => this.handleHelp(robloxUser)
+            },
+            {
+                prefix: ':log help',
+                exact: true,
+                handler: async () => this.handleHelp(robloxUser)
             }
-        } else if (content.toLowerCase().startsWith(':log whisper ')) {
-            const targetUser = content.substring(13).trim();
-            await this.handleWhisper(robloxUser, targetUser);
-        } else if (content.toLowerCase().startsWith(':log vcreate ')) {
-            const channelName = content.substring(13).trim();
-            await this.handleVCreate(robloxUser, channelName);
-        } else if (content.toLowerCase() === ':log vcontrol') {
-            await this.handleVControl(robloxUser);
-        } else if (content.toLowerCase() === ':log vcstats' || content.toLowerCase().startsWith(':log vcstats ')) {
-            const targetUser = content.substring(13).trim() || robloxUser;
-            await this.handleVCStats(robloxUser, targetUser);
-        } else if (content.toLowerCase().startsWith(':log 911 ')) {
-            const parts = content.substring(9).trim().split(' ');
-            const location = parts[0];
-            const description = parts.slice(1).join(' ');
-            await this.handle911(robloxUser, location, description);
-        } else if (content.toLowerCase().startsWith(':log pagar ')) {
-            const parts = content.substring(11).trim().split(' ');
-            if (parts.length >= 3) {
-                const targetUser = parts[0];
-                const amount = parseInt(parts[1]);
-                const concept = parts.slice(2).join(' ');
-                await this.handlePagar(robloxUser, targetUser, amount, concept);
+        ];
+
+        const lowerContent = content.toLowerCase();
+
+        for (const cmd of handlers) {
+            // Check Exact Match
+            if (cmd.exact && lowerContent === cmd.prefix) {
+                await cmd.handler(content.substring(cmd.prefix.length).trim());
+                return;
             }
-        } else if (content.toLowerCase().startsWith(':log cobrar ')) {
-            const parts = content.substring(12).trim().split(' ');
-            if (parts.length >= 3) {
-                const targetUser = parts[0];
-                const amount = parseInt(parts[1]);
-                const concept = parts.slice(2).join(' ');
-                await this.handleCobrar(robloxUser, targetUser, amount, concept);
+            // Check Prefix Match
+            if (!cmd.exact && lowerContent.startsWith(cmd.prefix)) {
+                // Pass the *original case* content, but stripped of prefix
+                // content.substring because we matched based on length of prefix
+                await cmd.handler(content.substring(cmd.prefix.length).trim());
+                return;
             }
-        } else if (content.toLowerCase().startsWith(':log anunciar ')) {
-            const message = content.substring(14).trim();
-            await this.handleAnuncio(robloxUser, message);
-        } else if (content.toLowerCase() === ':log' || content.toLowerCase() === ':log help') {
-            await this.handleHelp(robloxUser);
         }
     }
 
