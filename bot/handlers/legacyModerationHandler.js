@@ -1184,34 +1184,38 @@ const handleModerationLegacy = async (interaction, client, supabase) => {
 
     // BUTTON: Confirm SA Appeal (from /aceptar_apelacion)
     if (interaction.customId.startsWith('confirm_sa_appeal_') || interaction.customId === 'cancel_sa_appeal') {
-
-        // SECURITY CHECK: Only Board/Encargados
-        const ALLOWED_APPROVERS = [
-            '1412882245735420006', // Junta Directiva
-            '1456020936229912781', // Encargado de Sanciones
-            '1451703422800625777', // Encargado de Apelaciones
-            '1454985316292100226'  // Encargado de Staff
-        ];
-        const hasPermission = interaction.member.roles.cache.some(r => ALLOWED_APPROVERS.includes(r.id)) || interaction.member.permissions.has(PermissionsBitField.Flags.Administrator);
-
-        if (!hasPermission) {
-            return interaction.reply({ content: '🛑 **Acceso Denegado:** Solo la Junta Directiva o Encargados pueden gestionar esto.', flags: [64] });
-        }
-
-        if (interaction.customId === 'cancel_sa_appeal') {
-            await interaction.update({ content: '❌ Acción cancelada.', embeds: [], components: [] });
-            return;
-        }
-
-        await interaction.deferUpdate();
-        const sanctionId = interaction.customId.replace('confirm_sa_appeal_', '');
-
-        // Recover "Motivo" from message content or embed
-        let motivo = 'Apelación Aprobada';
-        const match = interaction.message.content.match(/Motivo: (.*)_/);
-        if (match) motivo = match[1];
-
         try {
+            // SECURITY CHECK: Only Board/Encargados
+            const ALLOWED_APPROVERS = [
+                '1412882245735420006', // Junta Directiva
+                '1456020936229912781', // Encargado de Sanciones
+                '1451703422800625777', // Encargado de Apelaciones
+                '1454985316292100226'  // Encargado de Staff
+            ];
+            const hasPermission = interaction.member.roles.cache.some(r => ALLOWED_APPROVERS.includes(r.id)) || interaction.member.permissions.has(PermissionsBitField.Flags.Administrator);
+
+            if (!hasPermission) {
+                return interaction.reply({ content: '🛑 **Acceso Denegado:** Solo la Junta Directiva o Encargados pueden gestionar esto.', ephemeral: true });
+            }
+
+            if (interaction.customId === 'cancel_sa_appeal') {
+                await interaction.update({ content: '❌ Acción cancelada.', embeds: [], components: [] });
+                return;
+            }
+
+            await interaction.deferUpdate();
+            const sanctionId = interaction.customId.replace('confirm_sa_appeal_', '');
+
+            // Recover "Motivo" from message content or embed
+            let motivo = 'Apelación Aprobada';
+            const match = interaction.message.content.match(/Motivo: (.*)_/);
+            if (match) motivo = match[1];
+
+            // Validate Service Availability
+            if (!client.services || !client.services.sanctions) {
+                throw new Error('El servicio de sanciones no está inicializado.');
+            }
+
             // Appeal
             await client.services.sanctions.appealSanction(sanctionId, motivo);
 
