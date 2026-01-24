@@ -1280,6 +1280,56 @@ const handleModerationLegacy = async (interaction, client, supabase) => {
         return;
     }
 
+    // --- BUTTON: APPEAL SA CONFIRM ---
+    if (interaction.customId && interaction.customId.startsWith('appeal_sa_confirm_')) {
+        const targetUserId = interaction.customId.replace('appeal_sa_confirm_', '');
+
+        // Security Check
+        if (interaction.user.id !== targetUserId) {
+            return interaction.reply({ content: '⛔ Este botón no es para ti.', ephemeral: true });
+        }
+
+        try {
+            await interaction.reply({ content: '🔄 Creando ticket de apelación...', ephemeral: true });
+
+            const guild = interaction.guild;
+            const cleanName = interaction.user.username.replace(/[^a-zA-Z0-9-]/g, '').toLowerCase();
+            const channelName = `apelacion-${cleanName}`;
+
+            // TICKETS_CATEGORY = 1398889153919189042
+            const channel = await guild.channels.create({
+                name: channelName,
+                type: 0, // GuildText
+                parent: '1398889153919189042',
+                permissionOverwrites: [
+                    { id: guild.id, deny: ['ViewChannel'] },
+                    { id: interaction.user.id, allow: ['ViewChannel', 'SendMessages'] },
+                    { id: '1412887079612059660', allow: ['ViewChannel', 'SendMessages'] } // Staff Role
+                ]
+            });
+
+            const embed = new EmbedBuilder()
+                .setTitle('⚖️ Ticket de Apelación SA')
+                .setDescription(`Hola <@${interaction.user.id}>,\n\nHas solicitado apelar tu sanción administrativa. Un miembro del staff te atenderá pronto.\n\n**Por favor explica por qué consideras que la sanción es injusta.**`)
+                .setColor(0xFFA500)
+                .setTimestamp();
+
+            await channel.send({
+                content: `<@${interaction.user.id}> <@&1451703422800625777>`,
+                embeds: [embed]
+            });
+
+            return interaction.editReply({ content: `✅ Ticket creado: ${channel}` });
+
+        } catch (error) {
+            console.error('Error creating appeal ticket:', error);
+            if (interaction.deferred || interaction.replied) {
+                await interaction.editReply({ content: '❌ Error al crear ticket. Contacta a un admin.' });
+            }
+        }
+        return;
+    }
+
     // --- TWO-MAN RULE: SANCTION APPROVAL HANDLER ---
     if (interaction.customId.startsWith('approve_sancion_') || interaction.customId === 'reject_sancion') {
         // 1. Security Check: Only Board/Encargados
