@@ -80,6 +80,12 @@ class ErlcPollingService {
                 headers: { 'Server-Key': this.SERVER_KEY }
             });
 
+            // Success - Reset error counter
+            if (this.consecutiveErrors > 0) {
+                console.log(`✅ [ERLC Service] Connection restored after ${this.consecutiveErrors} failures.`);
+                this.consecutiveErrors = 0;
+            }
+
             const logs = response.data;
             if (!logs || logs.length === 0) return;
 
@@ -104,7 +110,14 @@ class ErlcPollingService {
                 }
             }
         } catch (error) {
-            console.error('[ERLC Service] Polling Error:', error.message);
+            this.consecutiveErrors = (this.consecutiveErrors || 0) + 1;
+
+            // Only log the first error, and then every 10th error to avoid spam
+            // 502 = Bad Gateway (Upstream issue)
+            // 403 = Forbidden (Invalid Key)
+            if (this.consecutiveErrors === 1 || this.consecutiveErrors % 10 === 0) {
+                console.error(`[ERLC Service] Polling Error (x${this.consecutiveErrors}): ${error.message} [Code: ${error.response?.status || 'Unknown'}]`);
+            }
         }
     }
 
