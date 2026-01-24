@@ -1,4 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } = require('discord.js');
+const { ROLES } = require('../../config/constants');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -64,51 +65,48 @@ module.exports = {
                 level: 1,
                 badge_type: 'ST',
                 color: 0x3498DB, // Blue
-                main_id: '1457558479287091417',
-                roles: ['1457558479287091417', '1412887167654690908'] // Role + Staff Separator
+                main_id: ROLES.STAFF_ENTRENAMIENTO,
+                roles: [ROLES.STAFF_ENTRENAMIENTO, ROLES.STAFF_SEPARATOR]
             },
             {
                 name: 'Moderador / Staff',
                 level: 2,
                 badge_type: 'ST',
                 color: 0x2ECC71, // Green
-                main_id: '1412887079612059660',
-                roles: ['1412887079612059660', '1450242319121911848', '1450242487422812251', '1412887167654690908'] // Role + KeyMod + KeySeparator + StaffSeparator
+                main_id: ROLES.MODERADOR,
+                roles: [ROLES.MODERADOR, ROLES.KEY_MOD, ROLES.KEY_SEPARATOR, ROLES.STAFF_SEPARATOR]
             },
             {
                 name: 'Administración',
                 level: 3,
                 badge_type: 'AD',
                 color: 0xE74C3C, // Red
-                main_id: '1412882248411381872',
-                // Admin gets: Admin Role + Key Mod + Key Separator + Staff Separator (NO KEY ADMIN)
-                roles: ['1412882248411381872', '1450242319121911848', '1450242487422812251', '1412887167654690908']
+                main_id: ROLES.ADMINISTRACION,
+                roles: [ROLES.ADMINISTRACION, ROLES.KEY_MOD, ROLES.KEY_SEPARATOR, ROLES.STAFF_SEPARATOR]
             },
             {
                 name: 'Junta Directiva',
                 level: 4,
                 badge_type: 'JD',
                 color: 0xF1C40F, // Gold
-                main_id: '1412882245735420006',
-                // JD gets: JD Role + Admin Keys + Key Mod + Separators
-                roles: ['1412882245735420006', '1450242210636365886', '1450242319121911848', '1450242487422812251', '1412887167654690908']
+                main_id: ROLES.JUNTA_DIRECTIVA,
+                roles: [ROLES.JUNTA_DIRECTIVA, ROLES.ADMIN_KEYS, ROLES.KEY_MOD, ROLES.KEY_SEPARATOR, ROLES.STAFF_SEPARATOR]
             },
             {
                 name: 'Tercer al Mando',
                 level: 5,
                 badge_type: 'JD',
                 color: 0xE67E22, // Orange
-                main_id: '1458597791906533477',
-                // Tercer al Mando gets: Role + JD Role + Admin Keys + Key Mod + Separators
-                roles: ['1458597791906533477', '1412882245735420006', '1450242210636365886', '1450242319121911848', '1450242487422812251', '1412887167654690908'],
+                main_id: ROLES.TERCER_AL_MANDO,
+                roles: [ROLES.TERCER_AL_MANDO, ROLES.JUNTA_DIRECTIVA, ROLES.ADMIN_KEYS, ROLES.KEY_MOD, ROLES.KEY_SEPARATOR, ROLES.STAFF_SEPARATOR],
                 noNumber: true // TR - Name format
             }
         ];
 
         // Roles that can manage staff
         const ALLOWED_MANAGERS = [
-            '1412882245735420006', // Junta Directiva
-            '1454985316292100226'  // Encargado de Staff
+            ROLES.JUNTA_DIRECTIVA,
+            ROLES.ENCARGADO_STAFF
         ];
 
         // 1. Check Permissions (Manager Only)
@@ -123,7 +121,7 @@ module.exports = {
 
         try {
             const member = await interaction.guild.members.fetch(targetUser.id);
-            const LOCK_ROLE_ID = '1457897953376207021';
+            const LOCK_ROLE_ID = ROLES.RANK_LOCK;
 
             // Find Lock Role by ID
             const lockRole = interaction.guild.roles.cache.get(LOCK_ROLE_ID);
@@ -131,7 +129,7 @@ module.exports = {
             // Handle Lock/Unlock Command Logic
             if (subcommand === 'lock' || subcommand === 'unlock') {
                 if (!lockRole) {
-                    return interaction.editReply(`❌ Error: No encuentro el rol de bloqueo con ID \`${LOCK_ROLE_ID}\`. Verifica que exista.`);
+                    return interaction.editReply(`❌ Error: No encuentro el rol de bloqueo con ID \`${LOCK_ROLE_ID}\` (${ROLES.RANK_LOCK}). Verifica que exista.`);
                 }
                 const isLocked = member.roles.cache.has(LOCK_ROLE_ID);
                 if (subcommand === 'lock') {
@@ -185,7 +183,7 @@ module.exports = {
                 // RESTRICTION: Higher Rank (Level 4+ / Junta Directiva & Alto Mando) restricted to specific user
                 // ID: 826637667718266880 (Owner/Head)
                 if (newRankIndex >= 3) { // Level 4 (Index 3) and Level 5 (Index 4)
-                    const ALLOWED_PROMOTER = '826637667718266880';
+                    const ALLOWED_PROMOTER = ROLES.OWNER;
                     if (interaction.user.id !== ALLOWED_PROMOTER) {
                         return interaction.editReply({
                             content: `🛑 **ACCIÓN RESERVADA**\n\nSolo el **Jefe de Staff** (Dueño) puede promover a rangos directivos (**${RANGOS[newRankIndex].name}**).\nContacta a <@${ALLOWED_PROMOTER}>.`,
