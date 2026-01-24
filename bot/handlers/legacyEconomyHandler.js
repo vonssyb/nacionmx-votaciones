@@ -409,7 +409,7 @@ const handleEconomyLegacy = async (interaction, client, supabase) => {
                 // 3. Notify User (DM)
                 try {
                     const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
-const logger = require('../services/Logger');
+                    const logger = require('../services/Logger');
                     const appealButtons = new ActionRowBuilder().addComponents(
                         new ButtonBuilder()
                             .setLabel('📩 Apelar (Baneo/Perm)')
@@ -6270,7 +6270,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
     }
 
     else if (commandName === 'debito') {
-        // DEFER REMOVED BY AUDIT
+        await interaction.deferReply(); // FIXED: Restore defer to prevent hang
         const subCmd = interaction.options.getSubcommand();
         const balance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
 
