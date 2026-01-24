@@ -89,18 +89,218 @@ async function startGovernmentBot(supabase) {
             return;
         }
 
-        // Handle Emergency & Payment Buttons (Simplified)
+        // Handle Emergency & Payment Buttons
         if (interaction.isButton()) {
-            // Logic extracted from original index, keeping simple for now
+            // Handle emergency response button
             if (interaction.customId.startsWith('emergency_respond_')) {
-                // ... (Keep existing logic or import handler if we moved it)
-                // For this refactor step, I will suggest checking legacy handlers if needed, 
-                // but checking the file content in Step 112, most logic was inline. 
-                // To keep this file clean, I should ideally move these interactors too.
-                // For now, I'll allow them here to be consistent with "Complete Refactor" 
-                // but usually we want handlers/events/interactionCreate.
-                // Given "Complete", I'll create a govInteractionHandler?
-                // Let's stick to inline to ensure functionality is copied 1:1 first.
+                const emergencyId = interaction.customId.split('_')[2];
+                await interaction.deferUpdate();
+
+                try {
+                    const { data: emergency } = await supabase
+                        .from('emergency_calls')
+                        .select('*')
+                        .eq('id', emergencyId)
+                        .single();
+
+                    if (!emergency) {
+                        return interaction.followUp({ content: '❌ No se encontró la emergencia.', ephemeral: true });
+                    }
+
+                    // Update database (only if it was pending, to mark the first responder)
+                    if (emergency.status === 'pending') {
+                        await supabase
+                            .from('emergency_calls')
+                            .update({
+                                status: 'responding',
+                                responder_discord_id: interaction.user.id,
+                                responder_name: interaction.user.tag,
+                                responded_at: new Date().toISOString()
+                            })
+                            .eq('id', emergencyId);
+                    }
+
+                    // Update embed to list multiple responders
+                    const oldEmbed = interaction.message.embeds[0];
+                    const embed = EmbedBuilder.from(oldEmbed).setColor(0xFFA500); // Orange
+
+                    // Find or create "Unidades en Camino" field
+                    let fields = [...oldEmbed.fields];
+                    let unitsField = fields.find(f => f.name === '🚔 Unidades en Camino');
+
+                    if (unitsField) {
+                        // Check if user is already in the list
+                        if (unitsField.value.includes(interaction.user.id)) {
+                            return interaction.followUp({ content: '⚠️ Ya estás en camino a esta emergencia.', ephemeral: true });
+                        }
+                        unitsField.value += `\n- <@${interaction.user.id}>`;
+                    } else {
+                        fields.push({ name: '🚔 Unidades en Camino', value: `- <@${interaction.user.id}>`, inline: false });
+                    }
+
+                    embed.setFields(fields);
+
+                    await interaction.message.edit({
+                        embeds: [embed]
+                        // components stay there for more people to join
+                    });
+
+                    await interaction.followUp({
+                        content: `✅ Te has unido a la emergencia ${emergencyId}.`,
+                        ephemeral: true
+                    });
+
+                    logger.info(`Emergency joined`, { emergencyId, user: interaction.user.tag });
+
+                } catch (error) {
+                    logger.errorWithContext('Emergency respond error', error);
+                    await interaction.followUp({ content: '❌ Error al unirse a la emergencia.', ephemeral: true });
+                }
+                return;
+            }
+
+            // Handle payment accept button
+            if (interaction.customId.startsWith('payment_accept_')) {
+                const requestId = interaction.customId.split('_')[2];
+                await interaction.deferUpdate();
+
+                try {
+                    const { data: request } = await supabase
+                        .from('payment_requests')
+                        .select('*')
+                        .eq('id', requestId)
+                        .single();
+
+                    if (!request || request.status !== 'pending') {
+                        return interaction.followUp({ content: '❌ Esta solicitud ya fue procesada o expiró.', ephemeral: true });
+                    }
+
+                    if (request.debtor_discord_id !== interaction.user.id) {
+                        return interaction.followUp({ content: '❌ Esta solicitud no es para ti.', ephemeral: true });
+                    }
+
+                    // Check balance
+                    const balance = await billingService.ubService.getUserBalance(interaction.guildId, interaction.user.id);
+                    if ((balance.cash || 0) < request.amount) {
+                        return interaction.followUp({
+                            content: `❌ Fondos insuficientes. Necesitas: $${request.amount.toLocaleString()}, tienes: $${(balance.cash || 0).toLocaleString()}`,
+                            ephemeral: true
+                        });
+                    }
+
+                    // Execute payment
+                    await billingService.ubService.removeMoney(
+                        interaction.guildId,
+                        request.debtor_discord_id,
+                        request.amount,
+                        `[ERLC Cobro] ${request.concept}`,
+                        'cash'
+                    );
+
+                    await billingService.ubService.addMoney(
+                        interaction.guildId,
+                        request.requester_discord_id,
+                        request.amount,
+                        `[ERLC Cobro] De ${request.debtor_roblox}`,
+                        'cash'
+                    );
+
+                    // Update request status
+                    await supabase
+                        .from('payment_requests')
+                        .update({
+                            status: 'accepted',
+                            resolved_at: new Date().toISOString()
+                        })
+                        .eq('id', requestId);
+
+                    // Log transaction
+                    await supabase.from('erlc_transactions').insert({
+                        transaction_type: 'charge',
+                        sender_roblox: request.debtor_roblox,
+                        sender_discord_id: request.debtor_discord_id,
+                        receiver_roblox: request.requester_roblox,
+                        receiver_discord_id: request.requester_discord_id,
+                        amount: request.amount,
+                        concept: request.concept
+                    });
+
+                    // Update embed
+                    const oldEmbed = interaction.message.embeds[0];
+                    const embed = EmbedBuilder.from(oldEmbed)
+                        .setColor(0x00FF00) // Green
+                        .setFooter({ text: `✅ PAGADO | ID: ${requestId}` });
+
+                    await interaction.message.edit({ embeds: [embed], components: [] });
+
+                    await interaction.followUp({
+                        content: `✅ Pagaste $${request.amount.toLocaleString()} a <@${request.requester_discord_id}>`,
+                        ephemeral: true
+                    });
+
+                    // Notify requester
+                    const requester = await interaction.guild.members.fetch(request.requester_discord_id);
+                    await requester.send(`💰 <@${interaction.user.id}> aceptó tu cobro de $${request.amount.toLocaleString()}. Concepto: ${request.concept}`).catch(() => { });
+
+                    logger.info(`Payment request accepted`, { requestId });
+
+                } catch (error) {
+                    logger.errorWithContext('Payment accept error', error);
+                    await interaction.followUp({ content: '❌ Error procesando pago.', ephemeral: true });
+                }
+                return;
+            }
+
+            // Handle payment reject button
+            if (interaction.customId.startsWith('payment_reject_')) {
+                const requestId = interaction.customId.split('_')[2];
+                await interaction.deferUpdate();
+
+                try {
+                    const { data: request } = await supabase
+                        .from('payment_requests')
+                        .select('*')
+                        .eq('id', requestId)
+                        .single();
+
+                    if (!request || request.status !== 'pending') {
+                        return interaction.followUp({ content: '❌ Esta solicitud ya fue procesada o expiró.', ephemeral: true });
+                    }
+
+                    if (request.debtor_discord_id !== interaction.user.id) {
+                        return interaction.followUp({ content: '❌ Esta solicitud no es para ti.', ephemeral: true });
+                    }
+
+                    // Update request status
+                    await supabase
+                        .from('payment_requests')
+                        .update({
+                            status: 'rejected',
+                            resolved_at: new Date().toISOString()
+                        })
+                        .eq('id', requestId);
+
+                    // Update embed
+                    const oldEmbed = interaction.message.embeds[0];
+                    const embed = EmbedBuilder.from(oldEmbed)
+                        .setColor(0xFF0000) // Red
+                        .setFooter({ text: `❌ RECHAZADO | ID: ${requestId}` });
+
+                    await interaction.message.edit({ embeds: [embed], components: [] });
+
+                    await interaction.followUp({ content: '❌ Rechazaste la solicitud de cobro.', ephemeral: true });
+
+                    // Notify requester
+                    const requester = await interaction.guild.members.fetch(request.requester_discord_id);
+                    await requester.send(`❌ <@${interaction.user.id}> rechazó tu cobro de $${request.amount.toLocaleString()}. Concepto: ${request.concept}`).catch(() => { });
+
+                    logger.info(`Payment request rejected`, { requestId });
+
+                } catch (error) {
+                    logger.errorWithContext('Payment reject error', error);
+                    await interaction.followUp({ content: '❌ Error procesando rechazo.', ephemeral: true });
+                }
+                return;
             }
         }
 
