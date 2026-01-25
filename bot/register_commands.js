@@ -18,6 +18,9 @@ const commandsPath = path.join(__dirname, 'commands');
 const commandFolders = fs.readdirSync(commandsPath);
 
 for (const folder of commandFolders) {
+    // Skip 'gov' folder as those commands belong to the Government Bot
+    if (folder === 'gov') continue;
+
     const folderPath = path.join(commandsPath, folder);
     if (!fs.lstatSync(folderPath).isDirectory()) continue;
 

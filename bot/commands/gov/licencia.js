@@ -21,7 +21,24 @@ module.exports = {
                 .addUserOption(option =>
                     option.setName('usuario')
                         .setDescription('Ver licencia de otro usuario (Solo Staff/Policía)')
-                        .setRequired(false))),
+                        .setRequired(false)))
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('otorgar')
+                .setDescription('[STAFF] Otorgar una licencia a un ciudadano')
+                .addUserOption(option =>
+                    option.setName('usuario')
+                        .setDescription('Usuario que recibirá la licencia')
+                        .setRequired(true))
+                .addStringOption(option =>
+                    option.setName('tipo')
+                        .setDescription('Tipo de licencia a otorgar')
+                        .setRequired(true)
+                        .addChoices(
+                            { name: '🚗 Licencia de Conducir', value: 'conducir' },
+                            { name: '🔫 Licencia de Arma Corta', value: 'arma_corta' },
+                            { name: '🎯 Licencia de Arma Larga', value: 'arma_larga' }
+                        ))),
 
     async execute(interaction, client, supabase) {
         const subcommand = interaction.options.getSubcommand();
