@@ -3,6 +3,16 @@ const logger = require('../../services/Logger');
 const { CHANNELS, GUILDS } = require('../../config/constants');
 
 module.exports = async (client, message, supabase) => {
+    // --- SNIPE SYSTEM ---
+    if (message.guild && !message.author?.bot) {
+        client.snipes.set(message.channel.id, {
+            content: message.content,
+            author: message.author,
+            image: message.attachments.first() ? message.attachments.first().proxyURL : null,
+            timestamp: Date.now()
+        });
+    }
+
     if (!message.guild || message.author?.bot) return;
 
     // Config: Main Guilds Only

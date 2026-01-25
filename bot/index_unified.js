@@ -33,7 +33,13 @@ process.on('unhandledRejection', (reason) => logger.error('Unhandled Rejection',
 
 // --- HEALTH CHECK SERVER ---
 const app = express();
+app.use(express.json()); // Parse JSON request bodies
 const port = process.env.PORT || 8000;
+
+// --- API ROUTES ---
+const applicationsRouter = require('./routes/applications');
+// Note: We'll pass client after bots are initialized
+let moderationClient = null;
 
 app.get('/', (req, res) => {
     res.status(200).send(`
@@ -71,12 +77,20 @@ app.listen(port, '0.0.0.0', () => logger.info('🌐', `Health Server listening o
 
         console.log("🚀 [Startup] Launching bot instances...");
 
-        // Start Bots in Parallel
-        await Promise.all([
+        // Start Bots in Parallel and store references
+        const [modClient] = await Promise.all([
             startModerationBot(supabase).catch(e => console.error("❌ [MOD] Failed:", e)),
             startEconomyBot(supabase).catch(e => console.error("❌ [ECO] Failed:", e)),
             startGovernmentBot(supabase).catch(e => console.error("❌ [GOV] Failed:", e))
         ]);
+
+        moderationClient = modClient;
+
+        // Register API routes (now that we have client)
+        if (moderationClient) {
+            app.use('/api', applicationsRouter(moderationClient, supabase));
+            logger.info('✅', 'Applications API routes registered');
+        }
 
         logger.info('🚀', 'System Fully Operational');
 
