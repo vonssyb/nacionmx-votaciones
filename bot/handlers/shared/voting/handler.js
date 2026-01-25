@@ -246,6 +246,10 @@ class VotingHandler {
      */
     async _updateVoteEmbed(interaction, sessionId) {
         try {
+            // Get Session Info (need message_id and channel_id)
+            const session = await this._getSession(sessionId);
+            if (!session || !session.message_id || !session.channel_id) return;
+
             const results = await this.getVoteResults(sessionId);
 
             // Get staff votes
@@ -255,9 +259,35 @@ class VotingHandler {
 
             const staffYesCount = await this.countStaffVotes(interaction.guild, yesVoters);
 
-            // Try to update the original message
-            // Note: This requires storing the message ID when creating the vote
-            // For now, we just log the results
+            const channel = await interaction.client.channels.fetch(session.channel_id).catch(() => null);
+            if (!channel) return;
+
+            const message = await channel.messages.fetch(session.message_id).catch(() => null);
+            if (!message) return;
+
+            const oldEmbed = message.embeds[0];
+            if (!oldEmbed) return;
+
+            // Rebuild fields
+            const newEmbed = EmbedBuilder.from(oldEmbed);
+            const fields = [
+                { name: '⏰ Horario de Rol', value: oldEmbed.fields.find(f => f.name.includes('Horario'))?.value || 'N/A', inline: true },
+                { name: '🎯 Votos Necesarios', value: `${session.minimum_votes || 4}`, inline: true },
+                { name: '\u200B', value: '\u200B' },
+                { name: `✅ Participar en la sesion (${results.yes})`, value: results.yes > 0 ? `${results.yes} votos` : '0 votos', inline: false },
+                { name: `📋 asistire, pero con retraso (${results.late})`, value: results.late > 0 ? `${results.late} votos` : '0 votos', inline: false },
+                { name: `❌ No podre asistir (${results.no})`, value: results.no > 0 ? `${results.no} votos` : '0 votos', inline: false }
+            ];
+
+            // Add Staff count if significant
+            if (staffYesCount > 0) {
+                fields.push({ name: '👔 Staff Confirmado', value: `${staffYesCount}`, inline: true });
+            }
+
+            newEmbed.setFields(fields);
+
+            await message.edit({ embeds: [newEmbed] });
+
             logger.info('Vote results updated', {
                 sessionId,
                 yes: results.yes,

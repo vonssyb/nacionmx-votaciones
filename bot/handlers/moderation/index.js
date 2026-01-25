@@ -43,6 +43,13 @@ async function handleModerationInteraction(interaction, client, supabase) {
             if (handled) return;
         }
 
+        // 3. VOTING SYSTEM
+        if (customId && customId.startsWith('vote_')) {
+            const votingHandler = new VotingHandler(supabase);
+            const handled = await votingHandler.handleInteraction(interaction, client);
+            if (handled) return;
+        }
+
         // 3. LEGACY FALLBACK
         await handleModerationLegacy(interaction, client, supabase);
 

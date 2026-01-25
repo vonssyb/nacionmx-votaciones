@@ -43,6 +43,7 @@ async function startModerationBot(supabase) {
     });
 
     client.commands = new Collection();
+    client.snipes = new Collection(); // Snipe Collection
     client.supabase = supabase;
 
     // --- AUDIT LOGGING ---
@@ -239,12 +240,21 @@ async function startModerationBot(supabase) {
         const command = client.commands.get(interaction.commandName);
         if (command) {
             try { await command.execute(interaction, client, supabase); }
-            catch (e) { logger.error('CMD Error', e); await interaction.editReply('Error executing command.').catch(() => { }); }
+            catch (e) {
+                logger.error('CMD Error', e);
+                await interaction.editReply('Error executing command.').catch(() => { });
+            }
         }
     });
 
-    if (!MOD_TOKEN) return logger.info('❌', '[MOD] No Token Found');
-    loginWithRetry(client, MOD_TOKEN, 'MOD');
+    // Login
+    if (!MOD_TOKEN) {
+        logger.info('❌', '[MOD] No Token Found');
+        return null;
+    }
+
+    await loginWithRetry(client, MOD_TOKEN, 'MOD');
+    return client; // Return client for API access
 }
 
 module.exports = startModerationBot;
