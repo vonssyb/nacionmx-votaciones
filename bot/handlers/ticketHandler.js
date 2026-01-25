@@ -320,7 +320,8 @@ module.exports = {
                     channel_id: ticketChannel.id,
                     creator_id: interaction.user.id,
                     status: 'OPEN',
-                    last_active_at: new Date().toISOString()
+                    last_active_at: new Date().toISOString(),
+                    type: config.prefix  // Store type for whitelist checking
                 }]);
 
                 if (insertError) {
@@ -486,11 +487,25 @@ module.exports = {
             const { data: ticket } = await supabase.from('tickets').select('creator_id').eq('channel_id', interaction.channel.id).maybeSingle();
             const targetUser = ticket?.creator_id || interaction.user.id;
 
-            const embed = new EmbedBuilder().setTitle('🔒 Finalizado').setDescription('Califica la atención:\n\n⭐ Da clic en **Calificar** para escribir tu calificación (1-5 estrellas) y comentarios.').setColor(0xFEE75C);
+            // Update ticket status to AWAITING_RATING and set timestamp
+            await supabase.from('tickets').update({
+                status: 'AWAITING_RATING',
+                rating_requested_at: new Date().toISOString()
+            }).eq('channel_id', interaction.channel.id);
+
+            const embed = new EmbedBuilder()
+                .setTitle('🔒 Ticket Finalizado')
+                .setDescription('Califica la atención que recibiste:\n\n⭐ Da clic en **Calificar** para escribir tu calificación (1-5 estrellas) y comentarios.\n\n⚠️ **Tienes 1 hora para valorar**, después el ticket se cerrará automáticamente.')
+                .setColor(0xFEE75C);
+
             const row = new ActionRowBuilder().addComponents(
-                new ButtonBuilder().setCustomId('open_rating_modal').setEmoji('✍️').setLabel('Calificar').setStyle(ButtonStyle.Primary),
-                new ButtonBuilder().setCustomId('feedback_s').setLabel('Omitir').setStyle(ButtonStyle.Secondary)
+                new ButtonBuilder()
+                    .setCustomId('open_rating_modal')
+                    .setEmoji('✍️')
+                    .setLabel('Calificar Ahora')
+                    .setStyle(ButtonStyle.Primary)
             );
+
             await interaction.channel.send({ content: `<@${targetUser}>`, embeds: [embed], components: [row] });
             return true;
         }
