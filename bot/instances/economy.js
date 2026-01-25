@@ -26,6 +26,7 @@ const StateManager = require('../services/StateManager');
 const CompanyOrchestrator = require('../handlers/economy/company/orchestrator');
 const CompanyManagementHandler = require('../handlers/economy/company/management');
 const { handleEconomyInteraction } = require('../handlers/economy/index');
+const { handleBankingInteraction } = require('../handlers/bankingHandler');
 const { handleEconomyLegacy } = require('../handlers/legacyEconomyHandler');
 
 async function startEconomyBot(supabase) {
@@ -120,6 +121,11 @@ async function startEconomyBot(supabase) {
                     return;
                 }
             }
+
+            // 1. Check Banking Interactions (New System)
+            const bankingHandled = await handleBankingInteraction(interaction, client, supabase);
+            if (bankingHandled) return;
+
             await handleEconomyInteraction(interaction, client, supabase);
         } catch (error) {
             logger.errorWithContext('Economy Interaction Error', error);
