@@ -45,9 +45,17 @@ async function handleModerationInteraction(interaction, client, supabase) {
 
         // 3. VOTING SYSTEM
         if (customId && customId.startsWith('vote_')) {
-            const votingHandler = new VotingHandler(supabase);
-            const handled = await votingHandler.handleInteraction(interaction, client);
-            if (handled) return;
+            console.log('DEBUG: Attempting to handle vote interaction', { customId });
+            console.log('DEBUG: VotingHandler type:', typeof VotingHandler);
+            try {
+                const votingHandler = new VotingHandler(supabase);
+                const handled = await votingHandler.handleInteraction(interaction, client);
+                console.log('DEBUG: Vote handled result:', handled);
+                if (handled) return;
+            } catch (voteErr) {
+                console.error('DEBUG: Critical Voting Handler Error:', voteErr);
+                throw voteErr; // Re-throw to catch block
+            }
         }
 
         // 3. LEGACY FALLBACK
