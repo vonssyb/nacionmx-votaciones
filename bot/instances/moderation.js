@@ -160,6 +160,11 @@ async function startModerationBot(supabase) {
     const suggestionHandler = new SuggestionHandler(client, supabase);
     client.services.suggestions = suggestionHandler;
 
+    // Ticket Cleanup Service
+    const TicketCleanupService = require('../services/TicketCleanupService');
+    const ticketCleanup = new TicketCleanupService(client, supabase);
+    client.services.ticketCleanup = ticketCleanup;
+
     // Events
     client.once('ready', () => {
         logger.info('🟢', `[MOD] Logged in as ${client.user.tag}`);
@@ -170,6 +175,12 @@ async function startModerationBot(supabase) {
             client.voiceActivityHandler.cleanupOpenSessions();
         }
         initRealtimeMonitor(client, supabase);
+
+        // Start ticket cleanup scheduler
+        if (client.services?.ticketCleanup) {
+            client.services.ticketCleanup.startScheduler();
+            logger.info('✅ [MOD] Ticket cleanup scheduler started');
+        }
     });
 
     // --- EVENT MODULES (Refactored) ---
@@ -194,6 +205,13 @@ async function startModerationBot(supabase) {
                 await suggestionHandler.handleNewSuggestion(message);
             } else {
                 await handleTicketMessage(message, client, supabase);
+
+                // Update last_active_at for cleanup service
+                if (message.channel.topic?.includes('ID:')) {
+                    await supabase.from('tickets').update({
+                        last_active_at: new Date().toISOString()
+                    }).eq('channel_id', message.channel.id).catch(() => { });
+                }
             }
         } catch (err) { logger.errorWithContext('Msg Handler Error', err); }
     });
