@@ -12,8 +12,12 @@ const ALLOWED_ROLE_IDS = [
     '1449856794980516032', // Co Owner
     '1412882245735420006', // Junta Directiva
     '1412882248411381872', // Administrador
-    '1412887079612059660', // Staff
-    '1412887167654690908'  // Staff en entrenamiento
+    '1412887079612059660', // Staff (Moderador)
+    '1412887167654690908', // Staff Separator (Legacy check)
+    '1457558479287091417', // Staff de Entrenamiento
+    '1458597791906533477', // Tercer Al Mando
+    '1450242319121911848', // Key Mod
+    '1454985316292100226'  // Encargado Staff
 ];
 
 // Context to share member data with children (MainLayout)
@@ -26,6 +30,7 @@ const RoleGuard = ({ children }) => {
     const [authorized, setAuthorized] = useState(false);
     const [error, setError] = useState(null);
     const [memberData, setMemberData] = useState(null); // Store fetched data
+    const [userRoles, setUserRoles] = useState([]); // Store user roles for debug
     const navigate = useNavigate();
 
     const loadingRef = React.useRef(loading);
@@ -75,6 +80,7 @@ const RoleGuard = ({ children }) => {
                             if (mounted) verifyDiscordRole(session);
                         } else if (event === 'SIGNED_OUT') {
                             if (mounted) {
+                                setAuthorized(false);
                                 setLoading(false);
                                 navigate('/login');
                             }
@@ -95,7 +101,6 @@ const RoleGuard = ({ children }) => {
 
                 // If retries exhausted and still no session:
                 console.warn("No session and no callback detected (after retries). Redirecting to login.");
-                console.warn("Debug URL:", window.location.href);
                 if (mounted) {
                     setLoading(false);
                     navigate('/login');
@@ -173,13 +178,14 @@ const RoleGuard = ({ children }) => {
                 sessionStorage.setItem(cacheKey, JSON.stringify(data));
             }
 
-            const userRoles = data.roles || []; // Array of role IDs
+            const roles = data.roles || []; // Array of role IDs
+            setUserRoles(roles);
 
-            console.log("DEBUG: Your Roles:", userRoles);
+            console.log("DEBUG: Your Roles:", roles);
             console.log("DEBUG: Allowed Roles:", ALLOWED_ROLE_IDS);
 
             // Check if user has at least one allowed role
-            const hasRole = userRoles.some(roleId => ALLOWED_ROLE_IDS.includes(roleId));
+            const hasRole = roles.some(roleId => ALLOWED_ROLE_IDS.includes(roleId));
 
             if (hasRole) {
                 console.log("DEBUG: Authorization Success!");
@@ -219,6 +225,17 @@ const RoleGuard = ({ children }) => {
                     <ShieldAlert size={64} color="#e74c3c" />
                     <h1 style={styles.title}>Acceso Denegado</h1>
                     <p style={styles.message}>{error}</p>
+
+                    {/* DEBUG INFORMATION */}
+                    <div style={{ margin: '1rem 0', padding: '1rem', background: 'rgba(0,0,0,0.3)', borderRadius: '8px', fontSize: '0.8rem', textAlign: 'left' }}>
+                        <p style={{ color: '#aaa', marginBottom: '0.5rem' }}>Debug Info (Tus Roles):</p>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                            {userRoles.map(r => (
+                                <span key={r} style={{ background: '#333', padding: '2px 6px', borderRadius: '4px', fontFamily: 'monospace' }}>{r}</span>
+                            ))}
+                        </div>
+                    </div>
+
                     <button onClick={() => { supabase.auth.signOut(); navigate('/login'); }} style={styles.button}>
                         Volver al Inicio
                     </button>
