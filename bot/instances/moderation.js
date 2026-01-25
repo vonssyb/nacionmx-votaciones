@@ -232,7 +232,6 @@ async function startModerationBot(supabase) {
                 if (banking) return;
                 await handleModerationInteraction(interaction, client, supabase);
             } catch (e) {
-                console.error('FULL MOD ERROR:', e); // Added for debugging
                 logger.errorWithContext('Mod Orchestrator Error', e, {
                     command: interaction.commandName,
                     user: interaction.user?.tag,

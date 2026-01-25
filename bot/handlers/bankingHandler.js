@@ -316,3 +316,4 @@ async function createBankingTicket(interaction, serviceType, client, supabase) {
     }
 }
 
+module.exports = { handleBankingInteraction };

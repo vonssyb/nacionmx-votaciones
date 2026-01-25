@@ -81,7 +81,7 @@ app.listen(port, '0.0.0.0', () => logger.info('🌐', `Health Server listening o
         const [modClient] = await Promise.all([
             startModerationBot(supabase).catch(e => console.error("❌ [MOD] Failed:", e)),
             startEconomyBot(supabase).catch(e => console.error("❌ [ECO] Failed:", e)),
-            // startGovernmentBot(supabase).catch(e => console.error("❌ [GOV] Failed:", e))
+            startGovernmentBot(supabase).catch(e => console.error("❌ [GOV] Failed:", e))
         ]);
 
         moderationClient = modClient;
