@@ -28,6 +28,7 @@ const CompanyManagementHandler = require('../handlers/economy/company/management
 const { handleEconomyInteraction } = require('../handlers/economy/index');
 const { handleBankingInteraction } = require('../handlers/bankingHandler');
 const { handleEconomyLegacy } = require('../handlers/legacyEconomyHandler');
+const ticketHandler = require('../handlers/ticketHandler');
 
 async function startEconomyBot(supabase) {
     logger.info('💰', 'Starting Economy Bot...');
@@ -122,9 +123,27 @@ async function startEconomyBot(supabase) {
                 }
             }
 
+            const ATMHandler = require('../handlers/atmHandler');
+
+            // ... in interactionCreate
+            // 3. ATM & Banking Handler
+            const atmHandler = new ATMHandler(client, supabase);
+            if (interaction.customId && interaction.customId.startsWith('atm_')) {
+                if (await atmHandler.handleInteraction(interaction)) return;
+            }
+            // Catch modal transfer
+            if (interaction.type === 5 && interaction.customId === 'modal_atm_transfer') { // ModalSubmit
+                if (await atmHandler.handleTransferSubmit(interaction)) return;
+            }
+
             // 1. Check Banking Interactions (New System)
             const bankingHandled = await handleBankingInteraction(interaction, client, supabase);
             if (bankingHandled) return;
+
+            // ...
+
+            // 2. Check Ticket Interactions (Closing, etc)
+            if (await ticketHandler.handleInteraction(interaction, client, supabase)) return;
 
             await handleEconomyInteraction(interaction, client, supabase);
         } catch (error) {

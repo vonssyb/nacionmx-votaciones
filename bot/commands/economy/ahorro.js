@@ -111,26 +111,35 @@ async function handleAbrir(interaction, supabase, client) {
 
     const deposito = interaction.options.getInteger('deposito');
     const plazo = interaction.options.getInteger('plazo');
+    const targetUser = interaction.options.getUser('cliente') || interaction.user;
 
-    // Check if user has money
+    // Permissions check for Bankers operating on others
+    if (targetUser.id !== interaction.user.id) {
+        const BANKER_ROLES = ['1450591546524307689', '1412882245735420006'];
+        const isBanker = interaction.member.roles.cache.some(r => BANKER_ROLES.includes(r.id)) ||
+            interaction.member.permissions.has(PermissionFlagsBits.Administrator);
+        if (!isBanker) return interaction.editReply('❌ Solo banqueros pueden abrir cuentas para otros.');
+    }
+
+    // Check if user has money (Check TARGET USER balance)
     const UnbelievaBoatService = require('../../services/UnbelievaBoatService');
     const ubService = new UnbelievaBoatService(process.env.UNBELIEVABOAT_TOKEN, supabase);
 
-    const balance = await ubService.getBalance(interaction.guildId, interaction.user.id);
+    const balance = await ubService.getBalance(interaction.guildId, targetUser.id);
 
     if (!balance || balance.cash < deposito) {
-        return interaction.editReply(`❌ No tienes suficiente dinero. Necesitas $${deposito.toLocaleString()}.`);
+        return interaction.editReply(`❌ ${targetUser.username} no tiene suficiente dinero en efectivo. Necesita $${deposito.toLocaleString()}.`);
     }
 
     // Check max accounts
     const { data: existing } = await supabase
         .from('savings_accounts')
         .select('*')
-        .eq('discord_user_id', interaction.user.id)
+        .eq('discord_user_id', targetUser.id)
         .eq('status', 'active');
 
     if (existing && existing.length >= 3) {
-        return interaction.editReply('❌ Ya tienes el máximo de cuentas de ahorro permitidas (3).');
+        return interaction.editReply('❌ El usuario ya tiene el máximo de cuentas de ahorro permitidas (3).');
     }
 
     // Calculate maturity
@@ -140,15 +149,19 @@ async function handleAbrir(interaction, supabase, client) {
     const interestRate = getInterestRate(plazo);
     const accountNumber = generateAccountNumber();
 
-    // Deduct money
-    await ubService.removeMoney(interaction.guildId, interaction.user.id, deposito, `Apertura cuenta ahorro ${accountNumber}`, 'cash');
+    // Deduct money from TARGET
+    try {
+        await ubService.removeMoney(interaction.guildId, targetUser.id, deposito, `Apertura cuenta ahorro ${accountNumber}`, 'cash');
+    } catch (e) {
+        return interaction.editReply('❌ Error al procesar el cobro en UnbelievaBoat.');
+    }
 
     // Create account
     const { data: account, error } = await supabase
         .from('savings_accounts')
         .insert({
             guild_id: interaction.guildId,
-            discord_user_id: interaction.user.id,
+            discord_user_id: targetUser.id,
             account_number: accountNumber,
             initial_deposit: deposito,
             current_balance: deposito,

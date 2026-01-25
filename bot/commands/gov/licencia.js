@@ -132,12 +132,16 @@ module.exports = {
     async handleOtorgar(interaction, client, supabase) {
         await interaction.deferReply();
 
-        // Permission check - only admins/staff can grant licenses
+        // Permission check
         const staffRoles = [
             '1412882245735420006', // Junta Directiva
             '1412887195014557787', // Co-Owner
-            '1450242487422812251'  // Staff
+            '1450242487422812251', // Staff
+            '1412882245735420006', // Agregar roles de gobierno/policía si corresponde
+            '1449942702744932372'  // S.S.P (Seguridad Publica)
         ];
+        // También permitir a Policía/Ejército otorgar si tienen rango alto (esto depende del servidor, por ahora dejo Staff/Cúpula)
+
         const hasPermission = interaction.member.roles.cache.some(role => staffRoles.includes(role.id));
 
         if (!hasPermission) {
@@ -146,61 +150,108 @@ module.exports = {
 
         const targetUser = interaction.options.getUser('usuario');
         const type = interaction.options.getString('tipo');
-
-        const ROLE_MAP = {
-            'conducir': '1413543909761614005',
-            'arma_corta': '1413543907110682784',
-            'arma_larga': '1413541379803578431'
-        };
-
-        const roleId = ROLE_MAP[type];
         const member = await interaction.guild.members.fetch(targetUser.id).catch(() => null);
 
-        if (!member) {
-            return interaction.editReply('❌ Usuario no encontrado en el servidor.');
+        if (!member) return interaction.editReply('❌ Usuario no encontrado.');
+
+        // CONFIGURATION
+        const CONFIG = {
+            'conducir': {
+                roleId: '1413543909761614005',
+                price: 1200,
+                name: 'Licencia de Conducir',
+                durationDays: 7
+            },
+            'arma_corta': {
+                roleId: '1413543907110682784',
+                price: 1200,
+                name: 'Licencia de Arma Corta',
+                durationDays: 7
+            },
+            'arma_larga': {
+                roleId: '1413541379803578431',
+                price: 1500,
+                name: 'Licencia de Arma Larga',
+                durationDays: 7,
+                militaryOnly: true
+            }
+        };
+
+        const license = CONFIG[type];
+
+        // 1. Check existing role
+        if (member.roles.cache.has(license.roleId)) {
+            return interaction.editReply(`❌ ${targetUser} ya tiene la **${license.name}**.`);
         }
 
-        // Check if user has DNI
-        const { data: dni, error } = await supabase
+        // 2. Validate DNI
+        const { data: dni } = await supabase
             .from('citizen_dni')
-            .select('*')
+            .select('user_id')
             .eq('guild_id', interaction.guildId)
             .eq('user_id', targetUser.id)
             .maybeSingle();
 
-        if (error || !dni) {
-            return interaction.editReply(`❌ ${targetUser.tag} necesita tener DNI antes de recibir una licencia. Pídele que use \`/dni crear\`.`);
+        if (!dni) {
+            return interaction.editReply(`❌ ${targetUser} necesita un DNI registrado (/dni crear).`);
         }
 
-        // Check if already has the license
-        if (member.roles.cache.has(roleId)) {
-            return interaction.editReply(`❌ ${targetUser.tag} ya tiene la licencia **${type.replace('_', ' ').toUpperCase()}**.`);
+        // 3. Military Restriction for Long Arms
+        if (license.militaryOnly) {
+            // Define Military Roles IDs (Ejército/Marina/GN)
+            const MILITARY_ROLES = [
+                '1412895697334337566', // SEDENA
+                '1412895698500223007', // SEMAR
+                '1413541379803578431', // Rol base militar si existe? No, ese es licencia.
+                // Agregar IDs de facciones militares aquí. 
+                // Asumo que si tiene rol de trabajo militar...
+                '1414004902157156434' // Guardia Nacional?
+            ];
+            // Better Check: Check if they have ANY military faction role?
+            // For now, let's warn if we don't have exact IDs. 
+            // Assuming checking "SEDENA/SEMAR" keywords in roles? Risky.
+            // Let's rely on the Staff knowing. Wait, code MUST enforce it.
+
+            // "solo a los militares se les puede dar armaws laras"
+            // Busco roles con nombre "Ejército", "Marina", "Militar"
+            const isMilitary = member.roles.cache.some(r =>
+                r.name.toLowerCase().includes('ejercito') ||
+                r.name.toLowerCase().includes('marina') ||
+                r.name.toLowerCase().includes('sedena') ||
+                r.name.toLowerCase().includes('semar')
+            );
+
+            if (!isMilitary) {
+                return interaction.editReply(`❌ **Restricción:** La Licencia de Armas Largas es exclusiva para Militares.`);
+            }
         }
 
-        try {
-            // Grant role
-            await member.roles.add(roleId);
+        // 4. Generate Payment Interface
+        const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 
-            // Log to database (optional: create licenses table for tracking)
-            // For now we'll just rely on role assignment
+        const row = new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+                .setCustomId(`license_pay_cash_${license.price}_${license.roleId}_${targetUser.id}`)
+                .setLabel(`Pagar en Efectivo ($${license.price})`)
+                .setStyle(ButtonStyle.Success)
+                .setEmoji('💵'),
+            new ButtonBuilder()
+                .setCustomId(`license_pay_debit_${license.price}_${license.roleId}_${targetUser.id}`)
+                .setLabel(`Pagar con Tarjeta ($${license.price})`)
+                .setStyle(ButtonStyle.Primary)
+                .setEmoji('💳')
+        );
 
-            const embed = new EmbedBuilder()
-                .setTitle('✅ Licencia Otorgada')
-                .setColor('#27ae60')
-                .setDescription(`Se ha otorgado la **${type.replace('_', ' ').toUpperCase()}** a ${targetUser}`)
-                .addFields(
-                    { name: '👤 Ciudadano', value: `${targetUser.tag}`, inline: true },
-                    { name: '🪪 Licencia', value: type.replace('_', ' ').toUpperCase(), inline: true },
-                    { name: '👮 Otorgado por', value: interaction.user.tag, inline: true }
-                )
-                .setFooter({ text: 'Gobierno de Nación MX' })
-                .setTimestamp();
+        const embed = new EmbedBuilder()
+            .setTitle(`💳 Pago Requerido: ${license.name}`)
+            .setDescription(`Se está tramitando una **${license.name}** para ${targetUser}.\n\n**Costo:** $${license.price.toLocaleString()}\n**Vigencia:** ${license.durationDays} días\n\n⚠️ **El ciudadano debe presionar el botón para pagar.**`)
+            .setColor('#f1c40f')
+            .setFooter({ text: 'Sistema de Licencias Nación MX' });
 
-            await interaction.editReply({ embeds: [embed] });
-
-        } catch (err) {
-            console.error('Error granting license:', err);
-            await interaction.editReply('❌ Error al otorgar la licencia. Verifica los permisos del bot.');
-        }
+        await interaction.editReply({
+            content: `${targetUser}`,
+            embeds: [embed],
+            components: [row]
+        });
     }
 };

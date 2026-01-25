@@ -93,16 +93,25 @@ async function handleSolicitar(interaction, supabase) {
     const monto = interaction.options.getInteger('monto');
     const plazo = interaction.options.getInteger('plazo');
     const motivo = interaction.options.getString('motivo');
+    const targetUser = interaction.options.getUser('cliente') || interaction.user;
+
+    // Permissions check
+    if (targetUser.id !== interaction.user.id) {
+        const BANKER_ROLES = ['1450591546524307689', '1412882245735420006'];
+        const isBanker = interaction.member.roles.cache.some(r => BANKER_ROLES.includes(r.id)) ||
+            interaction.member.permissions.has(PermissionFlagsBits.Administrator);
+        if (!isBanker) return interaction.editReply('❌ Solo banqueros pueden solicitar préstamos para otros.');
+    }
 
     // Check if user already has active loans
     const { data: existingLoans } = await supabase
         .from('loans')
         .select('*')
-        .eq('discord_user_id', interaction.user.id)
+        .eq('discord_user_id', targetUser.id)
         .eq('status', 'active');
 
     if (existingLoans && existingLoans.length >= 2) {
-        return interaction.editReply('❌ Ya tienes el máximo de préstamos activos permitidos (2).');
+        return interaction.editReply(`❌ ${targetUser.username} ya tiene el máximo de préstamos activos (2).`);
     }
 
     // Calculate loan details
@@ -117,7 +126,7 @@ async function handleSolicitar(interaction, supabase) {
         .from('loans')
         .insert({
             guild_id: interaction.guildId,
-            discord_user_id: interaction.user.id,
+            discord_user_id: targetUser.id,
             loan_amount: monto,
             interest_rate: interestRate,
             term_months: plazo,
