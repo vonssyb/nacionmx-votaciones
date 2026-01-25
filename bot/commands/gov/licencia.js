@@ -116,7 +116,11 @@ module.exports = {
         await interaction.deferReply();
 
         // Permission check - only admins/staff can grant licenses
-        const staffRoles = ['1412882245735420006', '1412887195014557787']; // Junta Directiva, Co-Owner
+        const staffRoles = [
+            '1412882245735420006', // Junta Directiva
+            '1412887195014557787', // Co-Owner
+            '1450242487422812251'  // Staff
+        ];
         const hasPermission = interaction.member.roles.cache.some(role => staffRoles.includes(role.id));
 
         if (!hasPermission) {
