@@ -174,7 +174,7 @@ class ErrorHandler {
         }
 
         // Check for database errors
-        if (error.code?.startsWith('23') || error.code?.startsWith('42')) {
+        if (typeof error.code === 'string' && (error.code.startsWith('23') || error.code.startsWith('42'))) {
             return true;
         }
 
