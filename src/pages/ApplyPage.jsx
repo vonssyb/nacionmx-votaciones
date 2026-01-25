@@ -69,6 +69,20 @@ export default function ApplyPage() {
             if (session.user.email) {
                 // Could auto-fill known fields
             }
+
+            // AUTO-CHECK ROBLOX LINK
+            const { data: linkData } = await supabase
+                .from('roblox_discord_links')
+                .select('*')
+                .eq('discord_user_id', session.user.id)
+                .maybeSingle();
+
+            if (linkData) {
+                setRobloxVerified(true);
+                updateFormData('roblox_username', linkData.roblox_username);
+                updateFormData('roblox_user_id', linkData.roblox_id || "N/A");
+                updateFormData("roblox_avatar_url", `https://tr.rbxcdn.com/30c6d27ae85a3c89658245842c139369/150/150/AvatarHeadshot/Png`);
+            }
         };
         checkUser();
     }, [navigate]);
@@ -87,27 +101,48 @@ export default function ApplyPage() {
         setError(null);
 
         try {
-            // REAL VERIFICATION STRATEGY:
-            // Since we are client-side only (GitHub Pages), we can't easily proxy to Roblox API due to CORS.
-            // We will query our OWN database to see if this Discord user is linked to a Roblox account
-            // Assuming the Discord Bot has already linked them.
+            // VERIFICACIÓN REAL
+            // Consultamos la tabla de vinculaciones del bot
+            const { data: linkData, error: linkError } = await supabase
+                .from('roblox_discord_links')
+                .select('*')
+                .eq('discord_user_id', user.id)
+                .maybeSingle();
 
-            // 1. Check DB for linked account (Table 'users' or 'roblox_users'?)
-            // For now, we will simulate a "Check against Bot Database" or just "Simulate Success" 
-            // until the bot-side linking table is confirmed.
+            if (linkError) {
+                console.error("Error verificando enlace:", linkError);
+                throw new Error("Error al consultar la base de datos.");
+            }
 
-            // TEMPORARY: Simulate Verification for UX Demo
-            // Ideally: const { data } = await supabase.from('users').select('roblox_id').eq('id', user.id).single();
+            if (!linkData) {
+                // Si no está vinculado en la BD
+                setError(
+                    <span>
+                        Tu cuenta de Discord no está vinculada con Roblox.
+                        <br />
+                        Por favor ve al servidor de Discord y usa el comando:
+                        <br />
+                        <code className="bg-black/50 px-2 py-1 rounded text-[#FFD700] overflow-x-auto text-xs mt-1 block">
+                            /vincular-roblox usuario:{formData.roblox_username}
+                        </code>
+                    </span>
+                );
+                return;
+            }
 
-            await new Promise((resolve) => setTimeout(resolve, 1500));
+            // Si está vinculado, verificamos que el usuario coincida o avisamos
+            if (linkData.roblox_username.toLowerCase() !== formData.roblox_username.toLowerCase()) {
+                setError(`Tu cuenta de Discord está vinculada a "${linkData.roblox_username}", no a "${formData.roblox_username}". Por favor usa ese usuario.`);
+                return;
+            }
 
             setRobloxVerified(true);
-            updateFormData("roblox_user_id", "123456789"); // Mock ID
-            updateFormData("roblox_avatar_url", `https://tr.rbxcdn.com/30c6d27ae85a3c89658245842c139369/150/150/AvatarHeadshot/Png`); // Mock Avatar
+            updateFormData("roblox_user_id", linkData.roblox_id || "N/A"); // Si guardas ID en la tabla, úsalo
+            updateFormData("roblox_avatar_url", `https://tr.rbxcdn.com/30c6d27ae85a3c89658245842c139369/150/150/AvatarHeadshot/Png`); // Puedes intentar obtener el avatar real si tienes la API, sino usa un placeholder o el del bot
 
         } catch (err) {
             console.error(err);
-            setError("No se pudo verificar el usuario de Roblox. Asegúrate de haberlo escrito bien.");
+            setError("No se pudo verificar. Intenta más tarde.");
         } finally {
             setRobloxLoading(false);
         }
@@ -133,6 +168,8 @@ export default function ApplyPage() {
         }
 
         if (currentStep === 2) {
+            // Si el usuario ya estaba verificado por BD al cargar, permitimos avanzar
+            // Pero si cambió el input, obligamos a verificar de nuevo (lógica en el input onChange)
             if (!robloxVerified) {
                 setError("Por favor verifica tu cuenta de Roblox");
                 return;
@@ -189,25 +226,42 @@ export default function ApplyPage() {
         setLoading(true);
 
         try {
-            // REAL SUBMISSION TO SUPABASE
+            // Estructuramos los datos para que coincidan con lo que Application.jsx espera
+            const applicationContent = {
+                personal_info: {
+                    nombre: formData.nombre_completo,
+                    edad: formData.edad,
+                    zona_horaria: formData.zona_horaria,
+                    pais: formData.pais,
+                    recomendado_por: formData.recomendado_por
+                },
+                experiencia: formData.experiencia_previa,
+                disponibilidad: formData.tiempo_disponible,
+                motivacion: formData.por_que_unirse,
+                fortalezas: formData.fortalezas,
+                situacion_dificil: formData.situacion_ejemplo,
+                respuestas: [
+                    { question: "Escenario 1 (IRLX)", answer: formData.escenario_irlx },
+                    { question: "Escenario 2 (Meta Gaming)", answer: formData.escenario_cxm },
+                    { question: "Escenario 3 (Valorar Vida)", answer: formData.escenario_vlv },
+                    { question: "Rango Deseado", answer: formData.rango_deseado }
+                ]
+            };
+
             const { error: submitError } = await supabase
                 .from('applications')
                 .insert({
-                    user_id: user.id,
-                    applicant_username: formData.roblox_username || user.email,
-                    type: 'Staff Opos',
-                    form_data: formData,
+                    applicant_discord_id: user.id, // Usamos applicant_discord_id según schema
+                    applicant_username: formData.roblox_username, // Nombre de Roblox como principal
+                    type: 'staff', // Enum value debe ser minúscula 'staff'
+                    content: applicationContent, // GUARDAMOS EN CONTENT (JSONB)
                     status: 'pending',
                     created_at: new Date().toISOString()
                 });
 
             if (submitError) {
-                // If table doesn't exist or columns mismatch, we might fallback to a simpler logs table or error out
                 console.error("Supabase Insert Error:", submitError);
-                // throw new Error("Error guardando en base de datos: " + submitError.message);
-
-                // FOR DEMO/PROTOTYPING if table missing:
-                console.warn("Table might be missing, simulating success for UI flow");
+                throw submitError;
             }
 
             setSuccess(true);
@@ -217,7 +271,7 @@ export default function ApplyPage() {
         } catch (err) {
             console.error(err);
             setError(
-                "Hubo un error al enviar tu aplicación. Por favor intenta de nuevo.",
+                "Hubo un error al enviar tu aplicación: " + (err.message || "Error desconocido")
             );
         } finally {
             setLoading(false);
