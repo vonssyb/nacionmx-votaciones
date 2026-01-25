@@ -24,7 +24,17 @@ module.exports = {
                         .setRequired(false))),
 
     async execute(interaction, client, supabase) {
-        // await interaction.deferReply(); 
+        const subcommand = interaction.options.getSubcommand();
+
+        if (subcommand === 'ver') {
+            return this.handleVer(interaction, client, supabase);
+        } else if (subcommand === 'otorgar') {
+            return this.handleOtorgar(interaction, client, supabase);
+        }
+    },
+
+    async handleVer(interaction, client, supabase) {
+        await interaction.deferReply();
         const type = interaction.options.getString('tipo');
         const targetUser = interaction.options.getUser('usuario') || interaction.user;
 
@@ -99,6 +109,77 @@ module.exports = {
         } catch (err) {
             console.error('License Gen Error:', err);
             await interaction.editReply('❌ Error generando la imagen de la licencia.');
+        }
+    },
+
+    async handleOtorgar(interaction, client, supabase) {
+        await interaction.deferReply();
+
+        // Permission check - only admins/staff can grant licenses
+        const staffRoles = ['1412882245735420006', '1412887195014557787']; // Junta Directiva, Co-Owner
+        const hasPermission = interaction.member.roles.cache.some(role => staffRoles.includes(role.id));
+
+        if (!hasPermission) {
+            return interaction.editReply('❌ No tienes permisos para otorgar licencias.');
+        }
+
+        const targetUser = interaction.options.getUser('usuario');
+        const type = interaction.options.getString('tipo');
+
+        const ROLE_MAP = {
+            'conducir': '1413543909761614005',
+            'arma_corta': '1413543907110682784',
+            'arma_larga': '1413541379803578431'
+        };
+
+        const roleId = ROLE_MAP[type];
+        const member = await interaction.guild.members.fetch(targetUser.id).catch(() => null);
+
+        if (!member) {
+            return interaction.editReply('❌ Usuario no encontrado en el servidor.');
+        }
+
+        // Check if user has DNI
+        const { data: dni, error } = await supabase
+            .from('citizen_dni')
+            .select('*')
+            .eq('guild_id', interaction.guildId)
+            .eq('user_id', targetUser.id)
+            .maybeSingle();
+
+        if (error || !dni) {
+            return interaction.editReply(`❌ ${targetUser.tag} necesita tener DNI antes de recibir una licencia. Pídele que use \`/dni crear\`.`);
+        }
+
+        // Check if already has the license
+        if (member.roles.cache.has(roleId)) {
+            return interaction.editReply(`❌ ${targetUser.tag} ya tiene la licencia **${type.replace('_', ' ').toUpperCase()}**.`);
+        }
+
+        try {
+            // Grant role
+            await member.roles.add(roleId);
+
+            // Log to database (optional: create licenses table for tracking)
+            // For now we'll just rely on role assignment
+
+            const embed = new EmbedBuilder()
+                .setTitle('✅ Licencia Otorgada')
+                .setColor('#27ae60')
+                .setDescription(`Se ha otorgado la **${type.replace('_', ' ').toUpperCase()}** a ${targetUser}`)
+                .addFields(
+                    { name: '👤 Ciudadano', value: `${targetUser.tag}`, inline: true },
+                    { name: '🪪 Licencia', value: type.replace('_', ' ').toUpperCase(), inline: true },
+                    { name: '👮 Otorgado por', value: interaction.user.tag, inline: true }
+                )
+                .setFooter({ text: 'Gobierno de Nación MX' })
+                .setTimestamp();
+
+            await interaction.editReply({ embeds: [embed] });
+
+        } catch (err) {
+            console.error('Error granting license:', err);
+            await interaction.editReply('❌ Error al otorgar la licencia. Verifica los permisos del bot.');
         }
     }
 };
