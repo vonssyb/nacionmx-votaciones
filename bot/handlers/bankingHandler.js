@@ -1,4 +1,4 @@
-const { ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder, EmbedBuilder, PermissionFlagsBits, ChannelType } = require('discord.js');
+const { ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder, EmbedBuilder, PermissionFlagsBits, ChannelType, MessageFlags } = require('discord.js');
 const logger = require('../services/Logger');
 
 const BANK_CONFIG = {
@@ -40,7 +40,7 @@ async function handleBankingInteraction(interaction, client, supabase) {
         logger.errorWithContext('Banking Handler Error', error);
         try {
             if (!interaction.replied && !interaction.deferred) {
-                await interaction.reply({ content: '❌ Error al procesar la solicitud bancaria.', ephemeral: true });
+                await interaction.reply({ content: '❌ Error al procesar la solicitud bancaria.', flags: MessageFlags.Ephemeral });
             } else {
                 await interaction.editReply('❌ Error al procesar la solicitud bancaria.');
             }
@@ -71,7 +71,7 @@ async function handleBankServiceSelection(service, interaction, client, supabase
         case 'banco_ayuda':
             return showAyudaBanco(interaction);
         default:
-            await interaction.reply({ content: '❌ Servicio no disponible.', ephemeral: true });
+            await interaction.reply({ content: '❌ Servicio no disponible.', flags: MessageFlags.Ephemeral });
             return true;
     }
 }
@@ -157,7 +157,7 @@ async function handleBankButtonPress(service, interaction, client, supabase) {
 // ...
 
 async function showEstadoCuenta(interaction, supabase) {
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
     // Use the /tarjetas info command logic
     try {
@@ -199,7 +199,7 @@ async function showMisTarjetas(interaction, supabase) {
     // Redirect to /tarjetas info
     await interaction.reply({
         content: '💡 **Tip:** Usa el comando `/tarjetas info` para ver todas tus tarjetas con detalles completos.',
-        ephemeral: true
+        flags: MessageFlags.Ephemeral
     });
     return true;
 }
@@ -226,7 +226,7 @@ async function showAyudaBanco(interaction) {
         .setColor(0x3498DB)
         .setFooter({ text: 'Banco Nacional de México' });
 
-    await interaction.reply({ embeds: [embed], ephemeral: true });
+    await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
     return true;
 }
 
