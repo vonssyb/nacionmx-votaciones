@@ -21,6 +21,7 @@ const ExchangeRateService = require('../services/ExchangeRateService');
 const CasinoService = require('../services/CasinoService');
 const StockService = require('../services/StockService');
 const StateManager = require('../services/StateManager');
+const EconomyScheduler = require('../services/EconomyScheduler');
 
 // Orchestrators
 const CompanyOrchestrator = require('../handlers/economy/company/orchestrator');
@@ -57,6 +58,10 @@ async function startEconomyBot(supabase) {
     const stateManager = new StateManager(supabase);
     await stateManager.initialize();
 
+    // Economy Scheduler (Interests, Loans)
+    const scheduler = new EconomyScheduler(client, supabase);
+    scheduler.start();
+
     // Company Handlers
     const companyManagementHandler = new CompanyManagementHandler(client, supabase, paymentProcessor, billingService, stateManager);
     const companyOrchestrator = new CompanyOrchestrator(client, supabase, paymentProcessor, billingService, companyManagementHandler);
@@ -77,7 +82,9 @@ async function startEconomyBot(supabase) {
         casino: casinoService,
         stocks: stockService,
         exchangeRate: new ExchangeRateService(supabase),
-        stateManager: stateManager
+        exchangeRate: new ExchangeRateService(supabase),
+        stateManager: stateManager,
+        scheduler: scheduler
     };
 
     // Load Commands

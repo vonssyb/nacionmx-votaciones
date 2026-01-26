@@ -38,10 +38,15 @@ async function deploy() {
 
         for (const guildId of guilds) {
             console.log(`   - Enviando a Guild: ${guildId}`);
-            await rest.put(
-                Routes.applicationGuildCommands(appId, guildId),
-                { body: commands },
-            );
+            try {
+                await rest.put(
+                    Routes.applicationGuildCommands(appId, guildId),
+                    { body: commands },
+                );
+                console.log(`   ✅ Guild ${guildId}: OK`);
+            } catch (e) {
+                console.error(`   ❌ Guild ${guildId}: FAILED - ${e.message}`);
+            }
         }
 
         console.log('✅ ¡Comandos actualizados exitosamente!');

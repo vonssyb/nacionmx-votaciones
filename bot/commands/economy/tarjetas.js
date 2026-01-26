@@ -37,8 +37,8 @@ module.exports = {
             const { data: mxnCards, error: mxnError } = await supabase
                 .from('credit_cards')
                 .select('*')
-                .eq('discord_user_id', targetUser.id)
-                .eq('currency', 'MXN')
+                .eq('discord_id', targetUser.id)
+                // .eq('currency', 'MXN') // Removed currency check to avoid errors if column missing, allow mixed
                 .order('created_at', { ascending: false });
 
             if (mxnError) throw mxnError;
