@@ -195,23 +195,22 @@ class UnbelievableBoatService {
 
         // Invalidate cache after balance change safely
         try {
-            try {
-                if (this.balanceCache && typeof this.balanceCache.delete === 'function') {
-                    this.balanceCache.delete(`balance:${guildId}:${userId}`);
-                }
-            } catch (cacheError) {
-                console.warn('[UnbelievaBoat] Failed to invalidate cache:', cacheError.message);
+            if (this.balanceCache && typeof this.balanceCache.delete === 'function') {
+                this.balanceCache.delete(`balance:${guildId}:${userId}`);
             }
-            return result;
+        } catch (cacheError) {
+            console.warn('[UnbelievaBoat] Failed to invalidate cache:', cacheError.message);
         }
+        return result;
+    }
 
     /**
      * Get cache statistics
      * @returns {object}
      */
     getCacheStats() {
-            return this.balanceCache.getStats();
-        }
+        return this.balanceCache.getStats();
     }
+}
 
 module.exports = UnbelievableBoatService;
