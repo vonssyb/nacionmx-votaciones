@@ -6033,7 +6033,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             });
         }
     } */ else if (commandName === 'bolsa') {
-        // DEFER REMOVED BY AUDIT
+        if (!interaction.deferred && !interaction.replied) await interaction.deferReply();
         const subCmd = interaction.options.getSubcommand();
 
         // Dynamic Stock Market Engine
