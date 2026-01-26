@@ -94,16 +94,25 @@ async function handleEconomyInteraction(interaction, client, supabase) {
 
         // License Payments
         if (customId && customId.startsWith('license_pay_')) {
-            const { handleLicensePayment } = require('./payments/licenses');
-            const handled = await handleLicensePayment(interaction, client, supabase);
-            if (handled) return;
+            const LicensePaymentHandler = require('./payments/licenses');
+            // Ensure services are available
+            if (client.services && client.services.paymentProcessor) {
+                const handler = new LicensePaymentHandler(client, supabase, client.services.paymentProcessor);
+                const handled = await handler.handleInteraction(interaction);
+                if (handled) return;
+            } else {
+                logger.error('PaymentProcessor service missing for License Payment');
+            }
         }
 
         // Credit Payments
         if (customId && customId.startsWith('cred_pay_')) {
-            const { handleCreditPayment } = require('./payments/credit');
-            const handled = await handleCreditPayment(interaction, client, supabase);
-            if (handled) return;
+            const CreditPaymentHandler = require('./payments/credit');
+            if (client.services && client.services.paymentProcessor) {
+                const handler = new CreditPaymentHandler(client, supabase, client.services.paymentProcessor);
+                const handled = await handler.handleInteraction(interaction);
+                if (handled) return;
+            }
         }
 
 
