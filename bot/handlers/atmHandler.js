@@ -62,6 +62,8 @@ class ATMHandler {
 
         if (interaction.message) {
             await interaction.update({ embeds: [embed], components: [row1, row2] });
+        } else if (interaction.deferred || interaction.replied) {
+            await interaction.editReply({ embeds: [embed], components: [row1, row2] });
         } else {
             await interaction.reply({ embeds: [embed], components: [row1, row2], flags: MessageFlags.Ephemeral });
         }

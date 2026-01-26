@@ -122,12 +122,12 @@ async function startEconomyBot(supabase) {
 
         try {
             if (interaction.isChatInputCommand()) {
-                if (!await safeDefer(interaction)) return;
                 const command = client.commands.get(interaction.commandName);
                 if (command) {
+                    if (!await safeDefer(interaction, { ephemeral: command.ephemeral || false })) return;
                     await command.execute(interaction, client, supabase);
-                    return;
                 }
+                return;
             }
 
             const ATMHandler = require('../handlers/atmHandler');
