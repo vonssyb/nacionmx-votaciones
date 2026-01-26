@@ -66,6 +66,12 @@ module.exports = {
         .addSubcommand(sub => sub
             .setName('info')
             .setDescription('Ver información detallada del ticket actual'))
+        .addSubcommand(sub => sub
+            .setName('pausar')
+            .setDescription('Pausar el ticket (evita cierre automático)'))
+        .addSubcommand(sub => sub
+            .setName('reanudar')
+            .setDescription('Reanudar un ticket pausado'))
         .addSubcommandGroup(group => group
             .setName('admin')
             .setDescription('Comandos administrativos de tickets')
@@ -138,6 +144,12 @@ module.exports = {
 
             case 'info':
                 return handleInfo(interaction, supabase);
+
+            case 'pausar':
+                return handlePausar(interaction, supabase);
+
+            case 'reanudar':
+                return handleReanudar(interaction, supabase);
         }
     }
 };
@@ -187,6 +199,10 @@ async function handleCerrar(interaction, supabase) {
         return interaction.editReply('❌ Este no es un canal de ticket válido.');
     }
 
+    if (ticket.status === 'PAUSED') {
+        return interaction.editReply('⛔ **Ticket Pausado**\nEste ticket está en pausa y no puede ser cerrado. Usa `/ticket reanudar` primero.');
+    }
+
     // Only creator or staff can close
     const isCreator = ticket.creator_id === interaction.user.id;
     const isStaff = interaction.member.permissions.has(PermissionFlagsBits.ManageMessages);
@@ -223,6 +239,8 @@ async function handleCerrar(interaction, supabase) {
         components: [row]
     });
 }
+
+// ... existing handlers ...
 
 async function handleReclamar(interaction, supabase) {
     const { data: ticket } = await supabase
@@ -541,6 +559,90 @@ async function handleInfo(interaction, supabase) {
     }
 
     await interaction.editReply({ embeds: [embed] });
+}
+
+async function handlePausar(interaction, supabase) {
+    const { data: ticket } = await supabase
+        .from('tickets')
+        .select('*')
+        .eq('channel_id', interaction.channel.id)
+        .maybeSingle();
+
+    if (!ticket) {
+        return interaction.editReply('❌ Este no es un canal de ticket válido.');
+    }
+
+    if (ticket.status === 'PAUSED') {
+        return interaction.editReply('⚠️ El ticket ya está pausado.');
+    }
+
+    if (ticket.status === 'CLOSED') {
+        return interaction.editReply('❌ No puedes pausar un ticket cerrado.');
+    }
+
+    // Check premission: Creator or Staff
+    const isCreator = ticket.creator_id === interaction.user.id;
+    const isStaff = interaction.member.permissions.has(PermissionFlagsBits.ManageMessages); // Or specific roles check same as main execute
+    // Use role check helper or loose permission?
+    // Let's use simple permissions + role for staff consistency
+    const STAFF_ROLES = ['1412887167654690908', '1412882248411381872', '1412887079612059660'];
+    const isRoleStaff = interaction.member.roles.cache.some(r => STAFF_ROLES.includes(r.id));
+
+    if (!isCreator && !isStaff && !isRoleStaff) {
+        return interaction.editReply('❌ Solo el creador o el staff pueden pausar el ticket.');
+    }
+
+    // Update to PAUSED
+    await supabase.from('tickets').update({ status: 'PAUSED' }).eq('id', ticket.id);
+
+    const { EmbedBuilder } = require('discord.js');
+    const embed = new EmbedBuilder()
+        .setTitle('⏸ Ticket Pausado')
+        .setDescription(`El ticket ha sido puesto en **PAUSA** por <@${interaction.user.id}>.\n\n⚠️ **Efectos:**\n- No se cerrará automáticamente por inactividad.\n- No se puede cerrar manualmente hasta que se reanude.`)
+        .setColor(0xF1C40F)
+        .setTimestamp();
+
+    await interaction.editReply('✅ Ticket pausado.');
+    await interaction.channel.send({ embeds: [embed] });
+}
+
+async function handleReanudar(interaction, supabase) {
+    const { data: ticket } = await supabase
+        .from('tickets')
+        .select('*')
+        .eq('channel_id', interaction.channel.id)
+        .maybeSingle();
+
+    if (!ticket) {
+        return interaction.editReply('❌ Este no es un canal de ticket válido.');
+    }
+
+    if (ticket.status !== 'PAUSED') {
+        return interaction.editReply('❌ El ticket no está pausado.');
+    }
+
+    // Check premission: Creator or Staff
+    const isCreator = ticket.creator_id === interaction.user.id;
+    const isStaff = interaction.member.permissions.has(PermissionFlagsBits.ManageMessages);
+    const STAFF_ROLES = ['1412887167654690908', '1412882248411381872', '1412887079612059660'];
+    const isRoleStaff = interaction.member.roles.cache.some(r => STAFF_ROLES.includes(r.id));
+
+    if (!isCreator && !isStaff && !isRoleStaff) {
+        return interaction.editReply('❌ Solo el creador o el staff pueden reanudar el ticket.');
+    }
+
+    // Update to OPEN
+    await supabase.from('tickets').update({ status: 'OPEN' }).eq('id', ticket.id);
+
+    const { EmbedBuilder } = require('discord.js');
+    const embed = new EmbedBuilder()
+        .setTitle('▶️ Ticket Reanudado')
+        .setDescription(`El ticket ha sido **REANUDADO** por <@${interaction.user.id}>.\nEl ciclo normal de cierre automático y operaciones manuales ha sido restaurado.`)
+        .setColor(0x2ECC71)
+        .setTimestamp();
+
+    await interaction.editReply('✅ Ticket reanudado.');
+    await interaction.channel.send({ embeds: [embed] });
 }
 
 async function handleAdminUnclaim(interaction, supabase) {

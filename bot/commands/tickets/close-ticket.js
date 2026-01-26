@@ -25,6 +25,10 @@ module.exports = {
             return interaction.editReply('❌ Este ticket ya está cerrado.');
         }
 
+        if (ticket.status === 'PAUSED') {
+            return interaction.editReply('⛔ **Ticket Pausado**\nEste ticket está en pausa. Debes reanudarlo con `/ticket reanudar` antes de cerrarlo.');
+        }
+
         try {
             // Generate transcript
             const attachment = await discordTranscripts.createTranscript(interaction.channel, {
