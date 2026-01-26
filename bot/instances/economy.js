@@ -101,7 +101,27 @@ async function startEconomyBot(supabase) {
             const rest = new REST({ version: '10' }).setToken(ECO_TOKEN);
             try {
                 const currentUser = await rest.get(Routes.user('@me'));
-                const allCommands = Array.from(client.commands.values()).map(cmd => cmd.data.toJSON());
+
+                // Get Modular Commands
+                let allCommands = Array.from(client.commands.values()).map(cmd => cmd.data.toJSON());
+
+                // Get Legacy Commands
+                try {
+                    const legacyModule = require('../commands');
+                    const legacyList = Array.isArray(legacyModule) ? legacyModule : legacyModule.commands || [];
+                    const EXCLUDED_LEGACY = ['info', 'notificaciones']; // Same exclusion as register_commands.js
+
+                    const legacyToAdd = legacyList.filter(l =>
+                        !allCommands.some(c => c.name === l.name) &&
+                        !EXCLUDED_LEGACY.includes(l.name)
+                    );
+
+                    allCommands = [...allCommands, ...legacyToAdd];
+                    logger.info(`[ECO] Including ${legacyToAdd.length} legacy commands in auto-register.`);
+                } catch (err) {
+                    logger.warn(`[ECO] Failed to load legacy commands for auto-register: ${err.message}`);
+                }
+
                 for (const guildId of TARGET_GUILDS) {
                     try { await rest.put(Routes.applicationGuildCommands(currentUser.id, guildId), { body: allCommands }); }
                     catch (e) { logger.errorWithContext(`ECO Reg Error`, e, { guildId }); }
