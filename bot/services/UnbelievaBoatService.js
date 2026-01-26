@@ -135,7 +135,7 @@ class UnbelievableBoatService {
         });
 
         // Invalidate cache after balance change
-        this.balanceCache.del(`balance:${guildId}:${userId}`);
+        this.balanceCache.delete(`balance:${guildId}:${userId}`);
         return result;
     }
 
@@ -163,7 +163,7 @@ class UnbelievableBoatService {
             }
         });
 
-        this.balanceCache.del(`balance:${guildId}:${userId}`);
+        this.balanceCache.delete(`balance:${guildId}:${userId}`);
         return result;
     }
 
@@ -195,22 +195,23 @@ class UnbelievableBoatService {
 
         // Invalidate cache after balance change safely
         try {
-            if (this.balanceCache && typeof this.balanceCache.del === 'function') {
-                this.balanceCache.del(`balance:${guildId}:${userId}`);
+            try {
+                if (this.balanceCache && typeof this.balanceCache.delete === 'function') {
+                    this.balanceCache.delete(`balance:${guildId}:${userId}`);
+                }
+            } catch (cacheError) {
+                console.warn('[UnbelievaBoat] Failed to invalidate cache:', cacheError.message);
             }
-        } catch (cacheError) {
-            console.warn('[UnbelievaBoat] Failed to invalidate cache:', cacheError.message);
+            return result;
         }
-        return result;
-    }
 
     /**
      * Get cache statistics
      * @returns {object}
      */
     getCacheStats() {
-        return this.balanceCache.getStats();
+            return this.balanceCache.getStats();
+        }
     }
-}
 
 module.exports = UnbelievableBoatService;
