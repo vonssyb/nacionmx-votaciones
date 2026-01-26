@@ -35,6 +35,12 @@ class ATMHandler {
                 default:
                     if (action.startsWith('withdraw_')) return this.handleWithdraw(interaction, action.split('_')[1]);
                     if (action.startsWith('pay_loan_')) return this.handlePayLoan(interaction, action.replace('pay_loan_', ''));
+                    if (action.startsWith('pay_card_confirm_')) {
+                        const parts = action.replace('pay_card_confirm_', '').split('_');
+                        const method = parts.pop(); // last part is method
+                        const cardId = parts.join('_'); // rest is id
+                        return this.handlePayCardConfirm(interaction, cardId, method);
+                    }
                     if (action.startsWith('pay_card_')) return this.handlePayCard(interaction, action.replace('pay_card_', ''));
             }
         } catch (error) {
@@ -399,23 +405,46 @@ class ATMHandler {
     }
 
     async handlePayCard(interaction, cardId) {
-        await interaction.deferReply({ ephemeral: true });
+        await interaction.deferUpdate(); // Update to show method selection
 
         const { data: card } = await this.supabase.from('credit_cards').select('*').eq('id', cardId).single();
-        if (!card) return interaction.editReply('❌ Tarjeta no encontrada.');
+        if (!card) return interaction.followUp({ content: '❌ Tarjeta no encontrada.', ephemeral: true });
 
         const amountToPay = card.current_balance;
-        if (amountToPay <= 0) return interaction.editReply('✅ Esta tarjeta no tiene deuda.');
+        if (amountToPay <= 0) return interaction.followUp({ content: '✅ Esta tarjeta no tiene deuda.', ephemeral: true });
+
+        const embed = new EmbedBuilder()
+            .setTitle('💳 Método de Pago')
+            .setDescription(`Estás a punto de pagar **$${amountToPay.toLocaleString()}** de tu tarjeta ${card.card_type}.\n\nSelecciona el origen de los fondos:`)
+            .setColor(0x9B59B6);
+
+        const row = new ActionRowBuilder().addComponents(
+            new ButtonBuilder().setCustomId(`atm_pay_card_confirm_${cardId}_cash`).setLabel('Efectivo (Mano)').setStyle(ButtonStyle.Success).setEmoji('💵'),
+            new ButtonBuilder().setCustomId(`atm_pay_card_confirm_${cardId}_bank`).setLabel('Cuenta Bancaria').setStyle(ButtonStyle.Primary).setEmoji('🏦'),
+            new ButtonBuilder().setCustomId('atm_pay_credit_menu').setLabel('Cancelar').setStyle(ButtonStyle.Secondary)
+        );
+
+        await interaction.editReply({ embeds: [embed], components: [row] });
+    }
+
+    async handlePayCardConfirm(interaction, cardId, method) {
+        await interaction.deferUpdate(); // Final processing
+
+        const { data: card } = await this.supabase.from('credit_cards').select('*').eq('id', cardId).single();
+        if (!card) return interaction.followUp({ content: '❌ Tarjeta no encontrada.', ephemeral: true });
+
+        const amountToPay = card.current_balance;
+        if (amountToPay <= 0) return interaction.followUp({ content: '✅ Esta tarjeta ya fue pagada.', ephemeral: true });
 
         const UnbelievaBoatService = require('../services/UnbelievaBoatService');
         const ub = new UnbelievaBoatService(process.env.UNBELIEVABOAT_TOKEN, this.supabase);
 
         try {
-            // Pay from BANK
-            const result = await ub.removeMoney(interaction.guildId, interaction.user.id, amountToPay, `Pago Tarjeta Crédito #${cardId}`, 'bank');
+            // Pay from Selected Method
+            const result = await ub.removeMoney(interaction.guildId, interaction.user.id, amountToPay, `Pago Tarjeta Crédito #${cardId}`, method);
             if (!result) throw new Error('Fondos insuficientes');
         } catch (e) {
-            return interaction.editReply('❌ No tienes suficientes fondos en tu banco para pagar esta deuda.');
+            return interaction.followUp({ content: `❌ No tienes suficientes fondos en ${method === 'bank' ? 'tu banco' : 'efectivo'} para pagar esta deuda.`, ephemeral: true });
         }
 
         // Update Card
@@ -427,9 +456,13 @@ class ATMHandler {
         // Update Credit Score
         await this.updateCreditScore(interaction.user.id, 5); // +5 per payment
 
-        await interaction.editReply({
-            content: `✅ **Pago Exitoso**\nHas pagado **$${amountToPay.toLocaleString()}** de tu tarjeta ${card.card_type}.\nTu saldo actual es $0.`
+        await interaction.followUp({
+            content: `✅ **Pago Exitoso**\nHas pagado **$${amountToPay.toLocaleString()}** de tu tarjeta ${card.card_type} usando **${method === 'bank' ? 'Banco' : 'Efectivo'}**.\nTu saldo en tarjeta ahora es $0.`,
+            ephemeral: true
         });
+
+        // Return to menu
+        return this.showPayCreditMenu(interaction);
     }
 
 }
