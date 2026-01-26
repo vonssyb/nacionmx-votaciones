@@ -26,6 +26,8 @@ class ATMHandler {
                 case 'loans_menu': return this.showLoansMenu(interaction);
                 case 'bureau_menu': return this.showBureau(interaction);
 
+                case 'pay_credit_menu': return this.showPayCreditMenu(interaction);
+
                 // Actions
                 case 'pay_loan_select': return this.handlePayLoanSelect(interaction); // From Select Menu? Or buttons
 
@@ -33,6 +35,7 @@ class ATMHandler {
                 default:
                     if (action.startsWith('withdraw_')) return this.handleWithdraw(interaction, action.split('_')[1]);
                     if (action.startsWith('pay_loan_')) return this.handlePayLoan(interaction, action.replace('pay_loan_', ''));
+                    if (action.startsWith('pay_card_')) return this.handlePayCard(interaction, action.replace('pay_card_', ''));
             }
         } catch (error) {
             logger.errorWithContext('ATM Handler Error', error);
@@ -46,7 +49,7 @@ class ATMHandler {
             .setTitle('🏧 Cajero Automático Nación MX')
             .setDescription(`Bienvenido, <@${interaction.user.id}>.\nSeleccione una operación:`)
             .setColor(0x2C3E50)
-            .setImage('https://i.imgur.com/GzB3W3d.png') // Placeholder ATM Image
+            .setImage('https://media3.giphy.com/media/v1.Y2lkPTc5MGI3NjExN3JzODk0aHMzY2NtaDlzdnAxdW50dmV6dWM2eXR2OWZ6cDB3cWJyeSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/MZ9nZGQn1nqBG/giphy.gif')
             .setFooter({ text: 'Sistema Bancario Seguro' });
 
         const row1 = new ActionRowBuilder().addComponents(
@@ -57,6 +60,7 @@ class ATMHandler {
 
         const row2 = new ActionRowBuilder().addComponents(
             new ButtonBuilder().setCustomId('atm_loans_menu').setLabel('Mis Préstamos').setStyle(ButtonStyle.Danger).setEmoji('💳'),
+            new ButtonBuilder().setCustomId('atm_pay_credit_menu').setLabel('Pagar Tarjeta').setStyle(ButtonStyle.Success).setEmoji('💳'),
             new ButtonBuilder().setCustomId('atm_bureau_menu').setLabel('Buró de Crédito').setStyle(ButtonStyle.Primary).setEmoji('📊')
         );
 
@@ -354,6 +358,82 @@ class ATMHandler {
         try { await targetUser.send({ content: `💸 Has recibido una transferencia de **$${amount.toLocaleString()}**`, embeds: [embed] }); } catch (e) { }
     }
 
+    async showPayCreditMenu(interaction) {
+        await interaction.deferUpdate();
+
+        // Fetch cards with debt
+        const { data: cards } = await this.supabase
+            .from('credit_cards')
+            .select('*')
+            .eq('discord_id', interaction.user.id) // Note: tarjetas.js uses discord_id, not discord_user_id for credit_cards table
+            .gt('current_balance', 0)
+            .eq('status', 'active');
+
+        const embed = new EmbedBuilder()
+            .setTitle('💳 Pagar Tarjeta de Crédito')
+            .setColor(0x9B59B6);
+
+        if (!cards || cards.length === 0) {
+            embed.setDescription('✅ No tienes deuda en tus tarjetas de crédito.');
+            const row = new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('atm_home').setLabel('Volver').setStyle(ButtonStyle.Secondary));
+            await interaction.editReply({ embeds: [embed], components: [row] });
+            return;
+        }
+
+        const rows = [];
+        cards.forEach(card => {
+            embed.addFields({
+                name: `${card.card_type.toUpperCase()} (Terminación ...${card.id.toString().slice(-4)})`,
+                value: `Deuda: **$${card.current_balance.toLocaleString()}**\nLímite: $${card.credit_limit.toLocaleString()}`,
+                inline: false
+            });
+
+            rows.push(new ActionRowBuilder().addComponents(
+                new ButtonBuilder().setCustomId(`atm_pay_card_${card.id}`).setLabel(`Pagar $${card.current_balance.toLocaleString()}`).setStyle(ButtonStyle.Success),
+            ));
+        });
+
+        rows.push(new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('atm_home').setLabel('Volver').setStyle(ButtonStyle.Secondary)));
+
+        await interaction.editReply({ embeds: [embed], components: rows });
+    }
+
+    async handlePayCard(interaction, cardId) {
+        await interaction.deferReply({ ephemeral: true });
+
+        const { data: card } = await this.supabase.from('credit_cards').select('*').eq('id', cardId).single();
+        if (!card) return interaction.editReply('❌ Tarjeta no encontrada.');
+
+        const amountToPay = card.current_balance;
+        if (amountToPay <= 0) return interaction.editReply('✅ Esta tarjeta no tiene deuda.');
+
+        const UnbelievaBoatService = require('../services/UnbelievaBoatService');
+        const ub = new UnbelievaBoatService(process.env.UNBELIEVABOAT_TOKEN, this.supabase);
+
+        try {
+            // Pay from BANK
+            const result = await ub.removeMoney(interaction.guildId, interaction.user.id, amountToPay, `Pago Tarjeta Crédito #${cardId}`, 'bank');
+            if (!result) throw new Error('Fondos insuficientes');
+        } catch (e) {
+            return interaction.editReply('❌ No tienes suficientes fondos en tu banco para pagar esta deuda.');
+        }
+
+        // Update Card
+        await this.supabase.from('credit_cards').update({
+            current_balance: 0,
+            last_payment_date: new Date().toISOString()
+        }).eq('id', cardId);
+
+        // Update Credit Score
+        await this.updateCreditScore(interaction.user.id, 5); // +5 per payment
+
+        await interaction.editReply({
+            content: `✅ **Pago Exitoso**\nHas pagado **$${amountToPay.toLocaleString()}** de tu tarjeta ${card.card_type}.\nTu saldo actual es $0.`
+        });
+    }
+
 }
+
+
 
 module.exports = ATMHandler;
