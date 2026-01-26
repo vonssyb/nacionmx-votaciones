@@ -61,7 +61,7 @@ try {
 
     if (legacyCommands) {
         let legacyCount = 0;
-        const EXCLUDED_LEGACY = ['multa', 'tarjeta', 'saldo', 'robar', 'bolsa', 'casino', 'info', 'notificaciones', 'impuestos', 'nomina', 'giro', 'movimientos', 'top-morosos', 'top-ricos', 'slots', 'stake', 'dar-robo', 'fondos'];
+        const EXCLUDED_LEGACY = ['info', 'notificaciones'];
         for (const cmd of legacyCommands) {
             // Only add if not already present AND not excluded
             if (!commands.find(c => c.name === cmd.name) && !EXCLUDED_LEGACY.includes(cmd.name)) {
