@@ -170,7 +170,18 @@ class PaymentProcessor {
                 throw error;
             }
             logger.errorWithContext('Payment processing failed', error, { method, userId, amount });
-            throw ErrorHandler.createError('PAYMENT_FAILED', `Error al procesar el pago: ${error.message}`);
+
+            // Detect Insufficient Funds from UB API message
+            if (error.message && (error.message.includes('insufficient') || error.message.includes('funds'))) {
+                const lowFundsErr = new Error(`Fondos insuficientes: ${error.message}`);
+                lowFundsErr.code = 'INSUFFICIENT_FUNDS';
+                throw lowFundsErr;
+            }
+
+            // Manually construct PAYMENT_FAILED error to be 100% sure
+            const newError = new Error(`Error al procesar el pago: ${error.message}`);
+            newError.code = 'PAYMENT_FAILED';
+            throw newError;
         }
     }
 
