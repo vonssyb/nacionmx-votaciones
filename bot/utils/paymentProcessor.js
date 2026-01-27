@@ -165,9 +165,12 @@ class PaymentProcessor {
 
             return result;
         } catch (error) {
-            if (error.code) throw error; // Re-throw custom errors
+            // Re-throw if it's already a formatted error (Standard codes are usually UPPERCASE)
+            if (error.code && typeof error.code === 'string' && error.code === error.code.toUpperCase() && !error.code.startsWith('ERR_')) {
+                throw error;
+            }
             logger.errorWithContext('Payment processing failed', error, { method, userId, amount });
-            throw ErrorHandler.createError('PAYMENT_FAILED', 'Error al procesar el pago');
+            throw ErrorHandler.createError('PAYMENT_FAILED', `Error al procesar el pago: ${error.message}`);
         }
     }
 
