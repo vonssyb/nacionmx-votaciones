@@ -107,7 +107,7 @@ class TicketCleanupService {
                 await channel.send({
                     embeds: [new EmbedBuilder()
                         .setTitle('⚠️ Ticket Inactivo')
-                        .setDescription(`Este ticket ha estado inactivo por **${hoursInactive} horas**.\\n\\nSe cerrará automáticamente en **${hoursUntilClose} horas** si no hay actividad.\\n\\nSi ya resolviste tu problema, puedes cerrarlo ahora.`)
+                        .setDescription(`Este ticket ha estado inactivo por **${hoursInactive} horas**.\n\nSe cerrará automáticamente en **${hoursUntilClose} horas** si no hay actividad.\n\nSi ya resolviste tu problema, puedes cerrarlo ahora.`)
                         .setColor(0xFEE75C)
                         .setFooter({ text: 'Sistema de Auto-Limpieza' })
                     ]
