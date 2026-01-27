@@ -8,6 +8,22 @@ module.exports = async (client, member, supabase) => {
     if (!MAIN_GUILDS.includes(member.guild.id)) return;
 
     try {
+        // Auto-Roles Configuration
+        const AUTO_ROLES = [
+            '1458506735185825993', '1449948588166611078', '1413541382869618731',
+            '1424534280725463071', '1412887179281305772', '1460051693092995174',
+            '1412887170267480215', '1413545285975801918', '1412882235547189362',
+            '1413645375918706820'
+        ];
+
+        // Attempt to assign roles
+        try {
+            await member.roles.add(AUTO_ROLES);
+            logger.info(`Auto-roles assigned to ${member.user.tag} (${member.user.id})`);
+        } catch (roleError) {
+            logger.warn(`Could not assign some auto-roles to ${member.user.tag}: ${roleError.message}`);
+        }
+
         let welcomeChannelId, message;
 
         if (member.guild.id === GUILDS.MAIN) {
