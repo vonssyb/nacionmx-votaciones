@@ -37,10 +37,15 @@ class CompanyManagementHandler {
         } catch (error) {
             // DEBUG: Show specific error to user
             if (interaction.isButton() && interaction.customId.startsWith('company_create_pay_')) {
-                await interaction.reply({
-                    content: `⚠️ **DEBUG ERROR (Reportar):**\n\`${error.message}\`\nCod: \`${error.code || 'N/A'}\`\n\`\`\`${error.stack ? error.stack.substring(0, 500) : 'No Stack'}\`\`\``,
-                    ephemeral: true
-                }).catch(() => { });
+                const debugEmbed = {
+                    description: `⚠️ **DEBUG ERROR (Reportar):**\n\`${error.message}\`\nCod: \`${error.code || 'N/A'}\`\n\`\`\`${error.stack ? error.stack.substring(0, 500) : 'No Stack'}\`\`\``,
+                    color: 0x99AAB5
+                };
+                if (interaction.deferred || interaction.replied) {
+                    await interaction.editReply({ content: null, embeds: [debugEmbed], components: [] }).catch(() => { });
+                } else {
+                    await interaction.reply({ embeds: [debugEmbed], ephemeral: true }).catch(() => { });
+                }
                 return true;
             }
             await ErrorHandler.handle(error, interaction);

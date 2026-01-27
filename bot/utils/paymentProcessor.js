@@ -110,6 +110,9 @@ class PaymentProcessor {
 
             switch (method) {
                 case 'cash':
+                    if (!this.billingService || !this.billingService.ubService) {
+                        throw ErrorHandler.createError('MAINTENANCE', 'El servicio de facturación no está disponible.');
+                    }
                     await this.billingService.ubService.removeMoney(guildId, userId, amount, reason, 'cash');
                     result = {
                         success: true,
@@ -121,6 +124,9 @@ class PaymentProcessor {
                     break;
 
                 case 'debit':
+                    if (!this.billingService || !this.billingService.ubService) {
+                        throw ErrorHandler.createError('MAINTENANCE', 'El servicio de facturación no está disponible.');
+                    }
                     await this.billingService.ubService.removeMoney(guildId, userId, amount, reason, 'bank');
                     result = {
                         success: true,
