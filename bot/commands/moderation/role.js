@@ -8,6 +8,22 @@ module.exports = {
         .addSubcommand(sub =>
             sub.setName('mass')
                 .setDescription('Asignación masiva de múltiples roles')
+                // Required options FIRST
+                .addStringOption(opt =>
+                    opt.setName('roles')
+                        .setDescription('Roles a gestionar: @Rol1 @Rol2 o IDs')
+                        .setRequired(true)
+                )
+                .addStringOption(opt =>
+                    opt.setName('action')
+                        .setDescription('Acción a realizar')
+                        .setRequired(true)
+                        .addChoices(
+                            { name: 'Dar Roles (Add)', value: 'add' },
+                            { name: 'Quitar Roles (Remove)', value: 'remove' }
+                        )
+                )
+                // Optional options SECOND
                 .addStringOption(opt =>
                     opt.setName('grupo')
                         .setDescription('Selecciona un grupo predefinido (Opcional)')
@@ -22,20 +38,6 @@ module.exports = {
                     opt.setName('usuarios')
                         .setDescription('Lista de usuarios por ID/Ping (Opcional si usas Grupo)')
                         .setRequired(false)
-                )
-                .addStringOption(opt =>
-                    opt.setName('roles')
-                        .setDescription('Roles a gestionar: @Rol1 @Rol2 o IDs')
-                        .setRequired(true)
-                )
-                .addStringOption(opt =>
-                    opt.setName('action')
-                        .setDescription('Acción a realizar')
-                        .setRequired(true)
-                        .addChoices(
-                            { name: 'Dar Roles (Add)', value: 'add' },
-                            { name: 'Quitar Roles (Remove)', value: 'remove' }
-                        )
                 )
         ),
     async execute(interaction, client) {
@@ -88,7 +90,6 @@ module.exports = {
             if (groupInput) {
                 const all = await interaction.guild.members.fetch();
                 if (groupInput === 'all') {
-                    // Map ALL members
                     all.forEach((m, k) => targetMembers.set(k, m));
                     descriptionParts.push("Todos");
                 } else if (groupInput === 'humans') {
@@ -146,7 +147,6 @@ module.exports = {
                         if (rolesToAdd.length > 0) {
                             await member.roles.add(rolesToAdd);
                             successCount++;
-                            // Rate Limit Safety: 1s sleep per 5 heavy ops
                             if (successCount % 5 === 0) await new Promise(r => setTimeout(r, 1000));
                         }
                     } else {
@@ -162,10 +162,8 @@ module.exports = {
                     failCount++;
                 }
 
-                // Update periodically if needed (every 100 users)
                 if (processed % 100 === 0) {
                     try {
-                        // Just Log, don't edit message constantly to avoid rate limits
                         console.log(`Mass Role Progress: ${processed}/${targetMembers.size}`);
                     } catch (err) { /* ignore */ }
                 }
