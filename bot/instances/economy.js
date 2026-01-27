@@ -170,7 +170,7 @@ async function startEconomyBot(supabase) {
             // ...
 
             // 2. Check Ticket Interactions (Closing, etc)
-            if (await ticketHandler.handleInteraction(interaction, client, supabase)) return;
+            if (await ticketHandler.handleTicketInteraction(interaction, client, supabase)) return;
 
             await handleEconomyInteraction(interaction, client, supabase);
         } catch (error) {
