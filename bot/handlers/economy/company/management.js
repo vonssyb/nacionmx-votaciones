@@ -35,19 +35,6 @@ class CompanyManagementHandler {
 
             return false;
         } catch (error) {
-            // DEBUG: Show specific error to user
-            if (interaction.isButton() && interaction.customId.startsWith('company_create_pay_')) {
-                const debugEmbed = {
-                    description: `⚠️ **DEBUG ERROR (Reportar):**\n\`${error.message}\`\nCod: \`${error.code || 'N/A'}\`\n\`\`\`${error.stack ? error.stack.substring(0, 500) : 'No Stack'}\`\`\``,
-                    color: 0x99AAB5
-                };
-                if (interaction.deferred || interaction.replied) {
-                    await interaction.editReply({ content: null, embeds: [debugEmbed], components: [] }).catch(() => { });
-                } else {
-                    await interaction.reply({ embeds: [debugEmbed], ephemeral: true }).catch(() => { });
-                }
-                return true;
-            }
             await ErrorHandler.handle(error, interaction);
             return true;
         }
@@ -95,7 +82,7 @@ class CompanyManagementHandler {
 
         // 3. Apply Discounts (Legacy Logic)
         const ownerMember = await interaction.guild.members.fetch(dueño.id);
-        const hasVip = ownerMember.roles.cache.some(r => r.name === 'VIP' || r.name === 'Booster'); // Simplified check
+        const hasVip = ownerMember.roles.cache.some(r => r.name === 'VIP' || r.name === 'Booster' || r.name === 'Premium'); // Simplified check
         // Full role check logic could be injected or imported. For now: 
         const discount = hasVip ? 0.30 : 0;
         const totalCost = baseCost * (1 - discount);
@@ -172,7 +159,7 @@ class CompanyManagementHandler {
             return true;
         }
 
-        const companyData = action.data.data;
+        const companyData = action.data;
         const totalCost = companyData.totalCost;
         const ownerId = companyData.owner_id;
 
