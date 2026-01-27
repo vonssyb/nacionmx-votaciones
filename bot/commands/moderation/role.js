@@ -8,7 +8,6 @@ module.exports = {
         .addSubcommand(sub =>
             sub.setName('mass')
                 .setDescription('Asignación masiva de múltiples roles')
-                // Required options FIRST
                 .addStringOption(opt =>
                     opt.setName('roles')
                         .setDescription('Roles a gestionar: @Rol1 @Rol2 o IDs')
@@ -34,7 +33,6 @@ module.exports = {
                             { name: 'Lista Personalizada (Manual)', value: 'manual' }
                         )
                 )
-                // Optional options SECOND
                 .addStringOption(opt =>
                     opt.setName('usuarios')
                         .setDescription('Solo si elegiste "Lista Personalizada": IDs o Pings')
@@ -70,7 +68,7 @@ module.exports = {
 
             // Validate Roles & Permissions
             const resolvedRoles = [];
-            const skippedRoles = []; // { name, reason }
+            const skippedRoles = [];
             const myHighestRole = interaction.guild.members.me.roles.highest.position;
 
             for (const rId of roleIds) {
@@ -91,7 +89,6 @@ module.exports = {
                 return interaction.editReply(`❌ No se pudo procesar ningún rol válido.\nRazones: ${errors}`);
             }
 
-            // Warn if some skipped
             let warningMsg = "";
             if (skippedRoles.length > 0) {
                 warningMsg = "\n⚠️ **Omitidos**: " + skippedRoles.map(s => s.name || s.id).join(', ');
@@ -102,7 +99,6 @@ module.exports = {
             let targetDescription = "";
             let descriptionParts = [];
 
-            // 1. Fetch from Group
             if (groupInput !== 'manual') {
                 const all = await interaction.guild.members.fetch();
                 if (groupInput === 'all') {
@@ -118,22 +114,19 @@ module.exports = {
                     descriptionParts.push("Bots");
                 }
             } else {
-                // Manual/Custom List
                 if (usersInput) {
                     const userIds = extractIds(usersInput);
                     if (userIds.length > 0) {
                         try {
-                            let fetched;
-                            // small optimization
+                            // Fetch Strategy
                             if (userIds.length < 50) {
-                                fetched = await interaction.guild.members.fetch({ user: userIds });
+                                const fetched = await interaction.guild.members.fetch({ user: userIds });
+                                fetched.forEach((m, k) => targetMembers.set(k, m));
                             } else {
                                 const all = await interaction.guild.members.fetch();
-                                fetched = all.filter(m => userIds.includes(m.id));
+                                all.filter(m => userIds.includes(m.id)).forEach((m, k) => targetMembers.set(k, m));
                             }
-
-                            fetched.forEach((m, k) => targetMembers.set(k, m));
-                            descriptionParts.push(`${fetched.size} usuarios manuales`);
+                            descriptionParts.push(`${targetMembers.size} usuarios manuales`);
                         } catch (e) {
                             console.error("Error fetching custom users:", e);
                         }
@@ -149,44 +142,52 @@ module.exports = {
 
             const roleNames = resolvedRoles.map(r => r.name).join(', ');
             const actionText = action === 'add' ? 'Añadiendo' : 'Quitando';
-            await interaction.editReply(`🔄 **Procesando...**\nAcción: **${actionText}**\nRoles: ${roleNames}${warningMsg}\nObjetivo: ${targetDescription} (${targetMembers.size} miembros)\n⏳ Esto puede tardar...`);
+
+            await interaction.editReply(`🔄 **Procesando... (Modo Turbo)**\nAcción: **${actionText}**\nRoles: ${roleNames}${warningMsg}\nObjetivo: ${targetDescription} (${targetMembers.size} miembros)\n⏳ Iniciando...`);
+
+            // Optimization: Process in chunks
+            const membersArray = Array.from(targetMembers.values());
+            const CHUNK_SIZE = 10; // Process 10 users in parallel
+            const DELAY_MS = 200; // Small delay between chunks to be nice to API
 
             let successCount = 0;
             let failCount = 0;
             let processed = 0;
 
-            // Process Loop
-            for (const [id, member] of targetMembers) {
-                processed++;
-                try {
-                    if (action === 'add') {
-                        const rolesToAdd = resolvedRoles.filter(r => !member.roles.cache.has(r.id));
-                        if (rolesToAdd.length > 0) {
-                            await member.roles.add(rolesToAdd);
-                            successCount++;
-                            // Rate Limit Safety: 1s sleep per 5 heavy ops
-                            if (successCount % 5 === 0) await new Promise(r => setTimeout(r, 1000));
+            const chunk = (arr, size) => Array.from({ length: Math.ceil(arr.length / size) }, (v, i) => arr.slice(i * size, i * size + size));
+            const batches = chunk(membersArray, CHUNK_SIZE);
+
+            for (const batch of batches) {
+                const promises = batch.map(async (member) => {
+                    try {
+                        if (action === 'add') {
+                            const rolesToAdd = resolvedRoles.filter(r => !member.roles.cache.has(r.id));
+                            if (rolesToAdd.length > 0) {
+                                await member.roles.add(rolesToAdd);
+                                successCount++;
+                            }
+                        } else {
+                            const rolesToRemove = resolvedRoles.filter(r => member.roles.cache.has(r.id));
+                            if (rolesToRemove.length > 0) {
+                                await member.roles.remove(rolesToRemove);
+                                successCount++;
+                            }
                         }
-                    } else {
-                        const rolesToRemove = resolvedRoles.filter(r => member.roles.cache.has(r.id));
-                        if (rolesToRemove.length > 0) {
-                            await member.roles.remove(rolesToRemove);
-                            successCount++;
-                            if (successCount % 5 === 0) await new Promise(r => setTimeout(r, 1000));
-                        }
+                    } catch (e) {
+                        console.error(`Mass Role Error on ${member.user.tag}:`, e.message);
+                        failCount++;
                     }
-                } catch (e) {
-                    console.error(`Mass Role Error on ${member.user.tag}:`, e.message);
-                    failCount++;
+                });
+
+                await Promise.all(promises);
+                processed += batch.length;
+
+                // Update status every 5 batches (50 users)
+                if (processed % 50 === 0 || processed === membersArray.length) {
+                    await interaction.editReply(`🔄 **Procesando...** (${processed}/${membersArray.length})\nÉxitos: ${successCount} | Fallos: ${failCount}`);
                 }
 
-                // Update periodically if needed (every 100 users)
-                if (processed % 100 === 0) {
-                    try {
-                        // Just Log, don't edit message constantly to avoid rate limits
-                        console.log(`Mass Role Progress: ${processed}/${targetMembers.size}`);
-                    } catch (err) { /* ignore */ }
-                }
+                await new Promise(r => setTimeout(r, DELAY_MS));
             }
 
             await interaction.editReply(`✅ **Operación Finalizada**\nRoles: ${roleNames}\nObjetivo: ${targetDescription}\n✨ Cambios realizados: ${successCount} usuarios\n❌ Errores: ${failCount}`);
