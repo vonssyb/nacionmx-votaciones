@@ -23,20 +23,21 @@ module.exports = {
                             { name: 'Quitar Roles (Remove)', value: 'remove' }
                         )
                 )
-                // Optional options SECOND
                 .addStringOption(opt =>
                     opt.setName('grupo')
-                        .setDescription('Selecciona un grupo predefinido (Opcional)')
-                        .setRequired(false)
+                        .setDescription('Selecciona el grupo objetivo')
+                        .setRequired(true)
                         .addChoices(
                             { name: 'Todos (All)', value: 'all' },
                             { name: 'Humanos', value: 'humans' },
-                            { name: 'Bots', value: 'bots' }
+                            { name: 'Bots', value: 'bots' },
+                            { name: 'Lista Personalizada (Manual)', value: 'manual' }
                         )
                 )
+                // Optional options SECOND
                 .addStringOption(opt =>
                     opt.setName('usuarios')
-                        .setDescription('Lista de usuarios por ID/Ping (Opcional si usas Grupo)')
+                        .setDescription('Solo si elegiste "Lista Personalizada": IDs o Pings')
                         .setRequired(false)
                 )
         ),
@@ -47,8 +48,8 @@ module.exports = {
             const rolesInput = interaction.options.getString('roles');
             const action = interaction.options.getString('action');
 
-            if (!groupInput && !usersInput) {
-                return interaction.reply({ content: '❌ Debes especificar al menos un **Grupo** o una lista de **Usuarios**.', ephemeral: true });
+            if (groupInput === 'manual' && !usersInput) {
+                return interaction.reply({ content: '❌ Elegiste **Lista Personalizada** pero no escribiste nada en la opción `usuarios`.', ephemeral: true });
             }
 
             await interaction.deferReply();
@@ -87,7 +88,7 @@ module.exports = {
             let descriptionParts = [];
 
             // 1. Fetch from Group
-            if (groupInput) {
+            if (groupInput !== 'manual') {
                 const all = await interaction.guild.members.fetch();
                 if (groupInput === 'all') {
                     all.forEach((m, k) => targetMembers.set(k, m));
@@ -101,25 +102,26 @@ module.exports = {
                     bots.forEach((m, k) => targetMembers.set(k, m));
                     descriptionParts.push("Bots");
                 }
-            }
+            } else {
+                // Manual/Custom List
+                if (usersInput) {
+                    const userIds = extractIds(usersInput);
+                    if (userIds.length > 0) {
+                        try {
+                            let fetched;
+                            // small optimization
+                            if (userIds.length < 50) {
+                                fetched = await interaction.guild.members.fetch({ user: userIds });
+                            } else {
+                                const all = await interaction.guild.members.fetch();
+                                fetched = all.filter(m => userIds.includes(m.id));
+                            }
 
-            // 2. Fetch from Custom List
-            if (usersInput) {
-                const userIds = extractIds(usersInput);
-                if (userIds.length > 0) {
-                    try {
-                        let fetched;
-                        if (userIds.length < 50) {
-                            fetched = await interaction.guild.members.fetch({ user: userIds });
-                        } else {
-                            const all = await interaction.guild.members.fetch();
-                            fetched = all.filter(m => userIds.includes(m.id));
+                            fetched.forEach((m, k) => targetMembers.set(k, m));
+                            descriptionParts.push(`${fetched.size} usuarios manuales`);
+                        } catch (e) {
+                            console.error("Error fetching custom users:", e);
                         }
-
-                        fetched.forEach((m, k) => targetMembers.set(k, m));
-                        descriptionParts.push(`${fetched.size} usuarios manuales`);
-                    } catch (e) {
-                        console.error("Error fetching custom users:", e);
                     }
                 }
             }
@@ -147,6 +149,7 @@ module.exports = {
                         if (rolesToAdd.length > 0) {
                             await member.roles.add(rolesToAdd);
                             successCount++;
+                            // Rate Limit Safety: 1s sleep per 5 heavy ops
                             if (successCount % 5 === 0) await new Promise(r => setTimeout(r, 1000));
                         }
                     } else {
@@ -162,8 +165,10 @@ module.exports = {
                     failCount++;
                 }
 
+                // Update periodically if needed (every 100 users)
                 if (processed % 100 === 0) {
                     try {
+                        // Just Log, don't edit message constantly to avoid rate limits
                         console.log(`Mass Role Progress: ${processed}/${targetMembers.size}`);
                     } catch (err) { /* ignore */ }
                 }
