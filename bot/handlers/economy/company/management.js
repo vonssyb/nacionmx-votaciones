@@ -133,9 +133,9 @@ class CompanyManagementHandler {
         if (logo) embed.setThumbnail(logo.url);
 
         const row = new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId(`company_create_pay_cash_${stateId}`).setLabel('💵 Efectivo').setStyle(ButtonStyle.Primary),
-            new ButtonBuilder().setCustomId(`company_create_pay_bank_${stateId}`).setLabel('🏦 Banco').setStyle(ButtonStyle.Success)
-            // Credit removed for simplicity/statelessness unless explicitly requested
+            new ButtonBuilder().setCustomId(`company_create_pay_cash_${stateId}`).setLabel('💵 Efectivo').setStyle(ButtonStyle.Success),
+            new ButtonBuilder().setCustomId(`company_create_pay_debit_${stateId}`).setLabel('💳 Débito').setStyle(ButtonStyle.Primary),
+            new ButtonBuilder().setCustomId(`company_create_pay_credit_${stateId}`).setLabel('💳 Crédito').setStyle(ButtonStyle.Secondary)
         );
 
         await interaction.editReply({ embeds: [embed], components: [row] });
