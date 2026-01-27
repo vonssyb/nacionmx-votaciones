@@ -65,21 +65,36 @@ module.exports = {
                 return interaction.editReply('❌ No detecté roles válidos. Usa @Menciones o IDs.');
             }
 
+            // Ensure all roles are cached
+            await interaction.guild.roles.fetch();
+
             // Validate Roles & Permissions
             const resolvedRoles = [];
+            const skippedRoles = []; // { name, reason }
             const myHighestRole = interaction.guild.members.me.roles.highest.position;
 
             for (const rId of roleIds) {
                 const r = interaction.guild.roles.cache.get(rId);
-                if (!r) continue;
+                if (!r) {
+                    skippedRoles.push({ id: rId, reason: 'No encontrado' });
+                    continue;
+                }
                 if (r.position >= myHighestRole) {
-                    return interaction.editReply(`❌ No puedo gestionar el rol **${r.name}** porque es igual o superior al mío.`);
+                    skippedRoles.push({ name: r.name, reason: 'Jerarquía superior a mi' });
+                    continue;
                 }
                 resolvedRoles.push(r);
             }
 
             if (resolvedRoles.length === 0) {
-                return interaction.editReply('❌ Ninguno de los roles especificados es válido o gestionable por mí.');
+                const errors = skippedRoles.map(s => s.name ? `${s.name} (${s.reason})` : `${s.id} (${s.reason})`).join(', ');
+                return interaction.editReply(`❌ No se pudo procesar ningún rol válido.\nRazones: ${errors}`);
+            }
+
+            // Warn if some skipped
+            let warningMsg = "";
+            if (skippedRoles.length > 0) {
+                warningMsg = "\n⚠️ **Omitidos**: " + skippedRoles.map(s => s.name || s.id).join(', ');
             }
 
             // Determine Target Members
@@ -134,7 +149,7 @@ module.exports = {
 
             const roleNames = resolvedRoles.map(r => r.name).join(', ');
             const actionText = action === 'add' ? 'Añadiendo' : 'Quitando';
-            await interaction.editReply(`🔄 **Procesando...**\nAcción: **${actionText}**\nRoles: ${roleNames}\nObjetivo: ${targetDescription} (${targetMembers.size} miembros)\n⏳ Esto puede tardar...`);
+            await interaction.editReply(`🔄 **Procesando...**\nAcción: **${actionText}**\nRoles: ${roleNames}${warningMsg}\nObjetivo: ${targetDescription} (${targetMembers.size} miembros)\n⏳ Esto puede tardar...`);
 
             let successCount = 0;
             let failCount = 0;
