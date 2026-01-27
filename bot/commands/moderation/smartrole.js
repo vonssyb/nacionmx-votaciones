@@ -1,31 +1,25 @@
-const { PermissionFlagsBits } = require('discord.js');
+const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
 
 module.exports = {
-    data: {
-        name: 'smartrole',
-        description: 'Asignar rol condicionalmente (Solo si NO tiene el rol de exclusión)',
-        options: [
-            {
-                name: 'usuario',
-                description: 'Usuario a quien asignar el rol',
-                type: 6, // USER
-                required: true
-            },
-            {
-                name: 'rol_asignar',
-                description: 'El rol que quieres dar',
-                type: 8, // ROLE
-                required: true
-            },
-            {
-                name: 'rol_exclusion',
-                description: 'Si tiene este rol, NO se le dará el nuevo',
-                type: 8, // ROLE
-                required: true
-            }
-        ],
-        type: 1
-    },
+    data: new SlashCommandBuilder()
+        .setName('smartrole')
+        .setDescription('Asignar rol condicionalmente (Solo si NO tiene el rol de exclusión)')
+        .setDefaultMemberPermissions(PermissionFlagsBits.ManageRoles)
+        .addUserOption(option =>
+            option.setName('usuario')
+                .setDescription('Usuario a quien asignar el rol')
+                .setRequired(true)
+        )
+        .addRoleOption(option =>
+            option.setName('rol_asignar')
+                .setDescription('El rol que quieres dar')
+                .setRequired(true)
+        )
+        .addRoleOption(option =>
+            option.setName('rol_exclusion')
+                .setDescription('Si tiene este rol, NO se le dará el nuevo')
+                .setRequired(true)
+        ),
     async execute(interaction) {
         if (!interaction.member.permissions.has(PermissionFlagsBits.ManageRoles)) {
             return interaction.reply({ content: '❌ No tienes permisos para gestionar roles.', ephemeral: true });
