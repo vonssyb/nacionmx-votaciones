@@ -35,6 +35,14 @@ class CompanyManagementHandler {
 
             return false;
         } catch (error) {
+            // DEBUG: Show specific error to user
+            if (interaction.isButton() && interaction.customId.startsWith('company_create_pay_')) {
+                await interaction.reply({
+                    content: `⚠️ **DEBUG ERROR (Reportar):**\n\`${error.message}\`\nCod: \`${error.code || 'N/A'}\`\n\`\`\`${error.stack ? error.stack.substring(0, 500) : 'No Stack'}\`\`\``,
+                    ephemeral: true
+                }).catch(() => { });
+                return true;
+            }
             await ErrorHandler.handle(error, interaction);
             return true;
         }
