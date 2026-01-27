@@ -184,13 +184,18 @@ module.exports = {
             if (feedbackChannel) {
                 await feedbackChannel.send({
                     embeds: [new EmbedBuilder()
-                        .setTitle('Nueva Valoración')
+                        .setTitle('🌟 Nueva Valoración')
+                        .setDescription(`Se ha recibido una nueva reseña de atención al cliente.`)
                         .addFields(
-                            { name: 'Rating', value: '⭐'.repeat(rating), inline: true },
-                            { name: 'Staff', value: ticket?.claimed_by_id ? `<@${ticket.claimed_by_id}>` : 'General', inline: true },
-                            { name: 'Comentarios', value: comments.substring(0, 1000), inline: false }
+                            { name: '👤 Usuario', value: `<@${interaction.user.id}>`, inline: true },
+                            { name: '🛡️ Staff', value: ticket?.claimed_by_id ? `<@${ticket.claimed_by_id}>` : 'No asignado', inline: true },
+                            { name: '🎫 Ticket', value: `\`${interaction.channel.name}\``, inline: true },
+                            { name: '⭐ Calificación', value: `${'⭐'.repeat(rating)} (${rating}/5)`, inline: false },
+                            { name: '💬 Comentarios', value: comments ? `\`\`\`${comments.substring(0, 1000)}\`\`\`` : '*Sin comentarios*', inline: false }
                         )
-                        .setColor(rating >= 4 ? 0x57F287 : 0xED4245)
+                        .setFooter({ text: `Ticket ID: ${ticket?.id || 'N/A'}` })
+                        .setTimestamp()
+                        .setColor(rating >= 4 ? 0x2ECC71 : (rating === 3 ? 0xF1C40F : 0xE74C3C))
                     ]
                 });
             }
@@ -573,7 +578,21 @@ module.exports = {
 
             if (rating) {
                 const feedbackChannel = client.channels.cache.get(TICKET_CONFIG.LOG_FEEDBACK);
-                if (feedbackChannel) await feedbackChannel.send({ embeds: [new EmbedBuilder().setTitle('Nueva Valoración').addFields({ name: 'Rating', value: '⭐'.repeat(rating) }, { name: 'Staff', value: ticket?.claimed_by_id ? `<@${ticket.claimed_by_id}>` : 'General' }).setColor(rating >= 4 ? 0x57F287 : 0xED4245)] });
+                if (feedbackChannel) await feedbackChannel.send({
+                    embeds: [new EmbedBuilder()
+                        .setTitle('🌟 Nueva Valoración')
+                        .setDescription(`Se ha recibido una nueva reseña de atención al cliente.`)
+                        .addFields(
+                            { name: '👤 Usuario', value: `<@${interaction.user.id}>`, inline: true },
+                            { name: '🛡️ Staff', value: ticket?.claimed_by_id ? `<@${ticket.claimed_by_id}>` : 'No asignado', inline: true },
+                            { name: '🎫 Ticket', value: `\`${interaction.channel.name}\``, inline: true },
+                            { name: '⭐ Calificación', value: `${'⭐'.repeat(rating)} (${rating}/5)`, inline: false }
+                        )
+                        .setFooter({ text: `Ticket ID: ${ticket?.id || 'N/A'}` })
+                        .setTimestamp()
+                        .setColor(rating >= 4 ? 0x2ECC71 : (rating === 3 ? 0xF1C40F : 0xE74C3C))
+                    ]
+                });
                 await supabase.from('tickets').update({ status: 'CLOSED', closed_at: new Date().toISOString(), rating }).eq('channel_id', interaction.channel.id);
             } else {
                 await supabase.from('tickets').update({ status: 'CLOSED', closed_at: new Date().toISOString() }).eq('channel_id', interaction.channel.id);
