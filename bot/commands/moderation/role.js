@@ -53,28 +53,47 @@ module.exports = {
         }
 
         const actionText = action === 'add' ? 'Añadiendo' : 'Quitando';
-        await interaction.editReply(`🔄 **Procesando...** ${actionText} rol ${role.name} a ${targetMembers.size} usuarios (${targetType}). Esto puede tardar.`);
+        await interaction.editReply(`🔄 **Procesando...** ${actionText} rol ${role.name} a ${targetMembers.size} usuarios (${targetType}). Esto puede tardar varios minutos...`);
 
         let successCount = 0;
         let failCount = 0;
+        let skippedCount = 0;
+        let processed = 0;
 
         // Process in chunks/delay to avoid heavy rate limits
         for (const [id, member] of targetMembers) {
+            processed++;
             try {
-                if (action === 'add' && !member.roles.cache.has(role.id)) {
-                    await member.roles.add(role);
-                    successCount++;
-                } else if (action === 'remove' && member.roles.cache.has(role.id)) {
-                    await member.roles.remove(role);
-                    successCount++;
+                if (action === 'add') {
+                    if (!member.roles.cache.has(role.id)) {
+                        await member.roles.add(role);
+                        successCount++;
+                        // Delay to prevent rate limits (1s every 5 reqs)
+                        if (successCount % 5 === 0) await new Promise(r => setTimeout(r, 1000));
+                    } else {
+                        skippedCount++;
+                    }
+                } else if (action === 'remove') {
+                    if (member.roles.cache.has(role.id)) {
+                        await member.roles.remove(role);
+                        successCount++;
+                        // Delay to prevent rate limits (1s every 5 reqs)
+                        if (successCount % 5 === 0) await new Promise(r => setTimeout(r, 1000));
+                    } else {
+                        skippedCount++;
+                    }
                 }
-                // Small sleep every 10 ops
-                if (successCount % 10 === 0) await new Promise(r => setTimeout(r, 1000));
             } catch (e) {
+                console.error(`Error processing ${member.user.tag}:`, e.message);
                 failCount++;
+            }
+
+            // Log progress every 100 users
+            if (processed % 100 === 0) {
+                console.log(`Mass Role Progress: ${processed}/${targetMembers.size}`);
             }
         }
 
-        await interaction.editReply(`✅ **Operación Completada**\nRol: ${role.name}\nAcción: ${action}\nObjetivo: ${targetType}\n✅ Éxitos: ${successCount}\n❌ Fallos/Omitidos: ${failCount}`);
+        await interaction.editReply(`✅ **Operación Completada**\nRol: ${role.name}\nAcción: ${action}\nObjetivo: ${targetType}\n✅ Éxitos (Cambios realizados): ${successCount}\n⏭️ Omitidos (Ya tenían el estado): ${skippedCount}\n❌ Fallos: ${failCount}`);
     }
 };
