@@ -82,7 +82,7 @@ class CompanyManagementHandler {
 
         // 3. Apply Discounts (Legacy Logic)
         const ownerMember = await interaction.guild.members.fetch(dueño.id);
-        const hasVip = ownerMember.roles.cache.some(r => r.name === 'VIP' || r.name === 'Booster' || r.name === 'Premium'); // Simplified check
+        const hasVip = ownerMember.roles.cache.some(r => r.name === 'VIP' || r.name === 'Booster' || r.name === 'Premium' || r.id === '1412887172503175270'); // Simplified check with ID
         // Full role check logic could be injected or imported. For now: 
         const discount = hasVip ? 0.30 : 0;
         const totalCost = baseCost * (1 - discount);
