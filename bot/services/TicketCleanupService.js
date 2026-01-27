@@ -120,7 +120,13 @@ class TicketCleanupService {
 
                 logger.info(`[TICKET-CLEANUP] Warning sent to ticket #${ticket.id}`);
             } catch (err) {
-                logger.warn(`[TICKET-CLEANUP] Error sending warning to ticket #${ticket.id}:`, err.message);
+                if (err.code === 10003) {
+                    // Channel gone, can't warn. Mark as warning sent to stop retrying, or just auto-close next cycle.
+                    await this.supabase.from('tickets').update({ warning_sent: true }).eq('id', ticket.id);
+                    logger.info(`[TICKET-CLEANUP] Skip warning for #${ticket.id} (Channel not found)`);
+                } else {
+                    logger.warn(`[TICKET-CLEANUP] Error sending warning to ticket #${ticket.id}:`, err.message);
+                }
             }
         }
     }
@@ -293,7 +299,21 @@ class TicketCleanupService {
 
                 logger.info(`[TICKET-CLEANUP] Ticket #${ticket.id} auto-closed (inactive)`);
             } catch (err) {
-                logger.warn(`[TICKET-CLEANUP] Error auto-closing ticket #${ticket.id}:`, err.message);
+                // Handle "Unknown Channel" (10003) or "Missing Access" (50001)
+                if (err.code === 10003 || err.code === 50001) {
+                    logger.info(`[TICKET-CLEANUP] Channel for ticket #${ticket.id} not found. Mark as closed/deleted.`);
+                    await this.supabase
+                        .from('tickets')
+                        .update({
+                            status: 'CLOSED',
+                            closed_at: now.toISOString(),
+                            closure_reason: 'channel_not_found',
+                            channel_deleted: true
+                        })
+                        .eq('id', ticket.id);
+                } else {
+                    logger.warn(`[TICKET-CLEANUP] Error auto-closing ticket #${ticket.id}:`, err.message);
+                }
             }
         }
     }

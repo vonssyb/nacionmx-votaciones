@@ -117,6 +117,12 @@ class ErlcPollingService {
             // Only log the first error, and then every 10th error to avoid spam
             // 502 = Bad Gateway (Upstream issue)
             // 403 = Forbidden (Invalid Key)
+            if (status === 403) {
+                console.error(`❌ [ERLC Service] Critical: API Key Forbidden (403). Stopping Polling Service.`);
+                this.stop();
+                return;
+            }
+
             if (this.consecutiveErrors === 1 || this.consecutiveErrors % 20 === 0) {
                 if (isCommonError && this.consecutiveErrors > 1) {
                     console.warn(`[ERLC Service] Polling unstable (x${this.consecutiveErrors}): Code ${status}`);
