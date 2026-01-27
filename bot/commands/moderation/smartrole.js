@@ -3,13 +3,9 @@ const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('smartrole')
-        .setDescription('Asignar rol condicionalmente (Solo si NO tiene el rol de exclusión)')
+        .setDescription('Asignar rol condicionalmente a MÚLTIPLES usuarios (Solo si NO tienen rol de exclusión)')
         .setDefaultMemberPermissions(PermissionFlagsBits.ManageRoles)
-        .addUserOption(option =>
-            option.setName('usuario')
-                .setDescription('Usuario a quien asignar el rol')
-                .setRequired(true)
-        )
+        // Required
         .addRoleOption(option =>
             option.setName('rol_asignar')
                 .setDescription('El rol que quieres dar')
@@ -17,47 +13,134 @@ module.exports = {
         )
         .addRoleOption(option =>
             option.setName('rol_exclusion')
-                .setDescription('Si tiene este rol, NO se le dará el nuevo')
+                .setDescription('Si tienen este rol, NO se les dará el nuevo')
                 .setRequired(true)
+        )
+        .addStringOption(opt =>
+            opt.setName('grupo')
+                .setDescription('Selecciona el grupo objetivo')
+                .setRequired(true)
+                .addChoices(
+                    { name: 'Todos (All)', value: 'all' },
+                    { name: 'Humanos', value: 'humans' },
+                    { name: 'Bots', value: 'bots' },
+                    { name: 'Lista Personalizada (Manual)', value: 'manual' }
+                )
+        )
+        // Optional
+        .addStringOption(opt =>
+            opt.setName('usuarios')
+                .setDescription('Solo si elegiste "Lista Personalizada": IDs o Pings')
+                .setRequired(false)
         ),
     async execute(interaction) {
         if (!interaction.member.permissions.has(PermissionFlagsBits.ManageRoles)) {
             return interaction.reply({ content: '❌ No tienes permisos para gestionar roles.', ephemeral: true });
         }
 
-        const targetUser = interaction.options.getMember('usuario');
         const roleToGive = interaction.options.getRole('rol_asignar');
         const roleToExclude = interaction.options.getRole('rol_exclusion');
+        const groupInput = interaction.options.getString('grupo');
+        const usersInput = interaction.options.getString('usuarios');
 
-        if (!targetUser) {
-            return interaction.reply({ content: '❌ Usuario no encontrado en el servidor.', ephemeral: true });
+        if (groupInput === 'manual' && !usersInput) {
+            return interaction.reply({ content: '❌ Elegiste **Lista Personalizada** pero no escribiste nada en la opción `usuarios`.', ephemeral: true });
         }
 
-        // Check for exclusion role
-        if (targetUser.roles.cache.has(roleToExclude.id)) {
-            return interaction.reply({
-                content: `⚠️ **Operación Cancelada**: El usuario ${targetUser} ya tiene el rol ${roleToExclude} (Exclusión), por lo tanto no se le asignó ${roleToGive}.`,
-                ephemeral: true
-            });
+        // Security Check
+        const myHighestRole = interaction.guild.members.me.roles.highest.position;
+        if (roleToGive.position >= myHighestRole) {
+            return interaction.reply({ content: `❌ No puedo asignar el rol **${roleToGive.name}** porque es superior al mío.`, ephemeral: true });
         }
 
-        // Check if already has the target role
-        if (targetUser.roles.cache.has(roleToGive.id)) {
-            return interaction.reply({ content: `ℹ️ El usuario ya tiene el rol ${roleToGive}.`, ephemeral: true });
-        }
+        await interaction.deferReply();
+
+        // 1. Determine Targets
+        let targetMembers = new Map();
+        let targetDescription = "";
+
+        // Regex for IDs
+        const extractIds = (str) => {
+            if (!str) return [];
+            return [...str.matchAll(/(\d{17,20})/g)].map(m => m[0]);
+        };
 
         try {
-            await targetUser.roles.add(roleToGive);
-            return interaction.reply({
-                content: `✅ **Éxito**: Se ha asignado el rol ${roleToGive} a ${targetUser} (No tenía ${roleToExclude}).`,
-                ephemeral: false
-            });
-        } catch (error) {
-            console.error(error);
-            return interaction.reply({
-                content: `❌ **Error**: No pude asignar el rol. Verifica que mi rol esté por encima del rol a asignar.`,
-                ephemeral: true
-            });
+            if (groupInput !== 'manual') {
+                const all = await interaction.guild.members.fetch();
+                if (groupInput === 'all') {
+                    all.forEach((m, k) => targetMembers.set(k, m));
+                    targetDescription = "Todos";
+                } else if (groupInput === 'humans') {
+                    const humans = all.filter(m => !m.user.bot);
+                    humans.forEach((m, k) => targetMembers.set(k, m));
+                    targetDescription = "Humanos";
+                } else if (groupInput === 'bots') {
+                    const bots = all.filter(m => m.user.bot);
+                    bots.forEach((m, k) => targetMembers.set(k, m));
+                    targetDescription = "Bots";
+                }
+            } else {
+                // Manual
+                const userIds = extractIds(usersInput);
+                if (userIds.length > 0) {
+                    if (userIds.length < 50) {
+                        const fetched = await interaction.guild.members.fetch({ user: userIds });
+                        fetched.forEach((m, k) => targetMembers.set(k, m));
+                    } else {
+                        const all = await interaction.guild.members.fetch();
+                        all.filter(m => userIds.includes(m.id)).forEach((m, k) => targetMembers.set(k, m));
+                    }
+                    targetDescription = `${targetMembers.size} usuarios manuales`;
+                }
+            }
+        } catch (e) {
+            console.error(e);
+            return interaction.editReply('❌ Error obteniendo usuarios.');
         }
+
+        if (targetMembers.size === 0) {
+            return interaction.editReply('⚠️ No se encontraron usuarios con los criterios especificados.');
+        }
+
+        await interaction.editReply(`🔄 **Procesando SmartRole...**\nRol a dar: ${roleToGive}\nExclusión: ${roleToExclude}\nObjetivo: ${targetDescription} (${targetMembers.size})\n⏳ Iniciando...`);
+
+        let successCount = 0;
+        let skippedExclusion = 0;
+        let skippedAlreadyHas = 0;
+        let failCount = 0;
+        let processed = 0;
+
+        for (const [id, member] of targetMembers) {
+            processed++;
+            try {
+                // 1. Check Exclusion
+                if (member.roles.cache.has(roleToExclude.id)) {
+                    skippedExclusion++;
+                    continue;
+                }
+
+                // 2. Check overlap
+                if (member.roles.cache.has(roleToGive.id)) {
+                    skippedAlreadyHas++;
+                    continue;
+                }
+
+                // 3. Assign
+                await member.roles.add(roleToGive);
+                successCount++;
+
+                // Rate Limit Protection
+                if (successCount % 5 === 0) await new Promise(r => setTimeout(r, 1000));
+
+            } catch (e) {
+                console.error(`Smartrole error on ${member.user.tag}:`, e.message);
+                failCount++;
+            }
+
+            if (processed % 100 === 0) console.log(`SmartRole Progress: ${processed}/${targetMembers.size}`);
+        }
+
+        await interaction.editReply(`✅ **SmartRole Finalizado**\n🎯 Asignados: ${successCount}\n⛔ Omitidos (Tenían exclusión): ${skippedExclusion}\nℹ️ Omitidos (Ya tenían el rol): ${skippedAlreadyHas}\n❌ Errores: ${failCount}`);
     }
 };
