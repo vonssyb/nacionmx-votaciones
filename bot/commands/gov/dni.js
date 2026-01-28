@@ -185,6 +185,19 @@ module.exports = {
                 return interaction.editReply('❌ Error al crear el DNI.');
             }
 
+            // [SYNC] Ensure user exists in 'citizens' table (for Banking/Cards compatibility)
+            try {
+                const fullNameClean = `${nombre} ${apellido}`;
+                await supabase.from('citizens').upsert({
+                    discord_id: targetUser.id,
+                    full_name: fullNameClean,
+                    dni: fotoUrl,
+                    credit_score: 100
+                }, { onConflict: 'discord_id', ignoreDuplicates: true });
+            } catch (syncErr) {
+                console.error('[dni] Warning: Failed to sync to citizens table:', syncErr);
+            }
+
             // Generate Image
             const dniImageBuffer = await ImageGenerator.generateDNI(newDni);
             const attachment = new AttachmentBuilder(dniImageBuffer, { name: 'dni.png' });

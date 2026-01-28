@@ -213,9 +213,41 @@ module.exports = {
             let { data: citizen } = await supabase.from('citizens').select('id, full_name').eq('discord_id', targetUser.id).limit(1).maybeSingle();
 
             if (!citizen) {
-                return interaction.editReply({
-                    content: `❌ **Error:** El usuario <@${targetUser.id}> no está registrado en el censo.\n⚠️ **Acción Requerida:** Pídele que use el comando \`/dni crear\` para registrar su identidad antes de emitir una tarjeta.`
-                });
+                // FALLBACK: Check if user has DNI but is missing from 'citizens' table (Legacy Sync)
+                const { data: dniData } = await supabase
+                    .from('citizen_dni')
+                    .select('nombre, apellido, foto_url')
+                    .eq('user_id', targetUser.id)
+                    .maybeSingle();
+
+                if (dniData) {
+                    // Auto-register in old 'citizens' table
+                    const fullNameFromDni = `${dniData.nombre} ${dniData.apellido}`;
+                    const { data: newCitizen, error: createError } = await supabase
+                        .from('citizens')
+                        .insert([{
+                            discord_id: targetUser.id,
+                            full_name: fullNameFromDni,
+                            dni: dniData.foto_url || targetUser.displayAvatarURL(),
+                            credit_score: 100
+                        }])
+                        .select('id, full_name')
+                        .single();
+
+                    if (!createError && newCitizen) {
+                        citizen = newCitizen;
+                        // Proceed with new citizen record
+                    } else {
+                        console.error('[registrar-tarjeta] Auto-create citizen failed:', createError);
+                        return interaction.editReply({
+                            content: `❌ **Error:** El usuario <@${targetUser.id}> no está registrado en el censo.\n⚠️ **Acción Requerida:** Pídele que use el comando \`/dni crear\` para registrar su identidad.`
+                        });
+                    }
+                } else {
+                    return interaction.editReply({
+                        content: `❌ **Error:** El usuario <@${targetUser.id}> no está registrado en el censo.\n⚠️ **Acción Requerida:** Pídele que use el comando \`/dni crear\` para registrar su identidad antes de emitir una tarjeta.`
+                    });
+                }
             }
             // Update name?
             if (citizen.full_name !== holderName) {
