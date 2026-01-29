@@ -346,92 +346,109 @@ module.exports = {
                 return interaction.editReply({ embeds: [embed] });
             }
 
+            // ========================================
+            // HELPER: Get User's Selected Company
+            // ========================================
+            const getSelectedCompany = async (requireOwner = false) => {
+                // 1. Check if user owns companies
+                const { data: ownedCompanies } = await supabase
+                    .from('companies')
+                    .select('*')
+                    .contains('owner_ids', [interaction.user.id]);
+
+                if (ownedCompanies && ownedCompanies.length > 0) {
+                    if (ownedCompanies.length === 1) {
+                        return { company: ownedCompanies[0], isOwner: true };
+                    }
+
+                    // Multiple companies - show selector
+                    const { StringSelectMenuBuilder, ActionRowBuilder } = require('discord.js');
+
+                    const selectMenu = new StringSelectMenuBuilder()
+                        .setCustomId(`empresa_select_${interaction.user.id}_${subcommand}`)
+                        .setPlaceholder('Selecciona la empresa')
+                        .addOptions(ownedCompanies.map(comp => ({
+                            label: comp.name,
+                            description: `Balance: $${(comp.balance || 0).toLocaleString()}`,
+                            value: comp.id
+                        })));
+
+                    const row = new ActionRowBuilder().addComponents(selectMenu);
+
+                    await interaction.editReply({
+                        content: '🏢 **Tienes múltiples empresas**\\nSelecciona con cuál deseas operar:',
+                        components: [row]
+                    });
+
+                    // Wait for selection
+                    const filter = i => i.customId.startsWith('empresa_select_') && i.user.id === interaction.user.id;
+                    const collected = await interaction.channel.awaitMessageComponent({
+                        filter,
+                        time: 60000
+                    }).catch(() => null);
+
+                    if (!collected) {
+                        await interaction.editReply({
+                            content: '⏱️ Tiempo agotado para seleccionar empresa.',
+                            components: []
+                        });
+                        return null;
+                    }
+
+                    await collected.deferUpdate();
+
+                    // Get selected company
+                    const selectedId = collected.values[0];
+                    const company = ownedCompanies.find(c => c.id === selectedId);
+
+                    // Clear menu
+                    await interaction.editReply({ components: [] });
+
+                    return { company, isOwner: true };
+                }
+
+                // Not an owner - check if employee (only if not required to be owner)
+                if (!requireOwner) {
+                    const { data: emp } = await supabase
+                        .from('company_employees')
+                        .select('*')
+                        .eq('discord_id', interaction.user.id)
+                        .is('fired_at', null)
+                        .maybeSingle();
+
+                    if (emp) {
+                        const { data: empComp } = await supabase
+                            .from('companies')
+                            .select('*')
+                            .eq('id', emp.company_id)
+                            .maybeSingle();
+
+                        if (empComp) {
+                            return { company: empComp, isOwner: false, employeeRecord: emp };
+                        }
+                    }
+                }
+
+                return null;
+            };
+
             // Get user's company (Owner OR Employee)
             let company = null;
             let employeeRecord = null;
-
-            // 1. Check if user owns multiple companies
-            const { data: ownedCompanies } = await supabase
-                .from('companies')
-                .select('*')
-                .contains('owner_ids', [interaction.user.id]);
-
-            if (ownedCompanies && ownedCompanies.length > 1) {
-                // Multiple companies - show selector
-                const { StringSelectMenuBuilder, ActionRowBuilder } = require('discord.js');
-
-                const selectMenu = new StringSelectMenuBuilder()
-                    .setCustomId(`empresa_select_${interaction.user.id}_${subcommand}`)
-                    .setPlaceholder('Selecciona la empresa')
-                    .addOptions(ownedCompanies.map(comp => ({
-                        label: comp.name,
-                        description: `Balance: $${(comp.balance || 0).toLocaleString()}`,
-                        value: comp.id
-                    })));
-
-                const row = new ActionRowBuilder().addComponents(selectMenu);
-
-                await interaction.editReply({
-                    content: '🏢 **Tienes múltiples empresas**\nSelecciona con cuál deseas operar:',
-                    components: [row]
-                });
-
-                // Wait for selection
-                const filter = i => i.customId.startsWith('empresa_select_') && i.user.id === interaction.user.id;
-                const collected = await interaction.channel.awaitMessageComponent({
-                    filter,
-                    time: 60000
-                }).catch(() => null);
-
-                if (!collected) {
-                    return interaction.editReply({
-                        content: '⏱️ Tiempo agotado para seleccionar empresa.',
-                        components: []
-                    });
-                }
-
-                await collected.deferUpdate();
-
-                // Get selected company
-                const selectedId = collected.values[0];
-                company = ownedCompanies.find(c => c.id === selectedId);
-
-                // Clear menu
-                await interaction.editReply({ components: [] });
-
-            } else if (ownedCompanies && ownedCompanies.length === 1) {
-                // Single company owned
-                company = ownedCompanies[0];
-            } else {
-                // Not an owner - check if employee
-                const { data: emp } = await supabase
-                    .from('company_employees')
-                    .select('*')
-                    .eq('discord_id', interaction.user.id)
-                    .is('fired_at', null)
-                    .maybeSingle();
-
-                if (emp) {
-                    const { data: empComp } = await supabase
-                        .from('companies')
-                        .select('*')
-                        .eq('id', emp.company_id)
-                        .maybeSingle();
-
-                    if (empComp) {
-                        employeeRecord = emp;
-                        company = empComp;
-                    }
-                }
-            }
-
-            if (!company) {
+            
+            // Use helper to get selected company
+            const result = await getSelectedCompany();
+            
+            if (!result) {
                 return interaction.editReply('❌ No tienes una empresa registrada ni eres empleado.');
             }
 
+            company = result.company;
+            const isOwner = result.isOwner;
+            employeeRecord = result.employeeRecord || null;
+
             if (subcommand === 'contratar') {
                 // Only owners can hire
-                const isOwner = company.owner_ids && company.owner_ids.includes(interaction.user.id);
                 if (!isOwner) {
                     return interaction.editReply('❌ Solo el dueño puede contratar empleados.');
                 }
@@ -509,7 +526,6 @@ module.exports = {
 
             } else if (subcommand === 'despedir') {
                 // Only owners can fire employees
-                const isOwner = company.owner_ids && company.owner_ids.includes(interaction.user.id);
                 if (!isOwner) {
                     return interaction.editReply('❌ Solo el dueño puede despedir empleados.');
                 }
@@ -566,7 +582,6 @@ module.exports = {
 
             } else if (subcommand === 'salario') {
                 // Only owners can adjust salaries
-                const isOwner = company.owner_ids && company.owner_ids.includes(interaction.user.id);
                 if (!isOwner) {
                     return interaction.editReply('❌ Solo el dueño puede ajustar salarios.');
                 }
@@ -639,7 +654,6 @@ module.exports = {
 
             } else if (subcommand === 'retirar') {
                 // Only owners can withdraw
-                const isOwner = company.owner_ids && company.owner_ids.includes(interaction.user.id);
                 if (!isOwner) {
                     return interaction.editReply('❌ Solo el dueño puede retirar fondos de la empresa.');
                 }
@@ -735,7 +749,6 @@ module.exports = {
 
             } else if (subcommand === 'remover_dueño') {
                 // Only owners can remove other owners
-                const isOwner = company.owner_ids && company.owner_ids.includes(interaction.user.id);
                 if (!isOwner) {
                     return interaction.editReply('❌ Solo un dueño puede remover socios.');
                 }
@@ -773,7 +786,6 @@ module.exports = {
 
             } else if (subcommand === 'transferir') {
                 // Only current owners can transfer
-                const isOwner = company.owner_ids && company.owner_ids.includes(interaction.user.id);
                 if (!isOwner) {
                     return interaction.editReply('❌ Solo un dueño puede transferir la empresa.');
                 }
