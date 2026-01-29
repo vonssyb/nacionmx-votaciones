@@ -123,16 +123,28 @@ class JobValidator {
         return { allowed: true };
     }
 
-    /**
-     * Check if user has incompatible roles (Police vs Cartel)
-     * @param {GuildMember} member 
-     * @returns {boolean} true if conflict exists
-     */
     static hasIncompatibleRoles(member) {
-        // Simplified check: Just ensuring they don't exceed principal count implies they can't have conflicting major roles
-        // if the limit is 1. If limit > 1 (Booster), they CAN have multiple.
-        // But usually Police <-> Criminal is hard restricted logic.
-        // For now, relies on principal limit.
+        // Government Exclusivity Rules
+        const { VICEPRESIDENTE, PRESIDENTE, SEC_ECONOMIA, SEC_DEFENSA, SEC_AMBIENTAL, SEC_SALUD } = EMERGENCY_ROLES;
+
+        const hasPres = member.roles.cache.has(PRESIDENTE);
+        const hasVP = member.roles.cache.has(VICEPRESIDENTE);
+
+        // Rule 1: Cannot be President and VP
+        if (hasPres && hasVP) return true;
+
+        const secretaryRoles = [SEC_ECONOMIA, SEC_DEFENSA, SEC_AMBIENTAL, SEC_SALUD].filter(id => id); // Filter undefined just in case
+        const secretaryCount = secretaryRoles.reduce((count, roleId) => count + (member.roles.cache.has(roleId) ? 1 : 0), 0);
+
+        // Rule 2: Cannot be (Pres OR VP) AND Secretary
+        if ((hasPres || hasVP) && secretaryCount > 0) return true;
+
+        // Rule 3: Cannot hold multiple Secretary roles
+        if (secretaryCount > 1) return true;
+
+        // Existing Police vs Criminal Check (Implicit via Principal Check, but we can enforce if needed)
+        // For now, keeping it focused on the requested Gov rules + returning false for others.
+
         return false;
     }
 }
