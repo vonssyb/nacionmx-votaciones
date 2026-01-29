@@ -36,9 +36,9 @@ module.exports = {
             // Obtener tarjetas MXN
             const { data: mxnCards, error: mxnError } = await supabase
                 .from('credit_cards')
-                .select('*')
                 .eq('discord_id', targetUser.id)
-                // .eq('currency', 'MXN') // Removed currency check to avoid errors if column missing, allow mixed
+                .select('*, companies(name)') // Fetch company name if linked
+                // .eq('currency', 'MXN') // Removed currency check to avoid errors
                 .order('created_at', { ascending: false });
 
             if (mxnError) throw mxnError;
@@ -84,7 +84,11 @@ module.exports = {
                     totalLimiteMxn += limite;
 
                     const statusEmoji = card.status === 'active' ? '🟢' : card.status === 'frozen' ? '🟡' : '🔴';
-                    const typeLabel = card.card_type?.toUpperCase() || 'DESCONOCIDA';
+                    let typeLabel = card.card_type?.toUpperCase() || 'DESCONOCIDA';
+
+                    if (card.companies && card.companies.name) {
+                        typeLabel = `🏢 ${card.companies.name} - ${typeLabel}`;
+                    }
 
                     mxnText += `\n**${index + 1}. ${typeLabel}** ${statusEmoji}\n`;
                     mxnText += `├ 💰 Deuda: $${deuda.toLocaleString()} MXN\n`;
