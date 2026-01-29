@@ -1,4 +1,5 @@
-const { ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder, EmbedBuilder, PermissionFlagsBits, ChannelType, MessageFlags, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder, EmbedBuilder, PermissionFlagsBits, ChannelType, MessageFlags, ButtonBuilder, ButtonStyle, AttachmentBuilder } = require('discord.js');
+const discordTranscripts = require('discord-html-transcripts');
 const logger = require('../services/Logger');
 const ticketHandler = require('./ticketHandler'); // Reuse closing logic if needed or just button
 
@@ -138,6 +139,9 @@ async function showModalAhorro(interaction) {
 async function handleBankButtonPress(service, interaction, client, supabase) {
     // logger.info('[Banking] Button pressed', { service });
     if (service === 'claim_ticket') return handleClaimTicket(interaction);
+    if (service === 'close_ticket') return handleBankCloseAsk(interaction);
+    if (service === 'close_confirm') return handleBankCloseConfirm(interaction, client, supabase);
+
     if (service.startsWith('approve_loan_')) return handleApproveLoan(service.replace('approve_loan_', ''), interaction, client, supabase);
     if (service.startsWith('approve_savings_')) return handleApproveSavings(service.replace('approve_savings_', ''), interaction, client, supabase);
 
@@ -220,7 +224,7 @@ async function handleClaimTicket(interaction) {
         return interaction.reply({ content: '❌ Solo banqueros.', ephemeral: true });
     }
 
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ ephemeral: false });
     const channel = interaction.channel;
 
     // Update topic and perms
@@ -481,7 +485,7 @@ async function createBankingTicket(interaction, serviceType, client, supabase, a
         // Control Row
         const row = new ActionRowBuilder().addComponents(
             new ButtonBuilder().setCustomId('btn_bank_claim_ticket').setLabel('🙋 Atender Oficina').setStyle(ButtonStyle.Success),
-            new ButtonBuilder().setCustomId('btn_close_ticket_ask').setLabel('🔒 Cerrar Oficina').setStyle(ButtonStyle.Danger)
+            new ButtonBuilder().setCustomId('btn_bank_close_ticket').setLabel('🔒 Cerrar Oficina').setStyle(ButtonStyle.Danger)
         );
 
         // Send Main Message
@@ -511,6 +515,56 @@ async function createBankingTicket(interaction, serviceType, client, supabase, a
         logger.errorWithContext('Banking Ticket Error', error);
         return null;
     }
+}
+
+async function handleBankCloseAsk(interaction) {
+    const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId('btn_bank_close_confirm').setLabel('Confirmar Cierre').setStyle(ButtonStyle.Danger),
+        new ButtonBuilder().setCustomId('btn_bank_cancel_close').setLabel('Cancelar').setStyle(ButtonStyle.Secondary)
+    );
+    await interaction.reply({ content: '¿Estás seguro de cerrar esta oficina bancaria?', components: [row] });
+    return true;
+}
+
+async function handleBankCloseConfirm(interaction, client, supabase) {
+    await interaction.deferReply();
+    const channel = interaction.channel;
+
+    // 1. Generate Transcript
+    const attachment = await discordTranscripts.createTranscript(channel, {
+        limit: -1,
+        returnType: 'attachment',
+        filename: `banco-close-${channel.name}.html`,
+        saveImages: true
+    });
+
+    // 2. Log
+    const logChannel = client.channels.cache.get(BANK_CONFIG.LOG_CHANNEL);
+    if (logChannel) {
+        const embed = new EmbedBuilder()
+            .setTitle('🏦 Oficina Bancaria Cerrada')
+            .addFields(
+                { name: 'Canal', value: channel.name, inline: true },
+                { name: 'Cerrado por', value: interaction.user.tag, inline: true }
+            )
+            .setColor(0xE74C3C)
+            .setTimestamp();
+        await logChannel.send({ embeds: [embed], files: [attachment] });
+    }
+
+    // 3. Update DB
+    await supabase.from('tickets').update({
+        status: 'CLOSED',
+        closed_at: new Date().toISOString()
+    }).eq('channel_id', channel.id);
+
+    // 4. Close
+    await interaction.editReply('🔒 Cerrando oficina en 5 segundos...');
+    setTimeout(() => {
+        channel.delete().catch(e => logger.warn('[BANK] Could not delete channel', e));
+    }, 5000);
+
+    return true;
 }
 
 module.exports = { handleBankingInteraction };
