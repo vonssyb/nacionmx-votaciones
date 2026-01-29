@@ -10,7 +10,6 @@ module.exports = {
     // Emergency Response Roles
     EMERGENCY_ROLES: {
         // Principal Roles
-        PRESIDENTE: '1412887183089471568',
         EJERCITO: '1412898905842122872',
         FEC: '1459674442501456074',
         INFANTERIA_MARINA: '1412898908706963507',
@@ -24,6 +23,12 @@ module.exports = {
         CRIMINAL: '1412899390108209183',
 
         // Secondary Roles
+        PRESIDENTE: '1412887183089471568',
+        VICEPRESIDENTE: '1466165678980464802',
+        SEC_ECONOMIA: '1466248918294593586',
+        SEC_DEFENSA: '1466248809196818474',
+        SEC_AMBIENTAL: '1466249013891305544',
+        SEC_SALUD: '1466249089447497984',
         BOMBERO: '1412899382436827369',
         CAFETERO: '1457789055608557608',
         DOT: '1412899385519640707',
@@ -40,7 +45,6 @@ module.exports = {
 
     // Categorization
     PRINCIPAL_JOBS: [
-        '1412887183089471568', // Presidente
         '1412898905842122872', // Ejercito
         '1459674442501456074', // FEC
         '1412898908706963507', // Infantería de Marina
@@ -55,6 +59,12 @@ module.exports = {
     ],
 
     SECONDARY_JOBS: [
+        '1412887183089471568', // Presidente
+        '1466165678980464802', // Vicepresidente
+        '1466248918294593586', // Sec. Economia
+        '1466248809196818474', // Sec. Defensa
+        '1466249013891305544', // Sec. Ambiental
+        '1466249089447497984', // Sec. Salud
         '1412899382436827369', // Bombero
         '1457789055608557608', // Cafetero
         '1412899385519640707', // DOT
@@ -72,8 +82,9 @@ module.exports = {
         'militar': ['EJERCITO', 'FEC', 'INFANTERIA_MARINA', 'SSPC'],
         'medico': ['PARAMEDICO'],
         'fuego': ['BOMBERO'],
+        'gobierno': ['PRESIDENTE', 'VICEPRESIDENTE', 'SEC_ECONOMIA', 'SEC_DEFENSA', 'SEC_AMBIENTAL', 'SEC_SALUD'],
         'todos': ['POLICIA_FEDERAL', 'POLICIA_ESTATAL', 'POLICIA_TRANSITO', 'GUARDIA_NACIONAL',
-            'EJERCITO', 'FEC', 'INFANTERIA_MARINA', 'SSPC', 'PARAMEDICO', 'BOMBERO']
+            'EJERCITO', 'FEC', 'INFANTERIA_MARINA', 'SSPC', 'PARAMEDICO', 'BOMBERO', 'PRESIDENTE']
     },
 
     // Transaction limits
