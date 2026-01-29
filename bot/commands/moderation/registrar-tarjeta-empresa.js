@@ -171,31 +171,33 @@ module.exports = {
                     await i.update({ content: '💳 **Selecciona origen de fondos para apertura:**', embeds: [], components: [payRow] });
                 }
                 else if (['reg_corp_cash', 'reg_corp_bank'].includes(i.customId)) {
-                    // Wrap deferUpdate to prevent unhandled rejection crashes if interaction is invalid
-                    try {
-                        await i.deferUpdate();
-                    } catch (e) {
-                        console.warn('[registrar-tarjeta-empresa] deferUpdate failed (ignored):', e.message);
-                        // If we can't defer, we probably can't follow up, so stop here to avoid crash
-                        return;
+                    // Robust Interaction Handling
+                    if (!i.deferred && !i.replied) {
+                        try {
+                            await i.deferUpdate();
+                        } catch (e) {
+                            console.warn('[registrar-tarjeta-empresa] deferUpdate failed:', e.message);
+                            // Continue potentially, verification is next
+                        }
                     }
 
                     try {
-                        // Use existing service if available, fallback to require for safety but avoid re-instantiation if possible
                         const billingService = client.services?.billing || new (require('../../services/BillingService'))(client);
                         const chargeAmount = stats.cost;
 
                         // CHARGE LOGIC
                         if (chargeAmount > 0) {
+                            const bal = await billingService.ubService.getUserBalance(interaction.guildId, targetUser.id);
+
                             if (i.customId === 'reg_corp_cash') {
-                                // Charge User Cash
-                                const bal = await billingService.ubService.getUserBalance(interaction.guildId, targetUser.id);
-                                if ((bal.cash || 0) < chargeAmount) return i.followUp({ content: `❌ Efectivo insuficiente.`, flags: 64 });
+                                if ((bal.cash || 0) < chargeAmount) {
+                                    return i.followUp({ content: `❌ Efectivo insuficiente.`, flags: 64 }).catch(() => { });
+                                }
                                 await billingService.ubService.removeMoney(interaction.guildId, targetUser.id, chargeAmount, `Apertura Corp ${cardType}`, 'cash');
                             } else {
-                                // Charge User Bank
-                                const bal = await billingService.ubService.getUserBalance(interaction.guildId, targetUser.id);
-                                if ((bal.bank || 0) < chargeAmount) return i.followUp({ content: `❌ Fondos insuficientes en banco personal.`, flags: 64 });
+                                if ((bal.bank || 0) < chargeAmount) {
+                                    return i.followUp({ content: `❌ Fondos insuficientes en banco personal.`, flags: 64 }).catch(() => { });
+                                }
                                 await billingService.ubService.removeMoney(interaction.guildId, targetUser.id, chargeAmount, `Apertura Corp ${cardType}`, 'bank');
                             }
                         }
@@ -219,7 +221,19 @@ module.exports = {
 
                         if (insertError) throw new Error(insertError.message);
 
-                        // LOG
+                        // SUCCESS RESPONSE
+                        const successMsg = `✅ **Tarjeta Corporativa Activada** para **${companyName}**.\n💳 Tipo: ${cardType}`;
+
+                        // Try to edit original message (best UX)
+                        await message.edit({
+                            content: successMsg,
+                            components: []
+                        }).catch(() => {
+                            // If edit fails, try channel send
+                            interaction.channel.send(successMsg).catch(() => { });
+                        });
+
+                        // Log
                         const logEmbed = new EmbedBuilder()
                             .setTitle('🏢 Nueva Tarjeta Corporativa')
                             .setColor('#800020')
@@ -231,19 +245,15 @@ module.exports = {
                             )
                             .setTimestamp();
 
-                        try {
-                            const logChannel = await client.channels.fetch(LOG_CREACION_TARJETA);
-                            if (logChannel) logChannel.send({ embeds: [logEmbed] });
-                        } catch (e) { }
-
-                        await message.edit({
-                            content: `✅ **Tarjeta Corporativa Activada** para **${companyName}**.\n💳 Tipo: ${cardType}`,
-                            components: []
-                        });
+                        const logChannel = await client.channels.fetch(LOG_CREACION_TARJETA).catch(() => null);
+                        if (logChannel) logChannel.send({ embeds: [logEmbed] }).catch(() => { });
 
                     } catch (err) {
-                        console.error(err);
-                        await i.followUp({ content: `❌ Error: ${err.message}`, flags: 64 });
+                        console.error('Error processing corporate card:', err);
+                        // Try to notify user via followUp, if that fails, channel message
+                        await i.followUp({ content: `❌ Error: ${err.message}`, flags: 64 }).catch(() => {
+                            interaction.channel.send(`❌ Error con la solicitud de <@${targetUser.id}>: ${err.message}`).catch(() => { });
+                        });
                     }
                     collector.stop();
                 }
