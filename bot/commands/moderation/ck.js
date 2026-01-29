@@ -109,24 +109,32 @@ module.exports = {
                     }
                 }
 
-                // D2. Restore Purchases (Fix for lost items)
+                // D2. Restore Purchases (Re-insert from backup since they were deleted)
                 if (backup.purchases && backup.purchases.length > 0) {
-                    for (const pch of backup.purchases) {
-                        try {
-                            // Restore only if it was active
-                            if (pch.status === 'active') {
-                                // If it was already expired by time logic, we generally don't restore?
-                                // Assuming backing up 'active' items means they should be active again.
-                                // We might need to adjust expiration date if user was dead for a long time?
-                                // For simplicity: Restore original expiration date.
-                                await supabase
-                                    .from('user_purchases')
-                                    .update({ status: 'active', expiration_date: pch.expiration_date })
-                                    .eq('id', pch.id);
-                            }
-                        } catch (e) {
-                            console.error('[CK Revert] Failed to restore purchase:', pch.id);
-                        }
+                    // First, delete any existing records to avoid conflicts
+                    await supabase
+                        .from('user_purchases')
+                        .delete()
+                        .eq('user_id', targetUser.id);
+
+                    // Then insert the backed up purchases
+                    const purchasesToInsert = backup.purchases.map(pch => ({
+                        user_id: pch.user_id,
+                        item_key: pch.item_key,
+                        quantity: pch.quantity || 1,
+                        purchase_date: pch.purchase_date,
+                        expiration_date: pch.expiration_date,
+                        status: 'active', // Restore as active
+                        uses_remaining: pch.uses_remaining,
+                        total_uses: pch.total_uses
+                    }));
+
+                    const { error: insertError } = await supabase
+                        .from('user_purchases')
+                        .insert(purchasesToInsert);
+
+                    if (insertError) {
+                        console.error('[CK Revert] Failed to restore purchases:', insertError);
                     }
                 }
 
@@ -668,18 +676,28 @@ module.exports = {
                         .delete()
                         .eq('user_id', targetUser.id);
 
-                    // 5a. RESET STORE PURCHASES
-                    if (backupData.purchases && backupData.purchases.length > 0) {
-                        const purchaseIds = backupData.purchases.map(p => p.id);
-                        if (purchaseIds.length > 0) {
-                            await supabase
-                                .from('user_purchases')
-                                .update({ status: 'ck_reset' })
-                                .in('id', purchaseIds);
-                        }
+                    // 5a. DELETE STORE PURCHASES (And related transactions)
+                    // First delete transactions to avoid foreign key constraint
+                    const { data: userPurchases } = await supabase
+                        .from('user_purchases')
+                        .select('id')
+                        .eq('user_id', targetUser.id);
+
+                    if (userPurchases && userPurchases.length > 0) {
+                        const purchaseIds = userPurchases.map(p => p.id);
+
+                        // Delete transactions first
+                        await supabase
+                            .from('purchase_transactions')
+                            .delete()
+                            .in('purchase_id', purchaseIds);
                     }
 
-
+                    // Then delete the purchases themselves
+                    await supabase
+                        .from('user_purchases')
+                        .delete()
+                        .eq('user_id', targetUser.id);
 
 
                     // 5b. INSERT ROLE COOLDOWNS (2 Weeks)
