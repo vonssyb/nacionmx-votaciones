@@ -684,12 +684,27 @@ const handleEconomyLegacy = async (interaction, client, supabase) => {
                 paymentDetails = '💳 Tarjeta de Débito';
 
             } else if (paymentMethod === 'credit') {
-                // Get user's credit card
-                const { data: creditCards } = await supabase
+                // Get user's companies for corporate cards
+                const { data: ownedCompanies } = await supabase
+                    .from('companies')
+                    .select('id')
+                    .or(`owner_id.eq.${interaction.user.id},owner_ids.cs.{${interaction.user.id}}`);
+
+                const companyIds = ownedCompanies ? ownedCompanies.map(c => c.id) : [];
+
+                // Get user's credit card (Personal OR Corporate)
+                let query = supabase
                     .from('credit_cards')
                     .select('*')
-                    .eq('discord_id', interaction.user.id)
-                    .eq('status', 'active')
+                    .eq('status', 'active');
+
+                if (companyIds.length > 0) {
+                    query = query.or(`discord_id.eq.${interaction.user.id},company_id.in.(${companyIds.join(',')})`);
+                } else {
+                    query = query.eq('discord_id', interaction.user.id);
+                }
+
+                const { data: creditCards } = await query
                     .order('card_limit', { ascending: false })
                     .limit(1);
 
