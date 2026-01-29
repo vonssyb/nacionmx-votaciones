@@ -171,10 +171,18 @@ module.exports = {
                     await i.update({ content: '💳 **Selecciona origen de fondos para apertura:**', embeds: [], components: [payRow] });
                 }
                 else if (['reg_corp_cash', 'reg_corp_bank'].includes(i.customId)) {
-                    await i.deferUpdate();
+                    // Wrap deferUpdate to prevent unhandled rejection crashes if interaction is invalid
                     try {
-                        const BillingService = require('../../services/BillingService');
-                        const billingService = new BillingService(client);
+                        await i.deferUpdate();
+                    } catch (e) {
+                        console.warn('[registrar-tarjeta-empresa] deferUpdate failed (ignored):', e.message);
+                        // If we can't defer, we probably can't follow up, so stop here to avoid crash
+                        return;
+                    }
+
+                    try {
+                        // Use existing service if available, fallback to require for safety but avoid re-instantiation if possible
+                        const billingService = client.services?.billing || new (require('../../services/BillingService'))(client);
                         const chargeAmount = stats.cost;
 
                         // CHARGE LOGIC
@@ -185,9 +193,7 @@ module.exports = {
                                 if ((bal.cash || 0) < chargeAmount) return i.followUp({ content: `❌ Efectivo insuficiente.`, flags: 64 });
                                 await billingService.ubService.removeMoney(interaction.guildId, targetUser.id, chargeAmount, `Apertura Corp ${cardType}`, 'cash');
                             } else {
-                                // Charge Company Balance (Requires manually checking company balance)
-                                // Simplified: Charge User Bank for now, or implement Company Balance charge
-                                // Let's charge User Bank for simplicity as "Company Account" implies access to funds
+                                // Charge User Bank
                                 const bal = await billingService.ubService.getUserBalance(interaction.guildId, targetUser.id);
                                 if ((bal.bank || 0) < chargeAmount) return i.followUp({ content: `❌ Fondos insuficientes en banco personal.`, flags: 64 });
                                 await billingService.ubService.removeMoney(interaction.guildId, targetUser.id, chargeAmount, `Apertura Corp ${cardType}`, 'bank');
