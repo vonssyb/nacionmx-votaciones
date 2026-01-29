@@ -79,6 +79,12 @@ module.exports = {
                 return interaction.editReply('❌ El nombre y apellido deben tener al menos 2 caracteres.');
             }
 
+            // Name Validation (Letters, accents, spaces, hyphens)
+            const nameRegex = /^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s-]+$/;
+            if (!nameRegex.test(nombreClean) || !nameRegex.test(apellidoClean)) {
+                return interaction.editReply('❌ **Nombre inválido**: Solo se permiten letras (A-Z), tildes y guiones. No uses números ni caracteres especiales (ej: .., @, 123).');
+            }
+
             // Date Validation
             const maxDays = new Date(2020, parseInt(mes), 0).getDate();
             if (dia > maxDays) {
@@ -228,6 +234,15 @@ module.exports = {
 
             if (Object.keys(updates).length === 0) {
                 return interaction.editReply('❌ Debes especificar al menos un campo para editar.');
+            }
+
+            // Validate Name/Surname updates
+            const nameRegex = /^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s-]+$/;
+            if (updates.nombre && !nameRegex.test(updates.nombre)) {
+                return interaction.editReply('❌ **Nombre inválido**: Solo se permiten letras (A-Z), tildes y guiones.');
+            }
+            if (updates.apellido && !nameRegex.test(updates.apellido)) {
+                return interaction.editReply('❌ **Apellido inválido**: Solo se permiten letras (A-Z), tildes y guiones.');
             }
 
             updates.last_edited_by = interaction.user.id;
