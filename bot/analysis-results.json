@@ -1,0 +1,530 @@
+{
+  "total": 92,
+  "deferReply": {
+    "missing": [],
+    "commented": [
+      "commands/economy/fichar.js",
+      "commands/moderation/apelacion.js",
+      "commands/moderation/auditar.js",
+      "commands/moderation/backup.js",
+      "commands/moderation/editar_warn.js",
+      "commands/moderation/eliminar_sancion.js",
+      "commands/moderation/limpiar_historial.js",
+      "commands/moderation/mis_warns.js",
+      "commands/moderation/quitar-rol.js",
+      "commands/moderation/rechazar_apelacion.js",
+      "commands/moderation/rol.js",
+      "commands/moderation/sancion.js",
+      "commands/moderation/solicitar_mod.js",
+      "commands/moderation/ver_sancion.js",
+      "commands/moderation/ver_warns.js",
+      "commands/gov/american-id.js",
+      "commands/gov/fianza.js",
+      "commands/utils/config-pings.js"
+    ],
+    "conditional": [
+      "commands/economy/crimen.js",
+      "commands/moderation/ausencia.js",
+      "commands/moderation/registrar-tarjeta-empresa.js",
+      "commands/moderation/registrar-tarjeta.js"
+    ],
+    "correct": [
+      "commands/economy/ahorro.js",
+      "commands/economy/balanza-admin.js",
+      "commands/economy/balanza.js",
+      "commands/economy/cajero.js",
+      "commands/economy/colectar.js",
+      "commands/economy/credito.js",
+      "commands/economy/debito.js",
+      "commands/economy/empresa.js",
+      "commands/economy/gestionar-coche.js",
+      "commands/economy/inversion.js",
+      "commands/economy/mision.js",
+      "commands/economy/nomina.js",
+      "commands/economy/perfil.js",
+      "commands/economy/prestamo.js",
+      "commands/economy/setup-banco.js",
+      "commands/economy/tarjetas.js",
+      "commands/economy/tienda.js",
+      "commands/economy/trabajar.js",
+      "commands/economy/ver-coches.js",
+      "commands/moderation/911.js",
+      "commands/moderation/aceptar.js",
+      "commands/moderation/aceptar_apelacion.js",
+      "commands/moderation/agregar-rol.js",
+      "commands/moderation/anunciar.js",
+      "commands/moderation/arrestar.js",
+      "commands/moderation/ck.js",
+      "commands/moderation/convertir_sa.js",
+      "commands/moderation/denegar.js",
+      "commands/moderation/dinero.js",
+      "commands/moderation/purge.js",
+      "commands/moderation/rango.js",
+      "commands/moderation/role.js",
+      "commands/moderation/server_lock.js",
+      "commands/moderation/sesion.js",
+      "commands/moderation/setup-erlc-channels.js",
+      "commands/moderation/setup_erlc.js",
+      "commands/moderation/smartrole.js",
+      "commands/moderation/temprole.js",
+      "commands/moderation/verificar.js",
+      "commands/gov/divisa.js",
+      "commands/gov/dni.js",
+      "commands/gov/licencia.js",
+      "commands/gov/logros.js",
+      "commands/gov/misiones.js",
+      "commands/gov/multar.js",
+      "commands/gov/nivel.js",
+      "commands/gov/radio.js",
+      "commands/gov/registrar-coche.js",
+      "commands/gov/reputacion.js",
+      "commands/gov/tarjeta-usa.js",
+      "commands/gov/visa.js",
+      "commands/tickets/close-ticket.js",
+      "commands/tickets/setup-main-panel.js",
+      "commands/tickets/setup-tickets.js",
+      "commands/tickets/ticket.js",
+      "commands/tickets/tickets.js",
+      "commands/utils/ayuda.js",
+      "commands/utils/giveaway.js",
+      "commands/utils/listar-roles.js",
+      "commands/utils/snipe.js",
+      "commands/utils/status.js",
+      "commands/utils/sugerencia.js",
+      "commands/utils/user.js",
+      "commands/utils/vc.js",
+      "commands/utils/vcontrol.js",
+      "commands/utils/vcreate.js",
+      "commands/utils/vcstats.js",
+      "commands/utils/vincular-roblox.js",
+      "commands/admin/ticket_unclaim.js",
+      "commands/owner/reload.js"
+    ]
+  },
+  "queries": {
+    "usingSingle": [],
+    "usingMaybeSingle": [
+      {
+        "file": "commands/economy/ahorro.js",
+        "count": 4
+      },
+      {
+        "file": "commands/economy/balanza-admin.js",
+        "count": 3
+      },
+      {
+        "file": "commands/economy/balanza.js",
+        "count": 3
+      },
+      {
+        "file": "commands/economy/colectar.js",
+        "count": 2
+      },
+      {
+        "file": "commands/economy/crimen.js",
+        "count": 1
+      },
+      {
+        "file": "commands/economy/empresa.js",
+        "count": 6
+      },
+      {
+        "file": "commands/economy/fichar.js",
+        "count": 6
+      },
+      {
+        "file": "commands/economy/gestionar-coche.js",
+        "count": 2
+      },
+      {
+        "file": "commands/economy/inversion.js",
+        "count": 1
+      },
+      {
+        "file": "commands/economy/mision.js",
+        "count": 5
+      },
+      {
+        "file": "commands/economy/nomina.js",
+        "count": 4
+      },
+      {
+        "file": "commands/economy/perfil.js",
+        "count": 7
+      },
+      {
+        "file": "commands/economy/prestamo.js",
+        "count": 1
+      },
+      {
+        "file": "commands/economy/tienda.js",
+        "count": 4
+      },
+      {
+        "file": "commands/economy/trabajar.js",
+        "count": 1
+      },
+      {
+        "file": "commands/economy/ver-coches.js",
+        "count": 1
+      },
+      {
+        "file": "commands/moderation/911.js",
+        "count": 1
+      },
+      {
+        "file": "commands/moderation/aceptar.js",
+        "count": 1
+      },
+      {
+        "file": "commands/moderation/agregar-rol.js",
+        "count": 1
+      },
+      {
+        "file": "commands/moderation/apelacion.js",
+        "count": 3
+      },
+      {
+        "file": "commands/moderation/arrestar.js",
+        "count": 1
+      },
+      {
+        "file": "commands/moderation/ck.js",
+        "count": 5
+      },
+      {
+        "file": "commands/moderation/denegar.js",
+        "count": 1
+      },
+      {
+        "file": "commands/moderation/rango.js",
+        "count": 3
+      },
+      {
+        "file": "commands/moderation/registrar-tarjeta-empresa.js",
+        "count": 1
+      },
+      {
+        "file": "commands/moderation/registrar-tarjeta.js",
+        "count": 3
+      },
+      {
+        "file": "commands/moderation/sancion.js",
+        "count": 2
+      },
+      {
+        "file": "commands/moderation/sesion.js",
+        "count": 7
+      },
+      {
+        "file": "commands/moderation/verificar.js",
+        "count": 1
+      },
+      {
+        "file": "commands/gov/american-id.js",
+        "count": 3
+      },
+      {
+        "file": "commands/gov/divisa.js",
+        "count": 1
+      },
+      {
+        "file": "commands/gov/dni.js",
+        "count": 4
+      },
+      {
+        "file": "commands/gov/fianza.js",
+        "count": 1
+      },
+      {
+        "file": "commands/gov/licencia.js",
+        "count": 2
+      },
+      {
+        "file": "commands/gov/registrar-coche.js",
+        "count": 2
+      },
+      {
+        "file": "commands/gov/reputacion.js",
+        "count": 3
+      },
+      {
+        "file": "commands/gov/tarjeta-usa.js",
+        "count": 6
+      },
+      {
+        "file": "commands/gov/visa.js",
+        "count": 4
+      },
+      {
+        "file": "commands/tickets/close-ticket.js",
+        "count": 1
+      },
+      {
+        "file": "commands/tickets/ticket.js",
+        "count": 12
+      },
+      {
+        "file": "commands/utils/sugerencia.js",
+        "count": 1
+      },
+      {
+        "file": "commands/utils/vincular-roblox.js",
+        "count": 1
+      },
+      {
+        "file": "commands/admin/ticket_unclaim.js",
+        "count": 2
+      }
+    ],
+    "noQueries": [
+      "commands/economy/cajero.js",
+      "commands/economy/credito.js",
+      "commands/economy/debito.js",
+      "commands/economy/setup-banco.js",
+      "commands/economy/tarjetas.js",
+      "commands/moderation/aceptar_apelacion.js",
+      "commands/moderation/anunciar.js",
+      "commands/moderation/auditar.js",
+      "commands/moderation/ausencia.js",
+      "commands/moderation/backup.js",
+      "commands/moderation/convertir_sa.js",
+      "commands/moderation/dinero.js",
+      "commands/moderation/editar_warn.js",
+      "commands/moderation/eliminar_sancion.js",
+      "commands/moderation/limpiar_historial.js",
+      "commands/moderation/mis_warns.js",
+      "commands/moderation/purge.js",
+      "commands/moderation/quitar-rol.js",
+      "commands/moderation/rechazar_apelacion.js",
+      "commands/moderation/rol.js",
+      "commands/moderation/role.js",
+      "commands/moderation/server_lock.js",
+      "commands/moderation/setup-erlc-channels.js",
+      "commands/moderation/setup_erlc.js",
+      "commands/moderation/smartrole.js",
+      "commands/moderation/solicitar_mod.js",
+      "commands/moderation/temprole.js",
+      "commands/moderation/ver_sancion.js",
+      "commands/moderation/ver_warns.js",
+      "commands/gov/logros.js",
+      "commands/gov/misiones.js",
+      "commands/gov/multar.js",
+      "commands/gov/nivel.js",
+      "commands/gov/radio.js",
+      "commands/tickets/setup-main-panel.js",
+      "commands/tickets/setup-tickets.js",
+      "commands/tickets/tickets.js",
+      "commands/utils/ayuda.js",
+      "commands/utils/config-pings.js",
+      "commands/utils/giveaway.js",
+      "commands/utils/listar-roles.js",
+      "commands/utils/snipe.js",
+      "commands/utils/status.js",
+      "commands/utils/user.js",
+      "commands/utils/vc.js",
+      "commands/utils/vcontrol.js",
+      "commands/utils/vcreate.js",
+      "commands/utils/vcstats.js",
+      "commands/owner/reload.js"
+    ]
+  },
+  "errorHandling": {
+    "noTryCatch": [
+      "commands/economy/cajero.js",
+      "commands/economy/credito.js",
+      "commands/economy/debito.js",
+      "commands/economy/fichar.js",
+      "commands/economy/gestionar-coche.js",
+      "commands/economy/prestamo.js",
+      "commands/moderation/anunciar.js",
+      "commands/moderation/auditar.js",
+      "commands/moderation/backup.js",
+      "commands/moderation/server_lock.js",
+      "commands/gov/american-id.js",
+      "commands/gov/radio.js",
+      "commands/gov/tarjeta-usa.js",
+      "commands/tickets/setup-main-panel.js",
+      "commands/utils/ayuda.js",
+      "commands/utils/config-pings.js",
+      "commands/utils/giveaway.js",
+      "commands/utils/snipe.js",
+      "commands/admin/ticket_unclaim.js"
+    ],
+    "basicTryCatch": [
+      "commands/economy/ahorro.js",
+      "commands/economy/balanza-admin.js",
+      "commands/economy/balanza.js",
+      "commands/economy/colectar.js",
+      "commands/economy/crimen.js",
+      "commands/economy/empresa.js",
+      "commands/economy/inversion.js",
+      "commands/economy/mision.js",
+      "commands/economy/nomina.js",
+      "commands/economy/perfil.js",
+      "commands/economy/setup-banco.js",
+      "commands/economy/tarjetas.js",
+      "commands/economy/tienda.js",
+      "commands/economy/trabajar.js",
+      "commands/economy/ver-coches.js",
+      "commands/moderation/911.js",
+      "commands/moderation/aceptar.js",
+      "commands/moderation/aceptar_apelacion.js",
+      "commands/moderation/agregar-rol.js",
+      "commands/moderation/apelacion.js",
+      "commands/moderation/arrestar.js",
+      "commands/moderation/ausencia.js",
+      "commands/moderation/ck.js",
+      "commands/moderation/convertir_sa.js",
+      "commands/moderation/denegar.js",
+      "commands/moderation/dinero.js",
+      "commands/moderation/editar_warn.js",
+      "commands/moderation/eliminar_sancion.js",
+      "commands/moderation/limpiar_historial.js",
+      "commands/moderation/mis_warns.js",
+      "commands/moderation/purge.js",
+      "commands/moderation/quitar-rol.js",
+      "commands/moderation/rango.js",
+      "commands/moderation/rechazar_apelacion.js",
+      "commands/moderation/registrar-tarjeta-empresa.js",
+      "commands/moderation/registrar-tarjeta.js",
+      "commands/moderation/rol.js",
+      "commands/moderation/role.js",
+      "commands/moderation/sancion.js",
+      "commands/moderation/sesion.js",
+      "commands/moderation/setup-erlc-channels.js",
+      "commands/moderation/setup_erlc.js",
+      "commands/moderation/smartrole.js",
+      "commands/moderation/solicitar_mod.js",
+      "commands/moderation/temprole.js",
+      "commands/moderation/ver_sancion.js",
+      "commands/moderation/ver_warns.js",
+      "commands/moderation/verificar.js",
+      "commands/gov/divisa.js",
+      "commands/gov/dni.js",
+      "commands/gov/fianza.js",
+      "commands/gov/licencia.js",
+      "commands/gov/logros.js",
+      "commands/gov/misiones.js",
+      "commands/gov/multar.js",
+      "commands/gov/nivel.js",
+      "commands/gov/registrar-coche.js",
+      "commands/gov/reputacion.js",
+      "commands/gov/visa.js",
+      "commands/tickets/close-ticket.js",
+      "commands/tickets/setup-tickets.js",
+      "commands/tickets/ticket.js",
+      "commands/tickets/tickets.js",
+      "commands/utils/listar-roles.js",
+      "commands/utils/status.js",
+      "commands/utils/sugerencia.js",
+      "commands/utils/user.js",
+      "commands/utils/vc.js",
+      "commands/utils/vcontrol.js",
+      "commands/utils/vcreate.js",
+      "commands/utils/vcstats.js",
+      "commands/utils/vincular-roblox.js",
+      "commands/owner/reload.js"
+    ],
+    "advancedTryCatch": []
+  },
+  "validation": {
+    "noValidation": [
+      "commands/economy/cajero.js",
+      "commands/economy/debito.js",
+      "commands/economy/fichar.js",
+      "commands/economy/setup-banco.js",
+      "commands/moderation/911.js",
+      "commands/moderation/aceptar.js",
+      "commands/moderation/aceptar_apelacion.js",
+      "commands/moderation/agregar-rol.js",
+      "commands/moderation/apelacion.js",
+      "commands/moderation/convertir_sa.js",
+      "commands/moderation/denegar.js",
+      "commands/moderation/editar_warn.js",
+      "commands/moderation/eliminar_sancion.js",
+      "commands/moderation/limpiar_historial.js",
+      "commands/moderation/quitar-rol.js",
+      "commands/moderation/rechazar_apelacion.js",
+      "commands/moderation/registrar-tarjeta.js",
+      "commands/moderation/rol.js",
+      "commands/moderation/server_lock.js",
+      "commands/moderation/setup-erlc-channels.js",
+      "commands/moderation/setup_erlc.js",
+      "commands/moderation/solicitar_mod.js",
+      "commands/moderation/temprole.js",
+      "commands/moderation/ver_sancion.js",
+      "commands/gov/fianza.js",
+      "commands/gov/licencia.js",
+      "commands/gov/multar.js",
+      "commands/gov/nivel.js",
+      "commands/gov/registrar-coche.js",
+      "commands/tickets/close-ticket.js",
+      "commands/tickets/setup-main-panel.js",
+      "commands/tickets/setup-tickets.js",
+      "commands/utils/ayuda.js",
+      "commands/utils/giveaway.js",
+      "commands/utils/snipe.js",
+      "commands/utils/status.js",
+      "commands/utils/sugerencia.js",
+      "commands/utils/vc.js",
+      "commands/utils/vcontrol.js",
+      "commands/utils/vcstats.js",
+      "commands/utils/vincular-roblox.js",
+      "commands/admin/ticket_unclaim.js",
+      "commands/owner/reload.js"
+    ],
+    "basicValidation": [
+      "commands/economy/ahorro.js",
+      "commands/economy/balanza-admin.js",
+      "commands/economy/balanza.js",
+      "commands/economy/colectar.js",
+      "commands/economy/credito.js",
+      "commands/economy/crimen.js",
+      "commands/economy/empresa.js",
+      "commands/economy/gestionar-coche.js",
+      "commands/economy/inversion.js",
+      "commands/economy/mision.js",
+      "commands/economy/nomina.js",
+      "commands/economy/perfil.js",
+      "commands/economy/prestamo.js",
+      "commands/economy/tarjetas.js",
+      "commands/economy/tienda.js",
+      "commands/economy/trabajar.js",
+      "commands/economy/ver-coches.js",
+      "commands/moderation/anunciar.js",
+      "commands/moderation/arrestar.js",
+      "commands/moderation/auditar.js",
+      "commands/moderation/ausencia.js",
+      "commands/moderation/backup.js",
+      "commands/moderation/ck.js",
+      "commands/moderation/dinero.js",
+      "commands/moderation/mis_warns.js",
+      "commands/moderation/purge.js",
+      "commands/moderation/rango.js",
+      "commands/moderation/registrar-tarjeta-empresa.js",
+      "commands/moderation/role.js",
+      "commands/moderation/sancion.js",
+      "commands/moderation/sesion.js",
+      "commands/moderation/smartrole.js",
+      "commands/moderation/ver_warns.js",
+      "commands/moderation/verificar.js",
+      "commands/gov/american-id.js",
+      "commands/gov/divisa.js",
+      "commands/gov/dni.js",
+      "commands/gov/logros.js",
+      "commands/gov/misiones.js",
+      "commands/gov/radio.js",
+      "commands/gov/reputacion.js",
+      "commands/gov/tarjeta-usa.js",
+      "commands/gov/visa.js",
+      "commands/tickets/ticket.js",
+      "commands/tickets/tickets.js",
+      "commands/utils/config-pings.js",
+      "commands/utils/listar-roles.js",
+      "commands/utils/user.js",
+      "commands/utils/vcreate.js"
+    ],
+    "completeValidation": []
+  }
+}

@@ -12,9 +12,6 @@ module.exports = {
                 .setDescription('Crear una nueva empresa')
                 .addStringOption(option => option.setName('nombre').setDescription('Nombre de la empresa').setRequired(true))
                 .addUserOption(option => option.setName('dueño').setDescription('Dueño de la empresa').setRequired(true))
-                .addStringOption(option => option.setName('descripcion').setDescription('Descripción de la empresa').setRequired(true))
-                .addStringOption(option => option.setName('menu_url').setDescription('Enlace al menú/catálogo de servicios').setRequired(true))
-                .addStringOption(option => option.setName('discord_server').setDescription('Enlace al servidor de Discord').setRequired(true))
                 .addStringOption(option =>
                     option.setName('tipo_local')
                         .setDescription('Tamaño del local (Costo varía)')
@@ -130,45 +127,9 @@ module.exports = {
                 .addUserOption(option =>
                     option.setName('nuevo_dueño')
                         .setDescription('Nuevo dueño de la empresa')
-                        .setRequired(true)))
-        .addSubcommand(subcommand =>
-            subcommand
-                .setName('ver')
-                .setDescription('Ver directorio de empresas públicas'))
-        .addSubcommand(subcommand =>
-            subcommand
-                .setName('actualizar')
-                .setDescription('Actualizar información de tu empresa')
-                .addStringOption(option =>
-                    option.setName('descripcion')
-                        .setDescription('Nueva descripción')
-                        .setRequired(false))
-                .addStringOption(option =>
-                    option.setName('menu_url')
-                        .setDescription('Nuevo enlace al menú')
-                        .setRequired(false))
-                .addStringOption(option =>
-                    option.setName('discord_server')
-                        .setDescription('Nuevo enlace al servidor Discord')
-                        .setRequired(false))
-                .addStringOption(option =>
-                    option.setName('ubicacion')
-                        .setDescription('Nueva ubicación')
-                        .setRequired(false))
-                .addAttachmentOption(option =>
-                    option.setName('logo')
-                        .setDescription('Nuevo logo')
-                        .setRequired(false))
-                .addAttachmentOption(option =>
-                    option.setName('foto_local')
-                        .setDescription('Nueva foto del local')
-                        .setRequired(false))),
+                        .setRequired(true))),
 
     async execute(interaction, client, supabase) {
-        if (!interaction.deferred && !interaction.replied) {
-            await interaction.deferReply();
-        }
-
         // Note: deferReply is handled automatically by index_economia.js monkey-patch
         const subcommand = interaction.options.getSubcommand();
 
@@ -180,170 +141,6 @@ module.exports = {
                 } else {
                     return interaction.editReply('❌ Servicio de gestión de empresas no disponible (Fase 2.3 Handler Missing).');
                 }
-            }
-
-            // Handle VER subcommand (public directory)
-            if (subcommand === 'ver') {
-                const { data: companies } = await supabase
-                    .from('companies')
-                    .select('*')
-                    .eq('is_private', false)
-                    .order('name');
-
-                if (!companies || companies.length === 0) {
-                    return interaction.editReply('📋 No hay empresas públicas registradas actualmente.');
-                }
-
-                // Use pagination
-                await PaginationHelper.paginate(interaction, companies, {
-                    itemsPerPage: 5,
-                    formatPage: (pageCompanies, pageNum, totalPages) => {
-                        const companyList = pageCompanies.map((c, idx) => {
-                            const num = (pageNum * 5) + idx + 1;
-                            let info = `**${num}. ${c.name}**\n`;
-                            if (c.description) info += `📝 ${c.description}\n`;
-                            if (c.menu_url) info += `📋 [Ver Menú](${c.menu_url})\n`;
-                            if (c.discord_server) info += `💬 [Servidor Discord](${c.discord_server})\n`;
-                            if (c.location) info += `📍 ${c.location}\n`;
-                            info += `💰 Balance: $${(c.balance || 0).toLocaleString()}`;
-                            return info;
-                        }).join('\n\n');
-
-                        const embed = new EmbedBuilder()
-                            .setTitle('🏢 Directorio de Empresas')
-                            .setDescription(companyList)
-                            .setColor('#3498DB')
-                            .setFooter({ text: `Página ${pageNum + 1}/${totalPages} • Total: ${companies.length} empresas` });
-
-                        return embed;
-                    }
-                });
-                return;
-            }
-
-            // Handle ACTUALIZAR subcommand
-            if (subcommand === 'actualizar') {
-                // Get user's companies (must be owner)
-                const { data: ownedCompanies } = await supabase
-                    .from('companies')
-                    .select('*')
-                    .contains('owner_ids', [interaction.user.id]);
-
-                if (!ownedCompanies || ownedCompanies.length === 0) {
-                    return interaction.editReply('❌ No tienes ninguna empresa registrada. Solo los dueños pueden actualizar información.');
-                }
-
-                let selectedCompany = null;
-
-                if (ownedCompanies.length > 1) {
-                    // Multiple companies - show selector
-                    const { StringSelectMenuBuilder, ActionRowBuilder } = require('discord.js');
-
-                    const selectMenu = new StringSelectMenuBuilder()
-                        .setCustomId(`empresa_select_update_${interaction.user.id}`)
-                        .setPlaceholder('Selecciona la empresa a actualizar')
-                        .addOptions(ownedCompanies.map(comp => ({
-                            label: comp.name,
-                            description: `Balance: $${(comp.balance || 0).toLocaleString()}`,
-                            value: comp.id
-                        })));
-
-                    const row = new ActionRowBuilder().addComponents(selectMenu);
-
-                    await interaction.editReply({
-                        content: '🏢 **Selecciona la empresa que deseas actualizar:**',
-                        components: [row]
-                    });
-
-                    // Wait for selection
-                    const filter = i => i.customId.startsWith('empresa_select_update_') && i.user.id === interaction.user.id;
-                    const collected = await interaction.channel.awaitMessageComponent({
-                        filter,
-                        time: 60000
-                    }).catch(() => null);
-
-                    if (!collected) {
-                        return interaction.editReply({
-                            content: '⏱️ Tiempo agotado para seleccionar empresa.',
-                            components: []
-                        });
-                    }
-
-                    await collected.deferUpdate();
-
-                    // Get selected company
-                    const selectedId = collected.values[0];
-                    selectedCompany = ownedCompanies.find(c => c.id === selectedId);
-
-                    // Clear menu
-                    await interaction.editReply({ components: [] });
-                } else {
-                    selectedCompany = ownedCompanies[0];
-                }
-
-                // Get update fields
-                const updates = {};
-                const descripcion = interaction.options.getString('descripcion');
-                const menuUrl = interaction.options.getString('menu_url');
-                const discordServer = interaction.options.getString('discord_server');
-                const ubicacion = interaction.options.getString('ubicacion');
-                const logo = interaction.options.getAttachment('logo');
-                const fotoLocal = interaction.options.getAttachment('foto_local');
-
-                if (descripcion) updates.description = descripcion;
-                if (menuUrl) {
-                    // Validate URL
-                    const urlRegex = /^(https?:\/\/)?([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?$/;
-                    if (!urlRegex.test(menuUrl)) {
-                        return interaction.editReply('❌ El enlace del menú no es válido.');
-                    }
-                    updates.menu_url = menuUrl;
-                }
-                if (discordServer) {
-                    const urlRegex = /^(https?:\/\/)?([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?$/;
-                    if (!urlRegex.test(discordServer)) {
-                        return interaction.editReply('❌ El enlace del servidor Discord no es válido.');
-                    }
-                    updates.discord_server = discordServer;
-                }
-                if (ubicacion) updates.location = ubicacion;
-                if (logo) updates.logo_url = logo.url;
-                if (fotoLocal) updates.local_photo_url = fotoLocal.url;
-
-                if (Object.keys(updates).length === 0) {
-                    return interaction.editReply('❌ No proporcionaste ningún campo para actualizar.');
-                }
-
-                // Update company
-                const { error } = await supabase
-                    .from('companies')
-                    .update(updates)
-                    .eq('id', selectedCompany.id);
-
-                if (error) {
-                    console.error('[empresa/actualizar] Error:', error);
-                    return interaction.editReply('❌ Error al actualizar la empresa.');
-                }
-
-                const embed = new EmbedBuilder()
-                    .setTitle('✅ Empresa Actualizada')
-                    .setColor('#2ECC71')
-                    .setDescription(`Se ha actualizado la información de **${selectedCompany.name}**`)
-                    .addFields(
-                        Object.entries(updates).map(([key, value]) => ({
-                            name: key === 'description' ? '📝 Descripción' :
-                                key === 'menu_url' ? '📋 Menú' :
-                                    key === 'discord_server' ? '💬 Discord' :
-                                        key === 'location' ? '📍 Ubicación' :
-                                            key === 'logo_url' ? '🖼️ Logo' :
-                                                key === 'local_photo_url' ? '📸 Foto Local' : key,
-                            value: typeof value === 'string' && value.startsWith('http') ? `[Ver enlace](${value})` : value.toString(),
-                            inline: false
-                        }))
-                    )
-                    .setTimestamp();
-
-                return interaction.editReply({ embeds: [embed] });
             }
 
             // Get user's company (Owner OR Employee)
