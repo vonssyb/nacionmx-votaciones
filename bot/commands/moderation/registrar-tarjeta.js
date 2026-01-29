@@ -124,20 +124,10 @@ module.exports = {
                     { name: 'NMX Black ($1M)', value: 'NMX Black' },
                     { name: 'NMX Diamante ($2M)', value: 'NMX Diamante' },
                     { name: 'NMX Zafiro ($5M)', value: 'NMX Zafiro' },
-                    // BUSINESS
-                    { name: 'Business Start ($50k)', value: 'NMX Business Start' },
-                    { name: 'Business Gold ($100k)', value: 'NMX Business Gold' },
-                    { name: 'Business Platinum ($200k)', value: 'NMX Business Platinum' },
-                    { name: 'Business Elite ($500k)', value: 'NMX Business Elite' },
-                    { name: 'NMX Corporate ($1M)', value: 'NMX Corporate' },
-                    { name: 'NMX Corporate Plus ($5M)', value: 'NMX Corporate Plus' },
-                    { name: 'NMX Enterprise ($10M)', value: 'NMX Enterprise' },
-                    { name: 'NMX Conglomerate ($25M)', value: 'NMX Conglomerate' },
-                    { name: 'NMX Supreme ($50M)', value: 'NMX Supreme' }
+                    { name: 'NMX Zafiro ($5M)', value: 'NMX Zafiro' }
                 ))
         .addAttachmentOption(option => option.setName('foto_dni').setDescription('Foto del DNI').setRequired(false))
-        .addStringOption(option => option.setName('notas').setDescription('Notas adicionales para el contrato').setRequired(false))
-        .addStringOption(option => option.setName('empresa').setDescription('Nombre de la Empresa (Para tarjetas corporativas)').setRequired(false)),
+        .addStringOption(option => option.setName('notas').setDescription('Notas adicionales para el contrato').setRequired(false)),
 
     async execute(interaction, client, supabase) {
         // Safe Defer in case it wasn't done
@@ -169,9 +159,6 @@ module.exports = {
 
             const holderName = interaction.options.getString('nombre_titular');
             const cardType = interaction.options.getString('tipo');
-            const companyNameInput = interaction.options.getString('empresa'); // NEW: Option for Company
-            let companyId = null;
-            let finalHolderName = holderName; // Default to user input
 
 
             // === CARD TYPE AUTHORIZATION (Banker Tier) ===
@@ -195,38 +182,10 @@ module.exports = {
                 }
             }
 
-            // Business Card Validation
+
+            // Business Redirect
             if (cardType.includes('Business') || cardType.includes('Corporate') || cardType.includes('Enterprise') || cardType.includes('Conglomerate') || cardType.includes('Supreme')) {
-                // Modified Logic: If 'empresa' arg is provided, validate specific company ownership.
-                // If not, validate general ownership.
-
-                const { data: companies } = await supabase
-                    .from('companies')
-                    .select('id, name, owner_id, owner_ids') // Added owner_ids check just in case
-                    .contains('owner_ids', [targetUser.id]); // Changed from eq('owner_id') to handle multi-owner
-
-                if (!companies || companies.length === 0) {
-                    return interaction.editReply('⛔ **Requisito Empresarial:** El usuario debe ser dueño de una empresa registrada para solicitar tarjetas Business/Corporate.');
-                }
-
-                if (companyNameInput) {
-                    // Find the specific company
-                    const targetCompany = companies.find(c => c.name.toLowerCase() === companyNameInput.toLowerCase());
-                    if (!targetCompany) {
-                        return interaction.editReply(`⛔ **Error:** El usuario no es dueño de la empresa **"${companyNameInput}"** o no existe.`);
-                    }
-                    companyId = targetCompany.id;
-                    finalHolderName = targetCompany.name; // Override holder name with Company Name
-                } else if (cardType.includes('Corporate') || cardType.includes('Enterprise') || cardType.includes('Conglomerate')) {
-                    // Require explicit company for high-tier corporate cards? Optional, but good practice.
-                    // For now, if they don't specify, it goes to the user personally but verified they own A company.
-                    // But the task says "que no sea el titular la persona si no la empresa". 
-                    // So if it's "Corporate", maybe we should FORCE it? 
-                    // Let's leave it optional but encourage it. 
-                    // If they didn't provide 'empresa', it's personal liability but business tier.
-                }
-            } else if (companyNameInput) {
-                return interaction.editReply('⛔ **Error:** No puedes asignar una tarjeta personal (Débito/Personal) a una empresa. Usa tarjetas Business/Corporate.');
+                return interaction.editReply('⛔ **Error:** Para tarjetas empresariales usa `/registrar-tarjeta-empresa`.');
             }
 
             const dniPhoto = interaction.options.getAttachment('foto_dni');
@@ -287,7 +246,7 @@ module.exports = {
                 .setColor(0xD4AF37)
                 .setTitle(isDebit ? '💳 Oferta de Tarjeta de Débito' : '💳 Oferta de Tarjeta de Crédito')
                 .setColor(0xD4AF37)
-                .setDescription(`Hola <@${targetUser.id}>,\nEl Banco Nacional te ofrece una tarjeta **${cardType}**.\n\n**Titular:** ${finalHolderName}${companyId ? ' (🏢 Corporativa)' : ''}\n\n**Detalles del Contrato:**`);
+                .setDescription(`Hola <@${targetUser.id}>,\nEl Banco Nacional te ofrece una tarjeta **${cardType}**.\n\n**Titular:** ${holderName}\n\n**Detalles del Contrato:**`);
 
             // Add fields based on card type
             if (isDebit) {
@@ -452,8 +411,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                                 // OK.
                                 interest_rate: stats.interest,
                                 status: 'active',
-                                next_payment_due: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-                                company_id: companyId // Link to company if applicable
+                                next_payment_due: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
                             }]);
 
                             if (insertError) throw new Error(insertError.message);
@@ -463,7 +421,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                                 .setTitle('🔖 Nueva Tarjeta de Crédito Registrada')
                                 .setColor('#FFD700')
                                 .addFields(
-                                    { name: '👤 Titular', value: `${finalHolderName} ${companyId ? '(🏢 Corporativa)' : `(<@${targetUser.id}>)`}`, inline: false },
+                                    { name: '👤 Titular', value: `${holderName} (<@${targetUser.id}>)`, inline: false },
                                     { name: '💳 Tipo', value: cardType, inline: true },
                                     { name: '💰 Límite', value: `$${stats.limit.toLocaleString()}`, inline: true },
                                     { name: '📊 Interés', value: `${stats.interest}%`, inline: true },
@@ -478,7 +436,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                             } catch (e) { console.error('Log channel error', e); }
 
                             await message.edit({
-                                content: `✅ **Tarjeta Activada** para **${finalHolderName}**. Cobro de $${stats.cost.toLocaleString()} realizado.\n👮 **Registrado por:** <@${interaction.user.id}>`,
+                                content: `✅ **Tarjeta Activada** para **${holderName}**. Cobro de $${stats.cost.toLocaleString()} realizado.\n👮 **Registrado por:** <@${interaction.user.id}>`,
                                 components: []
                             });
                         }
