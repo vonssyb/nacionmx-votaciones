@@ -33,6 +33,7 @@ const TICKET_TYPES = {
     'ticket_reportes': { title: 'Reportes y Sanciones', category: TICKET_CONFIG.CAT_GENERAL, role: TICKET_CONFIG.ROLE_COMMON, emoji: '🚨', prefix: 'reporte' },
     'ticket_blacklist': { title: 'Blacklist | Apelación', category: TICKET_CONFIG.CAT_GENERAL, role: TICKET_CONFIG.ROLE_BLACKLIST, emoji: '📜', prefix: 'apelacion' },
     'ticket_trabajo': { title: 'Facciones y Trabajo', category: TICKET_CONFIG.CAT_GENERAL, role: TICKET_CONFIG.ROLE_COMMON, emoji: '💼', prefix: 'faccion' },
+    'ticket_prestamo': { title: 'Solicitud de Préstamo', category: TICKET_CONFIG.CAT_GENERAL, role: '1450591546524307689', emoji: '💰', prefix: 'prestamo' }, // BANKER_ROLE
     'ticket_ck': { title: 'Solicitud FEC / CK', category: TICKET_CONFIG.CAT_GENERAL, role: TICKET_CONFIG.ROLE_CK, emoji: '☠️', prefix: 'ck' },
     'ticket_vip': { title: 'Atención VIP', category: TICKET_CONFIG.CAT_VIP, role: TICKET_CONFIG.ROLE_COMMON, emoji: '💎', vipOnly: true, prefix: 'vip' },
     'ticket_bug': { title: 'Falla con el Bot', category: TICKET_CONFIG.CAT_BUGS, role: null, pingUser: TICKET_CONFIG.USER_DEV, emoji: '🤖', prefix: 'bug' }
@@ -102,6 +103,12 @@ module.exports = {
                 fields.push(
                     new TextInputBuilder().setCustomId('q_faction').setLabel("¿A qué facción deseas postularte?:").setStyle(TextInputStyle.Short).setRequired(true),
                     new TextInputBuilder().setCustomId('q_roles').setLabel("ya tienes roles?").setStyle(TextInputStyle.Short).setRequired(true)
+                );
+            } else if (ticketTypeKey === 'ticket_prestamo') {
+                fields.push(
+                    new TextInputBuilder().setCustomId('q_monto').setLabel("💰 Monto a solicitar (mínimo $10,000):").setStyle(TextInputStyle.Short).setRequired(true).setPlaceholder("Ejemplo: 50000"),
+                    new TextInputBuilder().setCustomId('q_plazo').setLabel("📅 Plazo en meses (3, 6, 12 o 24):").setStyle(TextInputStyle.Short).setRequired(true).setPlaceholder("Ejemplo: 12"),
+                    new TextInputBuilder().setCustomId('q_motivo').setLabel("📝 Motivo del préstamo:").setStyle(TextInputStyle.Paragraph).setRequired(true).setMaxLength(500)
                 );
             } else if (ticketTypeKey === 'ticket_bug') {
                 fields.push(
@@ -264,6 +271,10 @@ module.exports = {
                 // Facciones
                 'q_faction': 'Facción',
                 'q_roles': 'Roles Previos',
+                // Préstamos
+                'q_monto': 'Monto Solicitado',
+                'q_plazo': 'Plazo',
+                'q_motivo': 'Motivo',
                 // Bugs
                 'q_location': 'Ubicación',
                 'q_desc': 'Descripción',
@@ -335,58 +346,167 @@ module.exports = {
                     return interaction.editReply('❌ Error crítico: No se pudo registrar el ticket en la base de datos. Intenta de nuevo.');
                 }
 
-                const embed = new EmbedBuilder()
-                    .setTitle(`${config.emoji} ${config.title}`)
-                    .setDescription(description.substring(0, 4000))
-                    .addFields({ name: '👤 Historial del Ciudadano (CRM)', value: userHistoryText, inline: false })
-                    .setColor(0x5865F2)
-                    .setFooter({ text: 'Reclama el ticket para responder' }).setTimestamp();
+                // --- SPECIAL HANDLING FOR LOAN TICKETS ---
+                let loanData = null;
+                if (typeKey === 'ticket_prestamo') {
+                    try {
+                        // Extract loan data from modal
+                        const montoStr = interaction.fields.getTextInputValue('q_monto');
+                        const plazoStr = interaction.fields.getTextInputValue('q_plazo');
+                        const motivo = interaction.fields.getTextInputValue('q_motivo');
+
+                        let monto = parseInt(montoStr.replace(/[^0-9]/g, ''));
+                        let plazo = parseInt(plazoStr);
+
+                        // Validate monto
+                        if (isNaN(monto) || monto < 10000) {
+                            await ticketChannel.delete('Invalid loan amount').catch(() => { });
+                            await supabase.from('tickets').delete().eq('channel_id', ticketChannel.id);
+                            return interaction.editReply('❌ El monto mínimo es $10,000. Por favor, intenta de nuevo.');
+                        }
+
+                        // Validate & adjust plazo to nearest valid option
+                        const validPlazos = [3, 6, 12, 24];
+                        if (!validPlazos.includes(plazo)) {
+                            // Find nearest
+                            plazo = validPlazos.reduce((prev, curr) =>
+                                Math.abs(curr - plazo) < Math.abs(prev - plazo) ? curr : prev
+                            );
+                        }
+
+                        // Calculate loan terms (same formula as prestamo.js)
+                        const interestRate = 5.00; // 5% anual
+                        const monthlyInterestRate = (interestRate / 100) / 12;
+                        const monthlyPayment = Math.ceil((monto * monthlyInterestRate * Math.pow(1 + monthlyInterestRate, plazo)) / (Math.pow(1 + monthlyInterestRate, plazo) - 1));
+                        const totalToPay = monthlyPayment * plazo;
+                        const totalInterest = totalToPay - monto;
+
+                        // Insert loan record as PENDING
+                        const { data: loan, error: loanError } = await supabase
+                            .from('loans')
+                            .insert({
+                                guild_id: interaction.guildId,
+                                discord_user_id: interaction.user.id,
+                                loan_amount: monto,
+                                interest_rate: interestRate,
+                                term_months: plazo,
+                                monthly_payment: monthlyPayment,
+                                total_to_pay: totalToPay,
+                                purpose: motivo,
+                                status: 'pending',
+                                next_payment_due: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+                            })
+                            .select()
+                            .single();
+
+                        if (loanError) {
+                            logger.errorWithContext('[LOAN] Failed to create loan record', loanError);
+                            await ticketChannel.delete('Loan DB error').catch(() => { });
+                            await supabase.from('tickets').delete().eq('channel_id', ticketChannel.id);
+                            return interaction.editReply('❌ Error al registrar el préstamo. Intenta de nuevo.');
+                        }
+
+                        // Store loan data for embed
+                        loanData = {
+                            id: loan.id,
+                            monto,
+                            plazo,
+                            monthlyPayment,
+                            totalToPay,
+                            totalInterest,
+                            interestRate,
+                            motivo
+                        };
+
+                    } catch (loanErr) {
+                        logger.errorWithContext('[LOAN] Error processing loan ticket', loanErr);
+                        await ticketChannel.delete('Loan processing error').catch(() => { });
+                        await supabase.from('tickets').delete().eq('channel_id', ticketChannel.id);
+                        return interaction.editReply('❌ Error al procesar el préstamo. Verifica que los datos sean correctos.');
+                    }
+                }
+
+                // --- CREATE EMBED (different for loans) ---
+                let embed, row;
+                if (loanData) {
+                    // LOAN EMBED
+                    embed = new EmbedBuilder()
+                        .setTitle(`💰 Solicitud de Préstamo #${loanData.id}`)
+                        .setDescription(`**Solicitante:** <@${interaction.user.id}>\n\n**📝 Motivo:**\n${loanData.motivo}`)
+                        .addFields(
+                            { name: '💵 Monto Solicitado', value: `$${loanData.monto.toLocaleString()}`, inline: true },
+                            { name: '📅 Plazo', value: `${loanData.plazo} meses`, inline: true },
+                            { name: '📊 Tasa de Interés', value: `${loanData.interestRate}% anual`, inline: true },
+                            { name: '💳 Pago Mensual', value: `$${loanData.monthlyPayment.toLocaleString()}`, inline: true },
+                            { name: '💰 Total a Pagar', value: `$${loanData.totalToPay.toLocaleString()}`, inline: true },
+                            { name: '📈 Intereses', value: `$${loanData.totalInterest.toLocaleString()}`, inline: true }
+                        )
+                        .setColor(0xFFA500)
+                        .setFooter({ text: 'Banquero: Aprueba, Modifica o Rechaza' })
+                        .setTimestamp();
+
+                    row = new ActionRowBuilder().addComponents(
+                        new ButtonBuilder().setCustomId(`btn_approve_loan:${loanData.id}`).setLabel('✅ Aprobar').setStyle(ButtonStyle.Success),
+                        new ButtonBuilder().setCustomId(`btn_modify_loan:${loanData.id}`).setLabel('✏️ Modificar Términos').setStyle(ButtonStyle.Primary),
+                        new ButtonBuilder().setCustomId(`btn_reject_loan:${loanData.id}`).setLabel('❌ Rechazar').setStyle(ButtonStyle.Danger)
+                    );
+                } else {
+                    // STANDARD TICKET EMBED
+                    embed = new EmbedBuilder()
+                        .setTitle(`${config.emoji} ${config.title}`)
+                        .setDescription(description.substring(0, 4000))
+                        .addFields({ name: '👤 Historial del Ciudadano (CRM)', value: userHistoryText, inline: false })
+                        .setColor(0x5865F2)
+                        .setFooter({ text: 'Reclama el ticket para responder' }).setTimestamp();
+
+                    row = new ActionRowBuilder().addComponents(
+                        new ButtonBuilder().setCustomId('btn_close_ticket_ask').setLabel('Cerrar').setStyle(ButtonStyle.Danger).setEmoji('🔒'),
+                        new ButtonBuilder().setCustomId('btn_claim_ticket').setLabel('Reclamar').setStyle(ButtonStyle.Success).setEmoji('✋')
+                    );
+                }
 
                 let pings = `<@${interaction.user.id}>`;
                 const staffRoleID = config.role;
 
-                const row = new ActionRowBuilder().addComponents(
-                    new ButtonBuilder().setCustomId('btn_close_ticket_ask').setLabel('Cerrar').setStyle(ButtonStyle.Danger).setEmoji('🔒'),
-                    new ButtonBuilder().setCustomId('btn_claim_ticket').setLabel('Reclamar').setStyle(ButtonStyle.Success).setEmoji('✋')
-                );
-
                 const welcomeMsg = await ticketChannel.send({ content: pings, embeds: [embed], components: [row] });
                 await welcomeMsg.pin().catch(() => { }); // PIN WELCOME MESSAGE
 
-                // --- IA ANALYSIS ---
-                logger.info(`[DEBUG] Ticket Created. Attempting AI Analysis for: ${channelName}`);
-                try {
-                    const aiAnswer = await generateAIResponse(description);
-                    logger.debug(`[DEBUG] AI Response Result:`, { result: aiAnswer?.startsWith('ERROR') ? "FAIL" : "SUCCESS" });
+                // --- IA ANALYSIS (Skip for loan tickets) ---
+                if (!loanData) {
+                    logger.info(`[DEBUG] Ticket Created. Attempting AI Analysis for: ${channelName}`);
+                    try {
+                        const aiAnswer = await generateAIResponse(description);
+                        logger.debug(`[DEBUG] AI Response Result:`, { result: aiAnswer?.startsWith('ERROR') ? "FAIL" : "SUCCESS" });
 
-                    if (aiAnswer && !aiAnswer.startsWith('ERROR')) {
-                        const aiRow = new ActionRowBuilder().addComponents(
-                            new ButtonBuilder().setCustomId('btn_ai_close').setLabel('✅ Me sirvió, cerrar ticket').setStyle(ButtonStyle.Success).setEmoji('🔒'),
-                            new ButtonBuilder().setCustomId(`btn_ai_help_${staffRoleID || 'none'}`).setLabel('👮 Aún necesito Staff').setStyle(ButtonStyle.Secondary).setEmoji('📢')
-                        );
+                        if (aiAnswer && !aiAnswer.startsWith('ERROR')) {
+                            const aiRow = new ActionRowBuilder().addComponents(
+                                new ButtonBuilder().setCustomId('btn_ai_close').setLabel('✅ Me sirvió, cerrar ticket').setStyle(ButtonStyle.Success).setEmoji('🔒'),
+                                new ButtonBuilder().setCustomId(`btn_ai_help_${staffRoleID || 'none'}`).setLabel('👮 Aún necesito Staff').setStyle(ButtonStyle.Secondary).setEmoji('📢')
+                            );
 
-                        const aiEmbed = new EmbedBuilder()
-                            .setTitle('🤖 Respuesta Automática')
-                            .setDescription(aiAnswer)
-                            .setColor(0x5865F2)
-                            .setFooter({ text: '¿Te ayudó esta respuesta?' });
+                            const aiEmbed = new EmbedBuilder()
+                                .setTitle('🤖 Respuesta Automática')
+                                .setDescription(aiAnswer)
+                                .setColor(0x5865F2)
+                                .setFooter({ text: '¿Te ayudó esta respuesta?' });
 
-                        await ticketChannel.send({ content: `<@${interaction.user.id}>`, embeds: [aiEmbed], components: [aiRow] });
-                        logger.info(`[DEBUG] AI Embed sent to ${channelName}`);
-                    } else {
-                        // ACOPLAMIENTO: Si la IA falla o no trae respuesta
-                        const errorMsg = aiAnswer || "Respuesta nula desconocida";
-                        logger.info(`[DEBUG] AI Failed: ${errorMsg}`);
+                            await ticketChannel.send({ content: `<@${interaction.user.id}>`, embeds: [aiEmbed], components: [aiRow] });
+                            logger.info(`[DEBUG] AI Embed sent to ${channelName}`);
+                        } else {
+                            // ACOPLAMIENTO: Si la IA falla o no trae respuesta
+                            const errorMsg = aiAnswer || "Respuesta nula desconocida";
+                            logger.info(`[DEBUG] AI Failed: ${errorMsg}`);
 
+                            if (config.role) await ticketChannel.send({ content: `📢 <@&${config.role}>` });
+
+                            // Mensaje de debug visible para el admin
+                            await ticketChannel.send({ content: `⚠️ **Debug IA:** ${errorMsg}` });
+                        }
+                    } catch (e) {
+                        logger.errorWithContext('[DEBUG] AI Error in Ticket Handler', e);
                         if (config.role) await ticketChannel.send({ content: `📢 <@&${config.role}>` });
-
-                        // Mensaje de debug visible para el admin
-                        await ticketChannel.send({ content: `⚠️ **Debug IA:** ${errorMsg}` });
+                        await ticketChannel.send({ content: `⚠️ **Debug IA:** Excepción Fatal (${e.message})` });
                     }
-                } catch (e) {
-                    logger.errorWithContext('[DEBUG] AI Error in Ticket Handler', e);
-                    if (config.role) await ticketChannel.send({ content: `📢 <@&${config.role}>` });
-                    await ticketChannel.send({ content: `⚠️ **Debug IA:** Excepción Fatal (${e.message})` });
                 }
 
                 await interaction.editReply(`✅ Ticket creado: ${ticketChannel}`);
@@ -464,6 +584,274 @@ module.exports = {
 
             await interaction.channel.setTopic(`${interaction.channel.topic} | Staff: ${interaction.user.tag}`);
             await interaction.reply({ embeds: [new EmbedBuilder().setDescription(`✋ **Atendido por** <@${interaction.user.id}>\nEl ticket ahora es privado entre tú y el usuario.`).setColor(0x2ECC71)] });
+            return true;
+        }
+
+        // --- LOAN HANDLERS ---
+        if (customId.startsWith('btn_approve_loan:')) {
+            const BANKER_ROLES = ['1450591546524307689', '1412882245735420006'];
+            const isBanker = interaction.member.roles.cache.some(r => BANKER_ROLES.includes(r.id)) ||
+                interaction.member.permissions.has(PermissionFlagsBits.Administrator);
+
+            if (!isBanker) return interaction.reply({ content: '❌ Solo banqueros pueden aprobarést préstamos.', ephemeral: true });
+
+            await interaction.deferReply();
+
+            const loanId = parseInt(customId.split(':')[1]);
+
+            const { data: loan } = await supabase
+                .from('loans')
+                .select('*')
+                .eq('id', loanId)
+                .eq('status', 'pending')
+                .single();
+
+            if (!loan) {
+                return interaction.editReply('❌ No se encontró ese préstamo pendiente.');
+            }
+
+            // Approve loan
+            await supabase
+                .from('loans')
+                .update({
+                    status: 'active',
+                    approved_by: interaction.user.id,
+                    approved_at: new Date().toISOString()
+                })
+                .eq('id', loanId);
+
+            // Deposit money
+            const UnbelievaBoatService = require('../services/UnbelievaBoatService');
+            const ubService = new UnbelievaBoatService(process.env.UNBELIEVABOAT_TOKEN, supabase);
+            await ubService.addMoney(interaction.guildId, loan.discord_user_id, loan.loan_amount, `Préstamo #${loanId} aprobado`, 'cash');
+
+            // Update embed
+            const updatedEmbed = EmbedBuilder.from(interaction.message.embeds[0])
+                .setColor(0x00FF00)
+                .setFooter({ text: `✅ Aprobado por ${interaction.user.tag}` });
+
+            await interaction.message.edit({ embeds: [updatedEmbed], components: [] });
+
+            // Notify user
+            try {
+                const user = await client.users.fetch(loan.discord_user_id);
+                await user.send(`✅ **Préstamo Aprobado**\n\nTu solicitud de préstamo #${loanId} por $${loan.loan_amount.toLocaleString()} ha sido aprobada.\n\n💳 **Pago mensual:** $${loan.monthly_payment.toLocaleString()}\n📅 **Plazo:** ${loan.term_months} meses\n\nEl dinero ha sido depositado en tu cuenta.`);
+            } catch (e) {
+                logger.debug('[Loan] Could not DM user');
+            }
+
+            await interaction.editReply(`✅ Préstamo #${loanId} aprobado y desembolsado por $${loan.loan_amount.toLocaleString()}.`);
+            return true;
+        }
+
+        if (customId.startsWith('btn_modify_loan:')) {
+            const BANKER_ROLES = ['1450591546524307689', '1412882245735420006'];
+            const isBanker = interaction.member.roles.cache.some(r => BANKER_ROLES.includes(r.id)) ||
+                interaction.member.permissions.has(PermissionFlagsBits.Administrator);
+
+            if (!isBanker) return interaction.reply({ content: '❌ Solo banqueros pueden modificar préstamos.', ephemeral: true });
+
+            const loanId = parseInt(customId.split(':')[1]);
+
+            // Fetch current loan data
+            const { data: currentLoan } = await supabase.from('loans').select('*').eq('id', loanId).single();
+            if (!currentLoan) return interaction.reply({ content: '❌ Préstamo no encontrado.', ephemeral: true });
+
+            // Show modal with current values
+            const modal = new ModalBuilder()
+                .setCustomId(`modal_modify_loan:${loanId}`)
+                .setTitle('Modificar Términos del Préstamo');
+
+            const montoInput = new TextInputBuilder()
+                .setCustomId('new_monto')
+                .setLabel('💰 Nuevo Monto:')
+                .setStyle(TextInputStyle.Short)
+                .setValue(currentLoan.loan_amount.toString())
+                .setRequired(true);
+
+            const plazoInput = new TextInputBuilder()
+                .setCustomId('new_plazo')
+                .setLabel('📅 Nuevo Plazo (3, 6, 12, 24):')
+                .setStyle(TextInputStyle.Short)
+                .setValue(currentLoan.term_months.toString())
+                .setRequired(true);
+
+            const razonInput = new TextInputBuilder()
+                .setCustomId('modification_reason')
+                .setLabel('📝 Motivo del ajuste:')
+                .setStyle(TextInputStyle.Paragraph)
+                .setPlaceholder('Ej: Monto irreal, ajustado a capacidad de pago')
+                .setRequired(true)
+                .setMaxLength(300);
+
+            modal.addComponents(
+                new ActionRowBuilder().addComponents(montoInput),
+                new ActionRowBuilder().addComponents(plazoInput),
+                new ActionRowBuilder().addComponents(razonInput)
+            );
+
+            await interaction.showModal(modal);
+            return true;
+        }
+
+        if (customId.startsWith('modal_modify_loan:')) {
+            await interaction.deferReply();
+
+            const loanId = parseInt(customId.split(':')[1]);
+            const newMontoStr = interaction.fields.getTextInputValue('new_monto');
+            const newPlazoStr = interaction.fields.getTextInputValue('new_plazo');
+            const modificationReason = interaction.fields.getTextInputValue('modification_reason');
+
+            let newMonto = parseInt(newMontoStr.replace(/[^0-9]/g, ''));
+            let newPlazo = parseInt(newPlazoStr);
+
+            // Validate
+            if (isNaN(newMonto) || newMonto < 10000) {
+                return interaction.editReply('❌ El monto mínimo es $10,000.');
+            }
+
+            const validPlazos = [3, 6, 12, 24];
+            if (!validPlazos.includes(newPlazo)) {
+                return interaction.editReply('❌ El plazo debe ser 3, 6, 12 o 24 meses.');
+            }
+
+            // Recalculate
+            const interestRate = 5.00;
+            const monthlyInterestRate = (interestRate / 100) / 12;
+            const monthlyPayment = Math.ceil((newMonto * monthlyInterestRate * Math.pow(1 + monthlyInterestRate, newPlazo)) / (Math.pow(1 + monthlyInterestRate, newPlazo) - 1));
+            const totalToPay = monthlyPayment * newPlazo;
+            const totalInterest = totalToPay - newMonto;
+
+            // Get original values
+            const { data: originalLoan } = await supabase.from('loans').select('*').eq('id', loanId).single();
+
+            // Update loan
+            await supabase
+                .from('loans')
+                .update({
+                    original_loan_amount: originalLoan.loan_amount,
+                    original_term_months: originalLoan.term_months,
+                    loan_amount: newMonto,
+                    term_months: newPlazo,
+                    monthly_payment: monthlyPayment,
+                    total_to_pay: totalToPay,
+                    modified_by: interaction.user.id,
+                    modified_at: new Date().toISOString(),
+                    modification_reason: modificationReason
+                })
+                .eq('id', loanId);
+
+            // Update embed to show modification
+            const modifiedEmbed = new EmbedBuilder()
+                .setTitle(`💰 Solicitud de Préstamo #${loanId} [MODIFICADO]`)
+                .setDescription(`**Solicitante:** <@${originalLoan.discord_user_id}>\n\n**📝 Motivo Original:**\n~~${originalLoan.purpose}~~\n\n⚠️ **Términos Modificados por <@${interaction.user.id}>**\n**Razón:** ${modificationReason}`)
+                .addFields(
+                    { name: '💵 Monto', value: `~~$${originalLoan.loan_amount.toLocaleString()}~~ → **$${newMonto.toLocaleString()}**`, inline: true },
+                    { name: '📅 Plazo', value: `~~${originalLoan.term_months} meses~~ → **${newPlazo} meses**`, inline: true },
+                    { name: '📊 Tasa de Interés', value: `${interestRate}% anual`, inline: true },
+                    { name: '💳 Pago Mensual', value: `**$${monthlyPayment.toLocaleString()}**`, inline: true },
+                    { name: '💰 Total a Pagar', value: `**$${totalToPay.toLocaleString()}**`, inline: true },
+                    { name: '📈 Intereses', value: `$${totalInterest.toLocaleString()}`, inline: true }
+                )
+                .setColor(0xFFA500)
+                .setFooter({ text: 'Términos ajustados - Ahora puedes aprobar o rechazar' })
+                .setTimestamp();
+
+            const row = new ActionRowBuilder().addComponents(
+                new ButtonBuilder().setCustomId(`btn_approve_loan:${loanId}`).setLabel('✅ Aprobar').setStyle(ButtonStyle.Success),
+                new ButtonBuilder().setCustomId(`btn_reject_loan:${loanId}`).setLabel('❌ Rechazar').setStyle(ButtonStyle.Danger)
+            );
+
+            await interaction.message.edit({ embeds: [modifiedEmbed], components: [row] });
+
+            // Notify user of modification
+            try {
+                const user = await client.users.fetch(originalLoan.discord_user_id);
+                await user.send(`⚠️ **Préstamo Modificado**\n\nTu solicitud de préstamo #${loanId} ha sido modificada por un banquero:\n\n**Cambios:**\n• Monto: ~~$${originalLoan.loan_amount.toLocaleString()}~~ → $${newMonto.toLocaleString()}\n• Plazo: ~~${originalLoan.term_months} meses~~ → ${newPlazo} meses\n• Pago mensual: $${monthlyPayment.toLocaleString()}\n\n**Motivo:** ${modificationReason}\n\nEspera la aprobación final.`);
+            } catch (e) {
+                logger.debug('[Loan] Could not DM user about modification');
+            }
+
+            await interaction.editReply('✅ Términos del préstamo modificados correctamente.');
+            return true;
+        }
+
+        if (customId.startsWith('btn_reject_loan:')) {
+            const BANKER_ROLES = ['1450591546524307689', '1412882245735420006'];
+            const isBanker = interaction.member.roles.cache.some(r => BANKER_ROLES.includes(r.id)) ||
+                interaction.member.permissions.has(PermissionFlagsBits.Administrator);
+
+            if (!isBanker) return interaction.reply({ content: '❌ Solo banqueros pueden rechazar préstamos.', ephemeral: true });
+
+            const loanId = parseInt(customId.split(':')[1]);
+
+            // Show modal for rejection reason
+            const modal = new ModalBuilder()
+                .setCustomId(`modal_reject_loan:${loanId}`)
+                .setTitle('Rechazar Préstamo');
+
+            const reasonInput = new TextInputBuilder()
+                .setCustomId('rejection_reason')
+                .setLabel('📝 Motivo del rechazo:')
+                .setStyle(TextInputStyle.Paragraph)
+                .setPlaceholder('Ej: Historial de pagos deficiente, monto muy elevado, etc.')
+                .setRequired(true)
+                .setMaxLength(500);
+
+            modal.addComponents(new ActionRowBuilder().addComponents(reasonInput));
+
+            await interaction.showModal(modal);
+            return true;
+        }
+
+        if (customId.startsWith('modal_reject_loan:')) {
+            await interaction.deferReply();
+
+            const loanId = parseInt(customId.split(':')[1]);
+            const rejectionReason = interaction.fields.getTextInputValue('rejection_reason');
+
+            const { data: loan } = await supabase.from('loans').select('*').eq('id', loanId).single();
+            if (!loan) return interaction.editReply('❌ Préstamo no encontrado.');
+
+            // Mark loan as rejected
+            await supabase
+                .from('loans')
+                .update({
+                    status: 'rejected',
+                    rejected_by: interaction.user.id,
+                    rejected_at: new Date().toISOString(),
+                    rejection_reason: rejectionReason
+                })
+                .eq('id', loanId);
+
+            // Update embed
+            const rejectedEmbed = EmbedBuilder.from(interaction.message.embeds[0])
+                .setColor(0xFF0000)
+                .setFooter({ text: `❌ Rechazado por ${interaction.user.tag}` })
+                .addFields({ name: '🚫 Motivo del Rechazo', value: rejectionReason, inline: false });
+
+            await interaction.message.edit({ embeds: [rejectedEmbed], components: [] });
+
+            // Notify user
+            try {
+                const user = await client.users.fetch(loan.discord_user_id);
+                await user.send(`❌ **Préstamo Rechazado**\n\nTu solicitud de préstamo #${loanId} por $${loan.loan_amount.toLocaleString()} ha sido rechazada.\n\n**Motivo:** ${rejectionReason}\n\nPuedes solicitar un nuevo préstamo ajustando los términos.`);
+            } catch (e) {
+                logger.debug('[Loan] Could not DM user about rejection');
+            }
+
+            await interaction.editReply(`❌ Préstamo #${loanId} rechazado.`);
+
+            // Auto-close ticket after 10 seconds
+            setTimeout(async () => {
+                try {
+                    await interaction.channel.send('🔒 Este ticket se cerrará en 5 segundos...');
+                    setTimeout(() => {
+                        interaction.channel.delete().catch(() => { });
+                    }, 5000);
+                } catch (e) { }
+            }, 10000);
+
             return true;
         }
 
