@@ -165,12 +165,12 @@ module.exports = {
                 }
                 else if (i.customId === 'btn_accept_corp') {
                     const payRow = new ActionRowBuilder().addComponents(
-                        new ButtonBuilder().setCustomId('pay_corp_cash').setLabel('💵 Efectivo (Dueño)').setStyle(ButtonStyle.Success),
-                        new ButtonBuilder().setCustomId('pay_corp_bank').setLabel('🏦 Cuenta Empresa').setStyle(ButtonStyle.Secondary) // Future: Pay with company balance?
+                        new ButtonBuilder().setCustomId('reg_corp_cash').setLabel('💵 Efectivo (Dueño)').setStyle(ButtonStyle.Success),
+                        new ButtonBuilder().setCustomId('reg_corp_bank').setLabel('🏦 Cuenta Empresa').setStyle(ButtonStyle.Secondary) // Future: Pay with company balance?
                     );
                     await i.update({ content: '💳 **Selecciona origen de fondos para apertura:**', embeds: [], components: [payRow] });
                 }
-                else if (['pay_corp_cash', 'pay_corp_bank'].includes(i.customId)) {
+                else if (['reg_corp_cash', 'reg_corp_bank'].includes(i.customId)) {
                     await i.deferUpdate();
                     try {
                         const BillingService = require('../../services/BillingService');
@@ -179,7 +179,7 @@ module.exports = {
 
                         // CHARGE LOGIC
                         if (chargeAmount > 0) {
-                            if (i.customId === 'pay_corp_cash') {
+                            if (i.customId === 'reg_corp_cash') {
                                 // Charge User Cash
                                 const bal = await billingService.ubService.getUserBalance(interaction.guildId, targetUser.id);
                                 if ((bal.cash || 0) < chargeAmount) return i.followUp({ content: `❌ Efectivo insuficiente.`, flags: 64 });
