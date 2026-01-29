@@ -28,7 +28,7 @@ module.exports = {
                 )),
 
     async execute(interaction, client, supabase) {
-        // await interaction.deferReply();
+        await interaction.deferReply();
         const member = interaction.member;
 
         // 1. DNI Check (Required for owning a car)

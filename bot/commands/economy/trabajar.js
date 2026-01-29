@@ -7,6 +7,10 @@ module.exports = {
         .setDescription('💼 Realiza trabajos rápidos para ganar dinero legal'),
 
     async execute(interaction, client, supabase) {
+        if (!interaction.deferred && !interaction.replied) {
+            await interaction.deferReply();
+        }
+
         // Billing Service for Payments
         const billingService = client.services.billing;
 

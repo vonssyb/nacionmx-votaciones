@@ -11,6 +11,10 @@ module.exports = {
                 .setRequired(true)),
 
     async execute(interaction, client) {
+        if (!interaction.deferred && !interaction.replied) {
+            await interaction.deferReply();
+        }
+
         const message = interaction.options.getString('mensaje');
         const member = interaction.member;
 

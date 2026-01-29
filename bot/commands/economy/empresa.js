@@ -130,6 +130,10 @@ module.exports = {
                         .setRequired(true))),
 
     async execute(interaction, client, supabase) {
+        if (!interaction.deferred && !interaction.replied) {
+            await interaction.deferReply();
+        }
+
         // Note: deferReply is handled automatically by index_economia.js monkey-patch
         const subcommand = interaction.options.getSubcommand();
 

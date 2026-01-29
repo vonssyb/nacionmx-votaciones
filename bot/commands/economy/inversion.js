@@ -72,7 +72,7 @@ module.exports = {
                         type: 'fixed_7d'
                     })
                     .select()
-                    .single();
+                    .maybeSingle();
 
                 if (error) {
                     // Rollback

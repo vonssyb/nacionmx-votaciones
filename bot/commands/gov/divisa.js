@@ -32,6 +32,10 @@ module.exports = {
             .setDescription('Ver la tasa de cambio actual')),
 
     async execute(interaction, client, supabase) {
+        if (!interaction.deferred && !interaction.replied) {
+            await interaction.deferReply();
+        }
+
         const subCmd = interaction.options.getSubcommand();
         const exchangeService = client.services.exchange;
 

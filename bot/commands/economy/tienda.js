@@ -158,7 +158,7 @@ module.exports = {
                     .select('*')
                     .eq('item_key', itemKey)
                     .eq('active', true)
-                    .single();
+                    .maybeSingle();
 
                 if (itemError || !item) {
                     return interaction.editReply('❌ Item no encontrado en la base de datos o no disponible. Contacta a un admin.');
@@ -233,7 +233,7 @@ module.exports = {
                                 uses_remaining: item.max_uses || null
                             })
                             .select()
-                            .single();
+                            .maybeSingle();
 
                         if (purchaseError) throw purchaseError;
 

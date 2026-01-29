@@ -18,6 +18,10 @@ module.exports = {
                         .setRequired(false))),
 
     async execute(interaction, client, supabase) {
+        if (!interaction.deferred && !interaction.replied) {
+            await interaction.deferReply();
+        }
+
         try {
             console.log('[UserInfo] Starting execution...');
             // Deferral is handled globally in index_unified.js

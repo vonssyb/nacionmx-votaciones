@@ -103,7 +103,7 @@ async function handlePagar(interaction, supabase, client) {
         .eq('id', loanId)
         .eq('discord_user_id', interaction.user.id)
         .eq('status', 'active')
-        .single();
+        .maybeSingle();
 
     if (!loan) {
         return interaction.editReply('❌ No se encontró ese préstamo activo.');

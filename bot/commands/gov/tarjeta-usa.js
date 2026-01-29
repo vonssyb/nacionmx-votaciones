@@ -40,6 +40,10 @@ module.exports = {
                 .setRequired(true))),
 
     async execute(interaction, client, supabase) {
+        if (!interaction.deferred && !interaction.replied) {
+            await interaction.deferReply();
+        }
+
         const subCmd = interaction.options.getSubcommand();
         const AMERICAN_ROLE_ID = process.env.AMERICAN_ROLE_ID || '1457950212923461632';
 
@@ -211,7 +215,7 @@ module.exports = {
                     monthly_interest_rate: cardType === 'us_platinum' ? 2.5 : cardType === 'us_gold' ? 3.0 : cardType === 'us_silver' ? 3.5 : 4.0
                 })
                 .select()
-                .single();
+                .maybeSingle();
 
             if (createError) {
                 return interaction.editReply('❌ Error creando la solicitud.');

@@ -46,6 +46,10 @@ module.exports = {
                 .setRequired(true))),
 
     async execute(interaction, client, supabase) {
+        if (!interaction.deferred && !interaction.replied) {
+            await interaction.deferReply();
+        }
+
         const subCmd = interaction.options.getSubcommand();
         const AMERICAN_ROLE_ID = process.env.AMERICAN_ROLE_ID || '1457950212923461632';
         const USCIS_ROLE_ID = process.env.USCIS_ROLE_ID || '1457949662181851415';
@@ -195,7 +199,7 @@ module.exports = {
                 .from('citizen_dni')
                 .select('nombre, apellido, foto_url')
                 .eq('id', visa.citizen_dni_id)
-                .single();
+                .maybeSingle();
 
             // Generate visa image
             const visaData = {

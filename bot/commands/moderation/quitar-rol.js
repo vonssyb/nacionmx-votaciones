@@ -10,7 +10,7 @@ module.exports = {
 
     async execute(interaction) {
         // Deferral handled globally by index_moderacion.js
-        // // await interaction.deferReply();
+        // await interaction.deferReply();
 
         // Staff role check
         const ALLOWED_ROLES = [

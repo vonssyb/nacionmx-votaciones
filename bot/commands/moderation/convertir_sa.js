@@ -12,7 +12,7 @@ module.exports = {
                 .setRequired(true)),
 
     async execute(interaction) {
-        // await interaction.deferReply();
+        await interaction.deferReply();
 
         const ALLOWED_ROLE_ID = '1456020936229912781'; // ID Rol Administración Superior
         if (!interaction.member.roles.cache.has(ALLOWED_ROLE_ID)) {

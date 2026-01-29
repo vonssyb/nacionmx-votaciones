@@ -8,6 +8,10 @@ module.exports = {
     ephemeral: true,
 
     async execute(interaction, client, supabase) {
+        if (!interaction.deferred && !interaction.replied) {
+            await interaction.deferReply();
+        }
+
         const atm = new ATMHandler(client, supabase);
         return atm.showHome(interaction);
     }

@@ -60,7 +60,7 @@ module.exports = {
             console.log(`[SelfAction] Superior ${interaction.user.tag} self-assigning temp role ${role.name} - Allowed`);
         }
 
-        // await interaction.deferReply();
+        await interaction.deferReply();
         const member = await interaction.guild.members.fetch(targetUser.id);
 
         // Parse time manually since we don't have a sophisticated parser lib

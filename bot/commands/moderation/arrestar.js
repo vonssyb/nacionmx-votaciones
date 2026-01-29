@@ -21,7 +21,7 @@ module.exports = {
 
     async execute(interaction, client, supabase) {
         // DEFER IMMEDIATELY to prevent timeout
-        // await interaction.deferReply({});
+        await interaction.deferReply({});
 
         const ARREST_CHANNEL_ID = '1398888960519835688';
         const ARREST_LOGS_CHANNEL_ID = '1457583225085100283';

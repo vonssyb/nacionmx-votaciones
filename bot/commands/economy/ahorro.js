@@ -171,7 +171,7 @@ async function handleAbrir(interaction, supabase, client) {
             maturity_date: maturityDate.toISOString()
         })
         .select()
-        .single();
+        .maybeSingle();
 
     if (error) {
         console.error('[Ahorro] Error:', error);
@@ -274,7 +274,7 @@ async function handleDepositar(interaction, supabase, client) {
         .eq('account_number', accountNumber)
         .eq('discord_user_id', interaction.user.id)
         .eq('status', 'active')
-        .single();
+        .maybeSingle();
 
     if (!account) {
         return interaction.editReply('❌ No se encontró esa cuenta de ahorro.');
@@ -325,7 +325,7 @@ async function handleRetirar(interaction, supabase, client) {
         .eq('account_number', accountNumber)
         .eq('discord_user_id', interaction.user.id)
         .eq('status', 'active')
-        .single();
+        .maybeSingle();
 
     if (!account) {
         return interaction.editReply('❌ No se encontró esa cuenta de ahorro.');
@@ -411,7 +411,7 @@ async function handleCerrar(interaction, supabase, client) {
         .eq('account_number', accountNumber)
         .eq('discord_user_id', interaction.user.id)
         .eq('status', 'active')
-        .single();
+        .maybeSingle();
 
     if (!account) {
         return interaction.editReply('❌ No se encontró esa cuenta de ahorro.');

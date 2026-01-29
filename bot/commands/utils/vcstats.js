@@ -11,6 +11,10 @@ module.exports = {
                 .setRequired(false)),
 
     async execute(interaction, client) {
+        if (!interaction.deferred && !interaction.replied) {
+            await interaction.deferReply();
+        }
+
         const targetUser = interaction.options.getUser('usuario') || interaction.user;
         const member = interaction.guild.members.cache.get(targetUser.id);
 

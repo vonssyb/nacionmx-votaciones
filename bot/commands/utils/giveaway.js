@@ -39,6 +39,10 @@ module.exports = {
                 .addStringOption(opt => opt.setName('message_id').setDescription('ID del mensaje del sorteo').setRequired(true))
         ),
     async execute(interaction, client) {
+        if (!interaction.deferred && !interaction.replied) {
+            await interaction.deferReply();
+        }
+
         const sub = interaction.options.getSubcommand();
 
         if (sub === 'start') {

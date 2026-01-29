@@ -48,7 +48,7 @@ module.exports = {
         .setDefaultMemberPermissions(PermissionFlagsBits.ManageRoles),
 
     async execute(interaction, client, supabase) {
-        if (!interaction.deferred) await interaction.deferReply();
+        if (!interaction.deferred && !interaction.replied) await interaction.deferReply();
 
         const targetUser = interaction.options.getMember('usuario') || interaction.member;
         const durationStr = interaction.options.getString('tiempo');

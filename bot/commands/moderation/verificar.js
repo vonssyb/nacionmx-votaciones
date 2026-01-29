@@ -12,7 +12,7 @@ module.exports = {
 
     async execute(interaction, client, supabase) {
         console.log('[VERIFICAR] Executing command...');
-        // await interaction.deferReply({});
+        await interaction.deferReply({});
 
         const robloxUsername = interaction.options.getString('usuario');
         const discordUserId = interaction.user.id;

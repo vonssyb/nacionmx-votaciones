@@ -5,6 +5,10 @@ module.exports = {
         .setName('snipe')
         .setDescription('Muestra el último mensaje eliminado en este canal'),
     async execute(interaction, client) {
+        if (!interaction.deferred && !interaction.replied) {
+            await interaction.deferReply();
+        }
+
         const snipe = client.snipes.get(interaction.channel.id);
 
         if (!snipe) {

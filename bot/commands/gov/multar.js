@@ -22,7 +22,7 @@ module.exports = {
                 .setRequired(false)),
 
     async execute(interaction, client, supabase) {
-        // await interaction.deferReply({});
+        await interaction.deferReply({});
 
         const FINE_CHANNEL_ID = '1398888981655064607';
         const FINE_LOGS_CHANNEL_ID = '1457583225085100283';

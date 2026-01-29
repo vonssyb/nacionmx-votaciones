@@ -217,7 +217,7 @@ module.exports = {
                             credit_score: 100
                         }])
                         .select('id, full_name')
-                        .single();
+                        .maybeSingle();
 
                     if (!createError && newCitizen) {
                         citizen = newCitizen;

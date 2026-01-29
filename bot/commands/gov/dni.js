@@ -47,7 +47,7 @@ module.exports = {
                 .addUserOption(option => option.setName('usuario').setDescription('Usuario (opcional - por defecto tú)').setRequired(false))),
 
     async execute(interaction, client, supabase) {
-        // await interaction.deferReply({}); // All DNI commands are public
+        await interaction.deferReply({}); // All DNI commands are public
 
         const subCmd = interaction.options.getSubcommand();
         const administradorRoleId = '1412882248411381872';
@@ -180,7 +180,7 @@ module.exports = {
                     user_tag: realRobloxUsername // Using auto-detected Roblox Name
                 })
                 .select()
-                .single();
+                .maybeSingle();
 
             if (error) {
                 if (error.code === '23505') {

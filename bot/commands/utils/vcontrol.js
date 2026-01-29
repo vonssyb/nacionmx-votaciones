@@ -7,6 +7,10 @@ module.exports = {
         .setDescription('🎛️ Panel de control del canal de voz actual'),
 
     async execute(interaction, client) {
+        if (!interaction.deferred && !interaction.replied) {
+            await interaction.deferReply();
+        }
+
         const member = interaction.member;
 
         // Verificar que el usuario esté en un canal de voz

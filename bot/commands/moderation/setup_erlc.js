@@ -9,6 +9,10 @@ module.exports = {
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
 
     async execute(interaction, client) {
+        if (!interaction.deferred && !interaction.replied) {
+            await interaction.deferReply();
+        }
+
         // start of execute
         try {
             // Note: index_moderacion.js auto-defers, so we don't need to defer here.

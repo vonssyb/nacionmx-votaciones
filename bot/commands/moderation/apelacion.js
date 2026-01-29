@@ -61,7 +61,7 @@ module.exports = {
                 status: 'pending'
             })
             .select()
-            .single();
+            .maybeSingle();
 
         if (appealError) {
             console.error('[apelacion] Error:', appealError);

@@ -34,7 +34,7 @@ module.exports = {
 
     async execute(interaction, client) {
         // Defer due to potential API delays
-        // await interaction.deferReply();
+        await interaction.deferReply();
 
         const subcommand = interaction.options.getSubcommand();
         const configPath = path.join(__dirname, '../../data/erlc_config.json');

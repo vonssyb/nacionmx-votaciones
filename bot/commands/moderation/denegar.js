@@ -23,6 +23,10 @@ module.exports = {
         .setDefaultMemberPermissions(PermissionFlagsBits.ManageRoles),
 
     async execute(interaction, client, supabase) {
+        if (!interaction.deferred && !interaction.replied) {
+            await interaction.deferReply();
+        }
+
         const subcommand = interaction.options.getSubcommand();
 
         if (subcommand === 'postu') {
@@ -37,7 +41,7 @@ module.exports = {
                     .select('*')
                     .eq('id', applicationId)
                     .eq('discord_user_id', targetUser.id)
-                    .single();
+                    .maybeSingle();
 
                 if (fetchError || !application) {
                     return interaction.editReply('❌ No se encontró la postulación con ese ID para ese usuario.');

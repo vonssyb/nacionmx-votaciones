@@ -11,7 +11,7 @@ module.exports = {
                 .setDescription('📋 Ver lista de códigos y frecuencias de radio')),
 
     async execute(interaction) {
-        // await interaction.deferReply(); // Handled globally usually, but safe to check
+        await interaction.deferReply(); // Handled globally usually, but safe to check
 
         const subCmd = interaction.options.getSubcommand();
 

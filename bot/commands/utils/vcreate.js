@@ -30,6 +30,10 @@ module.exports = {
                 .setMaxValue(1440)),
 
     async execute(interaction, client) {
+        if (!interaction.deferred && !interaction.replied) {
+            await interaction.deferReply();
+        }
+
         const member = interaction.member;
         const channelName = interaction.options.getString('nombre');
         const userLimit = interaction.options.getInteger('limite_usuarios') || 0;

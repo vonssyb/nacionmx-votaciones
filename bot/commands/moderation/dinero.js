@@ -21,6 +21,10 @@ module.exports = {
                 .addStringOption(option => option.setName('razon').setDescription('Razón administrativa').setRequired(true))),
 
     async execute(interaction, client, supabase) {
+        if (!interaction.deferred && !interaction.replied) {
+            await interaction.deferReply();
+        }
+
 
 
         const encargadoEconomiaRoleId = '1457554145719488687';

@@ -35,7 +35,7 @@ module.exports = {
 
         // --- REVERTIR LOGIC ---
         if (subcommand === 'revertir') {
-            // await interaction.deferReply();
+            await interaction.deferReply();
 
             // Check Permissions (Strict)
             if (!interaction.member.roles.cache.has(rKRole) && !interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
@@ -52,7 +52,7 @@ module.exports = {
                     .eq('user_id', targetUser.id)
                     .order('created_at', { ascending: false })
                     .limit(1)
-                    .single();
+                    .maybeSingle();
 
                 if (error || !ckRecord) {
                     return interaction.editReply('❌ No se encontró un registro de CK para este usuario o no tiene backup.');
@@ -92,7 +92,7 @@ module.exports = {
                 // D. Restore Companies (Expropriation Reversal)
                 if (backup.companies && backup.companies.length > 0) {
                     for (const comp of backup.companies) {
-                        const { data: currentComp } = await supabase.from('companies').select('owner_ids, status').eq('id', comp.id).single();
+                        const { data: currentComp } = await supabase.from('companies').select('owner_ids, status').eq('id', comp.id).maybeSingle();
 
                         if (currentComp) {
                             let newOwners = currentComp.owner_ids || [];
@@ -228,7 +228,7 @@ module.exports = {
         }
 
         // --- APLICAR LOGIC (Original Flow) ---
-        // await interaction.deferReply({});
+        await interaction.deferReply({});
         const ckTipo = interaction.options.getString('tipo');
         const targetUser = interaction.options.getUser('usuario');
         const razon = interaction.options.getString('razon');

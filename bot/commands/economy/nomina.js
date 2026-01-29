@@ -52,7 +52,7 @@ module.exports = {
                     company_id: companyId,
                     owner_discord_id: interaction.user.id,
                     created_at: new Date().toISOString()
-                }).select().single();
+                }).select().maybeSingle();
 
                 if (error) throw error;
                 await interaction.editReply(`✅ Grupo de nómina **${name}** creado para la empresa ID: ${companyId}`);
@@ -62,7 +62,7 @@ module.exports = {
                 const user = interaction.options.getUser('empleado');
                 const salary = interaction.options.getInteger('salario');
 
-                const { data: group } = await supabase.from('payroll_groups').select('*').eq('name', groupName).eq('owner_discord_id', interaction.user.id).single();
+                const { data: group } = await supabase.from('payroll_groups').select('*').eq('name', groupName).eq('owner_discord_id', interaction.user.id).maybeSingle();
                 if (!group) return interaction.editReply('❌ Grupo no encontrado.');
 
                 await supabase.from('payroll_items').insert({
@@ -75,7 +75,7 @@ module.exports = {
 
             } else if (subcommand === 'pagar') {
                 const groupName = interaction.options.getString('grupo');
-                const { data: group } = await supabase.from('payroll_groups').select('*, companies(*)').eq('name', groupName).eq('owner_discord_id', interaction.user.id).single();
+                const { data: group } = await supabase.from('payroll_groups').select('*, companies(*)').eq('name', groupName).eq('owner_discord_id', interaction.user.id).maybeSingle();
 
                 if (!group) return interaction.editReply('❌ Grupo no encontrado.');
 
@@ -118,7 +118,7 @@ module.exports = {
 
             } else if (subcommand === 'ver') {
                 const groupName = interaction.options.getString('grupo');
-                const { data: group } = await supabase.from('payroll_groups').select('*').eq('name', groupName).eq('owner_discord_id', interaction.user.id).single();
+                const { data: group } = await supabase.from('payroll_groups').select('*').eq('name', groupName).eq('owner_discord_id', interaction.user.id).maybeSingle();
                 if (!group) return interaction.editReply('❌ Grupo no encontrado.');
 
                 const { data: items } = await supabase.from('payroll_items').select('*').eq('group_id', group.id);

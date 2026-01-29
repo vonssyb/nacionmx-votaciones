@@ -124,7 +124,7 @@ module.exports = {
                         image_url: imagenUrl
                     })
                     .select()
-                    .single();
+                    .maybeSingle();
 
                 if (error || !newSession) {
                     console.error('Error creating session:', error);
@@ -207,7 +207,7 @@ module.exports = {
                         minimum_votes: 0,
                         status: 'live', // Mark as live immediately
                         channel_id: channelIds.voting
-                    }).select().single();
+                    }).select().maybeSingle();
                     session = newSession;
                 } else {
                     // Update existing session
@@ -381,7 +381,7 @@ module.exports = {
                     .in('status', ['live', 'opened', 'closed'])
                     .order('created_at', { ascending: false })
                     .limit(1)
-                    .single();
+                    .maybeSingle();
 
                 if (error || !lastSession) {
                     return interaction.editReply('❌ No se encontró ninguna sesión completada.');

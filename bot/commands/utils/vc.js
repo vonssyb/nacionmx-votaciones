@@ -16,6 +16,10 @@ module.exports = {
                 .setRequired(false)),
 
     async execute(interaction, client) {
+        if (!interaction.deferred && !interaction.replied) {
+            await interaction.deferReply();
+        }
+
         const abbreviation = interaction.options.getString('alias').toLowerCase();
         const targetUser = interaction.options.getUser('arrastrar_usuario');
         const member = interaction.member;

@@ -34,7 +34,7 @@ module.exports = {
                 .from('suggestions')
                 .select('*')
                 .eq('id', id)
-                .single();
+                .maybeSingle();
 
             if (!suggestion || error) {
                 return interaction.editReply('❌ No se encontró la sugerencia con ese ID.');

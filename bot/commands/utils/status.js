@@ -6,7 +6,7 @@ module.exports = {
         .setDescription('📊 Ver el estado del sistema y salud del bot'),
 
     async execute(interaction, client, supabase) {
-        // await interaction.deferReply();
+        await interaction.deferReply();
 
         try {
             // Helper functions (inline for now as they are simple)

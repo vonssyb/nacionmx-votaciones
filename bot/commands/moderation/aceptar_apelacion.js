@@ -15,7 +15,7 @@ module.exports = {
                 .setRequired(true)),
 
     async execute(interaction) {
-        // await interaction.deferReply({  }); // Public logic as it's an official act? Or Ephemeral? Usually public "Appeal Accepted".
+        await interaction.deferReply({  }); // Public logic as it's an official act? Or Ephemeral? Usually public "Appeal Accepted".
 
         // 1. Role Restriction (Encargado de Apelaciones: 1451703422800625777)
         const ROLE_ID = '1451703422800625777';

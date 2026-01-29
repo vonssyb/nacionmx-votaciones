@@ -15,6 +15,10 @@ module.exports = {
                 .setRequired(true)),
 
     async execute(interaction, client, supabase) {
+        if (!interaction.deferred && !interaction.replied) {
+            await interaction.deferReply();
+        }
+
         const location = interaction.options.getString('ubicacion');
         const description = interaction.options.getString('descripcion');
         const caller = interaction.user.username; // Usamos el nombre de Discord como referencia inicial
@@ -31,7 +35,7 @@ module.exports = {
                     emergency_description: description
                 })
                 .select()
-                .single();
+                .maybeSingle();
 
             if (error) throw error;
 

@@ -6,6 +6,10 @@ module.exports = {
         .setDescription('📚 Centro de Ayuda Nación MX (Unificado)'),
 
     async execute(interaction, client, supabase) {
+        if (!interaction.deferred && !interaction.replied) {
+            await interaction.deferReply();
+        }
+
         // Initial Menu: Select Department
         const mainEmbed = new EmbedBuilder()
             .setTitle('📚 Centro de Ayuda Nación MX')

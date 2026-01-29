@@ -27,6 +27,10 @@ module.exports = {
                 .addStringOption(option => option.setName('concepto').setDescription('Concepto de la transferencia').setRequired(false))),
 
     async execute(interaction, client, supabase) {
+        if (!interaction.deferred && !interaction.replied) {
+            await interaction.deferReply();
+        }
+
         const { handleEconomyLegacy } = require('../../handlers/legacyEconomyHandler');
         await handleEconomyLegacy(interaction, client, supabase);
     }

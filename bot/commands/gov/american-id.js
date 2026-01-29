@@ -136,7 +136,7 @@ SSN must be exactly 4 digits.`,
                     created_by: interaction.user.id
                 })
                 .select()
-                .single();
+                .maybeSingle();
 
             if (error) {
                 console.error('[american-id create] Error:', error);
