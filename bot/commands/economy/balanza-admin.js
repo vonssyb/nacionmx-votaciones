@@ -22,6 +22,8 @@ module.exports = {
 
         try {
             // 1. Obtener Balances de Efectivo/Banco (UnbelievaBoat)
+            const billingService = client.services.billing;
+            if (!billingService) throw new Error('Billing Service not initialized');
             const cashBalance = await billingService.ubService.getUserBalance(interaction.guildId, targetUser.id);
 
             // 2. Resolver Citizen ID (Supabase)
