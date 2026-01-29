@@ -117,17 +117,21 @@ module.exports = {
                         .delete()
                         .eq('user_id', targetUser.id);
 
-                    // Then insert the backed up purchases
-                    const purchasesToInsert = backup.purchases.map(pch => ({
-                        user_id: pch.user_id,
-                        item_key: pch.item_key,
-                        quantity: pch.quantity || 1,
-                        purchase_date: pch.purchase_date,
-                        expiration_date: pch.expiration_date,
-                        status: 'active', // Restore as active
-                        uses_remaining: pch.uses_remaining,
-                        total_uses: pch.total_uses
-                    }));
+                    // Then insert the backed up purchases with ALL original fields
+                    const purchasesToInsert = backup.purchases.map(pch => {
+                        // Create a copy of the purchase object
+                        const purchase = { ...pch };
+
+                        // Remove auto-generated fields that shouldn't be manually inserted
+                        delete purchase.id;
+                        delete purchase.created_at;
+                        delete purchase.updated_at;
+
+                        // Ensure status is active for restoration
+                        purchase.status = 'active';
+
+                        return purchase;
+                    });
 
                     const { error: insertError } = await supabase
                         .from('user_purchases')
