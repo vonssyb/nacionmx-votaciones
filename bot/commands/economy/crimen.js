@@ -220,13 +220,10 @@ module.exports = {
 
             const grossPay = Math.floor(basePay * bonusMultiplier);
 
-            // Tax Logic
-            let taxRate = 0.08; // Default 8%
-            if (isUltraPass || hasEvasorRole) taxRate = 0.04;
-            else if (isPremium || isBooster) taxRate = 0.06;
-
-            const taxAmount = Math.floor(grossPay * taxRate);
-            const netPay = grossPay - taxAmount;
+            // Tax Logic: CRIME IS TAX FREE
+            let taxRate = 0.0;
+            const taxAmount = 0;
+            const netPay = grossPay;
 
             // Pay
             await client.services.billing.ubService.addMoney(interaction.guildId, interaction.user.id, netPay, `Crimen: ${crime.title}`, 'cash');
@@ -242,7 +239,6 @@ module.exports = {
             }
 
             fields.push(
-                { name: '💸 Impuesto SAT', value: `-$${taxAmount.toLocaleString()} (${taxRate * 100}%)`, inline: true },
                 { name: '✅ Botín Neto', value: `$${netPay.toLocaleString()}`, inline: false }
             );
 
@@ -251,7 +247,7 @@ module.exports = {
                 .setColor(0x00FF00)
                 .setDescription(`Completaste: **${crime.title}**`)
                 .addFields(fields)
-                .setFooter({ text: `${bonusLabel || 'Criminal Estándar'} | Impuesto: ${taxRate * 100}% | Escóndete 2 horas` })
+                .setFooter({ text: `${bonusLabel || 'Criminal Estándar'} | Libre de Impuestos | Escóndete 2 horas` })
                 .setTimestamp();
 
             if (collectedMessage) await collectedMessage.react('😈');
