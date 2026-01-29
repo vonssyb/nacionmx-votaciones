@@ -1,72 +1,409 @@
-const { createClient } = require('@supabase/supabase-js');
+/**
+ * CompanyService
+ * Centralized company management service
+ * 
+ * Handles:
+ * - Company CRUD operations
+ * - Employee management (hire, fire, salary adjustments)
+ * - Financial operations (deposits, withdrawals, payroll)
+ * - Company validation and permissions
+ * 
+ * Usage:
+ *   const CompanyService = require('../services/CompanyService');
+ *   const companies = await CompanyService.getUserCompanies(supabase, userId);
+ */
+
+const { StringSelectMenuBuilder, ActionRowBuilder, EmbedBuilder } = require('discord.js');
+const ValidationHelper = require('../utils/ValidationHelper');
+const EconomyHelper = require('./EconomyHelper');
 
 class CompanyService {
-    constructor(supabase) {
-        this.supabase = supabase;
-    }
-
     /**
-     * Create a new company
-     * @param {Object} companyData 
+     * Get all companies owned by a user
+     * @param {object} supabase - Supabase client
+     * @param {string} userId - Discord user ID
+     * @returns {Promise<Array>} Array of companies
      */
-    async createCompany(companyData) {
-        try {
-            const { error, data } = await this.supabase
-                .from('companies')
-                .insert([companyData])
-                .select()
-                .single();
+    static async getUserCompanies(supabase, userId) {
+        const { data, error } = await supabase
+            .from('companies')
+            .select('*')
+            .contains('owner_ids', [userId]);
 
-            if (error) throw error;
-            return data;
-        } catch (error) {
-            console.error('Error creating company:', error);
-            throw error;
+        if (error) {
+            console.error('[CompanyService] Error fetching user companies:', error);
+            return [];
         }
+
+        return data || [];
     }
 
     /**
-     * Get company by owner ID (Discord ID)
-     * @param {string} discordId 
+     * Get company by ID
+     * @param {object} supabase - Supabase client
+     * @param {string} companyId - Company ID
+     * @returns {Promise<object|null>} Company data or null
      */
-    async getCompanyByOwner(discordId) {
-        try {
-            // Use config-based query or raw SQL if array filtering is tricky with standard builder in some versions,
-            // but .contains('owner_ids', [discordId]) is standard for Postgres arrays in Supabase JS.
-            const { data, error } = await this.supabase
-                .from('companies')
-                .select('*')
-                .contains('owner_ids', [discordId])
-                .maybeSingle();
+    static async getCompanyById(supabase, companyId) {
+        const { data, error } = await supabase
+            .from('companies')
+            .select('*')
+            .eq('id', companyId)
+            .maybeSingle();
 
-            if (error) throw error;
-            return data;
-        } catch (error) {
-            console.error('Error getting company by owner:', error);
+        if (error) {
+            console.error('[CompanyService] Error fetching company:', error);
             return null;
         }
+
+        return data;
     }
 
     /**
-     * Update company details
-     * @param {string} companyId 
-     * @param {Object} updates 
+     * Get company by name
+     * @param {object} supabase - Supabase client
+     * @param {string} companyName - Company name
+     * @returns {Promise<object|null>} Company data or null
      */
-    async updateCompany(companyId, updates) {
+    static async getCompanyByName(supabase, companyName) {
+        const { data, error } = await supabase
+            .from('companies')
+            .select('*')
+            .ilike('name', companyName)
+            .maybeSingle();
+
+        if (error) {
+            console.error('[CompanyService] Error fetching company by name:', error);
+            return null;
+        }
+
+        return data;
+    }
+
+    /**
+     * Check if user is owner of company
+     * @param {object} supabase - Supabase client
+     * @param {string} userId - Discord user ID
+     * @param {string} companyId - Company ID
+     * @returns {Promise<boolean>}
+     */
+    static async isOwner(supabase, userId, companyId) {
+        const company = await this.getCompanyById(supabase, companyId);
+        if (!company) return false;
+
+        const ownerIds = company.owner_ids || [];
+        return ownerIds.includes(userId);
+    }
+
+    /**
+     * Check if user is employee of company
+     * @param {object} supabase - Supabase client
+     * @param {string} userId - Discord user ID
+     * @param {string} companyId - Company ID
+     * @returns {Promise<object|null>} Employee record or null
+     */
+    static async isEmployee(supabase, userId, companyId) {
+        const { data, error } = await supabase
+            .from('company_employees')
+            .select('*')
+            .eq('company_id', companyId)
+            .eq('employee_id', userId)
+            .maybeSingle();
+
+        if (error) {
+            console.error('[CompanyService] Error checking employee:', error);
+            return null;
+        }
+
+        return data;
+    }
+
+    /**
+     * Check if user can manage company (owner or CEO)
+     * @param {object} supabase - Supabase client
+     * @param {string} userId - Discord user ID
+     * @param {string} companyId - Company ID
+     * @returns {Promise<boolean>}
+     */
+    static async canManage(supabase, userId, companyId) {
+        // Check if owner
+        if (await this.isOwner(supabase, userId, companyId)) {
+            return true;
+        }
+
+        // Check if CEO/Manager
+        const employee = await this.isEmployee(supabase, userId, companyId);
+        if (employee && employee.position) {
+            const managerialPositions = ['CEO', 'Director', 'Gerente', 'Manager'];
+            return managerialPositions.some(pos =>
+                employee.position.toLowerCase().
+
+                    includes(pos.toLowerCase())
+            );
+        }
+
+        return false;
+    }
+
+    /**
+     * Get all employees of a company
+     * @param {object} supabase - Supabase client
+     * @param {string} companyId - Company ID
+     * @returns {Promise<Array>} Array of employees
+     */
+    static async getEmployees(supabase, companyId) {
+        const { data, error } = await supabase
+            .from('company_employees')
+            .select('*')
+            .eq('company_id', companyId)
+            .order('hired_at', { ascending: false });
+
+        if (error) {
+            console.error('[CompanyService] Error fetching employees:', error);
+            return [];
+        }
+
+        return data || [];
+    }
+
+    /**
+     * Hire an employee
+     * @param {object} supabase - Supabase client
+     * @param {string} companyId - Company ID
+     * @param {string} userId - User ID to hire
+     * @param {number} salary - Salary amount
+     * @param {string} position - Job position
+     * @returns {Promise<{success: boolean, message: string, data?: object}>}
+     */
+    static async hireEmployee(supabase, companyId, userId, salary, position) {
         try {
-            const { data, error } = await this.supabase
-                .from('companies')
-                .update(updates)
-                .eq('id', companyId)
+            // Validate salary
+            const salaryValidation = ValidationHelper.validateAmount(salary, 1000, 10000000);
+            if (!salaryValidation.valid) {
+                return { success: false, message: salaryValidation.message };
+            }
+
+            // Check if already employed
+            const existing = await this.isEmployee(supabase, userId, companyId);
+            if (existing) {
+                return { success: false, message: '❌ Este usuario ya es empleado de esta empresa.' };
+            }
+
+            // Insert employee record
+            const { data, error } = await supabase
+                .from('company_employees')
+                .insert({
+                    company_id: companyId,
+                    employee_id: userId,
+                    salary: salary,
+                    position: position,
+                    hired_at: new Date().toISOString()
+                })
                 .select()
                 .single();
 
-            if (error) throw error;
-            return data;
+            if (error) {
+                console.error('[CompanyService] Error hiring employee:', error);
+                return { success: false, message: '❌ Error al contratar empleado.' };
+            }
+
+            return {
+                success: true,
+                message: '✅ Empleado contratado exitosamente.',
+                data
+            };
         } catch (error) {
-            console.error('Error updating company:', error);
-            throw error;
+            console.error('[CompanyService] Exception hiring employee:', error);
+            return { success: false, message: '❌ Error al contratar empleado.' };
         }
+    }
+
+    /**
+     * Fire an employee
+     * @param {object} supabase - Supabase client
+     * @param {string} companyId - Company ID
+     * @param {string} userId - User ID to fire
+     * @returns {Promise<{success: boolean, message: string}>}
+     */
+    static async fireEmployee(supabase, companyId, userId) {
+        try {
+            const { error } = await supabase
+                .from('company_employees')
+                .delete()
+                .eq('company_id', companyId)
+                .eq('employee_id', userId);
+
+            if (error) {
+                console.error('[CompanyService] Error firing employee:', error);
+                return { success: false, message: '❌ Error al despedir empleado.' };
+            }
+
+            return { success: true, message: '✅ Empleado despedido exitosamente.' };
+        } catch (error) {
+            console.error('[CompanyService] Exception firing employee:', error);
+            return { success: false, message: '❌ Error al despedir empleado.' };
+        }
+    }
+
+    /**
+     * Update employee salary
+     * @param {object} supabase - Supabase client
+     * @param {string} companyId - Company ID
+     * @param {string} userId - User ID
+     * @param {number} newSalary - New salary amount
+     * @returns {Promise<{success: boolean, message: string}>}
+     */
+    static async updateSalary(supabase, companyId, userId, newSalary) {
+        try {
+            // Validate salary
+            const salaryValidation = ValidationHelper.validateAmount(newSalary, 1000, 10000000);
+            if (!salaryValidation.valid) {
+                return { success: false, message: salaryValidation.message };
+            }
+
+            const { error } = await supabase
+                .from('company_employees')
+                .update({ salary: newSalary })
+                .eq('company_id', companyId)
+                .eq('employee_id', userId);
+
+            if (error) {
+                console.error('[CompanyService] Error updating salary:', error);
+                return { success: false, message: '❌ Error al actualizar salario.' };
+            }
+
+            return { success: true, message: '✅ Salario actualizado exitosamente.' };
+        } catch (error) {
+            console.error('[CompanyService] Exception updating salary:', error);
+            return { success: false, message: '❌ Error al actualizar salario.' };
+        }
+    }
+
+    /**
+     * Deposit funds to company
+     * @param {object} supabase - Supabase client
+     * @param {string} companyId - Company ID
+     * @param {number} amount - Amount to deposit
+     * @returns {Promise<{success: boolean, message: string, newBalance?: number}>}
+     */
+    static async depositFunds(supabase, companyId, amount) {
+        try {
+            const company = await this.getCompanyById(supabase, companyId);
+            if (!company) {
+                return { success: false, message: '❌ Empresa no encontrada.' };
+            }
+
+            const newBalance = (company.balance || 0) + amount;
+
+            const { error } = await supabase
+                .from('companies')
+                .update({ balance: newBalance })
+                .eq('id', companyId);
+
+            if (error) {
+                console.error('[CompanyService] Error depositing funds:', error);
+                return { success: false, message: '❌ Error al depositar fondos.' };
+            }
+
+            return {
+                success: true,
+                message: '✅ Fondos depositados exitosamente.',
+                newBalance
+            };
+        } catch (error) {
+            console.error('[CompanyService] Exception depositing funds:', error);
+            return { success: false, message: '❌ Error al depositar fondos.' };
+        }
+    }
+
+    /**
+     * Withdraw funds from company
+     * @param {object} supabase - Supabase client
+     * @param {string} companyId - Company ID
+     * @param {number} amount - Amount to withdraw
+     * @returns {Promise<{success: boolean, message: string, newBalance?: number}>}
+     */
+    static async withdrawFunds(supabase, companyId, amount) {
+        try {
+            const company = await this.getCompanyById(supabase, companyId);
+            if (!company) {
+                return { success: false, message: '❌ Empresa no encontrada.' };
+            }
+
+            const currentBalance = company.balance || 0;
+            if (currentBalance < amount) {
+                return {
+                    success: false,
+                    message: `❌ Saldo insuficiente. Balance actual: ${EconomyHelper.formatMoney(currentBalance)}`
+                };
+            }
+
+            const newBalance = currentBalance - amount;
+
+            const { error } = await supabase
+                .from('companies')
+                .update({ balance: newBalance })
+                .eq('id', companyId);
+
+            if (error) {
+                console.error('[CompanyService] Error withdrawing funds:', error);
+                return { success: false, message: '❌ Error al retirar fondos.' };
+            }
+
+            return {
+                success: true,
+                message: '✅ Fondos retirados exitosamente.',
+                newBalance
+            };
+        } catch (error) {
+            console.error('[CompanyService] Exception withdrawing funds:', error);
+            return { success: false, message: '❌ Error al retirar fondos.' };
+        }
+    }
+
+    /**
+     * Calculate total payroll for a company
+     * @param {object} supabase - Supabase client
+     * @param {string} companyId - Company ID
+     * @returns {Promise<{total: number, count: number}>}
+     */
+    static async calculateTotalPayroll(supabase, companyId) {
+        const employees = await this.getEmployees(supabase, companyId);
+
+        const total = employees.reduce((sum, emp) => sum + (emp.salary || 0), 0);
+
+        return {
+            total,
+            count: employees.length
+        };
+    }
+
+    /**
+     * Format company information for display
+     * @param {object} company - Company data
+     * @param {Array} employees - Array of employees
+     * @returns {EmbedBuilder} Formatted embed
+     */
+    static formatCompanyInfo(company, employees = []) {
+        const payroll = employees.reduce((sum, emp) => sum + (emp.salary || 0), 0);
+
+        const embed = new EmbedBuilder()
+            .setTitle(`🏢 ${company.name}`)
+            .setColor('#FFD700')
+            .addFields(
+                { name: '💰 Balance', value: EconomyHelper.formatMoney(company.balance || 0), inline: true },
+                { name: '👥 Empleados', value: `${employees.length}`, inline: true },
+                { name: '💼 Nómina Total', value: EconomyHelper.formatMoney(payroll), inline: true },
+                { name: '📊 Tipo', value: company.is_private ? 'Privada' : 'Pública', inline: true },
+                { name: '🏷️ Sector', value: company.sector || 'No especificado', inline: true }
+            )
+            .setTimestamp();
+
+        if (company.description) {
+            embed.setDescription(company.description);
+        }
+
+        return embed;
     }
 }
 
