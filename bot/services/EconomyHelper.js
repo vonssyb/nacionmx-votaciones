@@ -206,10 +206,124 @@ async function getDebitCard(supabase, discordId) {
     return card;
 }
 
+/**
+ * Format money amount with proper localization
+ * @param {number} amount - Amount to format
+ * @param {string} currency - Currency symbol (default: '$')
+ * @returns {string}
+ */
+function formatMoney(amount, currency = '$') {
+    if (typeof amount !== 'number' || isNaN(amount)) {
+        return `${currency}0`;
+    }
+
+    return `${currency}${amount.toLocaleString('en-US')}`;
+}
+
+/**
+ * Calculate tax on an amount
+ * @param {number} amount - Amount to calculate tax on
+ * @param {number} taxRate - Tax rate as decimal (e.g., 0.15 for 15%)
+ * @returns {{gross: number, tax: number, net: number}}
+ */
+function calculateTax(amount, taxRate) {
+    const gross = Math.floor(amount);
+    const tax = Math.floor(gross * taxRate);
+    const net = gross - tax;
+
+    return { gross, tax, net };
+}
+
+/**
+ * Check if user has sufficient balance
+ * @param {object} billingService - Billing service instance
+ * @param {string} guildId - Guild ID
+ * @param {string} userId - User ID
+ * @param {number} requiredAmount - Required amount
+ * @param {string} balanceType - Type of balance ('cash' or 'bank')
+ * @returns {Promise<{sufficient: boolean, current: number}>}
+ */
+async function checkBalance(billingService, guildId, userId, requiredAmount, balanceType = 'cash') {
+    try {
+        const balance = await billingService.ubService.getBalance(guildId, userId);
+        const current = balanceType === 'bank' ? balance.bank : balance.cash;
+
+        return {
+            sufficient: current >= requiredAmount,
+            current
+        };
+    } catch (error) {
+        console.error('[EconomyHelper] Error checking balance:', error);
+        return { sufficient: false, current: 0 };
+    }
+}
+
+/**
+ * Get percentage utilization of credit card
+ * @param {number} debt - Current debt
+ * @param {number} limit - Credit limit
+ * @returns {number} Utilization percentage
+ */
+function getCreditUtilization(debt, limit) {
+    if (limit === 0) return 0;
+    return Math.min(100, Math.round((debt / limit) * 100));
+}
+
+/**
+ * Get user's highest RP rank
+ * @param {GuildMember} member - Discord guild member
+ * @returns {object|null} Rank data or null
+ */
+function getUserRPRank(member) {
+    if (!member || !member.roles) return null;
+
+    return RP_RANK_ROLES.find(rank => member.roles.cache.has(rank.id)) || null;
+}
+
+/**
+ * Calculate compound interest
+ * @param {number} principal - Principal amount
+ * @param {number} rate - Interest rate (decimal, e.g., 0.05 for 5%)
+ * @param {number} periods - Number of periods
+ * @returns {number} Total amount after interest
+ */
+function calculateCompoundInterest(principal, rate, periods) {
+    return Math.floor(principal * Math.pow(1 + rate, periods));
+}
+
+/**
+ * Get card tier data by name
+ * @param {string} cardName - Name of the card
+ * @returns {object|null} Card tier data or null
+ */
+function getCardTier(cardName) {
+    return CARD_TIERS[cardName] || null;
+}
+
+/**
+ * Check if card is debit or credit
+ * @param {string} cardName - Name of the card
+ * @returns {string} 'debit' or 'credit'
+ */
+function getCardType(cardName) {
+    const tier = CARD_TIERS[cardName];
+    if (!tier) return 'unknown';
+
+    return tier.tier === 'Débito' ? 'debit' : 'credit';
+}
+
 module.exports = {
     BENEFIT_ROLES,
     RP_RANK_ROLES,
     CARD_TIERS,
     applyRoleBenefits,
-    getDebitCard
+    getDebitCard,
+    formatMoney,
+    calculateTax,
+    checkBalance,
+    getCreditUtilization,
+    getUserRPRank,
+    calculateCompoundInterest,
+    getCardTier,
+    getCardType
 };
