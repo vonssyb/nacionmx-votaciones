@@ -33,13 +33,28 @@ module.exports = {
         }
 
         try {
-            // Obtener tarjetas MXN
-            const { data: mxnCards, error: mxnError } = await supabase
+            // 1. Get User's Companies (Dynamic Ownership)
+            const { data: ownedCompanies } = await supabase
+                .from('companies')
+                .select('id')
+                .or(`owner_id.eq.${targetUser.id},owner_ids.cs.{${targetUser.id}}`); // Support both single and multi-owner fields
+
+            const companyIds = ownedCompanies ? ownedCompanies.map(c => c.id) : [];
+
+            // 2. Build Query for Cards (Personal OR Corporate)
+            let query = supabase
                 .from('credit_cards')
-                .eq('discord_id', targetUser.id)
-                .select('*, companies(name)') // Fetch company name if linked
-                // .eq('currency', 'MXN') // Removed currency check to avoid errors
-                .order('created_at', { ascending: false });
+                .select('*, companies(name)');
+
+            if (companyIds.length > 0) {
+                // Syntax for OR with Foreign User ID OR Company ID
+                // "discord_id.eq.UID,company_id.in.(CID1,CID2)"
+                query = query.or(`discord_id.eq.${targetUser.id},company_id.in.(${companyIds.join(',')})`);
+            } else {
+                query = query.eq('discord_id', targetUser.id);
+            }
+
+            const { data: mxnCards, error: mxnError } = await query.order('created_at', { ascending: false });
 
             if (mxnError) throw mxnError;
 
