@@ -105,6 +105,15 @@ module.exports = {
                         .setRequired(false)))
         .addSubcommand(subcommand =>
             subcommand
+                .setName('depositar')
+                .setDescription('Depositar fondos personales a la empresa')
+                .addIntegerOption(option =>
+                    option.setName('monto')
+                        .setDescription('Monto a depositar')
+                        .setRequired(true)
+                        .setMinValue(1)))
+        .addSubcommand(subcommand =>
+            subcommand
                 .setName('remover_dueño')
                 .setDescription('Remover un socio/dueño de la empresa')
                 .addUserOption(option =>
