@@ -484,6 +484,52 @@ module.exports = {
 
                 return interaction.editReply({ embeds: [embed] });
 
+            } else if (subcommand === 'depositar') {
+                const monto = interaction.options.getInteger('monto');
+
+                // Check user balance (cash + bank)
+                const UnbelievaBoatService = client.services?.billing?.ubService || client.billingService?.ubService || (client.services && client.services.billing && client.services.billing.ubService);
+
+                if (!UnbelievaBoatService) {
+                    return interaction.editReply('❌ Error: Servicio de facturación no disponible.');
+                }
+
+                const userBalance = await UnbelievaBoatService.getUserBalance(interaction.guildId, interaction.user.id);
+
+                if (userBalance.bank < monto) {
+                    return interaction.editReply(`❌ **Fondos insuficientes en Banco**\nRequieres: $${monto.toLocaleString()}\nTienes en Banco: $${userBalance.bank.toLocaleString()}`);
+                }
+
+                // Remove from user bank
+                await UnbelievaBoatService.removeMoney(interaction.guildId, interaction.user.id, monto, `Depósito a empresa ${company.name}`, 'bank');
+
+                // Add to company balance
+                await supabase.from('companies')
+                    .update({ balance: (company.balance || 0) + monto })
+                    .eq('id', company.id);
+
+                // Log transaction
+                await supabase.from('company_transactions').insert({
+                    company_id: company.id,
+                    type: 'income',
+                    amount: monto,
+                    description: `Inyección de capital por ${interaction.user.tag}`,
+                    related_user_id: interaction.user.id
+                });
+
+                const embed = new EmbedBuilder()
+                    .setTitle('💰 Depósito Exitoso')
+                    .setColor('#2ECC71')
+                    .addFields(
+                        { name: '🏢 A Empresa', value: company.name, inline: true },
+                        { name: '💵 Monto Depositado', value: `$${monto.toLocaleString()}`, inline: true },
+                        { name: '🏦 Nuevo Balance Empresa', value: `$${((company.balance || 0) + monto).toLocaleString()}`, inline: true }
+                    )
+                    .setFooter({ text: 'Los fondos han sido transferidos desde tu cuenta personal' })
+                    .setTimestamp();
+
+                return interaction.editReply({ embeds: [embed] });
+
             } else if (subcommand === 'remover_dueño') {
                 // Only owners can remove other owners
                 const isOwner = company.owner_ids && company.owner_ids.includes(interaction.user.id);
