@@ -22,7 +22,6 @@ module.exports = {
                 .addStringOption(option => option.setName('nombre').setDescription('Nombre de la empresa').setRequired(true))
                 .addUserOption(option => option.setName('dueño').setDescription('Dueño de la empresa').setRequired(true))
                 .addStringOption(option => option.setName('descripcion').setDescription('Descripción de la empresa').setRequired(true))
-                .addStringOption(option => option.setName('menu_url').setDescription('Enlace al menú/catálogo de servicios').setRequired(true))
                 .addStringOption(option => option.setName('discord_server').setDescription('Enlace al servidor de Discord').setRequired(true))
                 .addStringOption(option =>
                     option.setName('tipo_local')
