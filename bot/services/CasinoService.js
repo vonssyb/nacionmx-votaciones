@@ -184,118 +184,115 @@ class CasinoService {
         delete this.sessions.tower[userId];
         await interaction.update({ embeds: [embed], components: [] }).catch(() => { });
     }
-        this.BJ_FACES = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
-this.BJ_VALUES = { '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7, '8': 8, '9': 9, '10': 10, 'J': 10, 'Q': 10, 'K': 10, 'A': 11 };
-    }
 
-// --- MINES LOGIC ---
-calculateMinesMultiplier(mines, revealed) {
-    // Simple distinct multiplier formula:
-    // house edge ~3-5%
-    // n = 25 total
-    // m = mines
-    // r = revealed
-    // Probability of hitting safe = (25 - m - r) / (25 - r)
-    // Multiplier should be inverse of cumulative probability * (1 - house_edge)
+    // --- MINES LOGIC ---
+    calculateMinesMultiplier(mines, revealed) {
+        // Simple distinct multiplier formula:
+        // house edge ~3-5%
+        // n = 25 total
+        // m = mines
+        // r = revealed
+        // Probability of hitting safe = (25 - m - r) / (25 - r)
+        // Multiplier should be inverse of cumulative probability * (1 - house_edge)
 
-    let multiplier = 1.0;
-    for (let r = 0; r < revealed; r++) {
-        const remainingSafe = 25 - mines - r;
-        const remainingTotal = 25 - r;
-        const prob = remainingSafe / remainingTotal;
-        multiplier *= (1 / prob);
+        let multiplier = 1.0;
+        for (let r = 0; r < revealed; r++) {
+            const remainingSafe = 25 - mines - r;
+            const remainingTotal = 25 - r;
+            const prob = remainingSafe / remainingTotal;
+            multiplier *= (1 / prob);
+        }
+        return Math.floor(multiplier * 0.95 * 100) / 100; // 5% house edge, 2 decimals
     }
-    return Math.floor(multiplier * 0.95 * 100) / 100; // 5% house edge, 2 decimals
-}
 
     async startMinesGame(interaction, bet, mines) {
-    const userId = interaction.user.id;
+        const userId = interaction.user.id;
 
-    // Generate Grid: 25 cells. 1=Mine, 0=Safe
-    let grid = Array(25).fill(0);
-    let minesPlaced = 0;
-    while (minesPlaced < mines) {
-        const idx = Math.floor(Math.random() * 25);
-        if (grid[idx] === 0) {
-            grid[idx] = 1;
-            minesPlaced++;
+        // Generate Grid: 25 cells. 1=Mine, 0=Safe
+        let grid = Array(25).fill(0);
+        let minesPlaced = 0;
+        while (minesPlaced < mines) {
+            const idx = Math.floor(Math.random() * 25);
+            if (grid[idx] === 0) {
+                grid[idx] = 1;
+                minesPlaced++;
+            }
         }
+
+        this.sessions.mines[userId] = {
+            userId,
+            bet,
+            mines,
+            grid,
+            revealed: [], // Indices revealed
+            active: true,
+            startTime: Date.now()
+        };
+
+        await this.updateMinesEmbed(interaction, userId);
     }
-
-    this.sessions.mines[userId] = {
-        userId,
-        bet,
-        mines,
-        grid,
-        revealed: [], // Indices revealed
-        active: true,
-        startTime: Date.now()
-    };
-
-    await this.updateMinesEmbed(interaction, userId);
-}
 
     async handleMinesInteraction(interaction) {
-    const userId = interaction.user.id;
-    const session = this.sessions.mines[userId];
+        const userId = interaction.user.id;
+        const session = this.sessions.mines[userId];
 
-    if (!session || !session.active) {
-        return interaction.reply({ content: '❌ Juego no activo o expirado.', ephemeral: true });
-    }
-
-    const customId = interaction.customId;
-
-    if (customId === 'btn_mines_cashout') {
-        await this.cashoutMines(interaction, userId);
-        return;
-    }
-
-    if (customId.startsWith('btn_mines_')) {
-        const index = parseInt(customId.split('_')[2]);
-        if (session.revealed.includes(index)) {
-            return interaction.deferUpdate(); // Already revealed
+        if (!session || !session.active) {
+            return interaction.reply({ content: '❌ Juego no activo o expirado.', ephemeral: true });
         }
 
-        if (session.grid[index] === 1) {
-            // BOOM
-            await this.failMines(interaction, userId, index);
-        } else {
-            // Safe
-            session.revealed.push(index);
-            await this.updateMinesEmbed(interaction, userId);
+        const customId = interaction.customId;
+
+        if (customId === 'btn_mines_cashout') {
+            await this.cashoutMines(interaction, userId);
+            return;
+        }
+
+        if (customId.startsWith('btn_mines_')) {
+            const index = parseInt(customId.split('_')[2]);
+            if (session.revealed.includes(index)) {
+                return interaction.deferUpdate(); // Already revealed
+            }
+
+            if (session.grid[index] === 1) {
+                // BOOM
+                await this.failMines(interaction, userId, index);
+            } else {
+                // Safe
+                session.revealed.push(index);
+                await this.updateMinesEmbed(interaction, userId);
+            }
         }
     }
-}
 
     async updateMinesEmbed(interaction, userId) {
-    const session = this.sessions.mines[userId];
-    const multiplier = this.calculateMinesMultiplier(session.mines, session.revealed.length);
-    const currentWin = Math.floor(session.bet * multiplier);
-    const nextMultiplier = this.calculateMinesMultiplier(session.mines, session.revealed.length + 1);
+        const session = this.sessions.mines[userId];
+        const multiplier = this.calculateMinesMultiplier(session.mines, session.revealed.length);
+        const currentWin = Math.floor(session.bet * multiplier);
+        const nextMultiplier = this.calculateMinesMultiplier(session.mines, session.revealed.length + 1);
 
-    const embed = new EmbedBuilder()
-        .setTitle('💣 MINAS')
-        .setDescription(`Minas: **${session.mines}** | Apuesta: **${session.bet}**\nMultiplicador: **${multiplier.toFixed(2)}x**\nGanancia actual: **${currentWin}**`)
-        .setColor('#3498DB');
+        const embed = new EmbedBuilder()
+            .setTitle('💣 MINAS')
+            .setDescription(`Minas: **${session.mines}** | Apuesta: **${session.bet}**\nMultiplicador: **${multiplier.toFixed(2)}x**\nGanancia actual: **${currentWin}**`)
+            .setColor('#3498DB');
 
-    // Build Grid Buttons (5x5)
-    const rows = [];
-    for (let i = 0; i < 5; i++) {
-        const row = new ActionRowBuilder();
-        for (let j = 0; j < 5; j++) {
-            const idx = i * 5 + j;
-            const isRevealed = session.revealed.includes(idx);
+        // Build Grid Buttons (5x5)
+        const rows = [];
+        for (let i = 0; i < 5; i++) {
+            const row = new ActionRowBuilder();
+            for (let j = 0; j < 5; j++) {
+                const idx = i * 5 + j;
+                const isRevealed = session.revealed.includes(idx);
 
-            const btn = new ButtonBuilder()
-                .setCustomId(`btn_mines_${idx}`)
-                .setStyle(isRevealed ? ButtonStyle.Success : ButtonStyle.Secondary)
-                .setLabel(isRevealed ? '💎' : '❓')
-                .setDisabled(isRevealed);
+                const btn = new ButtonBuilder()
+                    .setCustomId(`btn_mines_${idx}`)
+                    .setStyle(isRevealed ? ButtonStyle.Success : ButtonStyle.Secondary)
+                    .setLabel(isRevealed ? '💎' : '❓')
+                    .setDisabled(isRevealed);
 
-            row.addComponents(btn);
+                row.addComponents(btn);
+            }
+            rows.push(row);
         }
-        rows.push(row);
-    }
 
         // Cashout Button handled in a separate ephemeral message or logic?
         // Discord allows max 5 rows. So I cannot add a 6th row for Cashout.
@@ -336,13 +333,9 @@ calculateMinesMultiplier(mines, revealed) {
 
         // Wait, I am replacing code block. I can edit logic now.
         // I'll stick to 5x5 but maybe the last button of row 5 is Cashout?
-        // Whatever, 5x5 is hard. 5x4 is safe.
-        // Let's do **5x5** but without cashout button? No.
-        // Let's do **5x4** (20 cells).
-
         // Adjusting grid generation size to 20.
         // see below code.
-
+    }
 
     // --- CHIPS HELPER ---
     async checkChips(userId, amount) {
@@ -810,7 +803,7 @@ calculateMinesMultiplier(mines, revealed) {
         session.message = msg;
         await this.updateBlackjackEmbed(channel);
     }
-        async updateMinesEmbed(interaction, userId) {
+    async updateMinesEmbed(interaction, userId) {
         const session = this.sessions.mines[userId];
         // Using 20 cells grid (5x4)
         const totalCells = 20;
