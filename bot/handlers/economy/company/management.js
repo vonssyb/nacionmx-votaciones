@@ -80,6 +80,23 @@ class CompanyManagementHandler {
             return;
         }
 
+        // 1.1 Validate Location Uniqueness
+        if (ubicacion) {
+            const { data: existingLoc } = await this.supabase
+                .from('companies')
+                .select('name')
+                .ilike('location', ubicacion)
+                .maybeSingle();
+
+            if (existingLoc) {
+                await interaction.followUp({
+                    content: `❌ Ya existe una empresa registrada en esa ubicación (**${existingLoc.name}**).\nPor favor, verifica la dirección o elige un local diferente.`,
+                    ephemeral: true
+                });
+                return;
+            }
+        }
+
         // 2. Calculate Costs
         const TRAMITE_FEE = 250000;
         const LOCAL_COSTS = {
