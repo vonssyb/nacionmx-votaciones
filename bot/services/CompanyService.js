@@ -407,6 +407,50 @@ class CompanyService {
     }
 
     /**
+     * Get comprehensive company statistics
+     * @param {object} supabase - Supabase client
+     * @param {string} companyId - Company ID
+     * @returns {Promise<object>} Company stats including employees, payroll, transactions
+     */
+    static async getCompanyStats(supabase, companyId) {
+        try {
+            // Get company data
+            const company = await this.getCompanyById(supabase, companyId);
+            if (!company) {
+                return null;
+            }
+
+            // Get employees
+            const { data: employees } = await supabase
+                .from('company_employees')
+                .select('user_id, role, salary, hired_at')
+                .eq('company_id', companyId);
+
+            // Calculate total monthly payroll
+            const totalPayroll = employees?.reduce((sum, e) => sum + (e.salary || 0), 0) || 0;
+
+            // Get recent transactions (last 5)
+            const { data: transactions } = await supabase
+                .from('money_history')
+                .select('*')
+                .or(`sender_id.eq.company_${companyId},receiver_id.eq.company_${companyId}`)
+                .order('created_at', { ascending: false })
+                .limit(5);
+
+            return {
+                company,
+                employees: employees || [],
+                employeeCount: employees?.length || 0,
+                totalPayroll,
+                transactions: transactions || []
+            };
+        } catch (error) {
+            console.error('[CompanyService] Error getting company stats:', error);
+            return null;
+        }
+    }
+
+    /**
      * Assign businessman role to user
      * @param {Guild} guild - Discord guild
      * @param {string} userId - Discord user ID
