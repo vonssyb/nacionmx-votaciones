@@ -165,6 +165,12 @@ async function startEconomyBot(supabase) {
                 return;
             }
 
+            // Handle Casino Interactions (Tower Buttons)
+            if (interaction.isButton() && interaction.customId.startsWith('btn_tower_')) {
+                await casinoService.handleTowerInteraction(interaction);
+                return;
+            }
+
             if (interaction.isChatInputCommand()) {
                 const command = client.commands.get(interaction.commandName);
                 if (command) {
