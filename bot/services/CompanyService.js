@@ -405,6 +405,51 @@ class CompanyService {
 
         return embed;
     }
+
+    /**
+     * Assign businessman role to user
+     * @param {Guild} guild - Discord guild
+     * @param {string} userId - Discord user ID
+     */
+    static async assignBusinessmanRole(guild, userId) {
+        const BUSINESSMAN_ROLE_ID = '1412899397351510178';
+        try {
+            const member = await guild.members.fetch(userId);
+            if (!member.roles.cache.has(BUSINESSMAN_ROLE_ID)) {
+                await member.roles.add(BUSINESSMAN_ROLE_ID);
+                console.log(`[CompanyService] Assigned businessman role to ${userId}`);
+            }
+        } catch (error) {
+            console.error(`[CompanyService] Error assigning businessman role:`, error);
+        }
+    }
+
+    /**
+     * Remove businessman role from user if they have no companies
+     * @param {Guild} guild - Discord guild
+     * @param {string} userId - Discord user ID
+     * @param {object} supabase - Supabase client
+     */
+    static async removeBusinessmanRole(guild, userId, supabase) {
+        const BUSINESSMAN_ROLE_ID = '1412899397351510178';
+        try {
+            // Check if user has any remaining companies
+            const { data: companies } = await supabase
+                .from('companies')
+                .select('id')
+                .contains('owner_ids', [userId]);
+
+            if (!companies || companies.length === 0) {
+                const member = await guild.members.fetch(userId);
+                if (member.roles.cache.has(BUSINESSMAN_ROLE_ID)) {
+                    await member.roles.remove(BUSINESSMAN_ROLE_ID);
+                    console.log(`[CompanyService] Removed businessman role from ${userId}`);
+                }
+            }
+        } catch (error) {
+            console.error(`[CompanyService] Error removing businessman role:`, error);
+        }
+    }
 }
 
 module.exports = CompanyService;

@@ -73,7 +73,8 @@ module.exports = {
         '1413540735487053924', // Basurero
         '1413540732760883311', // Reportero
         '1413541371503185961', // Juez
-        '1412891683535982632'  // Abogado
+        '1412891683535982632', // Abogado
+        '1466577272768172283'  // Secondary role
     ],
 
     // Emergency Categories (for selective pinging)
