@@ -31,32 +31,46 @@ async function startDealershipBot(supabase) {
     // Ensure the dealership commands folder exists first
     await loader.loadCommands(client, path.join(__dirname, '../commands'), ['dealership']);
 
-    // AUTO-REGISTER
-    const DEALERSHIP_TOKEN = process.env.DISCORD_TOKEN_DEALERSHIP;
-    const TARGET_GUILDS = [GUILDS.MAIN, GUILDS.STAFF].filter(id => id);
-
-    if (DEALERSHIP_TOKEN && TARGET_GUILDS.length > 0) {
-        (async () => {
-            logger.info(`Auto-registering DEALERSHIP commands`);
-            const rest = new REST({ version: '10' }).setToken(DEALERSHIP_TOKEN);
-            try {
-                const currentUser = await rest.get(Routes.user('@me'));
-                const allCommands = Array.from(client.commands.values()).map(cmd => cmd.data.toJSON());
-
-                for (const guildId of TARGET_GUILDS) {
-                    try {
-                        await rest.put(Routes.applicationGuildCommands(currentUser.id, guildId), { body: allCommands });
-                        logger.info(`✅ [DEALERSHIP] Commands registered for guild ${guildId}`);
-                    }
-                    catch (e) { logger.errorWithContext(`DEALERSHIP Reg Error`, e, { guildId }); }
-                }
-            } catch (e) { logger.errorWithContext('Critical DEALERSHIP Registration Error', e); }
-        })();
-    }
-
-    client.once('ready', () => {
+    client.once('ready', async () => {
         logger.info('🟢', `[DEALERSHIP] Logged in as ${client.user.tag}`);
-        client.user.setActivity('autos de lujo 🏎️', { type: 4 }); // Custom status
+        client.user.setActivity('autos de lujo 🏎️', { type: 4 });
+
+        // Register commands for ALL guilds the bot acts in (since this might be a standalone server)
+        const DEALERSHIP_TOKEN = process.env.DISCORD_TOKEN_DEALERSHIP;
+        if (DEALERSHIP_TOKEN) {
+            const rest = new REST({ version: '10' }).setToken(DEALERSHIP_TOKEN);
+            const allCommands = Array.from(client.commands.values()).map(cmd => cmd.data.toJSON());
+
+            logger.info(`[DEALERSHIP] Fetching guilds for command registration...`);
+            const guilds = await client.guilds.fetch();
+
+            for (const [guildId, guild] of guilds) {
+                try {
+                    logger.info(`[DEALERSHIP] Registering commands in ${guild.name} (${guildId})`);
+                    await rest.put(Routes.applicationGuildCommands(client.user.id, guildId), { body: allCommands });
+                    logger.info(`✅ [DEALERSHIP] Commands registered for ${guild.name}`);
+                } catch (e) {
+                    logger.errorWithContext(`DEALERSHIP Reg Error`, e, { guildId });
+                }
+            }
+        }
+    });
+
+    // Register commands when joining a new guild
+    client.on('guildCreate', async guild => {
+        logger.info(`[DEALERSHIP] Joined new guild: ${guild.name}. Registering commands...`);
+        const DEALERSHIP_TOKEN = process.env.DISCORD_TOKEN_DEALERSHIP;
+        if (!DEALERSHIP_TOKEN) return;
+
+        const rest = new REST({ version: '10' }).setToken(DEALERSHIP_TOKEN);
+        const allCommands = Array.from(client.commands.values()).map(cmd => cmd.data.toJSON());
+
+        try {
+            await rest.put(Routes.applicationGuildCommands(client.user.id, guild.id), { body: allCommands });
+            logger.info(`✅ [DEALERSHIP] Commands registered for ${guild.name}`);
+        } catch (e) {
+            logger.errorWithContext(`DEALERSHIP New Guild Reg Error`, e, { guildId: guild.id });
+        }
     });
 
     client.on('interactionCreate', async interaction => {
