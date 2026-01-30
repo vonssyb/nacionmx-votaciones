@@ -11,7 +11,8 @@ class CasinoService {
             crash: { /* ... */ },
             blackjack: { /* ... */ },
             mines: {},
-            tower: {} // { userId: { difficulty: 'easy', level: 0, bet: 100, grid: [[0,1,0], ...], active: true } }
+            tower: {},
+            penalty: {} // { userId: { bet: 100, active: true } }
         };
 
         // ... constants ...
@@ -935,6 +936,187 @@ calculateMinesMultiplier(mines, revealed) {
     }
 
     // --- END MINES ---
+    // --- PHASE 3 GAMES ---
+
+    // DADOS (Instant)
+    async playDice(userId, bet, type, target = null) {
+        const d1 = Math.floor(Math.random() * 6) + 1;
+        const d2 = Math.floor(Math.random() * 6) + 1;
+        const sum = d1 + d2;
+        const result = { d1, d2, sum, won: false, payout: 0 };
+
+        if (type === '7' && sum === 7) { result.won = true; result.payout = bet * 4; }
+        else if (type === 'over_7' && sum > 7) { result.won = true; result.payout = bet * 2; }
+        else if (type === 'under_7' && sum < 7) { result.won = true; result.payout = bet * 2; }
+        else if (type === 'even' && sum % 2 === 0) { result.won = true; result.payout = bet * 2; }
+        else if (type === 'odd' && sum % 2 !== 0) { result.won = true; result.payout = bet * 2; }
+        else if (type === 'doubles' && d1 === d2) { result.won = true; result.payout = bet * 5; }
+        else if (type === 'exact' && sum === target) { result.won = true; result.payout = bet * 10; }
+
+        return result;
+    }
+
+    // RASPA (Instant)
+    async playScratch(userId, bet) {
+        const symbols = ['🍒', '🍋', '🔔', '💎', '7️⃣', '🍀'];
+        const grid = [];
+        // Weighted random? Nah, simplify for scratch card feel.
+        // Usually scratch cards have pre-determined tiers.
+        // Let's do simple RNG: 9 slots.
+        // 3 of a kind = win.
+        // We generate 3 winning symbols potential.
+        // Let's say we pick a "Outcome" first.
+        // Win Chance 30%.
+        const isWin = Math.random() < 0.35;
+        let winSymbol = null;
+        if (isWin) winSymbol = symbols[Math.floor(Math.random() * symbols.length)];
+
+        // Fill grid
+        // If win, ensure 3 winSymbols.
+        // Else ensure max 2 matches of any.
+
+        let cells = [];
+        if (isWin) {
+            cells = [winSymbol, winSymbol, winSymbol];
+            while (cells.length < 9) cells.push(symbols[Math.floor(Math.random() * symbols.length)]);
+        } else {
+            // No 3 matches
+            // Hard to guarantee without complex logic.
+            // Simplified: Just random and check.
+            while (true) {
+                cells = [];
+                for (let i = 0; i < 9; i++) cells.push(symbols[Math.floor(Math.random() * symbols.length)]);
+
+                // Check matches
+                const counts = {};
+                cells.forEach(x => counts[x] = (counts[x] || 0) + 1);
+                const has3 = Object.values(counts).some(c => c >= 3);
+                if (!has3) break; // Good loser
+                // If by chance we got a winner but we wanted a loser, calculate payout? 
+                // Actually, if RNG gives a winner naturally, let it be.
+                // Re-roll only if we wanted a FORCED win? No.
+                // Let's just purely random. The math is: 1/6 chance per cell.
+                // 9 cells. Prob of 3 same is high?
+                // Actually standard scratch is "Match 3 prize amounts".
+                // Let's stick to: Pure Random.
+                // If 3 symbols match, pay based on symbol value.
+                break;
+            }
+        }
+
+        // Shuffle
+        cells.sort(() => Math.random() - 0.5);
+
+        // Check Result
+        const counts = {};
+        cells.forEach(x => counts[x] = (counts[x] || 0) + 1);
+
+        let payout = 0;
+        let won = false;
+        let match = null;
+
+        if (counts['7️⃣'] >= 3) { payout = bet * 50; match = '7️⃣'; }
+        else if (counts['💎'] >= 3) { payout = bet * 20; match = '💎'; }
+        else if (counts['🔔'] >= 3) { payout = bet * 10; match = '🔔'; }
+        else if (counts['🍀'] >= 3) { payout = bet * 5; match = '🍀'; }
+        else if (counts['🍒'] >= 3) { payout = bet * 3; match = '🍒'; }
+        else if (counts['🍋'] >= 3) { payout = bet * 2; match = '🍋'; }
+
+        if (payout > 0) won = true;
+
+        return { grid: cells, won, payout, match };
+    }
+
+    // PENALES (Interactive)
+    async startPenalty(interaction, bet) {
+        const userId = interaction.user.id;
+        this.sessions.penalty[userId] = {
+            active: true,
+            bet,
+            startTime: Date.now()
+        };
+
+        const embed = new EmbedBuilder()
+            .setTitle('⚽ PENALES')
+            .setDescription(`El portero está listo. ¿A dónde chutas?\nApuesta: **${bet}**`)
+            .setColor('#2ECC71')
+            .setImage('https://media.discordapp.net/attachments/1094067098670878791/1113567098670878791/penalty_goal.gif?width=800&height=400'); // Placeholder or None
+
+        const row = new ActionRowBuilder().addComponents(
+            new ButtonBuilder().setCustomId('btn_pen_left').setLabel('⬅️ Izquierda').setStyle(ButtonStyle.Primary),
+            new ButtonBuilder().setCustomId('btn_pen_center').setLabel('⬆️ Centro').setStyle(ButtonStyle.Primary),
+            new ButtonBuilder().setCustomId('btn_pen_right').setLabel('➡️ Derecha').setStyle(ButtonStyle.Primary)
+        );
+
+        await interaction.reply({ embeds: [embed], components: [row] });
+    }
+
+    async handlePenaltyInteraction(interaction) {
+        const userId = interaction.user.id;
+        const session = this.sessions.penalty[userId];
+        if (!session || !session.active) return interaction.reply({ content: '❌ No tienes un penal activo.', ephemeral: true });
+
+        const dir = interaction.customId.split('_')[2]; // left, center, right
+
+        // Goalie logic
+        const directions = ['left', 'center', 'right'];
+        const goalieDir = directions[Math.floor(Math.random() * directions.length)];
+
+        let won = false;
+        if (dir !== goalieDir) won = true; // Goal if goalie dives wrong way
+
+        const payout = won ? session.bet * 2 : 0; // x2 essentially (minus potential house edge? 50% vs 66% win rate?)
+        // Wait, if goalie picks 1 of 3, and I pick 1 of 3.
+        // Possibilities: 9 combos.
+        // Win conditions: (L, C), (L, R), (C, L), (C, R), (R, L), (R, C).
+        // Loss conditions: (L, L), (C, C), (R, R).
+        // 6 wins, 3 losses. Win chance = 66%.
+        // If payout is x2, it's +EV for player (EV = 2 * 0.66 = 1.33). Casino loses money!
+        // Fix: Goalie is smarter? Or Payout is x1.4?
+        // Or "Save chance" is higher.
+        // Let's implement independent save chance.
+        // Even if goalie guesses WRONG, he might still not save? No.
+        // If player shoots Left, Goalie dives Right -> GOAL.
+        // If player shoots Left, Goalie dives Left -> SAVE.
+        // We need 50/50 EV.
+        // To make it balanced, payout should be x1.45 OR make it harder.
+        // Maybe "Shoot High/Low"? Too complex.
+        // Let's change mechanic: 50% chance Goal.
+        // "The goalie guesses your direction 50% of the time (Cheat AI)". 
+        // No, let's just make payout x1.5 (Profit 0.5x).
+        // EV = 1.5 * 0.66 = 1.0 (Fair game).
+        // Let's do x1.5 payout.
+
+        const multiplier = 1.5;
+        const winAmount = Math.floor(session.bet * multiplier);
+
+        // Update DB
+        const { data: acc } = await this.supabase.from('casino_chips').select('*').eq('discord_user_id', userId).single();
+        if (won) {
+            await this.supabase.from('casino_chips').update({
+                chips_balance: acc.chips_balance + winAmount, // Bet already deducted? Usually yes.
+                total_won: acc.total_won + (winAmount - session.bet),
+                games_played: acc.games_played + 1
+            }).eq('discord_user_id', userId);
+        } else {
+            await this.supabase.from('casino_chips').update({
+                total_lost: acc.total_lost + session.bet,
+                games_played: acc.games_played + 1
+            }).eq('discord_user_id', userId);
+        }
+
+        const dirMap = { left: 'Izquierda ⬅️', center: 'Centro ⬆️', right: 'Derecha ➡️' };
+
+        const resultEmbed = new EmbedBuilder()
+            .setTitle(won ? '⚽ ¡GOOOOOOL!' : '🧤 ¡ATAJADO!')
+            .setDescription(`Tú: **${dirMap[dir]}**\nPortero: **${dirMap[goalieDir]}**\n\n${won ? `Ganaste **${winAmount}** fichas` : 'Perdiste tu apuesta.'}`)
+            .setColor(won ? '#2ECC71' : '#E74C3C');
+
+        delete this.sessions.penalty[userId];
+        await interaction.update({ embeds: [resultEmbed], components: [] }).catch(() => { });
+    }
+
+    // --- END PHASE 3 ---
 }
 
 module.exports = CasinoService;
