@@ -11,6 +11,7 @@ const DealershipService = require('../services/DealershipService');
 
 async function startDealershipBot(supabase) {
     logger.info('🚗', 'Starting Dealership Bot...');
+    const DEALERSHIP_TOKEN = process.env.DISCORD_TOKEN_DEALERSHIP; // [FIX] Defined at function scope
     const client = new Client({
         intents: [
             GatewayIntentBits.Guilds,
@@ -36,7 +37,6 @@ async function startDealershipBot(supabase) {
         client.user.setActivity('autos de lujo 🏎️', { type: 4 });
 
         // Register commands for ALL guilds the bot acts in (since this might be a standalone server)
-        const DEALERSHIP_TOKEN = process.env.DISCORD_TOKEN_DEALERSHIP;
         if (DEALERSHIP_TOKEN) {
             const rest = new REST({ version: '10' }).setToken(DEALERSHIP_TOKEN);
             const allCommands = Array.from(client.commands.values()).map(cmd => cmd.data.toJSON());
@@ -59,7 +59,6 @@ async function startDealershipBot(supabase) {
     // Register commands when joining a new guild
     client.on('guildCreate', async guild => {
         logger.info(`[DEALERSHIP] Joined new guild: ${guild.name}. Registering commands...`);
-        const DEALERSHIP_TOKEN = process.env.DISCORD_TOKEN_DEALERSHIP;
         if (!DEALERSHIP_TOKEN) return;
 
         const rest = new REST({ version: '10' }).setToken(DEALERSHIP_TOKEN);
