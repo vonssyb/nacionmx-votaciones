@@ -20,9 +20,11 @@ module.exports = {
                 .setName('crear')
                 .setDescription('Crear una nueva empresa')
                 .addStringOption(option => option.setName('nombre').setDescription('Nombre de la empresa').setRequired(true))
-                .addUserOption(option => option.setName('dueño').setDescription('Dueño de la empresa').setRequired(true))
                 .addStringOption(option => option.setName('descripcion').setDescription('Descripción de la empresa').setRequired(true))
+                .addUserOption(option => option.setName('dueño').setDescription('Dueño de la empresa').setRequired(true))
                 .addStringOption(option => option.setName('discord_server').setDescription('Enlace al servidor de Discord').setRequired(true))
+                .addAttachmentOption(option => option.setName('logo').setDescription('Logo de la empresa').setRequired(true))
+                .addStringOption(option => option.setName('ubicacion').setDescription('Ubicación (Calles)').setRequired(true))
                 .addStringOption(option =>
                     option.setName('tipo_local')
                         .setDescription('Tamaño del local (Costo varía)')
@@ -33,8 +35,6 @@ module.exports = {
                             { name: 'Grande ($3.2M)', value: 'grande' },
                             { name: 'Gigante ($5M)', value: 'gigante' }
                         ))
-                .addAttachmentOption(option => option.setName('logo').setDescription('Logo de la empresa').setRequired(true))
-                .addStringOption(option => option.setName('ubicacion').setDescription('Ubicación (Calles)').setRequired(true))
                 .addAttachmentOption(option => option.setName('foto_local').setDescription('Foto del local').setRequired(false))
                 .addUserOption(option => option.setName('co_dueño').setDescription('Co-Dueño inicial (opcional)').setRequired(false))
                 .addBooleanOption(option => option.setName('es_privada').setDescription('Empresa privada (no listada en directorio)').setRequired(false)))
