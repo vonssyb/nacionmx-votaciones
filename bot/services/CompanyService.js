@@ -451,6 +451,104 @@ class CompanyService {
     }
 
     /**
+     * Generate financial report for a company
+     * @param {object} supabase - Supabase client
+     * @param {string} companyId - Company ID
+     * @param {string} period - Report period ('monthly', 'yearly', 'all')
+     * @returns {Promise<object>} Financial report data
+     */
+    static async generateFinancialReport(supabase, companyId, period) {
+        try {
+            const company = await this.getCompanyById(supabase, companyId);
+            if (!company) {
+                return null;
+            }
+
+            const now = new Date();
+            let startDate = new Date(0); // All time default
+            let periodLabel = 'Todo el tiempo';
+
+            if (period === 'monthly') {
+                startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+                periodLabel = 'Últimos 30 días';
+            } else if (period === 'yearly') {
+                startDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
+                periodLabel = 'Últimos 365 días';
+            }
+
+            // Get transactions in period
+            const { data: transactions } = await supabase
+                .from('money_history')
+                .select('*')
+                .or(`sender_id.eq.company_${companyId},receiver_id.eq.company_${companyId}`)
+                .gte('created_at', startDate.toISOString())
+                .order('created_at', { ascending: false });
+
+            // Calculate income and expenses
+            let income = 0;
+            let expenses = 0;
+            const incomeTransactions = [];
+            const expenseTransactions = [];
+
+            if (transactions) {
+                transactions.forEach(tx => {
+                    const amount = Math.abs(tx.amount || 0);
+
+                    if (tx.receiver_id === `company_${companyId}`) {
+                        income += amount;
+                        incomeTransactions.push(tx);
+                    } else if (tx.sender_id === `company_${companyId}`) {
+                        expenses += amount;
+                        expenseTransactions.push(tx);
+                    }
+                });
+            }
+
+            // Get current employees and payroll
+            const { data: employees } = await supabase
+                .from('company_employees')
+                .select('salary')
+                .eq('company_id', companyId);
+
+            const monthlyPayroll = employees?.reduce((sum, e) => sum + (e.salary || 0), 0) || 0;
+
+            // Calculate estimated annual payroll if period is yearly or all
+            let estimatedPayrollCost = 0;
+            if (period === 'yearly') {
+                estimatedPayrollCost = monthlyPayroll * 12;
+            } else if (period === 'all') {
+                // Estimate based on company age (rough calculation)
+                const createdDate = new Date(company.created_at);
+                const monthsOld = Math.ceil((now - createdDate) / (30 * 24 * 60 * 60 * 1000));
+                estimatedPayrollCost = monthlyPayroll * Math.min(monthsOld, 12);
+            } else {
+                estimatedPayrollCost = monthlyPayroll;
+            }
+
+            const netIncome = income - expenses;
+
+            return {
+                company,
+                period,
+                periodLabel,
+                income,
+                expenses,
+                netIncome,
+                monthlyPayroll,
+                estimatedPayrollCost,
+                transactionCount: transactions?.length || 0,
+                incomeTransactions: incomeTransactions.length,
+                expenseTransactions: expenseTransactions.length,
+                startDate,
+                endDate: now
+            };
+        } catch (error) {
+            console.error('[CompanyService] Error generating financial report:', error);
+            return null;
+        }
+    }
+
+    /**
      * Assign businessman role to user
      * @param {Guild} guild - Discord guild
      * @param {string} userId - Discord user ID

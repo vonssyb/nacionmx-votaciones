@@ -170,9 +170,55 @@ module.exports = {
         .addSubcommand(subcommand =>
             subcommand
                 .setName('dashboard')
-                .setDescription('📊 Ver panel de control y estadísticas de tu empresa')),
+                .setDescription('📊 Ver panel de control y estadísticas de tu empresa'))
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('reporte')
+                .setDescription('📈 Generar reporte financiero de la empresa')
+                .addStringOption(option =>
+                    option.setName('periodo')
+                        .setDescription('Periodo del reporte')
+                        .setRequired(true)
+                        .addChoices(
+                            { name: 'Mensual (últimos 30 días)', value: 'monthly' },
+                            { name: 'Anual (últimos 365 días)', value: 'yearly' },
+                            { name: 'Todo el tiempo', value: 'all' }
+                        ))),
 
     async execute(interaction, client, supabase) {
+        // Handle autocomplete requests
+        if (interaction.isAutocomplete()) {
+            const focusedOption = interaction.options.getFocused(true);
+
+            try {
+                let choices = [];
+
+                // For company name autocomplete - user's own companies
+                if (focusedOption.name === 'empresa_nombre') {
+                    const { data: companies } = await supabase
+                        .from('companies')
+                        .select('id, name, balance')
+                        .contains('owner_ids', [interaction.user.id])
+                        .order('name');
+
+                    if (companies) {
+                        choices = companies
+                            .filter(c => c.name.toLowerCase().includes(focusedOption.value.toLowerCase()))
+                            .slice(0, 25) // Discord limit
+                            .map(c => ({
+                                name: `${c.name} ($${(c.balance || 0).toLocaleString()})`,
+                                value: c.id
+                            }));
+                    }
+                }
+
+                return await interaction.respond(choices);
+            } catch (error) {
+                console.error('[empresa autocomplete] Error:', error);
+                return await interaction.respond([]);
+            }
+        }
+
         if (!interaction.deferred && !interaction.replied) {
             await interaction.deferReply();
         }
@@ -1272,6 +1318,134 @@ module.exports = {
                 await interaction.editReply({
                     embeds: [dashboardEmbed],
                     components: [buttons]
+                });
+
+            } else if (subcommand === 'reporte') {
+                const CompanyService = require('../../services/CompanyService');
+                const periodo = interaction.options.getString('periodo');
+
+                // Get user's companies
+                const { data: ownedCompanies } = await supabase
+                    .from('companies')
+                    .select('*')
+                    .contains('owner_ids', [interaction.user.id]);
+
+                if (!ownedCompanies || ownedCompanies.length === 0) {
+                    return interaction.editReply('❌ No tienes ninguna empresa registrada.');
+                }
+
+                let selectedCompany = ownedCompanies[0];
+
+                // If multiple companies, show selector
+                if (ownedCompanies.length > 1) {
+                    const { StringSelectMenuBuilder, ActionRowBuilder } = require('discord.js');
+
+                    const selectMenu = new StringSelectMenuBuilder()
+                        .setCustomId(`empresa_select_report_${interaction.user.id}`)
+                        .setPlaceholder('Selecciona la empresa para generar reporte')
+                        .addOptions(ownedCompanies.map(comp => ({
+                            label: comp.name,
+                            description: `Balance: $${(comp.balance || 0).toLocaleString()}`,
+                            value: comp.id
+                        })));
+
+                    const row = new ActionRowBuilder().addComponents(selectMenu);
+
+                    await interaction.editReply({
+                        content: '🏢 **Selecciona la empresa:**',
+                        components: [row]
+                    });
+
+                    const filter = i => i.customId.startsWith('empresa_select_report_') && i.user.id === interaction.user.id;
+                    const collected = await interaction.channel.awaitMessageComponent({
+                        filter,
+                        time: 60000
+                    }).catch(() => null);
+
+                    if (!collected) {
+                        return interaction.editReply({
+                            content: '⏱️ Tiempo agotado.',
+                            components: []
+                        });
+                    }
+
+                    await collected.deferUpdate();
+                    const selectedId = collected.values[0];
+                    selectedCompany = ownedCompanies.find(c => c.id === selectedId);
+                }
+
+                // Generate report
+                const report = await CompanyService.generateFinancialReport(supabase, selectedCompany.id, periodo);
+
+                if (!report) {
+                    return interaction.editReply('❌ Error al generar el reporte financiero.');
+                }
+
+                // Create report embed
+                const reportEmbed = new EmbedBuilder()
+                    .setTitle(`📈 Reporte Financiero: ${report.company.name}`)
+                    .setDescription(`**Periodo:** ${report.periodLabel}`)
+                    .setColor(report.netIncome >= 0 ? '#2ECC71' : '#E74C3C')
+                    .setThumbnail(report.company.logo_url || null)
+                    .setTimestamp();
+
+                // Financial summary
+                reportEmbed.addFields(
+                    { name: '💰 Ingresos Totales', value: `$${report.income.toLocaleString()}`, inline: true },
+                    { name: '💸 Gastos Totales', value: `$${report.expenses.toLocaleString()}`, inline: true },
+                    { name: '\u200b', value: '\u200b', inline: true } // Blank for alignment
+                );
+
+                // Net income with visual indicator
+                const netSymbol = report.netIncome >= 0 ? '📈' : '📉';
+                const netColor = report.netIncome >= 0 ? '🟢' : '🔴';
+                reportEmbed.addFields({
+                    name: `${netSymbol} Balance Neto`,
+                    value: `${netColor} **$${report.netIncome.toLocaleString()}**`,
+                    inline: false
+                });
+
+                // Additional metrics
+                reportEmbed.addFields(
+                    { name: '💵 Nómina Mensual', value: `$${report.monthlyPayroll.toLocaleString()}`, inline: true },
+                    { name: '📊 Transacciones', value: `${report.transactionCount}`, inline: true },
+                    { name: '💰 Balance Actual', value: `$${(report.company.balance || 0).toLocaleString()}`, inline: true }
+                );
+
+                // Transaction breakdown
+                if (report.transactionCount > 0) {
+                    reportEmbed.addFields({
+                        name: '📝 Desglose de Transacciones',
+                        value: `✅ Ingresos: ${report.incomeTransactions}\n❌ Gastos: ${report.expenseTransactions}`,
+                        inline: false
+                    });
+                }
+
+                // Simple ASCII chart (income vs expenses)
+                const maxValue = Math.max(report.income, report.expenses, 1);
+                const incomeBar = '█'.repeat(Math.ceil((report.income / maxValue) * 20));
+                const expenseBar = '█'.repeat(Math.ceil((report.expenses / maxValue) * 20));
+
+                reportEmbed.addFields({
+                    name: '📊 Comparación Visual',
+                    value: `💰 Ingresos:  ${incomeBar}\n💸 Gastos:    ${expenseBar}`,
+                    inline: false
+                });
+
+                // Footer with warning if netIncome is negative
+                if (report.netIncome < 0) {
+                    reportEmbed.setFooter({
+                        text: '⚠️ Balance neto negativo - Considera reducir gastos o aumentar ingresos'
+                    });
+                } else {
+                    reportEmbed.setFooter({
+                        text: `✅ Rendimiento positivo en el periodo seleccionado`
+                    });
+                }
+
+                await interaction.editReply({
+                    embeds: [reportEmbed],
+                    components: []
                 });
             }
 
