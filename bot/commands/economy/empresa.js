@@ -35,7 +35,7 @@ module.exports = {
                             { name: 'Gigante ($5M)', value: 'gigante' }
                         ))
                 .addAttachmentOption(option => option.setName('logo').setDescription('Logo de la empresa').setRequired(false))
-                .addStringOption(option => option.setName('ubicacion').setDescription('Ubicación (Calles)').setRequired(false))
+                .addStringOption(option => option.setName('ubicacion').setDescription('Ubicación (Calles)').setRequired(true))
                 .addAttachmentOption(option => option.setName('foto_local').setDescription('Foto del local').setRequired(false))
                 .addUserOption(option => option.setName('co_dueño').setDescription('Co-Dueño inicial (opcional)').setRequired(false))
                 .addBooleanOption(option => option.setName('es_privada').setDescription('Empresa privada (no listada en directorio)').setRequired(false)))
