@@ -217,21 +217,8 @@ class CompanyManagementHandler {
             return true;
         }
 
-        // 4. Assign Role (Legacy)
-        try {
-            const member = await interaction.guild.members.fetch(ownerId);
-            const roles = ['Empresario', 'CEO', 'Dueño'];
-            // Try finding any of these
-            for (const rName of roles) {
-                const role = interaction.guild.roles.cache.find(r => r.name === rName);
-                if (role && !member.roles.cache.has(role.id)) {
-                    await member.roles.add(role);
-                    break;
-                }
-            }
-        } catch (err) {
-            logger.warn('Role assignment failed', err);
-        }
+        // 4. Assign Businessman Role
+        await CompanyService.assignBusinessmanRole(interaction.guild, ownerId);
 
         // 5. Cleanup & Success
         await this.stateManager.deletePendingAction(stateId);
