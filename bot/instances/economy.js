@@ -159,6 +159,12 @@ async function startEconomyBot(supabase) {
                 return;
             }
 
+            // Handle Casino Interactions (Mines Buttons)
+            if (interaction.isButton() && interaction.customId.startsWith('btn_mines_')) {
+                await casinoService.handleMinesInteraction(interaction);
+                return;
+            }
+
             if (interaction.isChatInputCommand()) {
                 const command = client.commands.get(interaction.commandName);
                 if (command) {
