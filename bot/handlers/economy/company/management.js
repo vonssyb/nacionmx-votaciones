@@ -48,7 +48,6 @@ class CompanyManagementHandler {
         const nombre = interaction.options.getString('nombre');
         const dueño = interaction.options.getUser('dueño');
         const descripcion = interaction.options.getString('descripcion');
-        const menuUrl = interaction.options.getString('menu_url');
         const discordServer = interaction.options.getString('discord_server');
         const tipoLocal = interaction.options.getString('tipo_local');
         const logo = interaction.options.getAttachment('logo');
@@ -59,10 +58,6 @@ class CompanyManagementHandler {
 
         // Validate URLs
         const urlRegex = /^(https?:\/\/)?([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?$/;
-        if (!urlRegex.test(menuUrl)) {
-            await interaction.followUp({ content: '❌ El enlace del menú no es válido. Debe ser una URL válida.', ephemeral: true });
-            return;
-        }
         if (!urlRegex.test(discordServer)) {
             await interaction.followUp({ content: '❌ El enlace del servidor Discord no es válido. Debe ser una URL válida.', ephemeral: true });
             return;
@@ -122,7 +117,7 @@ class CompanyManagementHandler {
         const companyData = {
             name: nombre,
             description: descripcion,
-            menu_url: menuUrl,
+            menu_url: null,
             owner_id: dueño.id,
             owner_ids: coDueño ? [dueño.id, coDueño.id] : [dueño.id], // Array for ownership
             co_owner_id: coDueño?.id || null, // Keeping legacy column just in case
@@ -157,9 +152,9 @@ class CompanyManagementHandler {
             .setDescription(`${descripcion}\n\n**Costo Total:** $${totalCost.toLocaleString()}\n(Trámite: $${TRAMITE_FEE.toLocaleString()} + Local: $${(LOCAL_COSTS[tipoLocal] || 0).toLocaleString()} - Desc: ${(discount * 100)}%)`)
             .addFields(
                 { name: 'Dueño', value: `<@${dueño.id}>`, inline: true },
+                { name: 'Ubicación', value: ubicacion, inline: true },
                 { name: 'Tipo Local', value: tipoLocal || 'Ninguno', inline: true },
                 { name: 'Co-Dueño', value: coDueño ? `<@${coDueño.id}>` : 'N/A', inline: true },
-                { name: '📋 Menú', value: menuUrl, inline: false },
                 { name: '💬 Discord', value: discordServer, inline: false }
             )
             .setFooter({ text: 'Selecciona método de pago para confirmar' });
