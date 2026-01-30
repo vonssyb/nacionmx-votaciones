@@ -60,6 +60,7 @@ async function registerEconomyCommands() {
     // 3. Combine modular + legacy
     const modularCommandsData = Array.from(client.commands.values()).map(cmd => cmd.data.toJSON());
     const allCommands = [...modularCommandsData, ...legacyEconomyCommands];
+    // const allCommands = [...modularCommandsData]; // TESTING: Only modular
 
     console.log(`🔄 Registrando ${allCommands.length} comandos de ECONOMÍA en Discord...`);
     console.log(`   -> ${modularCommandsData.length} modulares (economy, games, utils)`);
@@ -68,6 +69,7 @@ async function registerEconomyCommands() {
     console.log(`🤖 Client ID: ${CLIENT_ID}`);
 
     // 0. CLEANUP GLOBAL COMMANDS (Fix for duplicates)
+    /*
     try {
         console.log('🧹 Limpiando comandos GLOBALES antiguos...');
         await rest.put(Routes.applicationCommands(CLIENT_ID), { body: [] });
@@ -75,12 +77,15 @@ async function registerEconomyCommands() {
     } catch (e) {
         console.error('⚠️ Warning cleaning globals:', e.message);
     }
+    */
 
     try {
+        console.log(`📡 Enviando comandos a la API de Discord para Guild ID ${GUILD_ID}...`);
         const data = await rest.put(
             Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID),
             { body: allCommands }
         );
+        console.log(`✅ Respuesta recibida!`);
 
         console.log(`✅ ${data.length} comandos registrados para el Bot de ECONOMÍA!`);
         console.log('\n📋 Comandos registrados:');

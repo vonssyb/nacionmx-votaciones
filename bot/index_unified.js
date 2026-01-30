@@ -12,6 +12,7 @@ const SingleInstanceLock = require('./services/SingleInstanceLock');
 const startModerationBot = require('./instances/moderation');
 const startEconomyBot = require('./instances/economy');
 const startGovernmentBot = require('./instances/government');
+const startDealershipBot = require('./instances/dealership'); // [NEW]
 
 // --- LOGGING ---
 logger.info('Starting Nacion MX Unified System');
@@ -81,7 +82,8 @@ app.listen(port, '0.0.0.0', () => logger.info('🌐', `Health Server listening o
         const [modClient] = await Promise.all([
             startModerationBot(supabase).catch(e => console.error("❌ [MOD] Failed:", e)),
             startEconomyBot(supabase).catch(e => console.error("❌ [ECO] Failed:", e)),
-            startGovernmentBot(supabase).catch(e => console.error("❌ [GOV] Failed:", e))
+            startGovernmentBot(supabase).catch(e => console.error("❌ [GOV] Failed:", e)),
+            startDealershipBot(supabase).catch(e => console.error("❌ [DEALERSHIP] Failed:", e)) // [NEW]
         ]);
 
         moderationClient = modClient;
