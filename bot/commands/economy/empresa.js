@@ -74,10 +74,6 @@ module.exports = {
                         .setMinValue(1000)))
         .addSubcommand(subcommand =>
             subcommand
-                .setName('reporte')
-                .setDescription('Ver dashboard completo de tu empresa'))
-        .addSubcommand(subcommand =>
-            subcommand
                 .setName('cobrar')
                 .setDescription('Realizar un cobro a un cliente')
                 .addUserOption(option =>
@@ -665,46 +661,6 @@ module.exports = {
                     `~~$${emp.salary.toLocaleString()}~~ → **$${newSalary.toLocaleString()}**/mes`
                 );
 
-            } else if (subcommand === 'reporte') {
-                // Get employees count
-                const { data: employees, count: empCount } = await supabase
-                    .from('company_employees')
-                    .select('*', { count: 'exact' })
-                    .eq('company_id', company.id)
-                    .is('fired_at', null);
-
-                // Get total payroll
-                const totalPayroll = employees?.reduce((sum, e) => sum + (e.salary || 0), 0) || 0;
-
-                // Get recent transactions
-                const { data: transactions } = await supabase
-                    .from('company_transactions')
-                    .select('*')
-                    .eq('company_id', company.id)
-                    .order('created_at', { ascending: false })
-                    .limit(30);
-
-                const income = transactions?.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0) || 0;
-                const expenses = transactions?.filter(t => t.type === 'expense' || t.type === 'payroll').reduce((sum, t) => sum + t.amount, 0) || 0;
-                const netProfit = income - expenses;
-
-                const embed = new EmbedBuilder()
-                    .setTitle(`📊 Reporte de Empresa: ${company.name}`)
-                    .setColor('#3498DB')
-                    .setThumbnail(company.logo_url || null)
-                    .addFields(
-                        { name: '💼 Empleados Activos', value: `${empCount || 0}`, inline: true },
-                        { name: '💰 Nómina Mensual', value: `$${totalPayroll.toLocaleString()}`, inline: true },
-                        { name: '🏦 Balance', value: `$${(company.balance || 0).toLocaleString()}`, inline: true },
-                        { name: '\u200b', value: '\u200b' }, // Spacer
-                        { name: '📈 Ingresos (30d)', value: `$${income.toLocaleString()}`, inline: true },
-                        { name: '📉 Gastos (30d)', value: `$${expenses.toLocaleString()}`, inline: true },
-                        { name: '💎 Ganancia Neta', value: `$${netProfit.toLocaleString()}`, inline: true }
-                    )
-                    .setFooter({ text: `Industria: ${company.industry_type || 'General'}` })
-                    .setTimestamp();
-
-                return interaction.editReply({ embeds: [embed] });
 
             } else if (subcommand === 'retirar') {
                 // Rate limit check (15 seconds)
