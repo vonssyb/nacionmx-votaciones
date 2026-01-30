@@ -2,6 +2,15 @@ const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const PaginationHelper = require('../../utils/PaginationHelper');
 const JobValidator = require('../../services/JobValidator');
 
+// Color scheme for consistent UI
+const COLORS = {
+    SUCCESS: '#2ECC71',    // Verde - Éxito, operaciones completadas
+    INFO: '#3498DB',       // Azul - Información, dashboards
+    WARNING: '#F39C12',    // Amarillo - Advertencias, cooldowns
+    ERROR: '#E74C3C',      // Rojo - Errores
+    CRITICAL: '#E67E22'    // Naranja - Acciones críticas (eliminar, transferir)
+};
+
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('empresa')
@@ -179,7 +188,31 @@ module.exports = {
                             { name: 'Mensual (últimos 30 días)', value: 'monthly' },
                             { name: 'Anual (últimos 365 días)', value: 'yearly' },
                             { name: 'Todo el tiempo', value: 'all' }
-                        ))),
+                        )))
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('buscar')
+                .setDescription('🔍 Buscar empresas públicas en el directorio')
+                .addStringOption(option =>
+                    option.setName('nombre')
+                        .setDescription('Nombre o parte del nombre de la empresa')
+                        .setRequired(false))
+                .addStringOption(option =>
+                    option.setName('tipo')
+                        .setDescription('Tipo de industria')
+                        .setRequired(false)
+                        .addChoices(
+                            { name: 'Comida y Restaurantes', value: 'food' },
+                            { name: 'Transporte y Logística', value: 'transport' },
+                            { name: 'Retail y Comercio', value: 'retail' },
+                            { name: 'Servicios Profesionales', value: 'services' },
+                            { name: 'Entretenimiento', value: 'entertainment' },
+                            { name: 'Construcción', value: 'construction' }
+                        )))
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('ayuda')
+                .setDescription('📖 Guía completa del sistema de empresas')),
 
     async execute(interaction, client, supabase) {
         // Handle autocomplete requests
@@ -1403,6 +1436,106 @@ module.exports = {
                     embeds: [reportEmbed],
                     components: []
                 });
+
+            } else if (subcommand === 'buscar') {
+                const nombreFilter = interaction.options.getString('nombre');
+                const tipoFilter = interaction.options.getString('tipo');
+
+                // Build query
+                let query = supabase
+                    .from('companies')
+                    .select('id, name, balance, logo_url, industry_type, owner_ids, vehicle_count')
+                    .eq('is_private', false) // Only public companies
+                    .order('name');
+
+                // Apply filters
+                if (nombreFilter) {
+                    query = query.ilike('name', `%${nombreFilter}%`);
+                }
+                if (tipoFilter) {
+                    query = query.eq('industry_type', tipoFilter);
+                }
+
+                const { data: companies } = await query.limit(25); // Max 25 results
+
+                if (!companies || companies.length === 0) {
+                    const noResultsEmbed = new EmbedBuilder()
+                        .setTitle('🔍 Sin Resultados')
+                        .setDescription('No se encontraron empresas que coincidan con los criterios de búsqueda.')
+                        .setColor(COLORS.INFO)
+                        .addFields({
+                            name: '💡 Sugerencias',
+                            value: '• Intenta buscar con menos filtros\n• Verifica la ortografía\n• Usa `/empresa ver` para ver empresas específicas'
+                        });
+
+                    return interaction.editReply({ embeds: [noResultsEmbed] });
+                }
+
+                // Create results embed
+                const resultsEmbed = new EmbedBuilder()
+                    .setTitle('🔍 Directorio de Empresas')
+                    .setDescription(`Encontradas: **${companies.length}** empresa${companies.length > 1 ? 's' : ''}`)
+                    .setColor(COLORS.INFO)
+                    .setTimestamp();
+
+                // Add company listings
+                const listings = companies.slice(0, 10).map(comp => {
+                    const ownerMention = comp.owner_ids && comp.owner_ids[0] ? `<@${comp.owner_ids[0]}>` : 'Desconocido';
+                    return `**${comp.name}**\n👤 Dueño: ${ownerMention}\n💰 $${(comp.balance || 0).toLocaleString()} • 🚗 ${comp.vehicle_count || 0} vehículos`;
+                }).join('\n\n');
+
+                resultsEmbed.addFields({
+                    name: '🏢 Empresas',
+                    value: listings || 'Sin empresas'
+                });
+
+                if (companies.length > 10) {
+                    resultsEmbed.setFooter({ text: `Mostrando 10 de ${companies.length} resultados` });
+                }
+
+                await interaction.editReply({ embeds: [resultsEmbed] });
+
+            } else if (subcommand === 'ayuda') {
+                const helpEmbed = new EmbedBuilder()
+                    .setTitle('📖 Guía del Sistema de Empresas')
+                    .setDescription('Aprende a gestionar tu empresa en NacionMX')
+                    .setColor(COLORS.INFO)
+                    .addFields(
+                        {
+                            name: '🏢 Gestión Básica',
+                            value: '`/empresa crear` - Crear nueva empresa\n`/empresa ver` - Ver información de empresa\n`/empresa dashboard` - Panel de control completo\n`/empresa eliminar` - Eliminar tu empresa',
+                            inline: false
+                        },
+                        {
+                            name: '💰 Finanzas',
+                            value: '`/empresa depositar` - Agregar fondos ($100 - $10M)\n`/empresa retirar` - Retirar fondos ($100 - $10M)\n`/empresa cobrar` - Facturar a clientes\n`/empresa reporte` - Análisis financiero detallado',
+                            inline: false
+                        },
+                        {
+                            name: '👥 Empleados',
+                            value: '`/empresa contratar` - Contratar empleado ($1k - $1M/mes)\n`/empresa despedir` - Despedir empleado\n`/empresa salario` - Ajustar salario de empleado',
+                            inline: false
+                        },
+                        {
+                            name: '🔍 Otros Comandos',
+                            value: '`/empresa buscar` - Buscar empresas públicas\n`/empresa transferir` - Cambiar dueño de empresa\n`/empresa actualizar` - Editar información',
+                            inline: false
+                        },
+                        {
+                            name: '⚡ Cooldowns',
+                            value: '**Transferir:** 30s\n**Retirar:** 15s\n**Cobrar/Depositar:** 10s',
+                            inline: true
+                        },
+                        {
+                            name: '💡 Consejos',
+                            value: '• Mantén balance positivo para nómina\n• Usa `/empresa reporte` para análisis\n• Las empresas privadas no aparecen en búsquedas',
+                            inline: true
+                        }
+                    )
+                    .setFooter({ text: 'Sistema de Empresas NacionMX' })
+                    .setTimestamp();
+
+                await interaction.editReply({ embeds: [helpEmbed] });
             }
 
         } catch (error) {
