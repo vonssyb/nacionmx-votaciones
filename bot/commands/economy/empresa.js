@@ -162,7 +162,15 @@ module.exports = {
                 .addAttachmentOption(option =>
                     option.setName('foto_local')
                         .setDescription('Nueva foto del local')
-                        .setRequired(false))),
+                        .setRequired(false)))
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('eliminar')
+                .setDescription('⚠️ Eliminar permanentemente tu empresa'))
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('dashboard')
+                .setDescription('📊 Ver panel de control y estadísticas de tu empresa')),
 
     async execute(interaction, client, supabase) {
         if (!interaction.deferred && !interaction.replied) {
@@ -653,6 +661,19 @@ module.exports = {
                 return interaction.editReply({ embeds: [embed] });
 
             } else if (subcommand === 'retirar') {
+                // Rate limit check (15 seconds)
+                const rateLimitCheck = client.services.rateLimit.checkCooldown(
+                    interaction.user.id,
+                    'empresa_retirar',
+                    15000
+                );
+
+                if (!rateLimitCheck.allowed) {
+                    return interaction.editReply(
+                        `⏳ Debes esperar **${rateLimitCheck.remaining}s** antes de retirar fondos nuevamente.`
+                    );
+                }
+
                 // Only owners can withdraw
                 if (!isOwner) {
                     return interaction.editReply('❌ Solo el dueño puede retirar fondos de la empresa.');
@@ -702,6 +723,19 @@ module.exports = {
                 return interaction.editReply({ embeds: [embed] });
 
             } else if (subcommand === 'depositar') {
+                // Rate limit check (10 seconds)
+                const rateLimitCheck = client.services.rateLimit.checkCooldown(
+                    interaction.user.id,
+                    'empresa_depositar',
+                    10000
+                );
+
+                if (!rateLimitCheck.allowed) {
+                    return interaction.editReply(
+                        `⏳ Debes esperar **${rateLimitCheck.remaining}s** antes de depositar nuevamente.`
+                    );
+                }
+
                 const monto = interaction.options.getInteger('monto');
 
                 // Check user balance (cash + bank)
@@ -785,6 +819,19 @@ module.exports = {
                 return interaction.editReply({ embeds: [embed] });
 
             } else if (subcommand === 'transferir') {
+                // Rate limit check (30 seconds)
+                const rateLimitCheck = client.services.rateLimit.checkCooldown(
+                    interaction.user.id,
+                    'empresa_transferir',
+                    30000
+                );
+
+                if (!rateLimitCheck.allowed) {
+                    return interaction.editReply(
+                        `⏳ Debes esperar **${rateLimitCheck.remaining}s** antes de transferir otra empresa.`
+                    );
+                }
+
                 // Only current owners can transfer
                 if (!isOwner) {
                     return interaction.editReply('❌ Solo un dueño puede transferir la empresa.');
@@ -818,6 +865,19 @@ module.exports = {
                 return interaction.editReply({ embeds: [embed] });
 
             } else if (subcommand === 'cobrar') {
+                // Rate limit check (10 seconds)
+                const rateLimitCheck = client.services.rateLimit.checkCooldown(
+                    interaction.user.id,
+                    'empresa_cobrar',
+                    10000
+                );
+
+                if (!rateLimitCheck.allowed) {
+                    return interaction.editReply(
+                        `⏳ Debes esperar **${rateLimitCheck.remaining}s** antes de cobrar nuevamente.`
+                    );
+                }
+
                 const cliente = interaction.options.getUser('cliente');
                 const monto = interaction.options.getInteger('monto');
                 const concepto = interaction.options.getString('concepto');
@@ -861,6 +921,357 @@ module.exports = {
                     content: `<@${cliente.id}>`, // Ping client
                     embeds: [embed],
                     components: [row]
+                });
+
+            } else if (subcommand === 'eliminar') {
+                const { ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
+                const CompanyService = require('../../services/CompanyService');
+
+                // Get user's companies (must be owner)
+                const { data: ownedCompanies } = await supabase
+                    .from('companies')
+                    .select('*')
+                    .contains('owner_ids', [interaction.user.id]);
+
+                if (!ownedCompanies || ownedCompanies.length === 0) {
+                    return interaction.editReply('❌ No tienes ninguna empresa registrada.');
+                }
+
+                let selectedCompany = null;
+
+                if (ownedCompanies.length > 1) {
+                    // Multiple companies - show selector
+                    const { StringSelectMenuBuilder } = require('discord.js');
+
+                    const selectMenu = new StringSelectMenuBuilder()
+                        .setCustomId(`empresa_select_delete_${interaction.user.id}`)
+                        .setPlaceholder('Selecciona la empresa a eliminar')
+                        .addOptions(ownedCompanies.map(comp => ({
+                            label: comp.name,
+                            description: `Balance: $${(comp.balance || 0).toLocaleString()}`,
+                            value: comp.id
+                        })));
+
+                    const row = new ActionRowBuilder().addComponents(selectMenu);
+
+                    await interaction.editReply({
+                        content: '⚠️ **Selecciona la empresa que deseas eliminar:**',
+                        components: [row]
+                    });
+
+                    // Wait for selection
+                    const filter = i => i.customId.startsWith('empresa_select_delete_') && i.user.id === interaction.user.id;
+                    const collected = await interaction.channel.awaitMessageComponent({
+                        filter,
+                        time: 60000
+                    }).catch(() => null);
+
+                    if (!collected) {
+                        return interaction.editReply({
+                            content: '⏱️ Tiempo agotado para seleccionar empresa.',
+                            components: []
+                        });
+                    }
+
+                    await collected.deferUpdate();
+                    const selectedId = collected.values[0];
+                    selectedCompany = ownedCompanies.find(c => c.id === selectedId);
+                } else {
+                    selectedCompany = ownedCompanies[0];
+                }
+
+                // Get employees count
+                const { data: employees } = await supabase
+                    .from('company_employees')
+                    .select('user_id')
+                    .eq('company_id', selectedCompany.id);
+
+                const employeeCount = employees?.length || 0;
+
+                // Show confirmation
+                const confirmEmbed = new EmbedBuilder()
+                    .setTitle('⚠️ Confirmar Eliminación de Empresa')
+                    .setColor('#E74C3C')
+                    .setDescription(`Estás a punto de **eliminar permanentemente** la siguiente empresa:`)
+                    .addFields(
+                        { name: '🏢 Empresa', value: selectedCompany.name, inline: true },
+                        { name: '💰 Balance', value: `$${(selectedCompany.balance || 0).toLocaleString()}`, inline: true },
+                        { name: '👥 Empleados', value: `${employeeCount}`, inline: true }
+                    )
+                    .setFooter({ text: '⚠️ Esta acción NO se puede deshacer' })
+                    .setTimestamp();
+
+                if (selectedCompany.balance > 0) {
+                    confirmEmbed.addFields({
+                        name: '💵 Transferencia',
+                        value: `El balance de $${selectedCompany.balance.toLocaleString()} será transferido a tu cuenta.`,
+                        inline: false
+                    });
+                }
+
+                const confirmButton = new ButtonBuilder()
+                    .setCustomId(`confirm_delete_${selectedCompany.id}_${Date.now()}`)
+                    .setLabel('Sí, eliminar empresa')
+                    .setStyle(ButtonStyle.Danger)
+                    .setEmoji('🗑️');
+
+                const cancelButton = new ButtonBuilder()
+                    .setCustomId('cancel_delete')
+                    .setLabel('Cancelar')
+                    .setStyle(ButtonStyle.Secondary);
+
+                const buttonRow = new ActionRowBuilder().addComponents(confirmButton, cancelButton);
+
+                await interaction.editReply({
+                    embeds: [confirmEmbed],
+                    components: [buttonRow]
+                });
+
+                // Wait for confirmation
+                const btnFilter = i => i.user.id === interaction.user.id;
+                const btnCollected = await interaction.channel.awaitMessageComponent({
+                    filter: btnFilter,
+                    time: 30000
+                }).catch(() => null);
+
+                if (!btnCollected) {
+                    return interaction.editReply({
+                        content: '⏱️ Confirmación expirada. Empresa no eliminada.',
+                        embeds: [],
+                        components: []
+                    });
+                }
+
+                await btnCollected.deferUpdate();
+
+                if (btnCollected.customId === 'cancel_delete') {
+                    return interaction.editReply({
+                        content: '✅ Eliminación cancelada.',
+                        embeds: [],
+                        components: []
+                    });
+                }
+
+                // Proceed with deletion
+                try {
+                    // 1. Transfer balance to owner
+                    if (selectedCompany.balance > 0) {
+                        const { data: ownerProfile } = await supabase
+                            .from('profiles')
+                            .select('balance')
+                            .eq('user_id', interaction.user.id)
+                            .single();
+
+                        const newBalance = (ownerProfile?.balance || 0) + selectedCompany.balance;
+
+                        await supabase
+                            .from('profiles')
+                            .update({ balance: newBalance })
+                            .eq('user_id', interaction.user.id);
+
+                        // Log transaction
+                        await supabase.from('money_history').insert({
+                            user_id: interaction.user.id,
+                            amount: selectedCompany.balance,
+                            previous_balance: ownerProfile?.balance || 0,
+                            new_balance: newBalance,
+                            type: 'company_dissolution',
+                            description: `Liquidación de empresa: ${selectedCompany.name}`
+                        });
+                    }
+
+                    // 2. Delete employees
+                    if (employeeCount > 0) {
+                        await supabase
+                            .from('company_employees')
+                            .delete()
+                            .eq('company_id', selectedCompany.id);
+                    }
+
+                    // 3. Delete company
+                    await supabase
+                        .from('companies')
+                        .delete()
+                        .eq('id', selectedCompany.id);
+
+                    // 4. Remove businessman role if no more companies
+                    await CompanyService.removeBusinessmanRole(interaction.guild, interaction.user.id, supabase);
+
+                    // Success message
+                    const successEmbed = new EmbedBuilder()
+                        .setTitle('✅ Empresa Eliminada')
+                        .setColor('#2ECC71')
+                        .setDescription(`La empresa **${selectedCompany.name}** ha sido eliminada exitosamente.`)
+                        .setTimestamp();
+
+                    if (selectedCompany.balance > 0) {
+                        successEmbed.addFields({
+                            name: '💰 Fondos Transferidos',
+                            value: `$${selectedCompany.balance.toLocaleString()} han sido agregados a tu cuenta.`,
+                            inline: false
+                        });
+                    }
+
+                    await interaction.editReply({
+                        embeds: [successEmbed],
+                        components: []
+                    });
+
+                } catch (deleteError) {
+                    console.error('[empresa eliminar] Error:', deleteError);
+                    return interaction.editReply({
+                        content: '❌ Error al eliminar la empresa. Intenta de nuevo.',
+                        embeds: [],
+                        components: []
+                    });
+                }
+
+            } else if (subcommand === 'dashboard') {
+                const CompanyService = require('../../services/CompanyService');
+
+                // Get user's companies
+                const { data: ownedCompanies } = await supabase
+                    .from('companies')
+                    .select('*')
+                    .contains('owner_ids', [interaction.user.id]);
+
+                if (!ownedCompanies || ownedCompanies.length === 0) {
+                    return interaction.editReply('❌ No tienes ninguna empresa registrada.');
+                }
+
+                let selectedCompany = ownedCompanies[0];
+
+                // If multiple companies, show selector
+                if (ownedCompanies.length > 1) {
+                    const { StringSelectMenuBuilder, ActionRowBuilder } = require('discord.js');
+
+                    const selectMenu = new StringSelectMenuBuilder()
+                        .setCustomId(`empresa_select_dashboard_${interaction.user.id}`)
+                        .setPlaceholder('Selecciona la empresa para ver su dashboard')
+                        .addOptions(ownedCompanies.map(comp => ({
+                            label: comp.name,
+                            description: `Balance: $${(comp.balance || 0).toLocaleString()}`,
+                            value: comp.id
+                        })));
+
+                    const row = new ActionRowBuilder().addComponents(selectMenu);
+
+                    await interaction.editReply({
+                        content: '🏢 **Selecciona la empresa:**',
+                        components: [row]
+                    });
+
+                    const filter = i => i.customId.startsWith('empresa_select_dashboard_') && i.user.id === interaction.user.id;
+                    const collected = await interaction.channel.awaitMessageComponent({
+                        filter,
+                        time: 60000
+                    }).catch(() => null);
+
+                    if (!collected) {
+                        return interaction.editReply({
+                            content: '⏱️ Tiempo agotado.',
+                            components: []
+                        });
+                    }
+
+                    await collected.deferUpdate();
+                    const selectedId = collected.values[0];
+                    selectedCompany = ownedCompanies.find(c => c.id === selectedId);
+                }
+
+                // Get company stats
+                const stats = await CompanyService.getCompanyStats(supabase, selectedCompany.id);
+
+                if (!stats) {
+                    return interaction.editReply('❌ Error al obtener estadísticas de la empresa.');
+                }
+
+                // Build dashboard embed
+                const dashboardEmbed = new EmbedBuilder()
+                    .setTitle(`📊 Dashboard: ${stats.company.name}`)
+                    .setColor('#3498DB')
+                    .setThumbnail(stats.company.logo_url || null)
+                    .setTimestamp();
+
+                // Balance and vehicles
+                dashboardEmbed.addFields(
+                    { name: '💰 Balance', value: `$${(stats.company.balance || 0).toLocaleString()}`, inline: true },
+                    { name: '🚗 Vehículos', value: `${stats.company.vehicle_count || 0}`, inline: true },
+                    { name: '👥 Empleados', value: `${stats.employeeCount}`, inline: true }
+                );
+
+                // Payroll
+                if (stats.totalPayroll > 0) {
+                    dashboardEmbed.addFields({
+                        name: '💵 Nómina Mensual Total',
+                        value: `$${stats.totalPayroll.toLocaleString()}`,
+                        inline: false
+                    });
+                }
+
+                // Employees list
+                if (stats.employees.length > 0) {
+                    const employeeList = stats.employees
+                        .slice(0, 5) // Show max 5
+                        .map(emp => `• <@${emp.user_id}> - ${emp.role || 'Empleado'} ($${(emp.salary || 0).toLocaleString()}/mes)`)
+                        .join('\n');
+
+                    dashboardEmbed.addFields({
+                        name: '👔 Empleados Activos',
+                        value: employeeList + (stats.employees.length > 5 ? `\n...y ${stats.employees.length - 5} más` : ''),
+                        inline: false
+                    });
+                }
+
+                // Recent transactions
+                if (stats.transactions.length > 0) {
+                    const txList = stats.transactions
+                        .slice(0, 3) // Show max 3
+                        .map(tx => {
+                            const amount = tx.amount || 0;
+                            const type = tx.type || 'unknown';
+                            const sign = amount >= 0 ? '+' : '';
+                            return `• ${sign}$${amount.toLocaleString()} - ${type}`;
+                        })
+                        .join('\n');
+
+                    dashboardEmbed.addFields({
+                        name: '📊 Últimas Transacciones',
+                        value: txList || 'Sin transacciones recientes',
+                        inline: false
+                    });
+                }
+
+                // Quick action buttons
+                const { ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
+
+                const buttons = new ActionRowBuilder().addComponents(
+                    new ButtonBuilder()
+                        .setLabel('Contratar')
+                        .setCustomId(`quickaction_hire_${selectedCompany.id}`)
+                        .setStyle(ButtonStyle.Success)
+                        .setEmoji('👨‍💼'),
+                    new ButtonBuilder()
+                        .setLabel('Ver Menú')
+                        .setURL(selectedCompany.menu_url || '#')
+                        .setStyle(ButtonStyle.Link)
+                        .setEmoji('📋')
+                        .setDisabled(!selectedCompany.menu_url)
+                );
+
+                if (selectedCompany.discord_server) {
+                    buttons.addComponents(
+                        new ButtonBuilder()
+                            .setLabel('Discord')
+                            .setURL(selectedCompany.discord_server)
+                            .setStyle(ButtonStyle.Link)
+                            .setEmoji('💬')
+                    );
+                }
+
+                await interaction.editReply({
+                    embeds: [dashboardEmbed],
+                    components: [buttons]
                 });
             }
 

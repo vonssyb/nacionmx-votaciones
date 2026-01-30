@@ -22,6 +22,7 @@ const CasinoService = require('../services/CasinoService');
 const StockService = require('../services/StockService');
 const StateManager = require('../services/StateManager');
 const EconomyScheduler = require('../services/EconomyScheduler');
+const RateLimitService = require('../services/RateLimitService');
 
 // Orchestrators
 const CompanyOrchestrator = require('../handlers/economy/company/orchestrator');
@@ -62,6 +63,13 @@ async function startEconomyBot(supabase) {
     const scheduler = new EconomyScheduler(client, supabase);
     scheduler.start();
 
+    // Rate Limit Service
+    const rateLimitService = new RateLimitService();
+    // Cleanup every hour
+    setInterval(() => {
+        rateLimitService.cleanup();
+    }, 3600000);
+
     // Company Handlers
     const companyManagementHandler = new CompanyManagementHandler(client, supabase, paymentProcessor, billingService, stateManager);
     const companyOrchestrator = new CompanyOrchestrator(client, supabase, paymentProcessor, billingService, companyManagementHandler);
@@ -84,7 +92,8 @@ async function startEconomyBot(supabase) {
         exchangeRate: new ExchangeRateService(supabase),
         exchangeRate: new ExchangeRateService(supabase),
         stateManager: stateManager,
-        scheduler: scheduler
+        scheduler: scheduler,
+        rateLimit: rateLimitService
     };
 
     // Load Commands
