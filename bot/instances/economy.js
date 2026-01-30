@@ -96,6 +96,9 @@ async function startEconomyBot(supabase) {
         rateLimit: rateLimitService
     };
 
+    // Expose casino service shortcut for commands
+    client.casinoService = casinoService;
+
     // Load Commands
     const loader = require('../handlers/commandLoader');
     await loader.loadCommands(client, path.join(__dirname, '../commands'), ['economy', 'business', 'games']);
@@ -150,6 +153,12 @@ async function startEconomyBot(supabase) {
         if (!rateLimiter.check(interaction.user.id)) return interaction.reply({ content: '⏳ Anti-Spam activado.', ephemeral: true }).catch(() => { });
 
         try {
+            // Handle Casino Interactions (Blackjack Buttons)
+            if (interaction.isButton() && interaction.customId.startsWith('btn_bj_')) {
+                await casinoService.handleBlackjackInteraction(interaction);
+                return;
+            }
+
             if (interaction.isChatInputCommand()) {
                 const command = client.commands.get(interaction.commandName);
                 if (command) {
