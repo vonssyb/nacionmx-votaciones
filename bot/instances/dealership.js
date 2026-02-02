@@ -8,6 +8,7 @@ const { GUILDS } = require('../config/constants');
 
 // We will load services later as we build them
 const DealershipService = require('../services/DealershipService');
+const dealershipPaymentHandler = require('../handlers/dealershipPaymentHandler');
 
 async function startDealershipBot(supabase) {
     logger.info('🚗', 'Starting Dealership Bot...');
@@ -82,7 +83,17 @@ async function startDealershipBot(supabase) {
                     if (!await safeDefer(interaction, { ephemeral: command.ephemeral || false })) return;
                     await command.execute(interaction, client, supabase);
                 }
-                return;
+            }
+
+            // --- HANDLER FOR PAYMENT BUTTONS (Purchase System) ---
+            if (interaction.isButton() && (
+                interaction.customId.startsWith('pay_cash_') ||
+                interaction.customId.startsWith('pay_finance_') ||
+                interaction.customId.startsWith('cancel_sale_') ||
+                interaction.customId.startsWith('approve_sale_')
+            )) {
+                const handled = await dealershipPaymentHandler(interaction, client, supabase);
+                if (handled) return;
             }
 
             // --- HANDLER FOR CATALOG (Buttons & Selects) ---
