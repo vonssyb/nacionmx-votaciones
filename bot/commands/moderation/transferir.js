@@ -406,16 +406,46 @@ async function executeTransfer(interaction, client, supabase, sourceUser, destUs
     transferLog.sanctions = warnings?.length || 0;
 
     // 7. TRANSFER ADDITIONAL DATA
-    await interaction.editReply({ content: '⏳ [7/8] Transfiriendo datos adicionales (préstamos, casino, etc.)...' });
+    await interaction.editReply({ content: '⏳ [7/8] Transfiriendo datos adicionales (préstamos, casino, niveles, logros, vehículos, etc.)...' });
 
-    // Loans
+    // Financial Systems
     await supabase.from('loans').update({ user_id: destUser.id }).eq('user_id', sourceUser.id);
-
-    // Savings
+    await supabase.from('loan_payments').update({ user_id: destUser.id }).eq('user_id', sourceUser.id);
     await supabase.from('savings_accounts').update({ user_id: destUser.id }).eq('user_id', sourceUser.id);
+    await supabase.from('savings_transactions').update({ user_id: destUser.id }).eq('user_id', sourceUser.id);
 
-    // Casino chips
+    // Casino Systems
     await supabase.from('casino_chips').update({ user_id: destUser.id }).eq('user_id', sourceUser.id);
+    await supabase.from('casino_stats').update({ user_id: destUser.id }).eq('user_id', sourceUser.id);
+    await supabase.from('casino_history').update({ user_id: destUser.id }).eq('user_id', sourceUser.id);
+
+    // Progression Systems (NEW)
+    await supabase.from('user_levels').update({ user_id: destUser.id }).eq('user_id', sourceUser.id);
+    await supabase.from('user_achievements').update({ user_id: destUser.id }).eq('user_id', sourceUser.id);
+    await supabase.from('user_missions').update({ user_id: destUser.id }).eq('user_id', sourceUser.id);
+
+    // Engagement Systems (NEW)
+    await supabase.from('user_streaks').update({ user_id: destUser.id }).eq('user_id', sourceUser.id);
+    await supabase.from('daily_rewards').update({ user_id: destUser.id }).eq('user_id', sourceUser.id);
+    await supabase.from('daily_reward_claims').update({ user_id: destUser.id }).eq('user_id', sourceUser.id);
+
+    // Vehicles & Licenses (NEW)
+    await supabase.from('vehicles').update({ user_id: destUser.id }).eq('user_id', sourceUser.id);
+    await supabase.from('user_licenses').update({ user_id: destUser.id }).eq('user_id', sourceUser.id);
+
+    // Police & Legal (NEW)
+    await supabase.from('arrests').update({ arrested_user_id: destUser.id }).eq('arrested_user_id', sourceUser.id);
+    await supabase.from('arrests').update({ arrested_by: destUser.id }).eq('arrested_by', sourceUser.id);
+
+    // Work Systems (NEW)
+    await supabase.from('job_shifts').update({ user_id: destUser.id }).eq('user_id', sourceUser.id);
+    await supabase.from('payroll_groups').update({ user_id: destUser.id }).eq('user_id', sourceUser.id);
+
+    // Voice Activity (NEW)
+    await supabase.from('voice_activity').update({ user_id: destUser.id }).eq('user_id', sourceUser.id);
+    await supabase.from('whisper_logs').update({ user_id: destUser.id }).eq('user_id', sourceUser.id);
+    await supabase.from('voice_stats_summary').update({ user_id: destUser.id }).eq('user_id', sourceUser.id);
+
 
     // 8. TRANSFER NICKNAME
     await interaction.editReply({ content: '⏳ [8/9] Transfiriendo apodo del servidor...' });
