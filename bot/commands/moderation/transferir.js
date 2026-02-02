@@ -90,6 +90,7 @@ module.exports = {
                 `Esta acción es **IRREVERSIBLE** y realizará:\n\n` +
                 `✅ Transferir dinero (cash + banco)\n` +
                 `✅ Transferir **TODOS** los roles (incluyendo staff)\n` +
+                `✅ Transferir apodo del servidor\n` +
                 `✅ Transferir DNI y ciudadanía\n` +
                 `✅ Transferir tarjetas de crédito/débito\n` +
                 `✅ Transferir propiedad de empresas\n` +
@@ -223,7 +224,8 @@ async function executeTransfer(interaction, client, supabase, sourceUser, destUs
         companies: 0,
         cards: 0,
         purchases: 0,
-        sanctions: 0
+        sanctions: 0,
+        nickname: null
     };
 
     // 1. TRANSFER MONEY
@@ -415,8 +417,24 @@ async function executeTransfer(interaction, client, supabase, sourceUser, destUs
     // Casino chips
     await supabase.from('casino_chips').update({ user_id: destUser.id }).eq('user_id', sourceUser.id);
 
-    // 8. TRANSFER ROLES
-    await interaction.editReply({ content: '⏳ [8/8] Transfiriendo roles...' });
+    // 8. TRANSFER NICKNAME
+    await interaction.editReply({ content: '⏳ [8/9] Transfiriendo apodo del servidor...' });
+
+    const sourceNickname = sourceMember.nickname;
+    if (sourceNickname) {
+        try {
+            await destMember.setNickname(sourceNickname, `Transferencia de ${sourceUser.tag}: ${razon}`);
+            transferLog.nickname = sourceNickname;
+
+            // Clear source nickname
+            await sourceMember.setNickname(null, 'Transferencia completa').catch(() => { });
+        } catch (e) {
+            console.error('[TRANSFERIR] Failed to transfer nickname:', e.message);
+        }
+    }
+
+    // 9. TRANSFER ROLES
+    await interaction.editReply({ content: '⏳ [9/9] Transfiriendo roles...' });
 
     for (const role of rolesToTransfer.values()) {
         try {
@@ -463,6 +481,7 @@ async function executeTransfer(interaction, client, supabase, sourceUser, destUs
             { name: '👤 Ejecutado por', value: `<@${interaction.user.id}>`, inline: true },
             { name: '💰 Dinero Transferido', value: `$${transferLog.money.toLocaleString()}`, inline: true },
             { name: '🎭 Roles Transferidos', value: `${transferLog.roles}`, inline: true },
+            { name: '✏️ Apodo Transferido', value: transferLog.nickname || 'N/A', inline: true },
             { name: '🏢 Empresas Transferidas', value: `${transferLog.companies}`, inline: true },
             { name: '💳 Tarjetas Transferidas', value: `${transferLog.cards}`, inline: true },
             { name: '🛒 Compras Transferidas', value: `${transferLog.purchases}`, inline: true },
@@ -504,6 +523,7 @@ async function executeTransfer(interaction, client, supabase, sourceUser, destUs
                         name: 'Datos Transferidos', value:
                             `💰 Dinero: $${transferLog.money.toLocaleString()}\n` +
                             `🎭 Roles: ${transferLog.roles}\n` +
+                            `✏️ Apodo: ${transferLog.nickname || 'N/A'}\n` +
                             `🏢 Empresas: ${transferLog.companies}\n` +
                             `💳 Tarjetas: ${transferLog.cards}\n` +
                             `🛒 Compras: ${transferLog.purchases}\n` +
