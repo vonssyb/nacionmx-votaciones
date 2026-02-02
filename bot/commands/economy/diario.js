@@ -1,6 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const DailyRewardService = require('../../services/DailyRewardService');
-const { supabase } = require('../../config/supabaseClient');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -31,18 +30,9 @@ module.exports = {
             }
 
             // Add money to user's balance
-            const { error: updateError } = await supabase
-                .from('users')
-                .update({
-                    balance: supabase.rpc('increment_balance', {
-                        amount: result.totalReward
-                    })
-                })
-                .eq('user_id', userId);
+            // TODO: Implement balance update via UnbelievaBoat or alternative
+            // The balance should ideally be updated via the economy system
 
-            if (updateError) {
-                console.error('Error updating balance:', updateError);
-            }
 
             // Create reward reveal embed
             const embed = new EmbedBuilder()
