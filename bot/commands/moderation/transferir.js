@@ -86,17 +86,17 @@ module.exports = {
             .setTitle('⚠️ TRANSFERENCIA TOTAL DE USUARIO')
             .setColor('#FF6600')
             .setDescription(
-                `Estás a punto de transferir **ABSOLUTAMENTE TODO** de **${sourceUser.tag}** a **${destUser.tag}**.\\n\\n` +
-                `Esta acción es **IRREVERSIBLE** y realizará:\\n\\n` +
-                `✅ Transferir dinero (cash + banco)\\n` +
-                `✅ Transferir **TODOS** los roles (incluyendo staff)\\n` +
-                `✅ Transferir DNI y ciudadanía\\n` +
-                `✅ Transferir tarjetas de crédito/débito\\n` +
-                `✅ Transferir propiedad de empresas\\n` +
-                `✅ Transferir compras de tienda\\n` +
-                `✅ Transferir sanciones e historial\\n` +
-                `✅ Transferir préstamos, casino chips, etc.\\n\\n` +
-                `❌ **EL USUARIO ORIGEN SERÁ KICKEADO** del servidor\\n\\n` +
+                `Estás a punto de transferir **ABSOLUTAMENTE TODO** de **${sourceUser.tag}** a **${destUser.tag}**.\n\n` +
+                `Esta acción es **IRREVERSIBLE** y realizará:\n\n` +
+                `✅ Transferir dinero (cash + banco)\n` +
+                `✅ Transferir **TODOS** los roles (incluyendo staff)\n` +
+                `✅ Transferir DNI y ciudadanía\n` +
+                `✅ Transferir tarjetas de crédito/débito\n` +
+                `✅ Transferir propiedad de empresas\n` +
+                `✅ Transferir compras de tienda\n` +
+                `✅ Transferir sanciones e historial\n` +
+                `✅ Transferir préstamos, casino chips, etc.\n\n` +
+                `❌ **EL USUARIO ORIGEN SERÁ KICKEADO** del servidor\n\n` +
                 `**Razón:** ${razon}`
             )
             .addFields(
@@ -441,11 +441,11 @@ async function executeTransfer(interaction, client, supabase, sourceUser, destUs
                     { name: 'Razón', value: razon, inline: false },
                     {
                         name: 'Datos Transferidos', value:
-                            `💰 Dinero: $${transferLog.money.toLocaleString()}\\n` +
-                            `🎭 Roles: ${transferLog.roles}\\n` +
-                            `🏢 Empresas: ${transferLog.companies}\\n` +
-                            `💳 Tarjetas: ${transferLog.cards}\\n` +
-                            `🛒 Compras: ${transferLog.purchases}\\n` +
+                            `💰 Dinero: $${transferLog.money.toLocaleString()}\n` +
+                            `🎭 Roles: ${transferLog.roles}\n` +
+                            `🏢 Empresas: ${transferLog.companies}\n` +
+                            `💳 Tarjetas: ${transferLog.cards}\n` +
+                            `🛒 Compras: ${transferLog.purchases}\n` +
                             `⚠️ Sanciones: ${transferLog.sanctions}`,
                         inline: false
                     }
