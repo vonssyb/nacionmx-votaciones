@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, PermissionFlagBits } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, PermissionsBitField } = require('discord.js');
 const logger = require('../../services/Logger');
 
 const LOG_CHANNEL = '1457457209268109516'; // Canal de logs de ausencias
@@ -13,7 +13,7 @@ module.exports = {
                 .setRequired(false)
                 .setMinValue(1)
                 .setMaxValue(100))
-        .setDefaultMemberPermissions(PermissionFlagBits.Administrator),
+        .setDefaultMemberPermissions(PermissionsBitField.Flags.Administrator),
 
     async execute(interaction, client, supabase) {
         await interaction.deferReply({ ephemeral: true });
