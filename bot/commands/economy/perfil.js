@@ -420,6 +420,32 @@ module.exports = {
 
             embed.addFields({ name: '💼 Finanzas', value: economyText, inline: false });
 
+            // Streak/Activity Section
+            try {
+                const StreakService = require('../../services/StreakService');
+                const streak = await StreakService.getStreak(targetUser.id);
+
+                if (streak && streak.current_streak > 0) {
+                    const badge = StreakService.getStreakBadge(streak);
+                    const streakEmoji = StreakService.getStreakEmoji(streak.current_streak);
+
+                    let streakText = `${streakEmoji} **Racha Actual:** ${streak.current_streak} días\n`;
+                    streakText += `🏆 **Récord Personal:** ${streak.longest_streak} días`;
+
+                    if (badge) {
+                        streakText += `\n${badge}`;
+                    }
+
+                    embed.addFields({
+                        name: '🔥 Actividad',
+                        value: streakText,
+                        inline: false
+                    });
+                }
+            } catch (e) {
+                console.error('[perfil] Failed to fetch streak data:', e.message);
+            }
+
             // Licenses Section
             if (licenses.length > 0) {
                 embed.addFields({

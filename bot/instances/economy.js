@@ -177,6 +177,13 @@ async function startEconomyBot(supabase) {
                 return;
             }
 
+            // Handle Ranking Category Selection (Dropdown Menu)
+            if (interaction.isStringSelectMenu() && interaction.customId === 'ranking_category') {
+                const { handleRankingCategorySelect } = require('../handlers/rankingHandler');
+                await handleRankingCategorySelect(interaction);
+                return;
+            }
+
             if (interaction.isChatInputCommand()) {
                 const command = client.commands.get(interaction.commandName);
                 if (command) {

@@ -22,7 +22,32 @@ class EconomyScheduler {
             await this.checkOverdueLoans();
         });
 
-        // 3. Weekly Fiscal Check (Companies) - Placeholder for future taxes
+        // 3. Random Server Events (Every 6 hours check for new event)
+        cron.schedule('0 */6 * * *', async () => {
+            await this.triggerRandomEvent();
+        });
+
+        // 4. Weekly Fiscal Check (Companies) - Placeholder for future taxes
+
+        logger.info('All economy schedulers registered successfully');
+    }
+
+    async triggerRandomEvent() {
+        logger.info('Checking for random event trigger...');
+        try {
+            const EventService = require('./EventService');
+            const EVENT_CHANNEL_ID = process.env.EVENT_CHANNEL_ID || '1452346918620500041'; // Default to banco logs
+
+            // 50% chance to trigger an event when this runs
+            if (Math.random() < 0.5) {
+                await EventService.startRandomEvent(this.client, EVENT_CHANNEL_ID);
+                logger.info('Random event started');
+            } else {
+                logger.info('No event triggered this time');
+            }
+        } catch (error) {
+            logger.errorWithContext('Error triggering random event', error);
+        }
     }
 
     async processCreditCardInterests() {

@@ -108,7 +108,7 @@ module.exports = {
             await interaction.editReply({ embeds: [embed] });
         }
 
-        // 3. SALIDA (Clock Out)
+        // 3. SALIDA (Clock Out) - NOW WITH STREAK TRACKING
         if (subCmd === 'salida') {
             const { data: shift } = await supabase
                 .from('job_shifts')
@@ -132,16 +132,67 @@ module.exports = {
                 duration_minutes: durationMins
             }).eq('id', shift.id);
 
+            // Update streak and get bonus
+            const StreakService = require('../../services/StreakService');
+            const streakResult = await StreakService.updateStreak(interaction.user.id);
+
             const embed = new EmbedBuilder()
                 .setTitle('🛑 Turno Finalizado')
-                .setColor('#E74C3C')
+                .setColor(streakResult.isNewRecord ? '#FFD700' : '#E74C3C')
                 .addFields(
                     { name: '👤 Trabajador', value: shift.full_name, inline: true },
                     { name: '⏱️ Duración', value: `${durationMins} minutos`, inline: true },
                     { name: '🕒 Salida', value: moment(clockOut).tz('America/Mexico_City').format('HH:mm:ss'), inline: true }
-                )
-                .setFooter({ text: 'Nación MX | Registro de Jornada' })
-                .setTimestamp();
+                );
+
+            // Add streak info if applicable
+            if (streakResult.canClaim) {
+                const streakEmoji = StreakService.getStreakEmoji(streakResult.currentStreak);
+                embed.addFields({
+                    name: `${streakEmoji} Racha de Trabajo`,
+                    value: `**${streakResult.currentStreak}** días consecutivos`,
+                    inline: true
+                });
+
+                if (streakResult.bonus > 0) {
+                    embed.addFields({
+                        name: '💰 Bonus por Racha',
+                        value: `+$${streakResult.bonus.toLocaleString()}`,
+                        inline: true
+                    });
+
+                    // Add bonus to user balance
+                    await supabase.rpc('add_balance', {
+                        p_user_id: interaction.user.id,
+                        p_amount: streakResult.bonus
+                    });
+                }
+
+                if (streakResult.isNewRecord) {
+                    embed.addFields({
+                        name: '🏆 ¡Nuevo Récord Personal!',
+                        value: `Has alcanzado tu racha más larga: **${streakResult.currentStreak}** días`,
+                        inline: false
+                    });
+                }
+
+                if (streakResult.streakBroken) {
+                    embed.addFields({
+                        name: '💔 Racha Reiniciada',
+                        value: 'Tu racha se reinició. ¡Comienza una nueva!',
+                        inline: false
+                    });
+                }
+            } else {
+                embed.addFields({
+                    name: '✅ Racha Mantenida',
+                    value: `Racha actual: ${streakResult.currentStreak} días`,
+                    inline: false
+                });
+            }
+
+            embed.setFooter({ text: 'Nación MX | Registro de Jornada' });
+            embed.setTimestamp();
 
             await interaction.editReply({ embeds: [embed] });
         }
