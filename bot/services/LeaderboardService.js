@@ -1,4 +1,3 @@
-const { supabase } = require('../config/supabaseClient');
 const { EmbedBuilder } = require('discord.js');
 
 /**

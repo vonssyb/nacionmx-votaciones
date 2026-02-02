@@ -1,4 +1,3 @@
-const { supabase } = require('../config/supabaseClient');
 const moment = require('moment-timezone');
 
 /**
