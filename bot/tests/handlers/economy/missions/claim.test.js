@@ -46,7 +46,7 @@ describe('Mission Claim Handler', () => {
             const result = await handler.handleInteraction(mockInteraction, mockClient);
 
             expect(result).toBe(true);
-            expect(mockMissionService.claimRewards).toHaveBeenCalledWith('user123', '123');
+            expect(mockMissionService.claimRewards).toHaveBeenCalledWith('test-user-id', '123');
             expect(mockInteraction.editReply).toHaveBeenCalled();
         });
 
@@ -75,7 +75,7 @@ describe('Mission Claim Handler', () => {
             await handler.handleInteraction(mockInteraction, mockClient);
 
             expect(mockMissionService.claimRewards).toHaveBeenCalledWith(
-                'user123',
+                'test-user-id',
                 'abc-def-123'
             );
         });

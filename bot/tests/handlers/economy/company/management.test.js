@@ -20,7 +20,8 @@ const mockSupabase = {
     eq: jest.fn().mockReturnThis(),
     maybeSingle: jest.fn(),
     insert: jest.fn().mockReturnThis(),
-    single: jest.fn()
+    single: jest.fn(),
+    ilike: jest.fn().mockReturnThis()
 };
 
 const mockPaymentProcessor = {
@@ -63,6 +64,13 @@ const mockInteraction = {
     customId: 'company_create_pay_cash_session123'
 };
 
+const mockAssignBusinessmanRole = jest.fn();
+
+// Mock the require
+jest.mock('../../../../services/CompanyService', () => ({
+    assignBusinessmanRole: (...args) => mockAssignBusinessmanRole(...args)
+}));
+
 describe('Company Management Handler', () => {
     let handler;
 
@@ -74,10 +82,12 @@ describe('Company Management Handler', () => {
         mockSupabase.from.mockReturnThis();
         mockSupabase.select.mockReturnThis();
         mockSupabase.eq.mockReturnThis();
+        mockSupabase.ilike.mockReturnThis(); // Mock ilike for location check
 
         mockInteraction.options.getString.mockImplementation((key) => {
             if (key === 'nombre') return 'Test Corp';
             if (key === 'tipo_local') return 'pequeño';
+            if (key === 'discord_server') return 'https://discord.gg/test'; // Valid URL
             return null;
         });
         mockInteraction.options.getUser.mockReturnValue({ id: 'user123' });
@@ -121,13 +131,11 @@ describe('Company Management Handler', () => {
         beforeEach(() => {
             // Mock retrieval of state
             mockStateManager.getPendingAction.mockResolvedValue({
+                type: 'company_create',
                 data: {
-                    type: 'company_create',
-                    data: {
-                        name: 'Test Corp',
-                        owner_id: 'user123',
-                        totalCost: 1000000
-                    }
+                    name: 'Test Corp',
+                    owner_id: 'user123',
+                    totalCost: 1000000
                 }
             });
         });

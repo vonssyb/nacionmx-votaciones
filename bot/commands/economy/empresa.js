@@ -24,7 +24,7 @@ module.exports = {
                 .addUserOption(option => option.setName('dueño').setDescription('Dueño de la empresa').setRequired(true))
                 .addStringOption(option => option.setName('discord_server').setDescription('Enlace al servidor de Discord').setRequired(true))
                 .addAttachmentOption(option => option.setName('logo').setDescription('Logo de la empresa').setRequired(true))
-                .addStringOption(option => option.setName('ubicacion').setDescription('Ubicación (Calles)').setRequired(true))
+                .addStringOption(option => option.setName('ubicacion').setDescription('Ubicación (Calles)').setRequired(false))
                 .addStringOption(option =>
                     option.setName('tipo_local')
                         .setDescription('Tamaño del local (Costo varía)')

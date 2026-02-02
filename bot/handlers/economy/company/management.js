@@ -13,6 +13,7 @@ const { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } = require('
 const logger = require('../../../services/Logger');
 const ErrorHandler = require('../../../utils/errorHandler');
 const crypto = require('crypto');
+const CompanyService = require('../../../services/CompanyService');
 
 class CompanyManagementHandler {
     constructor(client, supabase, paymentProcessor, billingService, stateManager) {
