@@ -1,4 +1,4 @@
-const { Client, GatewayIntentBits, Collection, REST, Routes } = require('discord.js');
+const { Client, GatewayIntentBits, Collection, REST, Routes, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const path = require('path');
 const logger = require('../services/Logger');
 const { safeDefer } = require('../utils/discordHelper');
@@ -85,8 +85,68 @@ async function startDealershipBot(supabase) {
                 return;
             }
 
-            // Future: Button/Modal handlers
-            // if (interaction.customId.startsWith('dealership_')) ...
+            // Button Handler
+            if (interaction.isButton()) {
+                const parts = interaction.customId.split('_');
+                const prefix = parts[0]; // cat
+                const action = parts[1]; // next, prev, noop
+
+                if (prefix === 'cat') {
+                    if (action === 'noop') return interaction.deferUpdate();
+
+                    await interaction.deferUpdate(); // Acknowledge click
+
+                    const category = parts[2] === 'all' ? null : parts[2];
+                    const currentPage = parseInt(parts[3]);
+                    const nextPage = action === 'next' ? currentPage + 1 : currentPage - 1;
+
+                    // Fetch Data
+                    const result = await client.dealershipService.getCatalog(category, nextPage);
+
+                    if (result.data.length === 0) {
+                        return interaction.followUp({ content: '❌ Error: Página no encontrada.', ephemeral: true });
+                    }
+
+                    // Rebuild Embed (Duplicate logic from command - acceptable for now)
+                    const embed = new EmbedBuilder()
+                        .setTitle(category ? `Catálogo: ${category.toUpperCase()}` : '🏎️ Catálogo General de Vehículos')
+                        .setDescription('Explora nuestra selección de vehículos premium. Usa los botones para navegar.')
+                        .setColor('#FFD700')
+                        .setFooter({ text: `Página ${nextPage}/${result.meta.totalPages} • Total: ${result.meta.totalItems} autos` });
+
+                    result.data.forEach(vehicle => {
+                        const stockEmoji = vehicle.stock > 0 ? '✅' : '🔴';
+                        const financeText = vehicle.finance_available ? '💳 Financiamiento Disponible' : '💵 Solo Contado';
+                        embed.addFields({
+                            name: `${stockEmoji} ${vehicle.make} ${vehicle.model}`,
+                            value: `**Precio:** $${vehicle.price.toLocaleString()}\n**Stock:** ${vehicle.stock}\n${financeText}\nID: \`${vehicle.id}\``,
+                            inline: true
+                        });
+                    });
+
+                    // Update Buttons
+                    const row = new ActionRowBuilder().addComponents(
+                        new ButtonBuilder()
+                            .setCustomId(`cat_prev_${category || 'all'}_${nextPage}`)
+                            .setLabel('◀️ Anterior')
+                            .setStyle(ButtonStyle.Secondary)
+                            .setDisabled(nextPage <= 1),
+                        new ButtonBuilder()
+                            .setCustomId('cat_noop')
+                            .setLabel(`${nextPage}/${result.meta.totalPages}`)
+                            .setStyle(ButtonStyle.Secondary)
+                            .setDisabled(true),
+                        new ButtonBuilder()
+                            .setCustomId(`cat_next_${category || 'all'}_${nextPage}`)
+                            .setLabel('Siguiente ▶️')
+                            .setStyle(ButtonStyle.Secondary)
+                            .setDisabled(nextPage >= result.meta.totalPages)
+                    );
+
+                    await interaction.editReply({ embeds: [embed], components: [row] });
+                    return;
+                }
+            }
 
         } catch (error) {
             logger.errorWithContext('Dealership Interaction Error', error);
