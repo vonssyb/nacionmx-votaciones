@@ -21,6 +21,8 @@ module.exports = {
 
     async execute(interaction, client, supabase) {
         try {
+            await interaction.deferReply(); // Prevent timeout
+
             const category = interaction.options.getString('categoria');
             const page = 1;
 
@@ -28,7 +30,7 @@ module.exports = {
             const result = await client.dealershipService.getCatalog(category, page);
 
             if (result.data.length === 0) {
-                return interaction.reply({
+                return interaction.editReply({
                     content: '❌ No hay vehículos disponibles en esta categoría por el momento.',
                     ephemeral: true
                 });
@@ -72,11 +74,15 @@ module.exports = {
                     .setDisabled(result.meta.totalPages <= 1)
             );
 
-            await interaction.reply({ embeds: [embed], components: [row] });
+            await interaction.editReply({ embeds: [embed], components: [row] });
 
         } catch (error) {
             logger.errorWithContext('Error en comando catalogo', error, interaction);
-            await interaction.reply({ content: '❌ Error al cargar el catálogo.', ephemeral: true });
+            if (interaction.deferred || interaction.replied) {
+                await interaction.editReply({ content: '❌ Error al cargar el catálogo.' });
+            } else {
+                await interaction.reply({ content: '❌ Error al cargar el catálogo.', ephemeral: true });
+            }
         }
     }
 };
