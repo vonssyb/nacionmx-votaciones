@@ -21,13 +21,14 @@ module.exports = {
 
     async execute(interaction, client, supabase) {
         try {
-            await interaction.deferReply(); // Prevent timeout
+            await interaction.deferReply();
 
-            const category = interaction.options.getString('categoria');
+            // Initial parameters
+            const category = interaction.options.getString('categoria') || 'all';
             const page = 1;
 
-            // Get Data from Service
-            const result = await client.dealershipService.getCatalog(category, page);
+            // Fetch Data (Limit 1 for single vehicle display)
+            const result = await client.dealershipService.getCatalog(category === 'all' ? null : category, page, 1);
 
             if (result.data.length === 0) {
                 return interaction.editReply({
@@ -36,46 +37,66 @@ module.exports = {
                 });
             }
 
-            // Create Embed
+            const vehicle = result.data[0];
+
+            // Build Embed
+            const stockEmoji = vehicle.stock > 0 ? '✅' : '🔴';
+            const financeText = vehicle.finance_available ? '💳 Financiamiento Disponible' : '💵 Solo Contado';
+
             const embed = new EmbedBuilder()
-                .setTitle(category ? `Catálogo: ${category.toUpperCase()}` : '🏎️ Catálogo General de Vehículos')
-                .setDescription('Explora nuestra selección de vehículos premium. Usa los botones para navegar.')
-                .setColor('#FFD700') // Gold color
-                .setFooter({ text: `Página ${page}/${result.meta.totalPages} • Total: ${result.meta.totalItems} autos` });
+                .setTitle(`${stockEmoji} ${vehicle.make} ${vehicle.model} (${vehicle.year || 'N/A'})`)
+                .setDescription(`**Categoría:** ${vehicle.category.toUpperCase()}\n**ID:** \`${vehicle.id}\`\n\n${vehicle.description || 'Vehículo de alto rendimiento disponible para entrega inmediata.'}`)
+                .setColor('#FFD700')
+                .addFields(
+                    { name: '💰 Precio', value: `$${vehicle.price.toLocaleString()}`, inline: true },
+                    { name: '🏎️ Velocidad', value: `${vehicle.specs?.max_speed || 'N/A'}`, inline: true },
+                    { name: '📦 Stock', value: `${vehicle.stock} unidades`, inline: true },
+                    { name: '💳 Estado', value: financeText, inline: false }
+                )
+                .setFooter({ text: `Vehículo ${page} de ${result.meta.totalItems} • Categoría: ${category.toUpperCase()}` }); // Removed page count from footer logic for cleaner look or keep it
 
-            // Add fields for items
-            result.data.forEach(vehicle => {
-                const stockEmoji = vehicle.stock > 0 ? '✅' : '🔴';
-                const financeText = vehicle.finance_available ? '💳 Financiamiento Disponible' : '💵 Solo Contado';
+            if (vehicle.image_url) {
+                embed.setImage(vehicle.image_url);
+            }
 
-                const imageLink = vehicle.image_url ? `\n[📸 Ver Foto](${vehicle.image_url})` : '';
-                embed.addFields({
-                    name: `${stockEmoji} ${vehicle.make} ${vehicle.model}`,
-                    value: `**Precio:** $${vehicle.price.toLocaleString()}\n**Stock:** ${vehicle.stock}\n**Velocidad:** ${vehicle.specs?.max_speed || 'N/A'}\n${financeText}\nID: \`${vehicle.id}\`${imageLink}`,
-                    inline: true
-                });
-            });
+            // --- COMPONENTS ---
 
-            // Navigation Buttons
-            const row = new ActionRowBuilder().addComponents(
-                new ButtonBuilder()
-                    .setCustomId(`cat_prev_${category || 'all'}_${page}`)
-                    .setLabel('◀️ Anterior')
-                    .setStyle(ButtonStyle.Secondary)
-                    .setDisabled(true),
-                new ButtonBuilder()
-                    .setCustomId('cat_noop')
-                    .setLabel(`${page}/${result.meta.totalPages}`)
-                    .setStyle(ButtonStyle.Secondary)
-                    .setDisabled(true),
-                new ButtonBuilder()
-                    .setCustomId(`cat_next_${category || 'all'}_${page}`)
-                    .setLabel('Siguiente ▶️')
-                    .setStyle(ButtonStyle.Secondary)
-                    .setDisabled(result.meta.totalPages <= 1)
+            // 1. Category Select Menu
+            const categoryRow = new ActionRowBuilder().addComponents(
+                new StringSelectMenuBuilder()
+                    .setCustomId('cat_select_category')
+                    .setPlaceholder('📂 Cambiar Categoría')
+                    .addOptions(
+                        { label: 'Todo', value: 'all', description: 'Ver todos los vehículos' },
+                        { label: 'Sedán', value: 'sedan', emoji: '🚗' },
+                        { label: 'Deportivo', value: 'deportivo', emoji: '🏎️' },
+                        { label: 'SUV / Camionetas', value: 'suv', emoji: '🚙' },
+                        { label: 'Motos', value: 'moto', emoji: '🏍️' },
+                        { label: 'Lujo', value: 'lujo', emoji: '💎' },
+                        { label: 'Trabajo', value: 'trabajo', emoji: '🚛' }
+                    )
             );
 
-            await interaction.editReply({ embeds: [embed], components: [row] });
+            // 2. Navigation Buttons
+            const navRow = new ActionRowBuilder().addComponents(
+                new ButtonBuilder()
+                    .setCustomId(`cat_prev_${category}_${page}`)
+                    .setLabel('◀️ Anterior')
+                    .setStyle(ButtonStyle.Secondary)
+                    .setDisabled(page <= 1),
+                new ButtonBuilder()
+                    .setCustomId('cat_noop')
+                    .setLabel(`${page} / ${result.meta.totalItems}`)
+                    .setStyle(ButtonStyle.Secondary)
+                    .setDisabled(true),
+                new ButtonBuilder()
+                    .setCustomId(`cat_next_${category}_${page}`)
+                    .setLabel('Siguiente ▶️')
+                    .setStyle(ButtonStyle.Secondary)
+                    .setDisabled(page >= result.meta.totalItems) // Total pages = total items since size is 1
+            );
+
+            await interaction.editReply({ embeds: [embed], components: [categoryRow, navRow] });
 
         } catch (error) {
             logger.errorWithContext('Error en comando catalogo', error, interaction);

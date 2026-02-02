@@ -1,4 +1,4 @@
-const { Client, GatewayIntentBits, Collection, REST, Routes, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { Client, GatewayIntentBits, Collection, REST, Routes, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder } = require('discord.js');
 const path = require('path');
 const logger = require('../services/Logger');
 const { safeDefer } = require('../utils/discordHelper');
@@ -85,68 +85,96 @@ async function startDealershipBot(supabase) {
                 return;
             }
 
-            // Button Handler
-            if (interaction.isButton()) {
-                const parts = interaction.customId.split('_');
-                const prefix = parts[0]; // cat
-                const action = parts[1]; // next, prev, noop
+            // --- HANDLER FOR CATALOG (Buttons & Selects) ---
+            if ((interaction.isButton() && interaction.customId.startsWith('cat_')) || (interaction.isStringSelectMenu() && interaction.customId === 'cat_select_category')) {
 
-                if (prefix === 'cat') {
-                    if (action === 'noop') return interaction.deferUpdate();
+                await interaction.deferUpdate();
 
-                    await interaction.deferUpdate(); // Acknowledge click
+                let category = 'all';
+                let page = 1;
 
-                    const category = parts[2] === 'all' ? null : parts[2];
+                // Determine State based on Input
+                if (interaction.isStringSelectMenu()) {
+                    category = interaction.values[0];
+                    page = 1; // Reset to first page on category change
+                } else if (interaction.isButton()) {
+                    const parts = interaction.customId.split('_');
+                    // Format: cat_prev_category_page
+                    const action = parts[1]; // next, prev, noop
+                    if (action === 'noop') return;
+
+                    category = parts[2] === 'null' ? 'all' : parts[2];
                     const currentPage = parseInt(parts[3]);
-                    const nextPage = action === 'next' ? currentPage + 1 : currentPage - 1;
-
-                    // Fetch Data
-                    const result = await client.dealershipService.getCatalog(category, nextPage);
-
-                    if (result.data.length === 0) {
-                        return interaction.followUp({ content: '❌ Error: Página no encontrada.', ephemeral: true });
-                    }
-
-                    // Rebuild Embed (Duplicate logic from command - acceptable for now)
-                    const embed = new EmbedBuilder()
-                        .setTitle(category ? `Catálogo: ${category.toUpperCase()}` : '🏎️ Catálogo General de Vehículos')
-                        .setDescription('Explora nuestra selección de vehículos premium. Usa los botones para navegar.')
-                        .setColor('#FFD700')
-                        .setFooter({ text: `Página ${nextPage}/${result.meta.totalPages} • Total: ${result.meta.totalItems} autos` });
-
-                    result.data.forEach(vehicle => {
-                        const stockEmoji = vehicle.stock > 0 ? '✅' : '🔴';
-                        const financeText = vehicle.finance_available ? '💳 Financiamiento Disponible' : '💵 Solo Contado';
-                        const imageLink = vehicle.image_url ? `\n[📸 Ver Foto](${vehicle.image_url})` : '';
-                        embed.addFields({
-                            name: `${stockEmoji} ${vehicle.make} ${vehicle.model}`,
-                            value: `**Precio:** $${vehicle.price.toLocaleString()}\n**Stock:** ${vehicle.stock}\n**Velocidad:** ${vehicle.specs?.max_speed || 'N/A'}\n${financeText}\nID: \`${vehicle.id}\`${imageLink}`,
-                            inline: true
-                        });
-                    });
-
-                    // Update Buttons
-                    const row = new ActionRowBuilder().addComponents(
-                        new ButtonBuilder()
-                            .setCustomId(`cat_prev_${category || 'all'}_${nextPage}`)
-                            .setLabel('◀️ Anterior')
-                            .setStyle(ButtonStyle.Secondary)
-                            .setDisabled(nextPage <= 1),
-                        new ButtonBuilder()
-                            .setCustomId('cat_noop')
-                            .setLabel(`${nextPage}/${result.meta.totalPages}`)
-                            .setStyle(ButtonStyle.Secondary)
-                            .setDisabled(true),
-                        new ButtonBuilder()
-                            .setCustomId(`cat_next_${category || 'all'}_${nextPage}`)
-                            .setLabel('Siguiente ▶️')
-                            .setStyle(ButtonStyle.Secondary)
-                            .setDisabled(nextPage >= result.meta.totalPages)
-                    );
-
-                    await interaction.editReply({ embeds: [embed], components: [row] });
-                    return;
+                    page = action === 'next' ? currentPage + 1 : currentPage - 1;
                 }
+
+                // Fetch Data (Limit 1)
+                const result = await client.dealershipService.getCatalog(category === 'all' ? null : category, page, 1);
+
+                if (result.data.length === 0) {
+                    return interaction.followUp({ content: '❌ No se encontraron vehículos.', ephemeral: true });
+                }
+
+                const vehicle = result.data[0];
+
+                // Build Embed
+                const stockEmoji = vehicle.stock > 0 ? '✅' : '🔴';
+                const financeText = vehicle.finance_available ? '💳 Financiamiento Disponible' : '💵 Solo Contado';
+
+                const embed = new EmbedBuilder()
+                    .setTitle(`${stockEmoji} ${vehicle.make} ${vehicle.model} (${vehicle.year || 'N/A'})`)
+                    .setDescription(`**Categoría:** ${vehicle.category.toUpperCase()}\n**ID:** \`${vehicle.id}\`\n\n${vehicle.description || 'Vehículo de alto rendimiento disponible para entrega inmediata.'}`)
+                    .setColor('#FFD700')
+                    .addFields(
+                        { name: '💰 Precio', value: `$${vehicle.price.toLocaleString()}`, inline: true },
+                        { name: '🏎️ Velocidad', value: `${vehicle.specs?.max_speed || 'N/A'}`, inline: true },
+                        { name: '📦 Stock', value: `${vehicle.stock} unidades`, inline: true },
+                        { name: '💳 Estado', value: financeText, inline: false }
+                    )
+                    .setFooter({ text: `Vehículo ${page} de ${result.meta.totalItems} • Categoría: ${category.toUpperCase()}` });
+
+                if (vehicle.image_url) {
+                    embed.setImage(vehicle.image_url);
+                }
+
+                // Re-build Components
+                // 1. Selector (Keep state?)
+                const categoryRow = new ActionRowBuilder().addComponents(
+                    new StringSelectMenuBuilder()
+                        .setCustomId('cat_select_category')
+                        .setPlaceholder(`📂 Categoría: ${category.toUpperCase()}`)
+                        .addOptions(
+                            { label: 'Todo', value: 'all', description: 'Ver todos los vehículos' },
+                            { label: 'Sedán', value: 'sedan', emoji: '🚗' },
+                            { label: 'Deportivo', value: 'deportivo', emoji: '🏎️' },
+                            { label: 'SUV / Camionetas', value: 'suv', emoji: '🚙' },
+                            { label: 'Motos', value: 'moto', emoji: '🏍️' },
+                            { label: 'Lujo', value: 'lujo', emoji: '💎' },
+                            { label: 'Trabajo', value: 'trabajo', emoji: '🚛' }
+                        )
+                );
+
+                // 2. Nav Buttons
+                const navRow = new ActionRowBuilder().addComponents(
+                    new ButtonBuilder()
+                        .setCustomId(`cat_prev_${category}_${page}`)
+                        .setLabel('◀️ Anterior')
+                        .setStyle(ButtonStyle.Secondary)
+                        .setDisabled(page <= 1),
+                    new ButtonBuilder()
+                        .setCustomId('cat_noop')
+                        .setLabel(`${page} / ${result.meta.totalItems}`)
+                        .setStyle(ButtonStyle.Secondary)
+                        .setDisabled(true),
+                    new ButtonBuilder()
+                        .setCustomId(`cat_next_${category}_${page}`)
+                        .setLabel('Siguiente ▶️')
+                        .setStyle(ButtonStyle.Secondary)
+                        .setDisabled(page >= result.meta.totalItems)
+                );
+
+                await interaction.editReply({ embeds: [embed], components: [categoryRow, navRow] });
+                return;
             }
 
         } catch (error) {
