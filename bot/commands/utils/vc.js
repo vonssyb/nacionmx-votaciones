@@ -25,8 +25,12 @@ module.exports = {
         const member = interaction.member;
 
         if (!member.voice.channelId) {
+            // Get channel info to show helpful message
+            const channelInfo = voiceConfig.getChannelInfo(targetId);
             return interaction.editReply({
-                content: '❌ Debes estar en un canal de voz para usar este comando.'
+                content: `📍 **Canal: ${channelInfo?.name || abbreviation}**\n\n` +
+                    `⚠️ Debes unirte manualmente al canal <#${targetId}>\n\n` +
+                    `💡 **Tip:** Puedes usar \`/vc ${abbreviation}\` cuando ya estés en otro canal para moverte rápidamente.`
             });
         }
 
