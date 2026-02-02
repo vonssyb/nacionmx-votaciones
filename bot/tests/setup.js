@@ -4,18 +4,30 @@
  */
 
 // Mock Discord.js
+// Mock Discord.js
 jest.mock('discord.js', () => ({
     Client: jest.fn(),
     GatewayIntentBits: {},
+    PermissionFlagsBits: { ManageChannels: 1n, Connect: 2n }, // Add mock flags
     Partials: {},
-    EmbedBuilder: jest.fn().mockImplementation(() => ({
-        setTitle: jest.fn().mockReturnThis(),
-        setDescription: jest.fn().mockReturnThis(),
-        setColor: jest.fn().mockReturnThis(),
-        addFields: jest.fn().mockReturnThis(),
-        setFooter: jest.fn().mockReturnThis(),
-        setTimestamp: jest.fn().mockReturnThis(),
-    })),
+    EmbedBuilder: jest.fn().mockImplementation(() => {
+        const data = { fields: [] };
+        const embed = {
+            data,
+            setTitle: jest.fn().mockImplementation(function (t) { data.title = t; return this; }),
+            setDescription: jest.fn().mockReturnThis(),
+            setColor: jest.fn().mockReturnThis(),
+            addFields: jest.fn().mockImplementation(function (...fields) {
+                data.fields.push(...fields.flat());
+                return this;
+            }),
+            setFooter: jest.fn().mockReturnThis(),
+            setTimestamp: jest.fn().mockReturnThis(),
+            setThumbnail: jest.fn().mockReturnThis(),
+            setImage: jest.fn().mockReturnThis(),
+        };
+        return embed;
+    }),
     ActionRowBuilder: jest.fn().mockImplementation(() => ({
         addComponents: jest.fn().mockReturnThis(),
     })),
@@ -45,6 +57,12 @@ jest.mock('@supabase/supabase-js', () => ({
             eq: jest.fn().mockReturnThis(),
             gte: jest.fn().mockReturnThis(),
             lt: jest.fn().mockReturnThis(),
+            gt: jest.fn().mockReturnThis(),
+            lte: jest.fn().mockReturnThis(),
+            in: jest.fn().mockReturnThis(), // Added .in()
+            order: jest.fn().mockReturnThis(),
+            limit: jest.fn().mockReturnThis(),
+            ilike: jest.fn().mockReturnThis(),
             single: jest.fn().mockResolvedValue({ data: null, error: null }),
             maybeSingle: jest.fn().mockResolvedValue({ data: null, error: null }),
         })),
@@ -100,6 +118,8 @@ global.createMockInteraction = () => ({
         getNumber: jest.fn(),
         getUser: jest.fn(),
         getSubcommand: jest.fn(),
+        getAttachment: jest.fn(),
+        getBoolean: jest.fn(),
     },
     createdTimestamp: Date.now(),
     client: {
@@ -131,8 +151,10 @@ global.createMockSupabase = () => {
         lt: jest.fn().mockReturnThis(),
         gt: jest.fn().mockReturnThis(),
         lte: jest.fn().mockReturnThis(),
+        in: jest.fn().mockReturnThis(), // Added .in()
         order: jest.fn().mockReturnThis(),
         limit: jest.fn().mockReturnThis(),
+        ilike: jest.fn().mockReturnThis(),
         single: jest.fn().mockResolvedValue({ data: null, error: null }),
         maybeSingle: jest.fn().mockResolvedValue({ data: null, error: null }),
     };

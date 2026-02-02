@@ -5,12 +5,12 @@ require('dotenv').config({ path: path.join(__dirname, '../.env') });
 const { REST, Routes } = require('discord.js');
 const { loadCommands } = require('./handlers/commandLoader');
 
-const DISCORD_TOKEN = (process.env.DISCORD_TOKEN_GOV || process.env.DISCORD_BOT_TOKEN || '').trim();
+const DISCORD_TOKEN = process.env.DISCORD_TOKEN_GOV;
 const GUILD_ID = process.env.GUILD_ID;
 let CLIENT_ID = process.env.CLIENT_ID_GOV; // Optional in .env, fetched if missing
 
 if (!DISCORD_TOKEN || !GUILD_ID) {
-    console.error('❌ ERROR: DISCORD_TOKEN_GOV y GUILD_ID son requeridos.');
+    console.error('❌ ERROR: GUILD_ID es requerido.');
     process.exit(1);
 }
 console.log(`DEBUG: Token loaded: ${DISCORD_TOKEN ? DISCORD_TOKEN.substring(0, 10) + '...' : 'NONE'}`);
@@ -38,7 +38,7 @@ async function registerGovernmentCommands() {
     const commandsPath = path.join(__dirname, 'commands');
 
     console.log('🔄 Cargando comandos de Gobierno...');
-    await loadCommands(client, commandsPath, ['gov']);
+    await loadCommands(client, commandsPath, ['gov', 'economy', 'business']);
 
     const allCommands = Array.from(client.commands.values()).map(cmd => cmd.data.toJSON());
 
