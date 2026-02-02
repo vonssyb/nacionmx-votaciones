@@ -228,6 +228,16 @@ async function startModerationBot(supabase) {
             try { await suggestionHandler.handleButton(interaction); return; } catch (e) { }
         }
 
+        // Absence Termination Button
+        if (interaction.isButton() && interaction.customId.startsWith('end_absence_')) {
+            try {
+                const handled = await absenceTerminationHandler(interaction, client, supabase);
+                if (handled) return;
+            } catch (e) {
+                logger.errorWithContext('Absence termination error', e);
+            }
+        }
+
         if (!interaction.isChatInputCommand()) {
             try {
                 const banking = await handleBankingInteraction(interaction, client, supabase);
