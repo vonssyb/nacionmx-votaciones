@@ -67,14 +67,26 @@ module.exports = {
             });
 
             // Save to database
-            await supabase.from('tickets').insert({
+            const { data: insertedTicket, error: dbError } = await supabase.from('tickets').insert({
                 guild_id: interaction.guildId,
-                user_id: interaction.user.id,
+                creator_id: interaction.user.id, // Changed from user_id to creator_id
                 channel_id: ticketChannel.id,
                 ticket_type: ticketType,
-                status: 'open',
+                status: 'OPEN', // Changed from 'open' to 'OPEN' (matching enum)
                 created_at: new Date().toISOString()
-            });
+            }).select().single();
+
+            if (dbError) {
+                logger.error('[McQueen Ticket] Database insert failed:', dbError);
+                // Delete channel if database save fails
+                await ticketChannel.delete('Failed to save ticket to database');
+                return interaction.editReply({
+                    content: '❌ Error al guardar el ticket. Por favor contacta a un administrador.',
+                    ephemeral: true
+                });
+            }
+
+            logger.info(`[McQueen Ticket] Created ticket #${insertedTicket.id} for ${interaction.user.tag}`);
 
             // Create welcome embed
             const welcomeEmbed = new EmbedBuilder()
