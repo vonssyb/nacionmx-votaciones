@@ -6,12 +6,6 @@ const logger = require('../services/Logger');
  * Handles: pay_cash_{saleId}, pay_finance_{saleId}, cancel_sale_{saleId}, approve_sale_{saleId}
  */
 
-//  Roles to assign when someone purchases a vehicle
-const DEALERSHIP_CUSTOMER_ROLES = [
-    '1466559667013681422', // Primer rol de cliente
-    '1466559974435061881'  // Segundo rol de cliente
-];
-
 module.exports = async (interaction, client, supabase) => {
     try {
         const { customId, user, guild } = interaction;
@@ -104,23 +98,12 @@ async function handleCashPayment(interaction, client, supabase) {
         .update({ stock: sale.dealership_catalog.stock - 1 })
         .eq('id', sale.vehicle_id);
 
-    // Assign customer roles
-    const member = await interaction.guild.members.fetch(interaction.user.id);
-    for (const roleId of DEALERSHIP_CUSTOMER_ROLES) {
-        try {
-            await member.roles.add(roleId);
-        } catch (e) {
-            logger.error(`Failed to add role ${roleId}:`, e.message);
-        }
-    }
-
     // Update message
     const successEmbed = new EmbedBuilder()
         .setTitle('✅ Pago Procesado')
         .setDescription(`Se ha procesado tu pago de **$${sale.price_total.toLocaleString()}** por el **${sale.dealership_catalog.make} ${sale.dealership_catalog.model}**.`)
         .addFields(
-            { name: '📋 Estado', value: 'Pendiente de aprobación por vendedor' },
-            { name: '🎟️ Roles', value: 'Se te han asignado los roles de cliente del concesionario' }
+            { name: '📋 Estado', value: 'Pendiente de aprobación por vendedor' }
         )
         .setColor('#00FF00');
 
@@ -227,24 +210,13 @@ async function handleFinancePayment(interaction, client, supabase) {
         .update({ stock: sale.dealership_catalog.stock - 1 })
         .eq('id', sale.vehicle_id);
 
-    // Assign customer roles
-    const member = await interaction.guild.members.fetch(interaction.user.id);
-    for (const roleId of DEALERSHIP_CUSTOMER_ROLES) {
-        try {
-            await member.roles.add(roleId);
-        } catch (e) {
-            logger.error(`Failed to add role ${roleId}:`, e.message);
-        }
-    }
-
     const financeEmbed = new EmbedBuilder()
         .setTitle('🏦 Financiamiento Aprobado')
         .setDescription(`Has pagado el enganche de **$${downPayment.toLocaleString()}** para el **${sale.dealership_catalog.make} ${sale.dealership_catalog.model}**.`)
         .addFields(
             { name: '💰 Monto Financiado', value: `$${totalWithInterest.toLocaleString()}`, inline: true },
             { name: '📅 Pagos', value: `${rates.max_installments} quincenales`, inline: true },
-            { name: '💵 Pago Quincenal', value: `$${installmentAmount.toLocaleString()}`, inline: true },
-            { name: '🎟️ Roles', value: 'Se te han asignado los roles de cliente' }
+            { name: '💵 Pago Quincenal', value: `$${installmentAmount.toLocaleString()}`, inline: true }
         )
         .setColor('#0099FF');
 

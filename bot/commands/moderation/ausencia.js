@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 
 const ROLE_AUSENTE = '1465141044768276631';
 const LOG_CHANNEL = '1457457209268109516'; // Logs de Ausencias
@@ -110,15 +110,26 @@ module.exports = {
                 embed.setImage(photo.url);
             }
 
+            const terminateButton = new ActionRowBuilder().addComponents(
+                new ButtonBuilder()
+                    .setCustomId(`end_absence_${targetUser.id}_${interaction.user.id}`)
+                    .setLabel('❌ Finalizar Ausencia Anticipadamente')
+                    .setStyle(ButtonStyle.Danger)
+            );
+
             await interaction.editReply({
                 content: `✅ Registro de ausencia creado exitosamente para ${targetUser}.`,
-                embeds: [embed]
+                embeds: [embed],
+                components: [terminateButton]
             });
 
             // 4. Send Log
             const logChannel = await client.channels.fetch(LOG_CHANNEL).catch(() => null);
             if (logChannel) {
-                await logChannel.send({ embeds: [embed] });
+                await logChannel.send({
+                    embeds: [embed],
+                    components: [terminateButton]
+                });
             }
 
         } catch (error) {
