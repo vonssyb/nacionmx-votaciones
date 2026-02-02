@@ -91,6 +91,12 @@ async function startDealershipBot(supabase) {
                 return await mcqueenTicketHandler.handleTicketButton(interaction, client, supabase);
             }
 
+            // --- HANDLER FOR VENDER COMMAND BUTTONS ---
+            if (interaction.isButton() && interaction.customId.startsWith('venta_')) {
+                const venderPaymentHandler = require('../handlers/venderPaymentHandler');
+                return await venderPaymentHandler(interaction, client, supabase);
+            }
+
             // --- HANDLER FOR PAYMENT BUTTONS (Purchase System) ---
             if (interaction.isButton() && (
                 interaction.customId.startsWith('pay_cash_') ||
