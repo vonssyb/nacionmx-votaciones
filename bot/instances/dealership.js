@@ -117,9 +117,10 @@ async function startDealershipBot(supabase) {
                     result.data.forEach(vehicle => {
                         const stockEmoji = vehicle.stock > 0 ? '✅' : '🔴';
                         const financeText = vehicle.finance_available ? '💳 Financiamiento Disponible' : '💵 Solo Contado';
+                        const imageLink = vehicle.image_url ? `\n[📸 Ver Foto](${vehicle.image_url})` : '';
                         embed.addFields({
                             name: `${stockEmoji} ${vehicle.make} ${vehicle.model}`,
-                            value: `**Precio:** $${vehicle.price.toLocaleString()}\n**Stock:** ${vehicle.stock}\n${financeText}\nID: \`${vehicle.id}\``,
+                            value: `**Precio:** $${vehicle.price.toLocaleString()}\n**Stock:** ${vehicle.stock}\n**Velocidad:** ${vehicle.specs?.max_speed || 'N/A'}\n${financeText}\nID: \`${vehicle.id}\`${imageLink}`,
                             inline: true
                         });
                     });
