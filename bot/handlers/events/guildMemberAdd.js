@@ -1,5 +1,5 @@
 const { AttachmentBuilder } = require('discord.js');
-const { CHANNELS, ROLES } = require('../../config/constants');
+const { CHANNELS, ROLES, GUILDS } = require('../../config/constants');
 const logger = require('../../services/Logger');
 
 // Roles to auto-assign when joining the server
@@ -8,7 +8,6 @@ const DEALERSHIP_CUSTOMER_ROLES = [
     '1466559974435061881'  // Cliente Concesionario 2
 ];
 const ImageGenerator = require('../../utils/ImageGenerator');
-const { CHANNELS, GUILDS } = require('../../config/constants');
 
 module.exports = async (client, member, supabase) => {
     const MAIN_GUILDS = [GUILDS.MAIN, GUILDS.STAFF];
