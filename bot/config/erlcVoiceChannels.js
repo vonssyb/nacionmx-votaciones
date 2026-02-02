@@ -21,7 +21,8 @@ module.exports = {
             '1398525215629115482', // Trooper
             '1398525215629115481', // Cadet
             '1416867605976715363', // POLICIA_TRANSITO
-            '1412898911185797310'  // Guardia Nacional
+            '1412898911185797310', // Guardia Nacional
+            '1412898913345863760'  // Policía Federal (acceso a canales generales de policía)
         ],
         CARTEL: ['1459649033222684702'], // Rol Cartel
         AIC: ['1412898916021829903'], // Rol AIC Exclusivo
