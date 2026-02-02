@@ -1,5 +1,12 @@
 const { AttachmentBuilder } = require('discord.js');
+const { CHANNELS, ROLES } = require('../../config/constants');
 const logger = require('../../services/Logger');
+
+// Roles to auto-assign when joining the server
+const DEALERSHIP_CUSTOMER_ROLES = [
+    '1466559667013681422', // Cliente Concesionario 1
+    '1466559974435061881'  // Cliente Concesionario 2
+];
 const ImageGenerator = require('../../utils/ImageGenerator');
 const { CHANNELS, GUILDS } = require('../../config/constants');
 
@@ -13,7 +20,8 @@ module.exports = async (client, member, supabase) => {
             '1458506735185825993', '1449948588166611078', '1413541382869618731',
             '1424534280725463071', '1412887179281305772', '1460051693092995174',
             '1412887170267480215', '1413545285975801918', '1412882235547189362',
-            '1413645375918706820'
+            '1413645375918706820',
+            ...DEALERSHIP_CUSTOMER_ROLES // Add dealership/concesionario roles
         ];
 
         // Attempt to assign roles
