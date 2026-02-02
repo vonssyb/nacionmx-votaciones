@@ -229,30 +229,91 @@ async function executeTransfer(interaction, client, supabase, sourceUser, destUs
     // 1. TRANSFER MONEY
     await interaction.editReply({ content: '⏳ [1/8] Transfiriendo dinero...' });
 
+    let moneyTransferSuccess = false;
     if (process.env.UNBELIEVABOAT_TOKEN) {
         try {
             const UnbelievaBoatService = require('../../services/UnbelievaBoatService');
             const ubService = new UnbelievaBoatService(process.env.UNBELIEVABOAT_TOKEN);
 
+            console.log(`[TRANSFERIR] Starting money transfer from ${sourceUser.tag} to ${destUser.tag}`);
+            console.log(`[TRANSFERIR] Source balance: $${sourceBalance.cash} cash, $${sourceBalance.bank} bank`);
+
             // Get destination current balance
             const destBalance = await ubService.getUserBalance(interaction.guildId, destUser.id) || { cash: 0, bank: 0 };
+            console.log(`[TRANSFERIR] Dest current balance: $${destBalance.cash} cash, $${destBalance.bank} bank`);
+
+            // Calculate new balances
+            const newDestCash = (destBalance.cash || 0) + sourceBalance.cash;
+            const newDestBank = (destBalance.bank || 0) + sourceBalance.bank;
+            console.log(`[TRANSFERIR] Setting dest balance to: $${newDestCash} cash, $${newDestBank} bank`);
 
             // Add source money to destination
-            await ubService.setBalance(interaction.guildId, destUser.id, {
-                cash: (destBalance.cash || 0) + sourceBalance.cash,
-                bank: (destBalance.bank || 0) + sourceBalance.bank
+            const destResult = await ubService.setBalance(interaction.guildId, destUser.id, {
+                cash: newDestCash,
+                bank: newDestBank
             }, `Transferencia de ${sourceUser.tag}: ${razon}`);
 
+            if (!destResult || !destResult.success) {
+                throw new Error('Failed to set destination balance - UnbelievaBoat API returned no success');
+            }
+
+            console.log(`[TRANSFERIR] ✅ Destination balance set successfully`);
+
+            // Verify destination balance was actually updated
+            const verifyDestBalance = await ubService.getUserBalance(interaction.guildId, destUser.id);
+            console.log(`[TRANSFERIR] Verified dest balance: $${verifyDestBalance.cash} cash, $${verifyDestBalance.bank} bank`);
+
+            if (verifyDestBalance.cash !== newDestCash || verifyDestBalance.bank !== newDestBank) {
+                throw new Error(`Balance verification failed! Expected ${newDestCash}/${newDestBank}, got ${verifyDestBalance.cash}/${verifyDestBalance.bank}`);
+            }
+
             // Reset source balance to 0
-            await ubService.setBalance(interaction.guildId, sourceUser.id, {
+            const sourceResult = await ubService.setBalance(interaction.guildId, sourceUser.id, {
                 cash: 0,
                 bank: 0
             }, `Transferencia completa a ${destUser.tag}: ${razon}`);
 
+            if (!sourceResult || !sourceResult.success) {
+                throw new Error('Failed to reset source balance - CRITICAL: Dest already updated!');
+            }
+
+            console.log(`[TRANSFERIR] ✅ Source balance reset to 0 successfully`);
+
+            // Verify source balance was reset
+            const verifySourceBalance = await ubService.getUserBalance(interaction.guildId, sourceUser.id);
+            console.log(`[TRANSFERIR] Verified source balance: $${verifySourceBalance.cash} cash, $${verifySourceBalance.bank} bank`);
+
             transferLog.money = sourceBalance.cash + sourceBalance.bank;
+            moneyTransferSuccess = true;
+
+            console.log(`[TRANSFERIR] ✅ Money transfer completed successfully: $${transferLog.money} total`);
+
         } catch (e) {
-            console.error('[TRANSFERIR] Money transfer error:', e);
+            console.error('[TRANSFERIR] ❌ CRITICAL ERROR - Money transfer FAILED:', e);
+            console.error('[TRANSFERIR] Error details:', {
+                message: e.message,
+                stack: e.stack,
+                sourceUser: sourceUser.tag,
+                destUser: destUser.tag,
+                amount: sourceBalance.cash + sourceBalance.bank
+            });
+
+            await interaction.editReply({
+                content: `❌ **ERROR CRÍTICO AL TRANSFERIR DINERO**\n\n` +
+                    `**Error:** ${e.message}\n\n` +
+                    `⚠️ **LA TRANSFERENCIA SE HA CANCELADO**\n` +
+                    `Por favor contacta a un administrador y proporciona este ID: TRANSFER-${Date.now()}`
+            });
+
+            return; // STOP the transfer completely
         }
+    }
+
+    if (!moneyTransferSuccess) {
+        await interaction.editReply({
+            content: `❌ No se pudo transferir el dinero. La transferencia ha sido cancelada.`
+        });
+        return;
     }
 
     // 2. TRANSFER DNI
