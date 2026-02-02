@@ -2,9 +2,10 @@ require('dotenv').config();
 const { REST, Routes } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
+const { GUILDS } = require('./config/constants');
 
 const MOD_TOKEN = process.env.DISCORD_TOKEN_MOD;
-const MAIN_GUILD = '1412881940766064640'; // Tu servidor principal
+const TARGET_GUILDS = [GUILDS.MAIN, GUILDS.STAFF].filter(id => id);
 
 if (!MOD_TOKEN) {
     console.error('❌ DISCORD_TOKEN_MOD no encontrado en .env');
@@ -50,21 +51,29 @@ const rest = new REST({ version: '10' }).setToken(MOD_TOKEN);
 
         // Obtener el ID del bot
         const currentUser = await rest.get(Routes.user('@me'));
-        console.log(`🤖 Bot: ${currentUser.username}#${currentUser.discriminator} (${currentUser.id})`);
+        console.log(`🤖 Bot: ${currentUser.username}#${currentUser.discriminator} (${currentUser.id})\n`);
 
-        // Registrar en el guild principal
-        const data = await rest.put(
-            Routes.applicationGuildCommands(currentUser.id, MAIN_GUILD),
-            { body: commands },
-        );
+        // Registrar en todos los servidores configurados
+        for (const guildId of TARGET_GUILDS) {
+            try {
+                console.log(`📡 Registrando en servidor ${guildId}...`);
+                const data = await rest.put(
+                    Routes.applicationGuildCommands(currentUser.id, guildId),
+                    { body: commands },
+                );
+                console.log(`✅ Registrados ${data.length} comandos en guild ${guildId}\n`);
+            } catch (guildError) {
+                console.error(`❌ Error en guild ${guildId}:`, guildError.message);
+            }
+        }
 
-        console.log(`✅ ¡Comandos registrados exitosamente! (${data.length} comandos)`);
-        console.log('\n📋 Comandos registrados:');
-        data.forEach(cmd => console.log(`   - /${cmd.name}`));
+        console.log('\n✅ ¡Proceso completado!');
+        console.log('\n📋 Lista de comandos:');
+        commands.forEach(cmd => console.log(`   - /${cmd.name}`));
 
         process.exit(0);
     } catch (error) {
-        console.error('❌ Error al registrar comandos:', error);
+        console.error('❌ Error general:', error);
         process.exit(1);
     }
 })();
