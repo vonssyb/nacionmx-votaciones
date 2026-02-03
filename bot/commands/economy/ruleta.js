@@ -72,38 +72,82 @@ module.exports = {
         // Deduct chips immediately
         await casino.removeChips(userId, betAmount);
 
-        // Start or Join Session
-        const isNewSession = casino.startRouletteSession(interaction);
+        // TENSION FLOW (30s)
+        const embedInitial = new EmbedBuilder()
+            .setTitle('🎡 RULETA: GIRANDO')
+            .setDescription('La ruleta ha comenzado a girar... 🎲\n\n> ⏳ **Tiempo restante:** 30s')
+            .setColor('#E74C3C')
+            .addFields({ name: 'Tu Apuesta', value: `${betAmount} fichas a ${betType.toUpperCase()}` });
 
-        // Add bet to session
-        casino.sessions.roulette.bets.push({
-            userId,
-            amount: betAmount,
-            betType,
-            numero: number,
-            interaction, // We store interaction to edit reply later
-            currentChips: check.balance - betAmount // Store state for restore
-        });
+        await interaction.reply({ embeds: [embedInitial] });
 
-        if (isNewSession) {
-            const embed = new EmbedBuilder()
-                .setTitle('🎡 RULETA DE CASINO')
-                .setDescription('¡Mesa abierta!\nRespondiendo a apuestas durante 30s...\n**¡Hagan sus apuestas!**')
-                .setImage('attachment://roulette_table.png')
-                .setColor('#E74C3C');
+        // Phase 1: 10s
+        setTimeout(async () => {
+            const embed10 = new EmbedBuilder()
+                .setTitle('🎡 RULETA: GIRANDO')
+                .setDescription('La bola está perdiendo velocidad... 🎢\n\n> ⏳ **Tiempo restante:** 20s')
+                .setColor('#E67E22')
+                .addFields({ name: 'Tu Apuesta', value: `${betAmount} fichas a ${betType.toUpperCase()}` });
 
-            await interaction.reply({
-                elements: [embed], // Typo fix: embeds not elements
-                embeds: [embed],
-                files: [{ attachment: '/Users/gonzalez/.gemini/antigravity/brain/5f676979-327b-4733-bc92-9b946495f94a/casino_roulette_table_1770078105104.png', name: 'roulette_table.png' }]
-            });
-        } else {
-            await interaction.reply({ content: `✅ Apuesta registrada: **${betAmount}** fichas a **${betType.toUpperCase()}**`, ephemeral: true });
+            await interaction.editReply({ embeds: [embed10] }).catch(() => { });
+        }, 10000);
 
-            // Notify channel if possible
-            if (interaction.channel) {
-                // interaction.channel.send(`${interaction.user.username} apostó ${betAmount} fichas.`);
+        // Phase 2: 20s
+        setTimeout(async () => {
+            const embed20 = new EmbedBuilder()
+                .setTitle('🎡 RULETA: TENSION')
+                .setDescription('¡La bola está saltando entre los números! 🎱\n\n> ⏳ **Tiempo restante:** 10s')
+                .setColor('#F1C40F')
+                .addFields({ name: 'Tu Apuesta', value: `${betAmount} fichas a ${betType.toUpperCase()}` });
+
+            await interaction.editReply({ embeds: [embed20] }).catch(() => { });
+        }, 20000);
+
+        // Phase 3: 30s (Result)
+        setTimeout(async () => {
+            // Logic to determine win/loss
+            const resultNumber = Math.floor(Math.random() * 37);
+            let won = false;
+            let payout = 0;
+            let multiplier = 0;
+
+            // Determine Color
+            const reds = [1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36];
+            const color = resultNumber === 0 ? 'green' : (reds.includes(resultNumber) ? 'red' : 'black');
+
+            // Check Win
+            if (betType === 'numero' && number === resultNumber) { won = true; multiplier = 35; }
+            else if (betType === 'red' && color === 'red') { won = true; multiplier = 1; }
+            else if (betType === 'black' && color === 'black') { won = true; multiplier = 1; }
+            else if (betType === 'even' && resultNumber !== 0 && resultNumber % 2 === 0) { won = true; multiplier = 1; }
+            else if (betType === 'odd' && resultNumber !== 0 && resultNumber % 2 !== 0) { won = true; multiplier = 1; }
+            else if (betType === '1-18' && resultNumber >= 1 && resultNumber <= 18) { won = true; multiplier = 1; }
+            else if (betType === '19-36' && resultNumber >= 19 && resultNumber <= 36) { won = true; multiplier = 1; }
+            // Columns (simplification)
+            else if (betType === 'col1' && resultNumber % 3 === 1) { won = true; multiplier = 2; }
+            else if (betType === 'col2' && resultNumber % 3 === 2) { won = true; multiplier = 2; }
+            else if (betType === 'col3' && resultNumber % 3 === 0 && resultNumber !== 0) { won = true; multiplier = 2; }
+
+            if (won) {
+                payout = betAmount + (betAmount * multiplier);
+                await casino.addChips(userId, payout);
+                await client.services.stats?.recordWin(userId, payout - betAmount);
+            } else {
+                await client.services.stats?.recordLoss(userId, betAmount);
             }
-        }
-    }
-};
+
+            const colorEmoji = color === 'red' ? '🔴' : (color === 'black' ? '⚫' : '🟢');
+
+            const embedResult = new EmbedBuilder()
+                .setTitle(`🎡 Resultado: ${resultNumber} ${colorEmoji}`)
+                .setDescription(won
+                    ? `🎉 **¡GANASTE!** 🎉\nRecibes **${payout}** fichas.`
+                    : `❌ **Perdiste...**\nLa bola cayó en ${resultNumber} (${color}).`)
+                .setColor(won ? '#2ECC71' : '#E74C3C')
+                .addFields(
+                    { name: 'Apuesta', value: `${betAmount}`, inline: true },
+                    { name: 'Resultado', value: `${resultNumber} ${colorEmoji.toUpperCase()}`, inline: true }
+                );
+
+            await interaction.editReply({ embeds: [embedResult] }).catch(() => { });
+        }, 30000);
