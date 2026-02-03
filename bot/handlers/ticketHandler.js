@@ -344,7 +344,7 @@ module.exports = {
                     }]);
 
                     if (insertError) {
-                        logger.errorWithContext('[TICKET-CRITICAL] DB Insert Failed. Rolling back channel creation.', insertError);
+                        logger.errorWithContext('[TICKET-CRITICAL] DB Insert Failed. Rolling back channel creation.', JSON.stringify(insertError, null, 2));
                         await ticketChannel.delete('DB Insert Failed - Atomic Rollback').catch(() => { });
                         return interaction.editReply('❌ Error crítico: No se pudo registrar el ticket en la base de datos. Intenta de nuevo.');
                     }
@@ -779,9 +779,13 @@ module.exports = {
                 const targetUser = ticket?.user_id || interaction.user.id;
 
                 // Update ticket status to AWAITING_RATING and set timestamp
+                // Update ticket status to AWAITING_RATING and set timestamp in metadata
+                const { data: currentTicket } = await supabase.from('tickets').select('metadata').eq('channel_id', interaction.channel.id).single();
+                const currentMeta = currentTicket?.metadata || {};
+
                 await supabase.from('tickets').update({
                     status: 'AWAITING_RATING',
-                    rating_requested_at: new Date().toISOString()
+                    metadata: { ...currentMeta, rating_requested_at: new Date().toISOString() }
                 }).eq('channel_id', interaction.channel.id);
 
                 const embed = new EmbedBuilder()
