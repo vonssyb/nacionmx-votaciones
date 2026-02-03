@@ -358,19 +358,25 @@ module.exports = {
                     // Ideally I should only replace the specific blocks.
                 }
 
-                // --- CREATE EMBED (different for loans) ---
-                let embed, row;
-                if (typeKey === 'ticket_prestamo') {
-                    // Kept logic for loan embed separate or integrate? 
-                    // The previous code had a large block. I will target the insertion block first, then the embed block.
+                // --- CREATE EMBED (Standard Tickets) ---
+                if (typeKey !== 'ticket_prestamo') {
+                    const row = new ActionRowBuilder().addComponents(
+                        new ButtonBuilder().setCustomId('btn_close_ticket_ask').setLabel('Cerrar').setStyle(ButtonStyle.Danger).setEmoji('🔒'),
+                        new ButtonBuilder().setCustomId('btn_claim_ticket').setLabel('Reclamar').setStyle(ButtonStyle.Success).setEmoji('✋')
+                    );
+
+                    const embed = new EmbedBuilder()
+                        .setTitle(`${config.emoji} ${config.title}`)
+                        .setColor(0x5865F2)
+                        .setDescription(`**Tipo:** ${config.title}\n**Usuario:** <@${interaction.user.id}> | ${interaction.user.tag}\n\n${description.replace(`**Tipo:** ${config.title}\n**Usuario:** <@${interaction.user.id}>\n\n`, '')}`)
+                        .addFields({ name: '👤 Historial del Ciudadano (CRM)', value: userHistoryText, inline: false })
+                        .setFooter({ text: `Reclama el ticket para responder • ${new Date().toLocaleString('es-MX', { timeZone: 'America/Mexico_City' })}` });
+
+                    await ticketChannel.send({ content: `<@${interaction.user.id}>`, embeds: [embed], components: [row] });
                 }
 
-                // OK, I'll split this into two replacements to be safe and precise.
-                // REPLACEMENT 1: DB INSERTION FIX
-
-
                 // --- IA ANALYSIS (Skip for loan tickets) ---
-                if (!loanData) {
+                if (typeKey !== 'ticket_prestamo') {
                     logger.info(`[DEBUG] Ticket Created. Attempting AI Analysis for: ${channelName}`);
                     try {
                         const aiAnswer = await generateAIResponse(description);
