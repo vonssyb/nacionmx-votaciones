@@ -77,20 +77,26 @@ module.exports = {
             const now = new Date();
             const threshold = new Date(now.getTime() - (hours * 60 * 60 * 1000));
 
+            // Fetch all OPEN tickets and filter by metadata
             const { data: tickets } = await supabase
                 .from('tickets')
                 .select('*')
-                .eq('status', 'OPEN')
-                .lt('last_active_at', threshold.toISOString());
+                .eq('status', 'OPEN');
 
             if (!tickets || tickets.length === 0) {
-                return interaction.editReply(`✅ No hay tickets inactivos por más de ${days} días.`);
+                return interaction.editReply(`✅ No hay tickets abiertos para verificar.`);
             }
 
             let closed = 0;
             const discordTranscripts = require('discord-html-transcripts');
 
             for (const ticket of tickets) {
+                const meta = ticket.metadata || {};
+                // Fallback to created_at if last_active_at missing
+                const lastActive = meta.last_active_at ? new Date(meta.last_active_at) : new Date(ticket.created_at);
+
+                if (lastActive >= threshold) continue; // Not old enough
+
                 try {
                     const channel = await client.channels.fetch(ticket.channel_id).catch(() => null);
                     if (!channel) continue;
@@ -104,9 +110,9 @@ module.exports = {
                     });
 
                     // Send to user
-                    if (ticket.creator_id) {
+                    if (ticket.user_id) { // Was creator_id, assume user_id per schema
                         try {
-                            const creator = await client.users.fetch(ticket.creator_id);
+                            const creator = await client.users.fetch(ticket.user_id);
                             await creator.send({
                                 content: `🔒 Tu ticket fue cerrado por inactividad (${days}+ días).`,
                                 files: [attachment]
@@ -114,14 +120,19 @@ module.exports = {
                         } catch (e) { }
                     }
 
-                    // Update DB
+                    // Update DB - store details in metadata because columns don't exist
+                    const newMeta = {
+                        ...meta,
+                        closure_reason: `bulk_close_${days}d`,
+                        closed_by_id: interaction.user.id
+                    };
+
                     await supabase
                         .from('tickets')
                         .update({
                             status: 'CLOSED',
                             closed_at: now.toISOString(),
-                            closure_reason: `bulk_close_${days}d`,
-                            closed_by_id: interaction.user.id
+                            metadata: newMeta
                         })
                         .eq('id', ticket.id);
 
