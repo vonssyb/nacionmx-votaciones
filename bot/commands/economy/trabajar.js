@@ -207,11 +207,12 @@ module.exports = {
 
                 let finalAmount = await EventService.applyEventMultiplier(roleAmount, null, supabase);
 
-                // Identify if an event changed the amount
-                if (finalAmount > roleAmount) {
+                // Identify if an event changed the amount (Positive or Negative)
+                if (finalAmount !== roleAmount) {
                     const activeEvent = await EventService.getActiveEvent(supabase);
                     if (activeEvent) {
-                        perks.push(`[EVENTO] ${activeEvent.event_data.emoji} ${activeEvent.event_name} (x${activeEvent.multiplier})`);
+                        const emoji = finalAmount > roleAmount ? '📈' : '📉';
+                        perks.push(`[EVENTO] ${activeEvent.event_data?.emoji || emoji} ${activeEvent.event_name} (x${activeEvent.multiplier})`);
                     }
                 }
 
@@ -236,7 +237,7 @@ module.exports = {
                     );
 
                 if (perks.length > 0) {
-                    successEmbed.addFields({ name: '🎁 Bonos', value: perks.join('\n'), inline: false });
+                    successEmbed.addFields({ name: '⚖️ Ajustes', value: perks.join('\n'), inline: false });
                 }
 
                 if (collectedInteraction) {

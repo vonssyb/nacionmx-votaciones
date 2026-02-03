@@ -258,13 +258,18 @@ module.exports = {
                 { name: '💰 Botín Base', value: `$${basePay.toLocaleString()}`, inline: true }
             ];
 
+            const adjustments = [];
             if (bonusLabel) {
                 const bonusAmount = (Math.floor(basePay * bonusMultiplier)) - basePay;
-                fields.push({ name: '⭐ Bonus Rol', value: `+$${bonusAmount.toLocaleString()} (${bonusLabel})`, inline: true });
+                adjustments.push(`⭐ Bonus Rol: +$${bonusAmount.toLocaleString()} (${bonusLabel})`);
             }
 
             if (eventLabel) {
-                fields.push({ name: '🎊 Bonus Evento', value: eventLabel, inline: false });
+                adjustments.push(eventLabel);
+            }
+
+            if (adjustments.length > 0) {
+                fields.push({ name: '⚖️ Ajustes', value: adjustments.join('\n'), inline: false });
             }
 
             fields.push(
