@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType } = require('discord.js');
 const CasinoService = require('../../services/CasinoService');
 const UnbelievaBoatService = require('../../services/UnbelievaBoatService');
 const { CARD_TIERS } = require('../../services/EconomyHelper');
@@ -17,22 +17,7 @@ module.exports = {
         .addSubcommand(subcommand =>
             subcommand
                 .setName('comprar')
-                .setDescription('💵 Comprar fichas de casino ($1 = 1 ficha)')
-                .addIntegerOption(option =>
-                    option.setName('cantidad')
-                        .setDescription('Cantidad de fichas a comprar')
-                        .setRequired(true)
-                        .setMinValue(100)
-                        .setMaxValue(1000000))
-                .addStringOption(option =>
-                    option.setName('metodo')
-                        .setDescription('Método de pago')
-                        .setRequired(true)
-                        .addChoices(
-                            { name: '💵 Efectivo', value: 'efectivo' },
-                            { name: '💳 Tarjeta de Débito', value: 'debito' },
-                            { name: '💳 Tarjeta de Crédito', value: 'credito' }
-                        )))
+                .setDescription('💵 Comprar fichas de casino (Menú Interactivo)'))
         .addSubcommand(subcommand =>
             subcommand
                 .setName('vender')
@@ -64,114 +49,163 @@ module.exports = {
         const userId = interaction.user.id;
         const guildId = interaction.guildId;
         const casinoService = new CasinoService(supabase);
-        // Initialize UB Service
         const ubService = new UnbelievaBoatService(process.env.UNBELIEVABOAT_TOKEN || process.env.DISCORD_TOKEN_UB, supabase);
 
         try {
             if (subcommand === 'comprar') {
-                const amount = interaction.options.getInteger('cantidad');
-                const metodo = interaction.options.getString('metodo');
-
                 await interaction.deferReply();
 
-                if (metodo === 'efectivo' || metodo === 'debito') {
-                    // Check Balance via UB
-                    const balance = await ubService.getUserBalance(guildId, userId);
-                    const currentFunds = metodo === 'efectivo' ? balance.cash : balance.bank;
-                    const fundName = metodo === 'efectivo' ? 'Efectivo' : 'Banco';
+                // Select Amount UI
+                const amountEmbed = new EmbedBuilder()
+                    .setTitle('🎰 Comprar Fichas')
+                    .setDescription('Selecciona la cantidad de fichas que deseas comprar:\n($1 = 1 Ficha)')
+                    .setColor(COLORS.INFO)
+                    .setFooter({ text: 'Sistema de Casino NacionMX' });
 
-                    if (currentFunds < amount) {
-                        return interaction.editReply({
-                            content: `❌ No tienes suficiente dinero en ${fundName}.\n💰 Tienes: $${currentFunds.toLocaleString()}\nNecesitas: $${amount.toLocaleString()}`
-                        });
+                const rowAmounts = new ActionRowBuilder().addComponents(
+                    new ButtonBuilder().setCustomId('buy_chips_150').setLabel('$150').setStyle(ButtonStyle.Primary).setEmoji('💰'),
+                    new ButtonBuilder().setCustomId('buy_chips_250').setLabel('$250').setStyle(ButtonStyle.Primary).setEmoji('💰'),
+                    new ButtonBuilder().setCustomId('buy_chips_500').setLabel('$500').setStyle(ButtonStyle.Primary).setEmoji('💰'),
+                    new ButtonBuilder().setCustomId('buy_chips_1000').setLabel('$1,000').setStyle(ButtonStyle.Success).setEmoji('💰'),
+                    new ButtonBuilder().setCustomId('buy_chips_cancel').setLabel('Cancelar').setStyle(ButtonStyle.Danger)
+                );
+
+                const message = await interaction.editReply({ embeds: [amountEmbed], components: [rowAmounts] });
+
+                // Create Collector
+                const filter = i => i.user.id === interaction.user.id;
+                const collector = message.createMessageComponentCollector({ filter, time: 60000 });
+
+                collector.on('collect', async i => {
+                    const id = i.customId;
+
+                    if (id === 'buy_chips_cancel') {
+                        await i.update({ content: '❌ Compra cancelada.', embeds: [], components: [] });
+                        collector.stop();
+                        return;
                     }
 
-                    // Deduct Money
-                    const result = await ubService.removeMoney(guildId, userId, amount, 'Compra de Fichas Casino', metodo === 'efectivo' ? 'cash' : 'bank');
-                    if (!result.success) {
-                        return interaction.editReply({ content: '❌ Error al procesar el pago con el banco.' });
+                    if (id.startsWith('buy_chips_')) {
+                        const amount = parseInt(id.replace('buy_chips_', ''));
+
+                        // Select Method UI
+                        const methodEmbed = new EmbedBuilder()
+                            .setTitle('💳 Método de Pago')
+                            .setDescription(`Monto a pagar: **$${amount.toLocaleString()}**\n\nSelecciona tu método de pago:`)
+                            .setColor(COLORS.INFO);
+
+                        const rowMethods = new ActionRowBuilder().addComponents(
+                            new ButtonBuilder().setCustomId(`confirm_buy_${amount}_efectivo`).setLabel('Efectivo').setStyle(ButtonStyle.Success).setEmoji('💵'),
+                            new ButtonBuilder().setCustomId(`confirm_buy_${amount}_debito`).setLabel('Tarjeta Débito').setStyle(ButtonStyle.Primary).setEmoji('💳'),
+                            new ButtonBuilder().setCustomId(`confirm_buy_${amount}_credito`).setLabel('Tarjeta Crédito').setStyle(ButtonStyle.Secondary).setEmoji('💳')
+                        );
+
+                        await i.update({ embeds: [methodEmbed], components: [rowMethods] });
+                        return;
                     }
 
-                } else if (metodo === 'credito') {
-                    // Credit Card Logic
-                    // 1. Find Active Credit Card
-                    // Trying both discord_id and discord_user_id column names as schema is inconsistent in some legacy dbs
-                    const { data: cards, error } = await supabase
-                        .from('credit_cards')
-                        .select('*')
-                        .or(`discord_id.eq.${userId},discord_user_id.eq.${userId}`) // Safety check
-                        .eq('status', 'active');
+                    if (id.startsWith('confirm_buy_')) {
+                        // confirm_buy_150_efectivo
+                        const parts = id.split('_');
+                        const amount = parseInt(parts[2]);
+                        const method = parts[3];
 
-                    if (error || !cards || cards.length === 0) {
-                        return interaction.editReply({ content: '❌ No tienes una tarjeta de crédito activa registrada.' });
+                        await i.deferUpdate(); // Prevent interaction failure
+
+                        // === PAYMENT LOGIC REUSED ===
+                        let paymentSuccess = false;
+                        let errorMsg = '';
+
+                        if (method === 'efectivo' || method === 'debito') {
+                            const balance = await ubService.getUserBalance(guildId, userId);
+                            const currentFunds = method === 'efectivo' ? balance.cash : balance.bank;
+
+                            if (currentFunds < amount) {
+                                errorMsg = `❌ Fondos insuficientes en ${method === 'efectivo' ? 'Efectivo' : 'Banco'}.\nTienes: $${currentFunds.toLocaleString()}`;
+                            } else {
+                                const result = await ubService.removeMoney(guildId, userId, amount, 'Compra de Fichas Casino', method === 'efectivo' ? 'cash' : 'bank');
+                                if (result.success) paymentSuccess = true;
+                                else errorMsg = '❌ Error al procesar pago con banco.';
+                            }
+                        } else if (method === 'credito') {
+                            const { data: cards } = await supabase
+                                .from('credit_cards')
+                                .select('*')
+                                .or(`discord_id.eq.${userId},discord_user_id.eq.${userId}`)
+                                .eq('status', 'active');
+
+                            if (!cards || cards.length === 0) {
+                                errorMsg = '❌ No tienes tarjeta de crédito activa.';
+                            } else {
+                                const card = cards[0];
+                                const tierInfo = CARD_TIERS[card.card_type];
+                                const currentDebt = card.current_balance || 0;
+
+                                if (!tierInfo) {
+                                    errorMsg = '❌ Error de tarjeta (Tier desconocido).';
+                                } else if (currentDebt + amount > tierInfo.limit) {
+                                    errorMsg = `❌ Límite excedido.\nDisp: $${(tierInfo.limit - currentDebt).toLocaleString()}`;
+                                } else {
+                                    const { error: upErr } = await supabase.from('credit_cards').update({
+                                        current_balance: currentDebt + amount,
+                                        last_used_at: new Date().toISOString()
+                                    }).eq('id', card.id);
+
+                                    if (!upErr) paymentSuccess = true;
+                                    else errorMsg = '❌ Error DB tarjeta crédito.';
+                                }
+                            }
+                        }
+
+                        if (!paymentSuccess) {
+                            await interaction.editReply({ content: errorMsg, embeds: [], components: [] });
+                        } else {
+                            // Add Chips
+                            const { data: chipsAccount } = await supabase
+                                .from('casino_chips')
+                                .select('chips_balance')
+                                .eq('discord_user_id', userId)
+                                .maybeSingle();
+
+                            const currentChips = chipsAccount?.chips_balance || 0;
+
+                            if (!chipsAccount) {
+                                await supabase.from('casino_chips').insert({
+                                    discord_user_id: userId,
+                                    chips_balance: amount,
+                                    total_won: 0,
+                                    total_lost: 0,
+                                    games_played: 0
+                                });
+                            } else {
+                                await supabase.from('casino_chips').update({
+                                    chips_balance: currentChips + amount,
+                                    updated_at: new Date().toISOString()
+                                }).eq('discord_user_id', userId);
+                            }
+
+                            const finalEmbed = new EmbedBuilder()
+                                .setTitle('🎰 Compra Exitosa')
+                                .setDescription(`Has comprado **${amount.toLocaleString()}** fichas.`)
+                                .addFields(
+                                    { name: '💸 Costo', value: `$${amount.toLocaleString()}`, inline: true },
+                                    { name: '💳 Método', value: method.toUpperCase(), inline: true },
+                                    { name: '💰 Balance de Fichas', value: `${(currentChips + amount).toLocaleString()}`, inline: true }
+                                )
+                                .setColor(COLORS.SUCCESS)
+                                .setTimestamp();
+
+                            await interaction.editReply({ embeds: [finalEmbed], components: [] });
+                        }
+                        collector.stop();
                     }
+                });
 
-                    const card = cards[0]; // Use first active card
-                    const tierInfo = CARD_TIERS[card.card_type];
-
-                    if (!tierInfo) {
-                        return interaction.editReply({ content: '❌ Error: Tipo de tarjeta inválido o desconocido.' });
+                collector.on('end', (collected, reason) => {
+                    if (reason === 'time') {
+                        interaction.editReply({ content: '⏱️ Tiempo agotado.', components: [] }).catch(() => { });
                     }
-
-                    const subLimit = tierInfo.limit;
-                    const currentDebt = card.current_balance || 0;
-
-                    if (currentDebt + amount > subLimit) {
-                        return interaction.editReply({
-                            content: `❌ Transacción rechazada. Excederías tu límite de crédito.\n📉 Disponible: $${(subLimit - currentDebt).toLocaleString()}\n💳 Límite: $${subLimit.toLocaleString()}`
-                        });
-                    }
-
-                    // Increase Debt
-                    const { error: updateError } = await supabase
-                        .from('credit_cards')
-                        .update({
-                            current_balance: currentDebt + amount,
-                            last_used_at: new Date().toISOString()
-                        })
-                        .eq('id', card.id);
-
-                    if (updateError) {
-                        return interaction.editReply({ content: '❌ Error al procesar el cargo a tu tarjeta de crédito.' });
-                    }
-                }
-
-                // Add Chips to Casino Account
-                const { data: chipsAccount } = await supabase
-                    .from('casino_chips')
-                    .select('chips_balance')
-                    .eq('discord_user_id', userId)
-                    .maybeSingle();
-
-                const currentChips = chipsAccount?.chips_balance || 0;
-
-                if (!chipsAccount) {
-                    await supabase.from('casino_chips').insert({
-                        discord_user_id: userId,
-                        chips_balance: amount,
-                        total_won: 0,
-                        total_lost: 0,
-                        games_played: 0
-                    });
-                } else {
-                    await supabase.from('casino_chips').update({
-                        chips_balance: currentChips + amount,
-                        updated_at: new Date().toISOString()
-                    }).eq('discord_user_id', userId);
-                }
-
-                const embed = new EmbedBuilder()
-                    .setTitle('🎰 Compra Exitosa')
-                    .setDescription(`Has comprado **${amount.toLocaleString()}** fichas.`)
-                    .addFields(
-                        { name: '💸 Costo', value: `$${amount.toLocaleString()}`, inline: true },
-                        { name: '💳 Método', value: metodo.charAt(0).toUpperCase() + metodo.slice(1), inline: true },
-                        { name: '💰 Nuevo Balance', value: `${(currentChips + amount).toLocaleString()} fichas`, inline: true }
-                    )
-                    .setColor(COLORS.SUCCESS)
-                    .setTimestamp();
-
-                await interaction.editReply({ embeds: [embed] });
+                });
 
             } else if (subcommand === 'vender') {
                 const amount = interaction.options.getInteger('cantidad');
@@ -179,7 +213,7 @@ module.exports = {
 
                 await interaction.deferReply();
 
-                // Check chips
+                // Check chips using CasinoService for consistency
                 const check = await casinoService.checkChips(userId, amount);
                 if (!check.hasEnough) {
                     return interaction.editReply({ content: check.message });
@@ -262,10 +296,11 @@ module.exports = {
 
         } catch (error) {
             console.error('[Fichas] Error:', error);
+            const errMsg = `❌ Error: ${error.message || 'Error desconocido'}`;
             if (interaction.deferred) {
-                await interaction.editReply({ content: '❌ Ocurrió un error al procesar la solicitud.' });
+                await interaction.editReply({ content: errMsg, embeds: [], components: [] }).catch(() => { });
             } else {
-                await interaction.reply({ content: '❌ Ocurrió un error al procesar la solicitud.', ephemeral: true });
+                await interaction.reply({ content: errMsg, ephemeral: true }).catch(() => { });
             }
         }
     }
