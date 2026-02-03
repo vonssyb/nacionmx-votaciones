@@ -219,12 +219,12 @@ module.exports = {
             // 8. Build detailed breakdown string
             let salaryBreakdown = salaries.map(job => `• **${job.role_name}**: $${job.salary_amount.toLocaleString()}`).join('\n');
 
-            if (bonusLabel) {
-                salaryBreakdown += `\n\n**Bonos:**\n• ${bonusLabel} (+$${(Math.floor(totalSalary * bonusMultiplier) - totalSalary).toLocaleString()})`;
-            }
+            const adjustments = [];
+            if (bonusLabel) adjustments.push(`${bonusLabel} (+$${(Math.floor(totalSalary * bonusMultiplier) - totalSalary).toLocaleString()})`);
+            if (eventLabel) adjustments.push(eventLabel);
 
-            if (eventLabel) {
-                salaryBreakdown += `\n• ${eventLabel}`;
+            if (adjustments.length > 0) {
+                salaryBreakdown += `\n\n**Ajustes:**\n• ` + adjustments.join('\n• ');
             }
 
             salaryBreakdown += `\n\n**Deducciones:**\n• Impuestos (${(taxRate * 100).toFixed(0)}%): -$${taxAmount.toLocaleString()}`;
