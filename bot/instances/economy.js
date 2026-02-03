@@ -180,6 +180,12 @@ async function startEconomyBot(supabase) {
                 return;
             }
 
+            // Handle Casino Interactions (Video Poker Buttons)
+            if (interaction.isButton() && interaction.customId.startsWith('btn_vp_')) {
+                await casinoService.handleVideoPokerInteraction(interaction);
+                return;
+            }
+
             // Handle Ranking Category Selection (Dropdown Menu)
             if (interaction.isStringSelectMenu() && interaction.customId === 'ranking_category') {
                 const { handleRankingCategorySelect } = require('../handlers/rankingHandler');

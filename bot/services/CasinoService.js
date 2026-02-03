@@ -736,6 +736,177 @@ class CasinoService {
         return hand.map(c => `[${c.face}${c.suit}]`).join(' ');
     }
 
+    // --- VIDEO POKER LOGIC ---
+    evaluatePokerHand(hand) {
+        // Hand: [{face: 'A', suit: '♠', value: 11}, ...]
+        // Rank mapping: 2..9, 10, J, Q, K, A
+        const ranks = { '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7, '8': 8, '9': 9, '10': 10, 'J': 11, 'Q': 12, 'K': 13, 'A': 14 };
+        const suits = hand.map(c => c.suit);
+        const faces = hand.map(c => ranks[c.face]);
+
+        // Sort descending
+        faces.sort((a, b) => b - a);
+
+        const isFlush = suits.every(s => s === suits[0]);
+        let isStraight = true;
+        for (let i = 0; i < 4; i++) {
+            if (faces[i] - faces[i + 1] !== 1) {
+                // Special case: A, 5, 4, 3, 2 (Wheel)
+                if (i === 0 && faces[0] === 14 && faces[1] === 5) {
+                    // Check rest 5,4,3,2
+                    if (faces[1] === 5 && faces[2] === 4 && faces[3] === 3 && faces[4] === 2) {
+                        isStraight = true;
+                        break;
+                    }
+                }
+                isStraight = false;
+                break;
+            }
+        }
+
+        const counts = {};
+        faces.forEach(x => counts[x] = (counts[x] || 0) + 1);
+        const countValues = Object.values(counts).sort((a, b) => b - a); // [4, 1] means 4 of a kind
+
+        // Evaluate
+        if (isFlush && isStraight) {
+            if (faces[0] === 14 && faces[4] === 10) return { rank: 'ROYAL_FLUSH', multiplier: 250, name: 'Escalera Real' };
+            return { rank: 'STRAIGHT_FLUSH', multiplier: 50, name: 'Escalera de Color' };
+        }
+        if (countValues[0] === 4) return { rank: 'FOUR_OF_A_KIND', multiplier: 25, name: 'Poker (4 iguales)' };
+        if (countValues[0] === 3 && countValues[1] === 2) return { rank: 'FULL_HOUSE', multiplier: 9, name: 'Full House' };
+        if (isFlush) return { rank: 'FLUSH', multiplier: 6, name: 'Color' };
+        if (isStraight) return { rank: 'STRAIGHT', multiplier: 4, name: 'Escalera' };
+        if (countValues[0] === 3) return { rank: 'THREE_OF_A_KIND', multiplier: 3, name: 'Trío' };
+        if (countValues[0] === 2 && countValues[1] === 2) return { rank: 'TWO_PAIR', multiplier: 2, name: 'Doble Par' };
+        if (countValues[0] === 2) {
+            // Check Jacks or Better (J=11, Q=12, K=13, A=14)
+            const pairRank = parseInt(Object.keys(counts).find(key => counts[key] === 2));
+            if (pairRank >= 11) return { rank: 'JACKS_OR_BETTER', multiplier: 1, name: 'Jacks or Better' };
+        }
+
+        return { rank: 'NONE', multiplier: 0, name: 'Nada' };
+    }
+
+    async startVideoPoker(interaction, betAmount) {
+        const deck = this.createDeck();
+        const hand = [];
+        for (let i = 0; i < 5; i++) hand.push(deck.pop());
+
+        const userId = interaction.user.id;
+
+        // Save session
+        // Note: active table for VP required in constructor? 
+        // I will add it dynamically or update constructor later.
+        if (!this.sessions.videopoker) this.sessions.videopoker = {};
+
+        this.sessions.videopoker[userId] = {
+            userId,
+            bet: betAmount,
+            hand,
+            deck,
+            held: [false, false, false, false, false], // Indices 0-4
+            stage: 'HOLD' // HOLD -> DRAW -> FINISH
+        };
+
+        await this.updateVideoPokerEmbed(interaction, userId);
+    }
+
+    async handleVideoPokerInteraction(interaction) {
+        const userId = interaction.user.id;
+        const session = this.sessions.videopoker?.[userId];
+        if (!session) return interaction.reply({ content: '❌ Sesión expirada.', ephemeral: true });
+
+        const customId = interaction.customId;
+
+        if (customId === 'btn_vp_deal') {
+            await this.drawVideoPoker(interaction, userId);
+        } else if (customId.startsWith('btn_vp_hold_')) {
+            const idx = parseInt(customId.split('_')[3]);
+            session.held[idx] = !session.held[idx];
+            await this.updateVideoPokerEmbed(interaction, userId);
+        }
+    }
+
+    async drawVideoPoker(interaction, userId) {
+        const session = this.sessions.videopoker[userId];
+
+        // Replace unheld cards
+        for (let i = 0; i < 5; i++) {
+            if (!session.held[i]) {
+                session.hand[i] = session.deck.pop();
+            }
+        }
+
+        // Evaluate
+        const result = this.evaluatePokerHand(session.hand);
+        const payout = Math.floor(session.bet * result.multiplier);
+        const netProfit = payout - session.bet;
+
+        // DB Update
+        if (payout > 0) {
+            const { data: acc } = await this.supabase.from('casino_chips').select('chips_balance, total_won').eq('discord_user_id', userId).maybeSingle();
+            if (acc) {
+                await this.supabase.from('casino_chips').update({
+                    chips_balance: acc.chips_balance + payout,
+                    total_won: (acc.total_won || 0) + netProfit
+                }).eq('discord_user_id', userId);
+            }
+        } else {
+            const { data: acc } = await this.supabase.from('casino_chips').select('total_lost').eq('discord_user_id', userId).maybeSingle();
+            if (acc) {
+                await this.supabase.from('casino_chips').update({
+                    total_lost: (acc.total_lost || 0) + session.bet
+                }).eq('discord_user_id', userId);
+            }
+        }
+
+        // Show Result
+        const embed = new EmbedBuilder()
+            .setTitle(result.multiplier > 0 ? `🎉 ¡GANASTE! ${result.name}` : `❌ Perdiste: ${result.name}`)
+            .setColor(result.multiplier > 0 ? '#2ECC71' : '#E74C3C')
+            .setDescription(`Mano Final:\n${this.formatHand(session.hand)}\n\nPremio: **${payout}** fichas (${result.multiplier}x)`);
+
+        await interaction.update({ embeds: [embed], components: [] }).catch(() => { });
+        delete this.sessions.videopoker[userId];
+    }
+
+    async updateVideoPokerEmbed(interaction, userId) {
+        const session = this.sessions.videopoker[userId];
+        const result = this.evaluatePokerHand(session.hand); // Preview current hand rank
+
+        const embed = new EmbedBuilder()
+            .setTitle('🃏 VIDEO POKER')
+            .setDescription(`Apuesta: **${session.bet}**\n\nMano Actual:\n${session.hand.map((c, i) => session.held[i] ? `**[${c.face}${c.suit}]**` : `[${c.face}${c.suit}]`).join(' ')}\n\n*Selecciona las cartas que quieres MANTENER y pulsa REPARTIR.*`)
+            .setColor('#9B59B6')
+            .setFooter({ text: `Mano actual: ${result.name}` });
+
+        const row = new ActionRowBuilder();
+        for (let i = 0; i < 5; i++) {
+            row.addComponents(
+                new ButtonBuilder()
+                    .setCustomId(`btn_vp_hold_${i}`)
+                    .setLabel(session.held[i] ? '🔒 MANTE' : '🃏 CAMBIAR')
+                    .setStyle(session.held[i] ? ButtonStyle.Success : ButtonStyle.Secondary)
+            );
+        }
+
+        const row2 = new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+                .setCustomId('btn_vp_deal')
+                .setLabel('🎲 REPARTIR')
+                .setStyle(ButtonStyle.Primary)
+        );
+
+        if (interaction.replied || interaction.deferred) {
+            // If coming from button click, update
+            if (interaction.isButton && interaction.isButton()) await interaction.update({ embeds: [embed], components: [row, row2] }).catch(() => { });
+            else await interaction.editReply({ embeds: [embed], components: [row, row2] }).catch(() => { });
+        } else {
+            await interaction.reply({ embeds: [embed], components: [row, row2] }).catch(() => { });
+        }
+    }
+
     async updateBlackjackEmbed(channel) {
         const session = this.sessions.blackjack;
         const dealerShow = session.state === 'DEALER_TURN'
