@@ -129,7 +129,8 @@ module.exports = {
                     'DOUBLE_SALARY', 'TRIPLE_WORK', // Specific
                     'GOLDEN_HOUR', 'MILLIONAIRE_RAIN', 'FESTIVAL', // Positive
                     'CRISIS', 'INFLATION', 'MARKET_CRASH', 'TAX_SEASON', // Negative
-                    'CHAOS_MODE', 'MYSTERY_EVENT' // Special
+                    'CHAOS_MODE', 'MYSTERY_EVENT', // Special
+                    'HAPPY_HOUR', 'RUSH_HOUR' // Added general positive events
                 ];
 
                 if (salaryEvents.includes(activeEvent.event_type)) {

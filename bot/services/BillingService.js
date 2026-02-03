@@ -30,7 +30,8 @@ class BillingService {
         });
 
         // Schedule: Hourly check for pending transfers (Giros)
-        cron.schedule('0 * * * *', async () => {
+        // FIXED: Run every minute to ensure timely delivery after 5m release time
+        cron.schedule('* * * * *', async () => {
             await this.processPendingTransfers();
         });
 

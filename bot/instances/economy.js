@@ -51,7 +51,10 @@ async function startEconomyBot(supabase) {
 
     // Billing Service
     let billingService;
-    try { billingService = new BillingService(client, supabase); } catch (e) { logger.errorWithContext('Economy billing service error', e); }
+    try {
+        billingService = new BillingService(client, supabase);
+        billingService.startCron(); // FIXED: Start billing scheduler (Transfers, Overdraft)
+    } catch (e) { logger.errorWithContext('Economy billing service error', e); }
 
     const paymentProcessor = new PaymentProcessor(supabase, billingService);
 
