@@ -355,6 +355,62 @@ class CasinoService {
         return { hasEnough: true, balance: account.chips_balance };
     }
 
+    async addChips(userId, amount) {
+        const { data: account } = await this.supabase
+            .from('casino_chips')
+            .select('chips_balance')
+            .eq('discord_user_id', userId)
+            .maybeSingle();
+
+        if (!account) {
+            await this.supabase.from('casino_chips').insert({
+                discord_user_id: userId,
+                chips_balance: amount,
+                total_won: 0,
+                total_lost: 0,
+                games_played: 0
+            });
+        } else {
+            await this.supabase.from('casino_chips').update({
+                chips_balance: account.chips_balance + amount,
+                updated_at: new Date().toISOString()
+            }).eq('discord_user_id', userId);
+        }
+    }
+
+    async removeChips(userId, amount) {
+        const { data: account } = await this.supabase
+            .from('casino_chips')
+            .select('chips_balance')
+            .eq('discord_user_id', userId)
+            .single(); // Assuming checkChips was called before
+
+        if (account) {
+            await this.supabase.from('casino_chips').update({
+                chips_balance: account.chips_balance - amount,
+                updated_at: new Date().toISOString()
+            }).eq('discord_user_id', userId);
+        }
+    }
+
+    async updateStats(userId, amount, isWin) {
+        const { data: account } = await this.supabase
+            .from('casino_chips')
+            .select('*')
+            .eq('discord_user_id', userId)
+            .single();
+
+        if (account) {
+            const updates = { games_played: (account.games_played || 0) + 1 };
+            if (isWin) {
+                updates.total_won = (account.total_won || 0) + amount;
+            } else {
+                updates.total_lost = (account.total_lost || 0) + amount;
+            }
+            await this.supabase.from('casino_chips').update(updates).eq('discord_user_id', userId);
+        }
+    }
+
     // --- ANIMATIONS ---
     async animateSlots(interaction, symbols) {
         const frames = [
