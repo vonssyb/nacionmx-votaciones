@@ -73,8 +73,7 @@ async function handleEconomyInteraction(interaction, client, supabase) {
         // Generic Payments (pay_*)
         if (customId && (
             customId.startsWith('pay_') ||
-            customId.startsWith('casino_pay_') ||
-            customId.startsWith('store_pay_')
+            customId.startsWith('casino_pay_')
         )) {
             // Special check for pay_biz_debt which is company
             if (!customId.startsWith('pay_biz_debt_')) {
