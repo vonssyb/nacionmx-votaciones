@@ -1,4 +1,4 @@
-const logger = require('../handlers/Logger'); // Fixed path? Wait, logger require needs check. 
+const logger = require('./Logger');
 // Handlers are in bot/handlers/Logger.js? Previous file had `require('./Logger')`. Service is in `bot/services`. So `../handlers/Logger` might be wrong if Logger is in services.
 // Let's check imports. Original was `require('./Logger')` which means Logger.js is in `services/`.
 // Let's assume Logger is in services based on original file.
