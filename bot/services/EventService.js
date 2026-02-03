@@ -8,47 +8,186 @@ class EventService {
     constructor() {
         this.timezone = 'America/Mexico_City';
         this.eventTypes = {
+            // === EVENTOS POSITIVOS - ECONOMÍA ===
             DOUBLE_SALARY: {
                 name: '💰 Doble Sueldo',
                 description: '¡Los sueldos pagan el doble! Aprovecha para fichar.',
                 multiplier: 2.0,
-                duration: 2, // hours
-                emoji: '💰'
+                duration: 2,
+                emoji: '💰',
+                type: 'positive'
             },
+            TRIPLE_WORK: {
+                name: '💵 Boom Económico',
+                description: '¡Triple paga en todos los trabajos! ¡La economía está en auge!',
+                multiplier: 3.0,
+                duration: 1,
+                emoji: '💵',
+                type: 'positive'
+            },
+            GOLDEN_HOUR: {
+                name: '🌟 Hora Dorada',
+                description: '¡Todo lo que toques se convierte en oro! Ganancias x2.5',
+                multiplier: 2.5,
+                duration: 1,
+                emoji: '🌟',
+                type: 'positive'
+            },
+            MILLIONAIRE_RAIN: {
+                name: '💎 Lluvia de Diamantes',
+                description: '¡Recompensas premium en todas las actividades!',
+                multiplier: 1.8,
+                duration: 2,
+                emoji: '💎',
+                type: 'positive'
+            },
+
+            // === EVENTOS POSITIVOS - CASINO Y SUERTE ===
             CASINO_LUCK: {
                 name: '🎰 Suerte de Casino',
                 description: '¡Mejores probabilidades en todos los juegos de casino!',
                 multiplier: 1.5,
                 duration: 3,
-                emoji: '🎰'
+                emoji: '🎰',
+                type: 'positive'
             },
-            CRISIS: {
-                name: '📉 Crisis Económica',
-                description: 'Los tiempos están difíciles... Ingresos reducidos temporalmente.',
-                multiplier: 0.5,
-                duration: 1,
-                emoji: '📉'
+            JACKPOT_FEVER: {
+                name: '🎲 Fiebre de Jackpot',
+                description: '¡Probabilidades de Jackpot aumentadas! Premia más seguido.',
+                multiplier: 1.7,
+                duration: 2,
+                emoji: '🎲',
+                type: 'positive'
             },
-            FESTIVAL: {
-                name: '🎉 Festival de la Ciudad',
-                description: '¡Bonos aleatorios en todas las actividades!',
-                multiplier: 1.25,
-                duration: 4,
-                emoji: '🎉'
+            LUCKY_DAY: {
+                name: '🍀 Día de Suerte',
+                description: '¡Tu suerte está por las nubes! Crímenes y apuestas favorecidos.',
+                multiplier: 1.6,
+                duration: 3,
+                emoji: '🍀',
+                type: 'positive'
             },
+
+            // === EVENTOS POSITIVOS - XP Y PROGRESO ===
             DOUBLE_XP: {
                 name: '⭐ Doble Experiencia',
                 description: '¡Gana el doble de experiencia en todo!',
                 multiplier: 2.0,
                 duration: 2,
-                emoji: '⭐'
+                emoji: '⭐',
+                type: 'positive'
+            },
+            MEGA_XP: {
+                name: '🌠 Mega Experiencia',
+                description: '¡Experiencia triplicada! Sube de nivel rápido.',
+                multiplier: 3.0,
+                duration: 1,
+                emoji: '🌠',
+                type: 'positive'
+            },
+
+            // === EVENTOS POSITIVOS - GENERALES ===
+            FESTIVAL: {
+                name: '🎉 Festival de la Ciudad',
+                description: '¡Bonos aleatorios en todas las actividades!',
+                multiplier: 1.25,
+                duration: 4,
+                emoji: '🎉',
+                type: 'positive'
             },
             RUSH_HOUR: {
                 name: '⚡ Hora Pico',
-                description: '¡Todo es más rápido! Cooldowns reducidos.',
+                description: '¡Todo es más rápido! Cooldowns reducidos a la mitad.',
+                multiplier: 1.3,
+                duration: 1,
+                emoji: '⚡',
+                type: 'positive'
+            },
+            HAPPY_HOUR: {
+                name: '🍻 Hora Feliz',
+                description: '¡Todo tiene descuento y bonos! Compra y gana más.',
+                multiplier: 1.4,
+                duration: 2,
+                emoji: '🍻',
+                type: 'positive'
+            },
+
+            // === EVENTOS NEGATIVOS - ECONOMÍA ===
+            CRISIS: {
+                name: '📉 Crisis Económica',
+                description: 'Los tiempos están difíciles... Ingresos reducidos temporalmente.',
+                multiplier: 0.5,
+                duration: 2,
+                emoji: '📉',
+                type: 'negative'
+            },
+            INFLATION: {
+                name: '📊 Inflación Galopante',
+                description: '¡Los precios se dispararon! Todo cuesta más y ganas menos.',
+                multiplier: 0.4,
+                duration: 1,
+                emoji: '📊',
+                type: 'negative'
+            },
+            TAX_SEASON: {
+                name: '💸 Temporada de Impuestos',
+                description: 'El gobierno está cobrando impuestos extras. -30% en todas las ganancias.',
+                multiplier: 0.7,
+                duration: 2,
+                emoji: '💸',
+                type: 'negative'
+            },
+            MARKET_CRASH: {
+                name: '💔 Colapso del Mercado',
+                description: '¡Pánico económico! Las ganancias se desplomaron.',
+                multiplier: 0.3,
+                duration: 1,
+                emoji: '💔',
+                type: 'negative'
+            },
+
+            // === EVENTOS NEGATIVOS - MALA SUERTE ===
+            BAD_LUCK: {
+                name: '🌧️ Mala Racha',
+                description: 'Todo sale mal... Probabilidades reducidas en casino y crímenes.',
+                multiplier: 0.6,
+                duration: 2,
+                emoji: '🌧️',
+                type: 'negative'
+            },
+            CURSED_DAY: {
+                name: '😈 Día Maldito',
+                description: '¡Energías negativas rondan! Pierdes más seguido.',
+                multiplier: 0.5,
+                duration: 1,
+                emoji: '😈',
+                type: 'negative'
+            },
+
+            // === EVENTOS NEUTRALES/ESPECIALES ===
+            CHAOS_MODE: {
+                name: '🎭 Modo Caos',
+                description: '¡Todo es impredecible! Ganancias y pérdidas aleatorias extremas.',
+                multiplier: 1.0, // Se maneja diferente en el código
+                duration: 2,
+                emoji: '🎭',
+                type: 'special'
+            },
+            LOTTERY_MANIA: {
+                name: '🎫 Locura de Lotería',
+                description: 'Premios gigantes pero probabilidades bajas. ¿Te arriesgas?',
+                multiplier: 1.2,
+                duration: 3,
+                emoji: '🎫',
+                type: 'special'
+            },
+            MYSTERY_EVENT: {
+                name: '❓ Evento Misterioso',
+                description: '¿Qué sucederá? Nadie lo sabe... Efectos sorpresa activos.',
                 multiplier: 1.0,
                 duration: 1,
-                emoji: '⚡'
+                emoji: '❓',
+                type: 'special'
             }
         };
     }
