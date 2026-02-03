@@ -372,7 +372,8 @@ module.exports = {
                         .addFields({ name: '👤 Historial del Ciudadano (CRM)', value: userHistoryText, inline: false })
                         .setFooter({ text: `Reclama el ticket para responder • ${new Date().toLocaleString('es-MX', { timeZone: 'America/Mexico_City' })}` });
 
-                    await ticketChannel.send({ content: `<@${interaction.user.id}>`, embeds: [embed], components: [row] });
+                    const ticketMsg = await ticketChannel.send({ content: `<@${interaction.user.id}>`, embeds: [embed], components: [row] });
+                    await ticketMsg.pin().catch(e => logger.warn(`[TICKET] Failed to pin message: ${e.message}`));
                 }
 
                 // --- IA ANALYSIS (Skip for loan tickets) ---
