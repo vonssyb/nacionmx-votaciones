@@ -70,9 +70,7 @@ module.exports = {
         if (!check.hasEnough) return interaction.reply({ content: check.message, ephemeral: true });
 
         // Deduct chips immediately
-        await supabase.from('casino_chips')
-            .update({ chips_balance: check.balance - betAmount })
-            .eq('discord_user_id', userId);
+        await casino.removeChips(userId, betAmount);
 
         // Start or Join Session
         const isNewSession = casino.startRouletteSession(interaction);
@@ -88,7 +86,17 @@ module.exports = {
         });
 
         if (isNewSession) {
-            await interaction.reply(`🎡 **RULETA INICIADA**\n\nRespondiendo a apuestas durante 30s...\n¡Hagan sus apuestas!`);
+            const embed = new EmbedBuilder()
+                .setTitle('🎡 RULETA DE CASINO')
+                .setDescription('¡Mesa abierta!\nRespondiendo a apuestas durante 30s...\n**¡Hagan sus apuestas!**')
+                .setImage('attachment://roulette_table.png')
+                .setColor('#E74C3C');
+
+            await interaction.reply({
+                elements: [embed], // Typo fix: embeds not elements
+                embeds: [embed],
+                files: [{ attachment: '/Users/gonzalez/.gemini/antigravity/brain/5f676979-327b-4733-bc92-9b946495f94a/casino_roulette_table_1770078105104.png', name: 'roulette_table.png' }]
+            });
         } else {
             await interaction.reply({ content: `✅ Apuesta registrada: **${betAmount}** fichas a **${betType.toUpperCase()}**`, ephemeral: true });
 

@@ -458,7 +458,7 @@ module.exports = {
                     const row = new ActionRowBuilder().addComponents(selectMenu);
 
                     await interaction.editReply({
-                        content: '🏢 **Tienes múltiples empresas**\\nSelecciona con cuál deseas operar:',
+                        content: '🏢 **Tienes múltiples empresas**\nSelecciona con cuál deseas operar:',
                         components: [row]
                     });
 

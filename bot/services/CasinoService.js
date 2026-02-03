@@ -745,6 +745,7 @@ class CasinoService {
         const embed = new EmbedBuilder()
             .setTitle('🃏 MESA DE BLACKJACK')
             .setColor(0x2F3136)
+            .setImage('attachment://blackjack_table.png')
             .addFields({ name: '🤵 Dealer', value: dealerShow, inline: false });
 
         let desc = '';
@@ -855,8 +856,11 @@ class CasinoService {
             new ButtonBuilder().setCustomId('btn_bj_stand').setLabel('Plantarse').setStyle(ButtonStyle.Danger).setEmoji('🛑')
         );
 
-        const msg = await channel.send({ embeds: [embed], components: [row] });
-        session.message = msg;
+        session.message = await channel.send({
+            embeds: [embed],
+            components: [row],
+            files: [{ attachment: '/Users/gonzalez/.gemini/antigravity/brain/5f676979-327b-4733-bc92-9b946495f94a/casino_blackjack_table_1770078092622.png', name: 'blackjack_table.png' }]
+        });
         await this.updateBlackjackEmbed(channel);
     }
     async updateMinesEmbed(interaction, userId) {

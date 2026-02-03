@@ -48,7 +48,8 @@ const bots = [
         name: 'Economía',
         appId: '1456449944830611685',
         token: process.env.DISCORD_TOKEN_ECO,
-        commandFolders: ['economy', 'business', 'games']
+        commandFolders: ['economy', 'business', 'games'],
+        useGlobal: true // Use Global Commands due to Guild API hang
     },
     {
         name: 'Gobierno',
@@ -67,7 +68,7 @@ const bots = [
         }
 
         try {
-            console.log(`\n🤖 Deploying to ${bot.name}...`);
+            console.log(`\n🤖 Deploying to ${bot.name} (${bot.useGlobal ? 'Global' : 'Guild'})...`);
 
             // Collect commands for this specific bot based on its folders
             const botCommands = [];
@@ -91,12 +92,18 @@ const bots = [
             const rest = new REST({ version: '10' }).setToken(bot.token);
 
             // 1. CLEANUP GLOBAL COMMANDS (To avoid "duplicate" entries if they were global before)
-            try {
-                await rest.put(Routes.applicationCommands(bot.appId), { body: [] });
-            } catch (e) { /* Ignore 401/403 on globals cleanup */ }
+            if (!bot.useGlobal) {
+                try {
+                    await rest.put(Routes.applicationCommands(bot.appId), { body: [] });
+                } catch (e) { /* Ignore 401/403 on globals cleanup */ }
+            }
+
+            const route = bot.useGlobal
+                ? Routes.applicationCommands(bot.appId)
+                : Routes.applicationGuildCommands(bot.appId, GUILD_ID);
 
             const data = await rest.put(
-                Routes.applicationGuildCommands(bot.appId, GUILD_ID),
+                route,
                 { body: botCommands },
             );
 

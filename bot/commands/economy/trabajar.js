@@ -193,7 +193,27 @@ module.exports = {
 
                 // Fetch member for role benefits
                 const member = interaction.member; // Already available in interaction
-                const { amount: finalAmount, perks } = applyRoleBenefits(member, basePay, 'job');
+                const { amount: roleAmount, perks } = applyRoleBenefits(member, basePay, 'job');
+
+                // EVENT SYSTEM INTEGRATION
+                const EventService = require('../../services/EventService');
+                const eventMultiplier = await EventService.applyEventMultiplier(1.0, null, supabase);
+                // We use 1.0 base to get the multiplier factor, or we could pass the amount.
+                // But applyEventMultiplier returns the *multiplied amount*.
+                // Let's pass roleAmount.
+
+                // Check specifically for TRIPLE_WORK or GOLDEN_HOUR or GENERAL Multipliers
+                // EventService.applyEventMultiplier handles generic multipliers from active events.
+
+                let finalAmount = await EventService.applyEventMultiplier(roleAmount, null, supabase);
+
+                // Identify if an event changed the amount
+                if (finalAmount > roleAmount) {
+                    const activeEvent = await EventService.getActiveEvent(supabase);
+                    if (activeEvent) {
+                        perks.push(`[EVENTO] ${activeEvent.event_data.emoji} ${activeEvent.event_name} (x${activeEvent.multiplier})`);
+                    }
+                }
 
                 // Validation
                 if (isNaN(finalAmount) || finalAmount < 1) {

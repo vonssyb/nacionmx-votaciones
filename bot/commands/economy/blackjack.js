@@ -63,10 +63,19 @@ module.exports = {
                     username: interaction.user.username
                 };
 
-                // Deduct chips
-                await supabase.from('casino_chips').update({ chips_balance: check.balance - bet }).eq('discord_user_id', userId);
+                // Deduct chips using helper
+                await casino.removeChips(userId, bet);
 
-                await interaction.reply(`🃏 **Mesa de Blackjack Creada**\n\nJugadores: <@${userId}> ($${bet})\n\nEsperando más jugadores... Usen \`/blackjack unirse\`\nCuando estén listos, usa \`/blackjack comenzar\``);
+                const embed = new EmbedBuilder()
+                    .setTitle('🃏 Mesa de Blackjack')
+                    .setDescription(`**Host:** <@${userId}>\n**Apuesta:** $${bet}\n\nEsperando jugadores...`)
+                    .setImage('attachment://blackjack_table.png') // Reference attachment
+                    .setColor('#2ECC71');
+
+                await interaction.reply({
+                    embeds: [embed],
+                    files: [{ attachment: '/Users/gonzalez/.gemini/antigravity/brain/5f676979-327b-4733-bc92-9b946495f94a/casino_blackjack_table_1770078092622.png', name: 'blackjack_table.png' }]
+                });
 
             } else if (subcommand === 'unirse') {
                 if (!session.isOpen || session.state !== 'LOBBY') {
@@ -91,7 +100,7 @@ module.exports = {
                     username: interaction.user.username
                 };
 
-                await supabase.from('casino_chips').update({ chips_balance: check.balance - bet }).eq('discord_user_id', userId);
+                await casino.removeChips(userId, bet);
 
                 await interaction.reply(`✅ **${interaction.user.username}** se unió con $${bet}.`);
 

@@ -49,12 +49,6 @@ module.exports = {
                 .setMinValue(1)
                 .setMaxValue(24)
         )
-        .addStringOption(option =>
-            option
-                .setName('canal')
-                .setDescription('Canal donde anunciar (opcional, usa canal de eventos configurado)')
-                .setRequired(false)
-        )
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
 
     async execute(interaction, client, supabase) {
@@ -63,7 +57,6 @@ module.exports = {
 
             const eventType = interaction.options.getString('tipo');
             const customDuration = interaction.options.getInteger('duracion');
-            const customChannel = interaction.options.getString('canal');
 
             // Check if there's already an active event
             const activeEvent = await EventService.getActiveEvent(supabase);
@@ -117,9 +110,9 @@ module.exports = {
             }
 
             // Announce in channel
-            const announcementChannelId = customChannel || '1412964502114402384'; // Default announcement channel
+            // Channel is now hardcoded in EventService
             try {
-                await EventService.announceEvent(client, announcementChannelId, newEvent, 'start');
+                await EventService.announceEvent(client, null, newEvent, 'start');
             } catch (announceError) {
                 console.error('Error announcing event:', announceError);
             }
@@ -127,7 +120,7 @@ module.exports = {
             // Schedule event end
             const durationMs = duration * 60 * 60 * 1000;
             setTimeout(async () => {
-                await EventService.endEvent(newEvent.id, client, announcementChannelId, supabase);
+                await EventService.endEvent(newEvent.id, client, null, supabase);
             }, durationMs);
 
             // Confirmation embed

@@ -205,21 +205,51 @@ module.exports = {
 
                 // Give rewards
                 const UnbelievaBoatService = require('../../services/UnbelievaBoatService');
+                const EventService = require('../../services/EventService');
+                const activeEvent = await EventService.getActiveEvent(supabase);
                 const ubToken = process.env.UNBELIEVABOAT_TOKEN;
 
-                if (ubToken && mission.reward_money > 0) {
+                let finalMoney = mission.reward_money;
+                let finalXP = mission.reward_xp;
+                let eventLabel = '';
+
+                if (activeEvent) {
+                    // Money Events
+                    const moneyEvents = [
+                        'DOUBLE_SALARY', 'TRIPLE_WORK', 'GOLDEN_HOUR', 'MILLIONAIRE_RAIN',
+                        'FESTIVAL', 'CRISIS', 'INFLATION'
+                    ];
+
+                    if (moneyEvents.includes(activeEvent.event_type)) {
+                        finalMoney = Math.floor(finalMoney * activeEvent.multiplier);
+                        eventLabel += `\n💰 ${activeEvent.event_name}: x${activeEvent.multiplier} Dinero`;
+                    }
+
+                    // XP Events
+                    const xpEvents = ['DOUBLE_XP', 'MEGA_XP', 'GOLDEN_HOUR', 'FESTIVAL'];
+                    if (xpEvents.includes(activeEvent.event_type)) {
+                        // Use multiplier (default might be 2.0 for DOUBLE_XP)
+                        let xpMult = activeEvent.multiplier;
+                        if (activeEvent.event_type === 'DOUBLE_XP' && xpMult === 1) xpMult = 2.0; // Fallback
+
+                        finalXP = Math.floor(finalXP * xpMult);
+                        eventLabel += `\n⭐ ${activeEvent.event_name}: x${xpMult} XP`;
+                    }
+                }
+
+                if (ubToken && finalMoney > 0) {
                     const ubService = new UnbelievaBoatService(ubToken);
                     await ubService.addMoney(
                         interaction.guildId,
                         interaction.user.id,
-                        mission.reward_money,
+                        finalMoney,
                         0,
                         `Misión Diaria: ${mission.title}`
                     );
                 }
 
                 // Update XP if user_stats exists
-                if (mission.reward_xp > 0) {
+                if (finalXP > 0) {
                     const { data: stats } = await supabase
                         .from('user_stats')
                         .select('*')
@@ -229,7 +259,7 @@ module.exports = {
                     if (stats) {
                         await supabase
                             .from('user_stats')
-                            .update({ xp: (stats.xp || 0) + mission.reward_xp })
+                            .update({ xp: (stats.xp || 0) + finalXP })
                             .eq('discord_id', interaction.user.id);
                     }
                 }
@@ -248,10 +278,14 @@ module.exports = {
                     .setColor('#2ECC71')
                     .setDescription(`¡Has completado la misión **"${mission.title}"**!`)
                     .addFields(
-                        { name: '💰 Dinero', value: `+$${mission.reward_money.toLocaleString()}`, inline: true },
-                        { name: '⭐ XP', value: `+${mission.reward_xp} XP`, inline: true }
-                    )
-                    .setTimestamp();
+                        { name: '💰 Dinero', value: `+$${finalMoney.toLocaleString()}`, inline: true },
+                        { name: '⭐ XP', value: `+${finalXP} XP`, inline: true }
+                    );
+
+                if (eventLabel) {
+                    embed.addFields({ name: '🎉 Bonus Evento', value: eventLabel, inline: false });
+                }
+                embed.setTimestamp();
 
                 return interaction.editReply({ embeds: [embed] });
             }

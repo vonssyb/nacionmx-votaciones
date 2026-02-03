@@ -116,7 +116,33 @@ module.exports = {
                 bonusLabel = '🚀 Booster +10%';
             }
 
-            const grossSalary = Math.floor(totalSalary * bonusMultiplier);
+            let grossSalary = Math.floor(totalSalary * bonusMultiplier);
+
+            // EVENT SYSTEM INTEGRATION
+            const EventService = require('../../services/EventService');
+            const activeEvent = await EventService.getActiveEvent(supabase);
+
+            let eventLabel = '';
+            if (activeEvent) {
+                // Events that affect Salary/Collection
+                const salaryEvents = [
+                    'DOUBLE_SALARY', 'TRIPLE_WORK', // Specific
+                    'GOLDEN_HOUR', 'MILLIONAIRE_RAIN', 'FESTIVAL', // Positive
+                    'CRISIS', 'INFLATION', 'MARKET_CRASH', 'TAX_SEASON', // Negative
+                    'CHAOS_MODE', 'MYSTERY_EVENT' // Special
+                ];
+
+                if (salaryEvents.includes(activeEvent.event_type)) {
+                    const oldSalary = grossSalary;
+                    grossSalary = Math.floor(grossSalary * activeEvent.multiplier);
+
+                    if (grossSalary > oldSalary) {
+                        eventLabel = `🎉 Evento: ${activeEvent.event_data?.emoji || ''} ${activeEvent.event_name} (x${activeEvent.multiplier})`;
+                    } else if (grossSalary < oldSalary) {
+                        eventLabel = `📉 Evento: ${activeEvent.event_data?.emoji || ''} ${activeEvent.event_name} (x${activeEvent.multiplier})`;
+                    }
+                }
+            }
 
             // Tax rates based on role
             let taxRate = 0.08; // Default 8%
@@ -194,7 +220,11 @@ module.exports = {
             let salaryBreakdown = salaries.map(job => `• **${job.role_name}**: $${job.salary_amount.toLocaleString()}`).join('\n');
 
             if (bonusLabel) {
-                salaryBreakdown += `\n\n**Bonos:**\n• ${bonusLabel} (+$${(grossSalary - totalSalary).toLocaleString()})`;
+                salaryBreakdown += `\n\n**Bonos:**\n• ${bonusLabel} (+$${(Math.floor(totalSalary * bonusMultiplier) - totalSalary).toLocaleString()})`;
+            }
+
+            if (eventLabel) {
+                salaryBreakdown += `\n• ${eventLabel}`;
             }
 
             salaryBreakdown += `\n\n**Deducciones:**\n• Impuestos (${(taxRate * 100).toFixed(0)}%): -$${taxAmount.toLocaleString()}`;

@@ -28,7 +28,7 @@ module.exports = {
             const success = await EventService.endEvent(
                 activeEvent.id,
                 client,
-                '1412964502114402384', // Announcement channel
+                null, // Announcement channel handled by Service
                 supabase
             );
 

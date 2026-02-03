@@ -6374,21 +6374,6 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
 
             if (amount <= 0) return interaction.editReply('❌ Monto inválido.');
 
-            // Get RP names from citizens table
-            const { data: senderCitizen } = await supabase
-                .from('citizens')
-                .select('full_name')
-                .eq('discord_id', interaction.user.id)
-                .maybeSingle();
-            const senderName = senderCitizen?.full_name || interaction.user.username;
-
-            const { data: recipientCitizen } = await supabase
-                .from('citizens')
-                .select('full_name')
-                .eq('discord_id', targetUser.id)
-                .maybeSingle();
-            const recipientName = recipientCitizen?.full_name || targetUser.username;
-
             // Check for Evasor Fiscal role
             const EVASOR_FISCAL_ROLE_ID = '1449950636371214397';
             const hasEvasorRole = interaction.member.roles.cache.has(EVASOR_FISCAL_ROLE_ID);
@@ -6411,11 +6396,11 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
                 .maybeSingle();
 
             if (!recipientCard) {
-                return interaction.editReply(`❌ ${recipientName} no tiene una tarjeta de débito activa.`);
+                return interaction.editReply(`❌ ${targetUser.tag} no tiene una tarjeta de débito activa.`);
             }
 
             // Remove money from sender (transfer amount + tax)
-            await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, amount, `Transfer a ${recipientName}`, 'bank');
+            await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, amount, `Transfer a ${targetUser.tag}`, 'bank');
 
             // Charge transaction tax
             await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, taxAmount, `💸 Impuesto Transaccional (${taxRate * 100}%)`, 'bank');
@@ -6436,7 +6421,7 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             const embed = new EmbedBuilder()
                 .setTitle('💳 Transferencia Programada')
                 .setColor(0x00FF00)
-                .setDescription(`Transferencia a **${recipientName}** en proceso.`)
+                .setDescription(`Transferencia a **${targetUser.tag}** en proceso.`)
                 .addFields(
                     { name: '💰 Monto', value: `$${amount.toLocaleString()}`, inline: true },
                     { name: '💸 Impuesto', value: `$${taxAmount.toLocaleString()} (${taxRate * 100}%)`, inline: true },
@@ -6490,21 +6475,6 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
 
         // Helper function to rename channel based on state
 
-        // Get RP names from citizens table
-        const { data: senderCitizen } = await supabase
-            .from('citizens')
-            .select('full_name')
-            .eq('discord_id', interaction.user.id)
-            .maybeSingle();
-
-        const { data: recipientCitizen } = await supabase
-            .from('citizens')
-            .select('full_name')
-            .eq('discord_id', targetUser.id)
-            .maybeSingle();
-
-        const recipientName = recipientCitizen?.full_name || targetUser.username;
-
         // GHOST MODE: Check if sender has Elite privacy
         const { data: senderPrivacy } = await supabase
             .from('privacy_accounts')
@@ -6514,13 +6484,10 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             .gt('expires_at', new Date().toISOString())
             .maybeSingle();
 
-        // Priority: Offshore name > RP name > Discord username
-        const senderName = senderPrivacy?.offshore_name ||
-            (senderPrivacy ? '🕶️ Usuario Anónimo' :
-                (senderCitizen?.full_name || interaction.user.username));
+        const senderName = senderPrivacy?.offshore_name || (senderPrivacy ? '🕶️ Usuario Anónimo' : interaction.user.tag);
 
         // Immediate transfer
-        await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, amount, `SPEI a ${recipientName}`, 'bank');
+        await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, amount, `SPEI a ${targetUser.tag}`, 'bank');
         await billingService.ubService.addMoney(interaction.guildId, targetUser.id, amount, `SPEI de ${senderName}`, 'bank');
 
         // Notify recipient if they have alerts

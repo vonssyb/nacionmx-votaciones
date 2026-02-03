@@ -254,14 +254,14 @@ class EventService {
             if (error) throw error;
 
             // Announce event in channel
-            if (client && announcementChannelId) {
-                await this.announceEvent(client, announcementChannelId, newEvent, 'start');
+            if (client) {
+                await this.announceEvent(client, null, newEvent, 'start');
             }
 
             // Schedule event end
             const durationMs = eventConfig.duration * 60 * 60 * 1000;
             setTimeout(async () => {
-                await this.endEvent(newEvent.id, client, announcementChannelId);
+                await this.endEvent(newEvent.id, client, null);
             }, durationMs);
 
             console.log(`Started event: ${eventConfig.name} for ${eventConfig.duration}h`);
@@ -295,8 +295,8 @@ class EventService {
             if (error) throw error;
 
             // Announce end
-            if (client && announcementChannelId) {
-                await this.announceEvent(client, announcementChannelId, event, 'end');
+            if (client) {
+                await this.announceEvent(client, null, event, 'end');
             }
 
             console.log(`Ended event: ${event.event_name}`);
@@ -310,9 +310,10 @@ class EventService {
     /**
      * Announce event in Discord channel
      */
-    async announceEvent(client, channelId, event, phase) {
+    async announceEvent(client, _channelIdIgnored, event, phase) {
         try {
-            const channel = await client.channels.fetch(channelId);
+            const ANNOUNCEMENT_CHANNEL_ID = '1450290886335533126';
+            const channel = await client.channels.fetch(ANNOUNCEMENT_CHANNEL_ID);
             if (!channel) return;
 
             const eventConfig = this.eventTypes[event.event_type];

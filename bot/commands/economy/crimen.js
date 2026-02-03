@@ -218,7 +218,32 @@ module.exports = {
             else if (isPremium) { bonusMultiplier = 1.10; bonusLabel = '⭐ Premium +10%'; }
             else if (isBooster) { bonusMultiplier = 1.10; bonusLabel = '🚀 Booster +10%'; }
 
-            const grossPay = Math.floor(basePay * bonusMultiplier);
+            let grossPay = Math.floor(basePay * bonusMultiplier);
+
+            // EVENT SYSTEM INTEGRATION
+            const EventService = require('../../services/EventService');
+            const activeEvent = await EventService.getActiveEvent(supabase);
+
+            let eventLabel = '';
+            if (activeEvent) {
+                // Events that affect Crime
+                const crimeEvents = [
+                    'GOLDEN_HOUR', 'MILLIONAIRE_RAIN', 'LUCKY_DAY', 'FESTIVAL', // Positive
+                    'CRISIS', 'INFLATION', 'MARKET_CRASH', 'BAD_LUCK', 'CURSED_DAY', // Negative
+                    'CHAOS_MODE', 'MYSTERY_EVENT' // Special
+                ];
+
+                if (crimeEvents.includes(activeEvent.event_type)) {
+                    const oldPay = grossPay;
+                    grossPay = Math.floor(grossPay * activeEvent.multiplier);
+
+                    if (grossPay > oldPay) {
+                        eventLabel = `🎉 Evento: ${activeEvent.event_data?.emoji || ''} ${activeEvent.event_name} (x${activeEvent.multiplier})`;
+                    } else if (grossPay < oldPay) {
+                        eventLabel = `📉 Evento: ${activeEvent.event_data?.emoji || ''} ${activeEvent.event_name} (x${activeEvent.multiplier})`;
+                    }
+                }
+            }
 
             // Tax Logic: CRIME IS TAX FREE
             let taxRate = 0.0;
@@ -234,8 +259,12 @@ module.exports = {
             ];
 
             if (bonusLabel) {
-                const bonusAmount = grossPay - basePay;
-                fields.push({ name: '⭐ Bonus', value: `+$${bonusAmount.toLocaleString()} (${bonusLabel})`, inline: true });
+                const bonusAmount = (Math.floor(basePay * bonusMultiplier)) - basePay;
+                fields.push({ name: '⭐ Bonus Rol', value: `+$${bonusAmount.toLocaleString()} (${bonusLabel})`, inline: true });
+            }
+
+            if (eventLabel) {
+                fields.push({ name: '🎊 Bonus Evento', value: eventLabel, inline: false });
             }
 
             fields.push(

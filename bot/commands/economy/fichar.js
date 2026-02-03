@@ -162,9 +162,30 @@ module.exports = {
                     });
 
                     // Add bonus to user balance
+                    // EVENT SYSTEM INTEGRATION
+                    const EventService = require('../../services/EventService');
+                    // 'DOUBLE_SALARY' is the specific event for salaries, but simple 'positive' events might also count.
+                    // Let's use generic multiplier but maybe check for DOUBLE_SALARY specific if needed.
+                    // For now, general multiplier is good.
+
+                    let finalBonus = streakResult.bonus;
+                    const boostedBonus = await EventService.applyEventMultiplier(finalBonus, null, supabase);
+
+                    if (boostedBonus > finalBonus) {
+                        const activeEvent = await EventService.getActiveEvent(supabase);
+                        if (activeEvent) {
+                            embed.addFields({
+                                name: `🎉 Bono de Evento`,
+                                value: `${activeEvent.event_data.emoji} **${activeEvent.event_name}** aplicó un multiplicador de x${activeEvent.multiplier} al bono.`,
+                                inline: false
+                            });
+                            finalBonus = boostedBonus;
+                        }
+                    }
+
                     await supabase.rpc('add_balance', {
                         p_user_id: interaction.user.id,
-                        p_amount: streakResult.bonus
+                        p_amount: finalBonus
                     });
                 }
 
