@@ -7,11 +7,11 @@ module.exports = {
         .setName('eventos')
         .setDescription('Ver el evento activo del servidor'),
 
-    async execute(interaction) {
+    async execute(interaction, client, supabase) {
         try {
             await interaction.deferReply();
 
-            const activeEvent = await EventService.getActiveEvent();
+            const activeEvent = await EventService.getActiveEvent(supabase);
 
             if (!activeEvent) {
                 const embed = new EmbedBuilder()
