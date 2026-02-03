@@ -56,7 +56,7 @@ class EventService {
     /**
      * Get current active event
      */
-    async getActiveEvent() {
+    async getActiveEvent(supabase) {
         try {
             const now = moment().tz(this.timezone);
             const { data, error } = await supabase
@@ -78,10 +78,10 @@ class EventService {
     /**
      * Start a new random event
      */
-    async startRandomEvent(client, announcementChannelId) {
+    async startRandomEvent(client, announcementChannelId, supabase) {
         try {
             // Check if there's already an active event
-            const activeEvent = await this.getActiveEvent();
+            const activeEvent = await this.getActiveEvent(supabase);
             if (activeEvent) {
                 console.log('Event already active, skipping...');
                 return null;
@@ -136,7 +136,7 @@ class EventService {
     /**
      * End an event
      */
-    async endEvent(eventId, client, announcementChannelId) {
+    async endEvent(eventId, client, announcementChannelId, supabase) {
         try {
             // Get event details
             const { data: event, error: fetchError } = await supabase
@@ -214,9 +214,9 @@ class EventService {
     /**
      * Apply event multiplier to a value
      */
-    async applyEventMultiplier(baseValue, eventType = null) {
+    async applyEventMultiplier(baseValue, eventType = null, supabase) {
         try {
-            const activeEvent = await this.getActiveEvent();
+            const activeEvent = await this.getActiveEvent(supabase);
             if (!activeEvent) return baseValue;
 
             // If eventType specified, only apply if it matches
