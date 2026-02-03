@@ -16,6 +16,7 @@ module.exports = {
                 .setMaxValue(5000)),
 
     async execute(interaction, client, supabase) {
+        await interaction.deferReply(); // FIXED: Reduce timeout risk
         const userId = interaction.user.id;
         const bet = interaction.options.getInteger('apuesta');
 
@@ -23,9 +24,8 @@ module.exports = {
         const casino = new CasinoService(supabase);
 
         // Check balance
-        // Check balance
         const check = await casino.checkChips(userId, bet);
-        if (!check.hasEnough) return interaction.reply({ content: check.message, ephemeral: true });
+        if (!check.hasEnough) return interaction.editReply({ content: check.message, ephemeral: true });
 
         // Deduct bet immediately
         await supabase.from('casino_chips')
@@ -54,7 +54,7 @@ module.exports = {
             .setTitle('🎰 TRAGAMONEDAS')
             .setDescription('**[ ❓ | ❓ | ❓ ]**\n\n> 🎰 Tirando de la palanca...')
             .setColor('#3498DB');
-        await interaction.reply({ embeds: [embedStart] });
+        await interaction.editReply({ embeds: [embedStart] });
 
         // 5s - Reel 1
         setTimeout(async () => {

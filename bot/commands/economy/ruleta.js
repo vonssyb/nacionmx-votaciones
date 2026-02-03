@@ -35,13 +35,14 @@ module.exports = {
                 .setMaxValue(36)),
 
     async execute(interaction, client, supabase) {
+        await interaction.deferReply(); // FIXED: Reduce timeout risk
         const userId = interaction.user.id;
         const betAmount = interaction.options.getInteger('apuesta');
         const betType = interaction.options.getString('tipo');
         const number = interaction.options.getInteger('numero');
 
         if (betType === 'numero' && number === null) {
-            return interaction.reply({ content: '❌ Debes especificar un número para la apuesta exacta.', ephemeral: true });
+            return interaction.editReply({ content: '❌ Debes especificar un número para la apuesta exacta.', ephemeral: true });
         }
 
         // Initialize service
@@ -67,7 +68,7 @@ module.exports = {
 
         // Check chips
         const check = await casino.checkChips(userId, betAmount);
-        if (!check.hasEnough) return interaction.reply({ content: check.message, ephemeral: true });
+        if (!check.hasEnough) return interaction.editReply({ content: check.message, ephemeral: true });
 
         // Deduct chips immediately
         await casino.removeChips(userId, betAmount);
@@ -79,7 +80,7 @@ module.exports = {
             .setColor('#E74C3C')
             .addFields({ name: 'Tu Apuesta', value: `${betAmount} fichas a ${betType.toUpperCase()}` });
 
-        await interaction.reply({ embeds: [embedInitial] });
+        await interaction.editReply({ embeds: [embedInitial] });
 
         // Phase 1: 10s
         setTimeout(async () => {
@@ -151,3 +152,5 @@ module.exports = {
 
             await interaction.editReply({ embeds: [embedResult] }).catch(() => { });
         }, 30000);
+    }
+};
