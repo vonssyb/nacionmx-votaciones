@@ -153,6 +153,11 @@ const handleEconomyLegacy = async (interaction, client, supabase) => {
 
     } catch (error) {
         logger.errorWithContext('CMD Error', error);
+        if (interaction.deferred || interaction.replied) {
+            await interaction.editReply({ content: `❌ **Error:** Algo salió mal.\n\`${error.message}\``, embeds: [], components: [] }).catch(() => { });
+        } else {
+            await interaction.reply({ content: `❌ **Error:** Algo salió mal.\n\`${error.message}\``, ephemeral: true }).catch(() => { });
+        }
     }
 
 

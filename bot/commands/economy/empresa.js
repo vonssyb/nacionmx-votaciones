@@ -1539,7 +1539,7 @@ module.exports = {
 
         } catch (error) {
             console.error('[empresa] Error:', error);
-            await interaction.editReply('❌ Error al procesar la acción.');
+            await interaction.editReply(`❌ Error: ${error.message || 'Error desconocido'}`);
         }
     }
 };
