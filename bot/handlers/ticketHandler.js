@@ -379,7 +379,7 @@ module.exports = {
                         if (aiAnswer && !aiAnswer.startsWith('ERROR')) {
                             const aiRow = new ActionRowBuilder().addComponents(
                                 new ButtonBuilder().setCustomId('btn_ai_close').setLabel('✅ Me sirvió, cerrar ticket').setStyle(ButtonStyle.Success).setEmoji('🔒'),
-                                new ButtonBuilder().setCustomId(`btn_ai_help_${staffRoleID || 'none'}`).setLabel('👮 Aún necesito Staff').setStyle(ButtonStyle.Secondary).setEmoji('📢')
+                                new ButtonBuilder().setCustomId(`btn_ai_help_${config.role || 'none'}`).setLabel('👮 Aún necesito Staff').setStyle(ButtonStyle.Secondary).setEmoji('📢')
                             );
 
                             const aiEmbed = new EmbedBuilder()
