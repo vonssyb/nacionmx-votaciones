@@ -11,12 +11,34 @@ module.exports = {
                 .setDescription('Tipo de evento a iniciar')
                 .setRequired(true)
                 .addChoices(
+                    // Eventos Positivos - Economía
                     { name: '💰 Doble Sueldo', value: 'DOUBLE_SALARY' },
+                    { name: '💵 Boom Económico (x3 sueldo)', value: 'TRIPLE_WORK' },
+                    { name: '🌟 Hora Dorada (x2.5 todo)', value: 'GOLDEN_HOUR' },
+                    { name: '💎 Lluvia de Diamantes', value: 'MILLIONAIRE_RAIN' },
+                    // Eventos Positivos - Casino/Suerte
                     { name: '🎰 Suerte de Casino', value: 'CASINO_LUCK' },
-                    { name: '📉 Crisis Económica', value: 'CRISIS' },
-                    { name: '🎉 Festival de la Ciudad', value: 'FESTIVAL' },
+                    { name: '🎲 Fiebre de Jackpot', value: 'JACKPOT_FEVER' },
+                    { name: '🍀 Día de Suerte', value: 'LUCKY_DAY' },
+                    // Eventos Positivos - XP
                     { name: '⭐ Doble Experiencia', value: 'DOUBLE_XP' },
-                    { name: '⚡ Hora Pico', value: 'RUSH_HOUR' }
+                    { name: '🌠 Mega Experiencia (x3)', value: 'MEGA_XP' },
+                    // Eventos Positivos - Generales
+                    { name: '🎉 Festival de la Ciudad', value: 'FESTIVAL' },
+                    { name: '⚡ Hora Pico', value: 'RUSH_HOUR' },
+                    { name: '🍻 Hora Feliz', value: 'HAPPY_HOUR' },
+                    // Eventos Negativos - Economía
+                    { name: '📉 Crisis Económica', value: 'CRISIS' },
+                    { name: '📊 Inflación Galopante', value: 'INFLATION' },
+                    { name: '💸 Temporada de Impuestos', value: 'TAX_SEASON' },
+                    { name: '💔 Colapso del Mercado', value: 'MARKET_CRASH' },
+                    // Eventos Negativos - Mala Suerte
+                    { name: '🌧️ Mala Racha', value: 'BAD_LUCK' },
+                    { name: '😈 Día Maldito', value: 'CURSED_DAY' },
+                    // Eventos Especiales
+                    { name: '🎭 Modo Caos', value: 'CHAOS_MODE' },
+                    { name: '🎫 Locura de Lotería', value: 'LOTTERY_MANIA' },
+                    { name: '❓ Evento Misterioso', value: 'MYSTERY_EVENT' }
                 )
         )
         .addIntegerOption(option =>
