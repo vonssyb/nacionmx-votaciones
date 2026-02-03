@@ -346,7 +346,7 @@ module.exports = {
                 if (insertError) {
                     logger.errorWithContext('[TICKET-CRITICAL] DB Insert Failed. Rolling back channel creation.', JSON.stringify(insertError, null, 2));
                     await ticketChannel.delete('DB Insert Failed - Atomic Rollback').catch(() => { });
-                    return interaction.editReply('❌ Error crítico: No se pudo registrar el ticket en la base de datos. Intenta de nuevo.');
+                    return interaction.editReply(`❌ Error crítico DB: ${insertError.message || JSON.stringify(insertError)}`);
                 }
 
                 // --- SPECIAL HANDLING FOR LOAN TICKETS ---
