@@ -212,6 +212,16 @@ class CompanyManagementHandler {
             return true;
         }
 
+        // 2.1 Deposit to Treasury
+        if (this.client.treasuryService) {
+            await this.client.treasuryService.addFunds(
+                interaction.guildId,
+                totalCost,
+                'Creación Empresa', // Source
+                `Creación de ${companyData.name} por <@${interaction.user.id}>` // Details
+            );
+        }
+
         // 3. Create Company in DB
         // Clean up data not in table schema
         const insertData = { ...companyData };

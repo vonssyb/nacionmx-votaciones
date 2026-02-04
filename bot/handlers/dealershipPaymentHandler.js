@@ -81,6 +81,16 @@ async function handleCashPayment(interaction, client, supabase) {
         return interaction.editReply('❌ Error al procesar el pago. Contacta a un administrador.');
     }
 
+    // Deposit to Treasury
+    if (client.treasuryService) {
+        await client.treasuryService.addFunds(
+            interaction.guildId,
+            sale.price_total,
+            'Venta Vehículo',
+            `Venta de ${sale.dealership_catalog.make} ${sale.dealership_catalog.model} a <@${interaction.user.id}>`
+        );
+    }
+
     // Update sale status
     await supabase
         .from('dealership_sales')

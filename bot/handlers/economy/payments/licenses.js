@@ -133,6 +133,16 @@ class LicensePaymentHandler {
             // Log to channel
             this._logLicense(guild, targetUserId, licenseName, amount, interaction.user.id);
 
+            // 5. Deposit to Government Treasury
+            if (this.client.treasuryService) {
+                await this.client.treasuryService.addFunds(
+                    interaction.guildId,
+                    amount,
+                    'Licencias',
+                    `Pago de ${licenseName} para <@${targetUserId}>`
+                );
+            }
+
             // DM User
             try {
                 await member.send({

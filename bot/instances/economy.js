@@ -23,6 +23,7 @@ const StockService = require('../services/StockService');
 const StateManager = require('../services/StateManager');
 const EconomyScheduler = require('../services/EconomyScheduler');
 const RateLimitService = require('../services/RateLimitService');
+const TreasuryService = require('../services/TreasuryService');
 
 // Orchestrators
 const CompanyOrchestrator = require('../handlers/economy/company/orchestrator');
@@ -48,6 +49,14 @@ async function startEconomyBot(supabase) {
     const storeService = new StoreService(supabase);
     const casinoService = new CasinoService(supabase);
     const stockService = new StockService(supabase);
+    const treasuryService = new TreasuryService(supabase, client); // NEW
+
+    // Attach to client for global access
+    client.treasuryService = treasuryService;
+    client.services = {
+        ...client.services,
+        treasury: treasuryService
+    };
 
     // Billing Service
     let billingService;

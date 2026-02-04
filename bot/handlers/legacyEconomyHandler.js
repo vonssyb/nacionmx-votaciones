@@ -6410,6 +6410,16 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             // Charge transaction tax
             await billingService.ubService.removeMoney(interaction.guildId, interaction.user.id, taxAmount, `💸 Impuesto Transaccional (${taxRate * 100}%)`, 'bank');
 
+            // Deposit Tax to Treasury
+            if (interaction.client.treasuryService) {
+                await interaction.client.treasuryService.addFunds(
+                    interaction.guildId,
+                    taxAmount,
+                    'Impuestos',
+                    `Impuesto Transferencia: ${interaction.user.tag} -> ${targetUser.tag}`
+                );
+            }
+
             // Schedule transfer (5 minutes)
             const releaseDate = new Date(Date.now() + (5 * 60 * 1000));
 

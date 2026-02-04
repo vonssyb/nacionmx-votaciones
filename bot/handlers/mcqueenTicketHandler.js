@@ -1,4 +1,4 @@
-const { EmbedBuilder, ChannelType, PermissionFlagBits } = require('discord.js');
+const { EmbedBuilder, ChannelType, PermissionFlagsBits } = require('discord.js');
 const logger = require('../services/Logger');
 
 module.exports = {
@@ -53,15 +53,15 @@ module.exports = {
                 permissionOverwrites: [
                     {
                         id: interaction.guild.id,
-                        deny: [PermissionFlagBits.ViewChannel]
+                        deny: [PermissionFlagsBits.ViewChannel]
                     },
                     {
                         id: interaction.user.id,
-                        allow: [PermissionFlagBits.ViewChannel, PermissionFlagBits.SendMessages, PermissionFlagBits.ReadMessageHistory]
+                        allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
                     },
                     {
                         id: '1466558863342964800', // Asesor de ventas role
-                        allow: [PermissionFlagBits.ViewChannel, PermissionFlagBits.SendMessages, PermissionFlagBits.ReadMessageHistory]
+                        allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
                     }
                 ]
             });
