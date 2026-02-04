@@ -6413,31 +6413,44 @@ Esta tarjeta es personal e intransferible. El titular es responsable de todos lo
             // Schedule transfer (5 minutes)
             const releaseDate = new Date(Date.now() + (5 * 60 * 1000));
 
-            await supabase.from('pending_transfers').insert({
-                sender_id: interaction.user.id,
-                receiver_id: targetUser.id,
-                amount: amount,
-                reason: concepto,
-                release_date: releaseDate.toISOString(),
-                status: 'PENDING',
-                transfer_type: 'debito'
-            });
+            try {
+                const { error: insertError } = await supabase.from('pending_transfers').insert({
+                    sender_id: interaction.user.id,
+                    receiver_id: targetUser.id,
+                    amount: amount,
+                    reason: concepto,
+                    release_date: releaseDate.toISOString(),
+                    status: 'PENDING'
+                    // Removed 'transfer_type': Column likely does not exist, causing crash after deduction
+                });
 
-            const embed = new EmbedBuilder()
-                .setTitle('💳 Transferencia Programada')
-                .setColor(0x00FF00)
-                .setDescription(`Transferencia a **${targetUser.tag}** en proceso.`)
-                .addFields(
-                    { name: '💰 Monto', value: `$${amount.toLocaleString()}`, inline: true },
-                    { name: '💸 Impuesto', value: `$${taxAmount.toLocaleString()} (${taxRate * 100}%)`, inline: true },
-                    { name: '🔢 Total Cobrado', value: `$${totalRequired.toLocaleString()}`, inline: true },
-                    { name: '⏱️ Tiempo', value: '5 minutos', inline: true },
-                    { name: '📝 Concepto', value: concepto, inline: false }
-                )
-                .setFooter({ text: hasEvasorRole ? '✅ Descuento fiscal aplicado (4%)' : 'Impuesto transaccional: 8%' })
-                .setTimestamp();
+                if (insertError) throw insertError;
 
-            return interaction.editReply({ embeds: [embed] });
+                const embed = new EmbedBuilder()
+                    .setTitle('💳 Transferencia Programada')
+                    .setColor(0x00FF00)
+                    .setDescription(`Transferencia a **${targetUser.tag}** en proceso.`)
+                    .addFields(
+                        { name: '💰 Monto', value: `$${amount.toLocaleString()}`, inline: true },
+                        { name: '💸 Impuesto', value: `$${taxAmount.toLocaleString()} (${taxRate * 100}%)`, inline: true },
+                        { name: '🔢 Total Cobrado', value: `$${totalRequired.toLocaleString()}`, inline: true },
+                        { name: '⏱️ Tiempo', value: '5 minutos', inline: true },
+                        { name: '📝 Concepto', value: concepto, inline: false }
+                    )
+                    .setFooter({ text: hasEvasorRole ? '✅ Descuento fiscal aplicado (4%)' : 'Impuesto transaccional: 8%' })
+                    .setTimestamp();
+
+                return interaction.editReply({ embeds: [embed] });
+
+            } catch (err) {
+                console.error('[Transfer] Insert failed, refunding user:', err);
+
+                // REFUND
+                await billingService.ubService.addMoney(interaction.guildId, interaction.user.id, amount, 'Refund: Fallo Transferencia', 'bank');
+                await billingService.ubService.addMoney(interaction.guildId, interaction.user.id, taxAmount, 'Refund: Impuesto Transferencia', 'bank');
+
+                return interaction.editReply(`❌ **Error en la transferencia**\nHubo un problema registrando la operación. Tu dinero ha sido reembolsado.\nError: ${err.message}`);
+            }
         }
 
         // Helper function to rename channel based on state
