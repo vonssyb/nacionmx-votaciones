@@ -216,13 +216,28 @@ module.exports = {
                     }
                 }
 
+                // 6.1 Tax Calculation
+                const TAX_RATE = 0.10; // 10% Income Tax
+                const taxAmount = Math.floor(finalAmount * TAX_RATE);
+                const netPay = finalAmount - taxAmount;
+
                 // Validation
-                if (isNaN(finalAmount) || finalAmount < 1) {
-                    throw new Error(`Calculated invalid pay amount: ${finalAmount}`);
+                if (isNaN(netPay) || netPay < 1) {
+                    throw new Error(`Calculated invalid net pay: ${netPay}`);
                 }
 
-                // Process Payment
-                await billingService.ubService.addMoney(interaction.guildId, interaction.user.id, finalAmount, `Trabajo: ${job.title}`, 'cash');
+                // Process Payment (Net)
+                await billingService.ubService.addMoney(interaction.guildId, interaction.user.id, netPay, `Trabajo: ${job.title} (Neto)`, 'cash');
+
+                // Deposit Tax to Treasury
+                if (client.treasuryService && taxAmount > 0) {
+                    await client.treasuryService.addFunds(
+                        interaction.guildId,
+                        taxAmount,
+                        'Impuesto Renta',
+                        `ISR Trabajo: ${interaction.user.tag} - ${job.title}`
+                    );
+                }
 
                 // Set Cooldown
                 client.cooldowns.set(cooldownKey, Date.now());
@@ -232,8 +247,9 @@ module.exports = {
                     .setTitle('✅ ¡Trabajo Completado!')
                     .setDescription(`Has completado la tarea de **${job.title}**.`)
                     .addFields(
-                        { name: '💰 Pago Base', value: `$${basePay.toLocaleString()}`, inline: true },
-                        { name: '💵 Total Recibido', value: `**$${finalAmount.toLocaleString()}**`, inline: true }
+                        { name: '💰 Pago Bruto', value: `$${finalAmount.toLocaleString()}`, inline: true },
+                        { name: '🏛️ Impuestos (10%)', value: `-$${taxAmount.toLocaleString()}`, inline: true },
+                        { name: '💵 Pago Neto', value: `**$${netPay.toLocaleString()}**`, inline: true }
                     );
 
                 if (perks.length > 0) {
