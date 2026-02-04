@@ -139,26 +139,29 @@ module.exports = {
                 .setTimestamp();
 
             // Log to audit channel
+            // REMOVED BY USER REQUEST (Duplicate/Unwanted log in 1450...)
+            /*
             const AUDIT_CHANNEL_ID = process.env.AUDIT_LOGS_CHANNEL_ID || '1450610756663115879';
-            console.log(`[DINERO] Audit Logging: Target ID=${AUDIT_CHANNEL_ID}`);
+            // console.log(`[DINERO] Audit Logging: Target ID=${AUDIT_CHANNEL_ID}`);
 
             try {
                 const logChannel = await client.channels.fetch(AUDIT_CHANNEL_ID).catch(err => {
-                    console.error(`[DINERO] Failed to fetch audit channel ${AUDIT_CHANNEL_ID}:`, err.message);
+                    // console.error(`[DINERO] Failed to fetch audit channel ${AUDIT_CHANNEL_ID}:`, err.message);
                     return null;
                 });
 
                 if (logChannel) {
-                    console.log(`[DINERO] Audit channel found: ${logChannel.name}. Sending log...`);
+                    // console.log(`[DINERO] Audit channel found: ${logChannel.name}. Sending log...`);
                     await logChannel.send({ embeds: [auditEmbed] })
                         .then(() => console.log(`[DINERO] Audit log sent successfully to ${AUDIT_CHANNEL_ID}`))
                         .catch(err => console.error(`[DINERO] Failed to send audit log to ${AUDIT_CHANNEL_ID}:`, err.message));
                 } else {
-                    console.warn(`[DINERO] Audit channel NOT FOUND or bot has no access: ${AUDIT_CHANNEL_ID}`);
+                    // console.warn(`[DINERO] Audit channel NOT FOUND or bot has no access: ${AUDIT_CHANNEL_ID}`);
                 }
             } catch (e) {
                 console.error('[DINERO] Error in audit logging block:', e.message);
             }
+            */
 
             // Success response
             const successEmbed = new EmbedBuilder()
