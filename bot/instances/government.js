@@ -29,6 +29,8 @@ async function startGovernmentBot(supabase) {
     const achievementService = new AchievementService(supabase, levelService);
     const billingService = new BillingService(client, supabase);
     const exchangeService = new ExchangeService(supabase, billingService.ubService);
+    const TreasuryService = require('../services/TreasuryService');
+    const treasuryService = new TreasuryService(supabase, client);
 
     // Initialize StateManager
     const stateManager = new StateManager(supabase);
@@ -40,8 +42,12 @@ async function startGovernmentBot(supabase) {
         achievements: achievementService,
         billing: billingService,
         exchange: exchangeService,
-        stateManager: stateManager
+        billing: billingService,
+        exchange: exchangeService,
+        stateManager: stateManager,
+        treasury: treasuryService
     };
+    client.treasuryService = treasuryService;
 
     // Load Commands
     const loader = require('../handlers/commandLoader');
