@@ -213,6 +213,19 @@ module.exports = {
                     if (activeEvent) {
                         const emoji = finalAmount > roleAmount ? '📈' : '📉';
                         perks.push(`[EVENTO] ${activeEvent.event_data?.emoji || emoji} ${activeEvent.event_name} (x${activeEvent.multiplier})`);
+
+                        // If result is LESS than original, the difference is an event tax. Deposit it.
+                        if (finalAmount < roleAmount) {
+                            const eventTax = roleAmount - finalAmount;
+                            if (client.treasuryService) {
+                                await client.treasuryService.addFunds(
+                                    interaction.guildId,
+                                    eventTax,
+                                    'Impuesto Evento',
+                                    `Evento: ${activeEvent.event_name} (x${activeEvent.multiplier}) - ${interaction.user.tag}`
+                                );
+                            }
+                        }
                     }
                 }
 
