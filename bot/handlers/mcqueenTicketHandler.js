@@ -69,10 +69,11 @@ module.exports = {
             // Save to database
             const { data: insertedTicket, error: dbError } = await supabase.from('tickets').insert({
                 guild_id: interaction.guildId,
-                creator_id: interaction.user.id, // Changed from user_id to creator_id
+                user_id: interaction.user.id, // REQUIRED field
+                creator_id: interaction.user.id, // Redundant but present in schema
                 channel_id: ticketChannel.id,
                 ticket_type: ticketType,
-                status: 'OPEN', // Changed from 'open' to 'OPEN' (matching enum)
+                status: 'open', // Best practice lowercase
                 created_at: new Date().toISOString()
             }).select().single();
 
