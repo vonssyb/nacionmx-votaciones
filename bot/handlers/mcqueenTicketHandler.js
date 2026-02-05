@@ -1,4 +1,4 @@
-const { EmbedBuilder, ChannelType, PermissionFlagsBits } = require('discord.js');
+const { EmbedBuilder, ChannelType, PermissionFlagsBits, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const logger = require('../services/Logger');
 
 module.exports = {
@@ -49,6 +49,7 @@ module.exports = {
             const ticketChannel = await interaction.guild.channels.create({
                 name: `ticket-${interaction.user.username}`,
                 type: ChannelType.GuildText,
+                parent: '1466551872750878769', // CATEGORY ID
                 topic: `${ticketType} | Usuario: ${interaction.user.id}`,
                 permissionOverwrites: [
                     {
@@ -69,17 +70,16 @@ module.exports = {
             // Save to database
             const { data: insertedTicket, error: dbError } = await supabase.from('tickets').insert({
                 guild_id: interaction.guildId,
-                user_id: interaction.user.id, // REQUIRED field
-                creator_id: interaction.user.id, // Redundant but present in schema
+                user_id: interaction.user.id,
+                creator_id: interaction.user.id,
                 channel_id: ticketChannel.id,
                 ticket_type: ticketType,
-                status: 'open', // Best practice lowercase
+                status: 'open',
                 created_at: new Date().toISOString()
             }).select().single();
 
             if (dbError) {
                 logger.error('[McQueen Ticket] Database insert failed:', dbError);
-                // Delete channel if database save fails
                 await ticketChannel.delete('Failed to save ticket to database');
                 return interaction.editReply({
                     content: '❌ Error al guardar el ticket. Por favor contacta a un administrador.',
@@ -93,16 +93,31 @@ module.exports = {
             const welcomeEmbed = new EmbedBuilder()
                 .setTitle(`${ticketEmoji} ${ticketType}`)
                 .setDescription(
-                    `¡Hola ${interaction.user}! Gracias por contactar a McQueen Concesionario.\\n\\n` +
+                    `¡Hola ${interaction.user}! Gracias por contactar a McQueen Concesionario.\n\n` +
                     `Un asesor estará contigo pronto para ayudarte con: **${ticketDescription}**`
                 )
                 .setColor('#FF6B35')
                 .setFooter({ text: 'McQueen Concesionario' })
                 .setTimestamp();
 
+            // Create Control Buttons
+            const row = new ActionRowBuilder().addComponents(
+                new ButtonBuilder()
+                    .setCustomId('ticket_cerrar')
+                    .setLabel('Cerrar Ticket')
+                    .setEmoji('🔒')
+                    .setStyle(ButtonStyle.Danger),
+                new ButtonBuilder()
+                    .setCustomId('ticket_claim')
+                    .setLabel('Reclamar Ticket')
+                    .setEmoji('🙋‍♂️')
+                    .setStyle(ButtonStyle.Primary)
+            );
+
             await ticketChannel.send({
                 content: `${interaction.user} <@&1466558863342964800>`,
-                embeds: [welcomeEmbed]
+                embeds: [welcomeEmbed],
+                components: [row]
             });
 
             await interaction.editReply({
