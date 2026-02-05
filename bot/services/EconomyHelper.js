@@ -312,6 +312,49 @@ function getCardType(cardName) {
     return tier.tier === 'Débito' ? 'debit' : 'credit';
 }
 
+// Cache for dynamic economy values to reduce DB hits
+// Key: `${guildId}_${key}`, Value: { val: value, exp: timestamp }
+const economyCache = new Map();
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+async function getDynamicSetting(supabase, guildId, key, defaultValue) {
+    const cacheKey = `${guildId}_${key}`;
+    const cached = economyCache.get(cacheKey);
+
+    if (cached && Date.now() < cached.exp) {
+        return cached.val;
+    }
+
+    try {
+        const { data } = await supabase
+            .from('server_settings')
+            .select('value')
+            .eq('guild_id', guildId)
+            .eq('key', key)
+            .maybeSingle();
+
+        const value = data ? parseFloat(data.value) : defaultValue;
+        economyCache.set(cacheKey, { val: value, exp: Date.now() + CACHE_TTL });
+        return value;
+    } catch (e) {
+        console.error(`[EconomyHelper] Error fetching setting ${key}:`, e);
+        return defaultValue;
+    }
+}
+
+async function getDynamicTaxRate(supabase, guildId) {
+    return await getDynamicSetting(supabase, guildId, 'global_tax_rate', 0.10);
+}
+
+async function getDynamicSalaryMultiplier(supabase, guildId) {
+    return await getDynamicSetting(supabase, guildId, 'global_salary_multiplier', 1.0);
+}
+
+// Function to clear cache when settings are updated
+function invalidateEconomyCache(guildId, key) {
+    economyCache.delete(`${guildId}_${key}`);
+}
+
 module.exports = {
     BENEFIT_ROLES,
     RP_RANK_ROLES,
@@ -325,5 +368,8 @@ module.exports = {
     getUserRPRank,
     calculateCompoundInterest,
     getCardTier,
-    getCardType
+    getCardType,
+    getDynamicTaxRate,
+    getDynamicSalaryMultiplier,
+    invalidateEconomyCache
 };
