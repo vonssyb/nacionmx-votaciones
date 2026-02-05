@@ -26,6 +26,59 @@ module.exports = {
             ticketType = 'Recursos Humanos';
             ticketEmoji = '💼';
             ticketDescription = 'Recursos humanos';
+        } else if (customId === 'ticket_cerrar') {
+            await interaction.deferReply({ ephemeral: true }); // Defer first
+
+            // 1. Close Ticket Logic
+            const channel = interaction.channel;
+
+            // confirm it's a ticket channel?
+            if (!channel.name.startsWith('ticket-')) {
+                return interaction.editReply('❌ Este no es un canal de ticket válido.');
+            }
+
+            // Update DB
+            const { error } = await supabase
+                .from('tickets')
+                .update({ status: 'closed', closed_at: new Date().toISOString() })
+                .eq('channel_id', channel.id);
+
+            if (error) logger.error('Error closing ticket in DB:', error);
+
+            await interaction.editReply('🔒 Cerrando ticket en 5 segundos...');
+
+            // Delete channel countdown
+            setTimeout(() => {
+                channel.delete().catch(e => logger.error('Error deleting channel:', e));
+            }, 5000);
+            return;
+
+        } else if (customId === 'ticket_claim') {
+            await interaction.deferReply({ ephemeral: false }); // Public reply
+
+            // 2. Claim Ticket Logic
+            // Check permissions (Staff check - simple check for now, can be improved)
+            // Assuming anyone who can SEE the button (staff role) can claim it
+
+            // Update DB
+            const { error } = await supabase
+                .from('tickets')
+                .update({
+                    claimed_by: interaction.user.id,
+                    status: 'active' // Or 'in_progress'
+                })
+                .eq('channel_id', interaction.channelId);
+
+            if (error) {
+                return interaction.editReply({ content: '❌ Error al reclamar ticket en base de datos.', ephemeral: true });
+            }
+
+            const embed = new EmbedBuilder()
+                .setDescription(`🙋‍♂️ Ticket reclamado por ${interaction.user}`)
+                .setColor('#00FF00');
+
+            return interaction.editReply({ embeds: [embed] });
+
         } else {
             return interaction.reply({ content: '❌ Tipo de ticket no reconocido.', ephemeral: true });
         }
