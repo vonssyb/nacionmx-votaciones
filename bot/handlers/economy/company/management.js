@@ -45,136 +45,140 @@ class CompanyManagementHandler {
      * Maneja el comando Slash /empresa crear
      */
     async handleCreateCommand(interaction) {
-        // defer is skipped if already deferred. Assuming safeDefer is used.
-        const nombre = interaction.options.getString('nombre');
-        const dueño = interaction.options.getUser('dueño');
-        const descripcion = interaction.options.getString('descripcion');
-        const discordServer = interaction.options.getString('discord_server');
-        const tipoLocal = interaction.options.getString('tipo_local');
-        const logo = interaction.options.getAttachment('logo');
-        const fotoLocal = interaction.options.getAttachment('foto_local');
-        const ubicacion = interaction.options.getString('ubicacion');
-        const coDueño = interaction.options.getUser('co_dueño');
-        const esPrivada = interaction.options.getBoolean('es_privada') || false;
+        try {
+            // defer is skipped if already deferred. Assuming safeDefer is used.
+            const nombre = interaction.options.getString('nombre');
+            const dueño = interaction.options.getUser('dueño');
+            const descripcion = interaction.options.getString('descripcion');
+            const discordServer = interaction.options.getString('discord_server');
+            const tipoLocal = interaction.options.getString('tipo_local');
+            const logo = interaction.options.getAttachment('logo');
+            const fotoLocal = interaction.options.getAttachment('foto_local');
+            const ubicacion = interaction.options.getString('ubicacion');
+            const coDueño = interaction.options.getUser('co_dueño');
+            const esPrivada = interaction.options.getBoolean('es_privada') || false;
 
-        // Validate URLs (ONLY if provided)
-        const urlRegex = /^(https?:\/\/)?([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?$/;
-        if (discordServer && !urlRegex.test(discordServer)) {
-            await interaction.followUp({ content: '❌ El enlace del servidor Discord no es válido. Debe ser una URL válida.', ephemeral: true });
-            return;
-        }
-
-        // 1. Validate Uniqueness
-        const { data: existing } = await this.supabase
-            .from('companies')
-            .select('id')
-            .eq('name', nombre)
-            .maybeSingle();
-
-        if (existing) {
-            await interaction.followUp({ content: '❌ Ya existe una empresa con ese nombre.', ephemeral: true });
-            return;
-        }
-
-        // 1.1 Validate Location Uniqueness
-        if (ubicacion) {
-            const { data: existingLoc } = await this.supabase
-                .from('companies')
-                .select('name')
-                .ilike('location', ubicacion)
-                .maybeSingle();
-
-            if (existingLoc) {
-                await interaction.followUp({
-                    content: `❌ Ya existe una empresa registrada en esa ubicación (**${existingLoc.name}**).\nPor favor, verifica la dirección o elige un local diferente.`,
-                    ephemeral: true
-                });
+            // Validate URLs (ONLY if provided)
+            const urlRegex = /^(https?:\/\/)?([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?$/;
+            if (discordServer && !urlRegex.test(discordServer)) {
+                await interaction.followUp({ content: '❌ El enlace del servidor Discord no es válido. Debe ser una URL válida.', ephemeral: true });
                 return;
             }
+
+            // 1. Validate Uniqueness
+            const { data: existing } = await this.supabase
+                .from('companies')
+                .select('id')
+                .eq('name', nombre)
+                .maybeSingle();
+
+            if (existing) {
+                await interaction.followUp({ content: '❌ Ya existe una empresa con ese nombre.', ephemeral: true });
+                return;
+            }
+
+            // 1.1 Validate Location Uniqueness
+            if (ubicacion) {
+                const { data: existingLoc } = await this.supabase
+                    .from('companies')
+                    .select('name')
+                    .ilike('location', ubicacion)
+                    .maybeSingle();
+
+                if (existingLoc) {
+                    await interaction.followUp({
+                        content: `❌ Ya existe una empresa registrada en esa ubicación (**${existingLoc.name}**).\nPor favor, verifica la dirección o elige un local diferente.`,
+                        ephemeral: true
+                    });
+                    return;
+                }
+            }
+
+            // 2. Calculate Costs
+            const TRAMITE_FEE = 250000;
+            const LOCAL_COSTS = {
+                'pequeño': 850000,
+                'mediano': 1750000,
+                'grande': 3200000,
+                'gigante': 5000000
+            };
+            // Default to pequeño if undefined but still charge for it? 
+            // Logic check: if tipoLocal is null, user gets charged base ONLY?
+            // But state saves "pequeño". This means user gets "pequeño" for free if they don't select it.
+            // Fix: Default to 'pequeño' for cost calculation too if missing.
+            const selectedLocal = tipoLocal || 'pequeño';
+
+            let baseCost = TRAMITE_FEE;
+            if (LOCAL_COSTS[selectedLocal]) {
+                baseCost += LOCAL_COSTS[selectedLocal];
+            }
+
+            // 3. Apply Discounts (Legacy Logic)
+            const ownerMember = await interaction.guild.members.fetch(dueño.id);
+            const hasVip = ownerMember.roles.cache.some(r => r.name === 'VIP' || r.name === 'Booster' || r.name === 'Premium' || r.id === '1412887172503175270'); // Simplified check with ID
+            // Full role check logic could be injected or imported. For now: 
+            const discount = hasVip ? 0.30 : 0;
+            const totalCost = baseCost * (1 - discount);
+
+            // 4. Save State
+            const stateId = crypto.randomBytes(8).toString('hex');
+            const companyData = {
+                name: nombre,
+                description: descripcion,
+                menu_url: null,
+                owner_id: dueño.id,
+                owner_ids: coDueño ? [dueño.id, coDueño.id] : [dueño.id], // Array for ownership
+                co_owner_id: coDueño?.id || null, // Keeping legacy column just in case
+                created_at: new Date().toISOString(),
+                logo_url: logo?.url || null,
+                local_type: tipoLocal || 'pequeño',
+                local_photo_url: fotoLocal?.url || null,
+                location: ubicacion,
+                is_private: esPrivada,
+                industry_type: 'General',
+                discord_server: discordServer,
+                vehicle_count: 0,
+                balance: 0,
+                totalCost
+            };
+
+            const stored = await this.stateManager.setPendingAction(stateId, {
+                type: 'company_create',
+                data: companyData,
+                userId: interaction.user.id
+            }, 600); // 10 mins
+
+            if (!stored) {
+                await interaction.followUp({ content: '❌ Error guardando estado de creación.' });
+                return;
+            }
+
+            // 5. Show Summary & Buttons
+            const embed = new EmbedBuilder()
+                .setTitle(`🏢 Confirmar Creación: ${nombre}`)
+                .setColor('#3498DB')
+                .setDescription(`${descripcion || 'Sin descripción'}\n\n**Costo Total:** $${totalCost.toLocaleString()}\n(Trámite: $${TRAMITE_FEE.toLocaleString()} + Local: $${(LOCAL_COSTS[tipoLocal] || 0).toLocaleString()} - Desc: ${(discount * 100)}%)`)
+                .addFields(
+                    { name: 'Dueño', value: `<@${dueño.id}>`, inline: true },
+                    { name: 'Ubicación', value: ubicacion, inline: true },
+                    { name: 'Tipo Local', value: tipoLocal || 'Ninguno', inline: true },
+                    { name: 'Co-Dueño', value: coDueño ? `<@${coDueño.id}>` : 'N/A', inline: true },
+                    { name: '💬 Discord', value: discordServer, inline: false }
+                )
+                .setFooter({ text: 'Selecciona método de pago para confirmar' });
+
+            if (logo) embed.setThumbnail(logo.url);
+
+            const row = new ActionRowBuilder().addComponents(
+                new ButtonBuilder().setCustomId(`company_create_pay_cash_${stateId}`).setLabel('💵 Efectivo').setStyle(ButtonStyle.Success),
+                new ButtonBuilder().setCustomId(`company_create_pay_debit_${stateId}`).setLabel('💳 Débito').setStyle(ButtonStyle.Primary),
+                new ButtonBuilder().setCustomId(`company_create_pay_credit_${stateId}`).setLabel('💳 Crédito').setStyle(ButtonStyle.Secondary)
+            );
+
+        } catch (error) {
+            console.error('[CompanyManagement] Create Error:', error);
+            await interaction.editReply({ content: `❌ Error al crear empresa: ${error.message || error}` });
         }
-
-        // 2. Calculate Costs
-        const TRAMITE_FEE = 250000;
-        const LOCAL_COSTS = {
-            'pequeño': 850000,
-            'mediano': 1750000,
-            'grande': 3200000,
-            'gigante': 5000000
-        };
-        // Default to pequeño if undefined but still charge for it? 
-        // Logic check: if tipoLocal is null, user gets charged base ONLY?
-        // But state saves "pequeño". This means user gets "pequeño" for free if they don't select it.
-        // Fix: Default to 'pequeño' for cost calculation too if missing.
-        const selectedLocal = tipoLocal || 'pequeño';
-
-        let baseCost = TRAMITE_FEE;
-        if (LOCAL_COSTS[selectedLocal]) {
-            baseCost += LOCAL_COSTS[selectedLocal];
-        }
-
-        // 3. Apply Discounts (Legacy Logic)
-        const ownerMember = await interaction.guild.members.fetch(dueño.id);
-        const hasVip = ownerMember.roles.cache.some(r => r.name === 'VIP' || r.name === 'Booster' || r.name === 'Premium' || r.id === '1412887172503175270'); // Simplified check with ID
-        // Full role check logic could be injected or imported. For now: 
-        const discount = hasVip ? 0.30 : 0;
-        const totalCost = baseCost * (1 - discount);
-
-        // 4. Save State
-        const stateId = crypto.randomBytes(8).toString('hex');
-        const companyData = {
-            name: nombre,
-            description: descripcion,
-            menu_url: null,
-            owner_id: dueño.id,
-            owner_ids: coDueño ? [dueño.id, coDueño.id] : [dueño.id], // Array for ownership
-            co_owner_id: coDueño?.id || null, // Keeping legacy column just in case
-            created_at: new Date().toISOString(),
-            logo_url: logo?.url || null,
-            local_type: tipoLocal || 'pequeño',
-            local_photo_url: fotoLocal?.url || null,
-            location: ubicacion,
-            is_private: esPrivada,
-            industry_type: 'General',
-            discord_server: discordServer,
-            vehicle_count: 0,
-            balance: 0,
-            totalCost
-        };
-
-        const stored = await this.stateManager.setPendingAction(stateId, {
-            type: 'company_create',
-            data: companyData,
-            userId: interaction.user.id
-        }, 600); // 10 mins
-
-        if (!stored) {
-            await interaction.followUp({ content: '❌ Error guardando estado de creación.' });
-            return;
-        }
-
-        // 5. Show Summary & Buttons
-        const embed = new EmbedBuilder()
-            .setTitle(`🏢 Confirmar Creación: ${nombre}`)
-            .setColor('#3498DB')
-            .setDescription(`${descripcion || 'Sin descripción'}\n\n**Costo Total:** $${totalCost.toLocaleString()}\n(Trámite: $${TRAMITE_FEE.toLocaleString()} + Local: $${(LOCAL_COSTS[tipoLocal] || 0).toLocaleString()} - Desc: ${(discount * 100)}%)`)
-            .addFields(
-                { name: 'Dueño', value: `<@${dueño.id}>`, inline: true },
-                { name: 'Ubicación', value: ubicacion, inline: true },
-                { name: 'Tipo Local', value: tipoLocal || 'Ninguno', inline: true },
-                { name: 'Co-Dueño', value: coDueño ? `<@${coDueño.id}>` : 'N/A', inline: true },
-                { name: '💬 Discord', value: discordServer, inline: false }
-            )
-            .setFooter({ text: 'Selecciona método de pago para confirmar' });
-
-        if (logo) embed.setThumbnail(logo.url);
-
-        const row = new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId(`company_create_pay_cash_${stateId}`).setLabel('💵 Efectivo').setStyle(ButtonStyle.Success),
-            new ButtonBuilder().setCustomId(`company_create_pay_debit_${stateId}`).setLabel('💳 Débito').setStyle(ButtonStyle.Primary),
-            new ButtonBuilder().setCustomId(`company_create_pay_credit_${stateId}`).setLabel('💳 Crédito').setStyle(ButtonStyle.Secondary)
-        );
-
-        await interaction.editReply({ embeds: [embed], components: [row] });
     }
 
     /**
