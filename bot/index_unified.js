@@ -9,10 +9,28 @@ const logger = require('./services/Logger');
 const SingleInstanceLock = require('./services/SingleInstanceLock');
 
 // --- BOT INSTANCES ---
-const startModerationBot = require('./instances/moderation');
-const startEconomyBot = require('./instances/economy');
-const startGovernmentBot = require('./instances/government');
-const startDealershipBot = require('./instances/dealership'); // [NEW]
+// --- BOT INSTANCES ---
+let startModerationBot, startEconomyBot, startGovernmentBot, startDealershipBot;
+
+try {
+    console.log("Loading Moderation Bot...");
+    startModerationBot = require('./instances/moderation');
+} catch (e) { console.error('❌ CRITICAL: Failed to load MODERATION module:', e); }
+
+try {
+    console.log("Loading Economy Bot...");
+    startEconomyBot = require('./instances/economy');
+} catch (e) { console.error('❌ CRITICAL: Failed to load ECONOMY module:', e); }
+
+try {
+    console.log("Loading Government Bot...");
+    startGovernmentBot = require('./instances/government');
+} catch (e) { console.error('❌ CRITICAL: Failed to load GOVERNMENT module:', e); }
+
+try {
+    console.log("Loading Dealership Bot...");
+    startDealershipBot = require('./instances/dealership');
+} catch (e) { console.error('❌ CRITICAL: Failed to load DEALERSHIP module:', e); }
 
 // --- LOGGING ---
 logger.info('Starting Nacion MX Unified System');
