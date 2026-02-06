@@ -51,13 +51,31 @@ module.exports = {
                     .setColor('#0099ff')
                     .setTimestamp();
 
-                let desc = "**Empresas Listadas:**\n\n";
-                marketData.slice(0, 10).forEach(c => {
-                    const price = parseFloat(c.stock_price).toFixed(2);
-                    desc += `**${c.ticker}** | ${c.name}\n💲 $${price} | 📊 Vol: ${(c.volatility * 100).toFixed(1)}%\n\n`;
-                });
+                // Separate Companies
+                const userCompanies = marketData.filter(c => c.company_type === 'user');
+                const systemCompanies = marketData.filter(c => c.company_type !== 'user');
 
-                embed.setDescription(desc);
+                let desc = "";
+
+                if (userCompanies.length > 0) {
+                    desc += "🏢 **EMPRESAS REALES**\n";
+                    userCompanies.slice(0, 5).forEach(c => {
+                        const price = parseFloat(c.stock_price).toFixed(2);
+                        const changeIcon = parseFloat(c.volatility) > 0 ? '📊' : '➖';
+                        desc += `**${c.ticker}** | ${c.name}\n💲 $${price} | ${changeIcon} Cap: $${(c.stock_price * c.total_shares / 1000000).toFixed(1)}M\n\n`;
+                    });
+                    if (userCompanies.length > 5) desc += `*...y ${userCompanies.length - 5} más*\n\n`;
+                }
+
+                if (systemCompanies.length > 0) {
+                    desc += "🤖 **INDICES NACIONALES (Ficticias)**\n";
+                    systemCompanies.slice(0, 10).forEach(c => {
+                        const price = parseFloat(c.stock_price).toFixed(2);
+                        desc += `**${c.ticker}** | ${c.name}\n💲 $${price} | 📊 Vol: ${(c.volatility * 100).toFixed(1)}%\n\n`;
+                    });
+                }
+
+                embed.setDescription(desc || "No hay información disponible.");
                 return interaction.editReply({ embeds: [embed] });
 
             } else if (subcommand === 'portafolio') {

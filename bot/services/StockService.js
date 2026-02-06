@@ -12,7 +12,7 @@ class StockService {
     async getMarketData() {
         const { data, error } = await this.supabase
             .from('companies')
-            .select('id, name, ticker, stock_price, volatility, total_shares')
+            .select('id, name, ticker, stock_price, volatility, total_shares, company_type, balance, last_balance')
             .not('ticker', 'is', null)
             .order('market_cap', { ascending: false });
 
@@ -156,6 +156,22 @@ class StockService {
         return { success: true, message: `Vendiste ${quantity} acciones de ${ticker} por ${EconomyHelper.formatMoney(totalSale)}` };
     }
 
+    async getMarketData() {
+        const { data, error } = await this.supabase
+            .from('companies')
+            .select('id, name, ticker, stock_price, volatility, total_shares, company_type, balance, last_balance')
+            .not('ticker', 'is', null)
+            .order('market_cap', { ascending: false });
+
+        if (error) {
+            console.error('[StockService] Error fetching market data:', error);
+            return [];
+        }
+        return data;
+    }
+
+    // ... (generateTicker, listCompany, buyStock, sellStock remain similar) ...
+
     /**
      * Market Simulation Step (Update Prices)
      */
@@ -163,17 +179,48 @@ class StockService {
         const companies = await this.getMarketData();
 
         for (const company of companies) {
-            // Random Walk
-            const changePercent = (Math.random() - 0.5) * (company.volatility * 2); // +/- volatility
-            let newPrice = Number(company.stock_price) * (1 + changePercent);
+            let newPrice = Number(company.stock_price);
 
-            // Limits
-            if (newPrice < 1) newPrice = 1;
+            if (company.company_type === 'user') {
+                // === REAL COMPANIES LOGIC (Book Value + Growth) ===
+                // Price driven by actual Company Balance (Assets)
+                const balance = Number(company.balance || 0);
+                const lastBalance = Number(company.last_balance || balance);
+                const shares = Number(company.total_shares || 1000000);
 
-            // Update
-            await this.supabase.from('companies').update({
-                stock_price: newPrice
-            }).eq('id', company.id);
+                // 1. Calculate Book Value Per Share (BVPS)
+                const bookValue = balance / shares;
+
+                // 2. Determine "Market Sentiment" (Random mult)
+                // If balance grew, sentiment is positive.
+                let sentiment = 1.0;
+                if (balance > lastBalance) sentiment = 1.05; // 5% premium for growth
+                else if (balance < lastBalance) sentiment = 0.95; // 5% discount for loss
+
+                // 3. Target Price = Book Value * Sentiment
+                // Enforce minimum $10 stock price (penny stock protection) or use $1.
+                const targetPrice = Math.max(bookValue * sentiment, 1.00);
+
+                // 4. Move Price towards Target (Dampening to avoid massive spikes)
+                // Move 10% towards target per update
+                newPrice = (newPrice * 0.90) + (targetPrice * 0.10);
+
+                // Update last_balance for next time
+                await this.supabase.from('companies').update({
+                    stock_price: newPrice,
+                    last_balance: balance
+                }).eq('id', company.id);
+
+            } else {
+                // === SYSTEM/FICTIONAL COMPANIES LOGIC (Random Walk) ===
+                const changePercent = (Math.random() - 0.5) * (company.volatility * 2); // +/- volatility
+                newPrice = newPrice * (1 + changePercent);
+                if (newPrice < 1) newPrice = 1;
+
+                await this.supabase.from('companies').update({
+                    stock_price: newPrice
+                }).eq('id', company.id);
+            }
 
             // Log History
             await this.supabase.from('stock_market_history').insert({
