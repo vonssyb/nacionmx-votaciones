@@ -10,9 +10,10 @@ class StockService {
      * Get all companies listed on the market
      */
     async getMarketData() {
+        // Use * to ensure we get data even if new columns (company_type) aren't migrated yet
         const { data, error } = await this.supabase
             .from('companies')
-            .select('id, name, ticker, stock_price, volatility, total_shares, company_type, balance, last_balance')
+            .select('*')
             .not('ticker', 'is', null)
             .order('market_cap', { ascending: false });
 

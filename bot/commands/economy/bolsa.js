@@ -51,9 +51,9 @@ module.exports = {
                     .setColor('#0099ff')
                     .setTimestamp();
 
-                // Separate Companies
-                const userCompanies = marketData.filter(c => c.company_type === 'user');
-                const systemCompanies = marketData.filter(c => c.company_type !== 'user');
+                // Separate Companies (Default to 'user' if type is missing/legacy)
+                const userCompanies = marketData.filter(c => !c.company_type || c.company_type === 'user');
+                const systemCompanies = marketData.filter(c => c.company_type === 'system');
 
                 let desc = "";
 
