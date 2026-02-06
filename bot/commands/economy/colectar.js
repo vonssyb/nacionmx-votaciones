@@ -150,13 +150,16 @@ module.exports = {
             const baseTaxRate = await getDynamicTaxRate(supabase, guildId);
 
             let discount = 0;
-            if (isUltraPass || hasEvasorRole) {
-                discount = 0.50; // 50% Discount on tax
-            } else if (isPremium || isBooster) {
-                discount = 0.25; // 25% Discount on tax
-            }
+            let taxRate = baseTaxRate;
 
-            const taxRate = baseTaxRate * (1 - discount);
+            if (hasEvasorRole) {
+                taxRate = 0; // 0% Tax for Evasor
+            } else {
+                if (isUltraPass) discount = 0.50; // 50% Discount
+                else if (isPremium || isBooster) discount = 0.25; // 25% Discount
+
+                taxRate = baseTaxRate * (1 - discount);
+            }
 
             const taxAmount = Math.floor(grossSalary * taxRate);
             const netAmount = grossSalary - taxAmount;
@@ -209,41 +212,40 @@ module.exports = {
                     user_id: userId,
                     collected_at: new Date().toISOString(),
                     role_used: rolesString,
-                    gross_amount: grossSalary, // Use grossSalary from new logic
+                    gross_amount: grossSalary,
                     tax_amount: taxAmount,
                     net_amount: netAmount
                 });
 
-            if (insertError) {
-                console.error('[colectar] Error recording collection:', insertError);
-            }
+            if (insertError) console.error('[colectar] Error recording collection:', insertError);
 
             // 6. Get new balance
             const balance = await ubService.getUserBalance(guildId, userId);
             const newCashBalance = balance.cash || 0;
 
-            // 8. Build detailed breakdown string
+            // 8. Build detailed breakdown string with Clarity
             let salaryBreakdown = salaries.map(job => `• **${job.role_name}**: $${job.salary_amount.toLocaleString()}`).join('\n');
+            salaryBreakdown += `\n——————\n**Salario Base:** $${totalSalary.toLocaleString()}`;
 
             const adjustments = [];
-            if (bonusLabel) adjustments.push(`${bonusLabel} (+$${(Math.floor(totalSalary * bonusMultiplier) - totalSalary).toLocaleString()})`);
-            if (eventLabel) adjustments.push(eventLabel);
+            if (bonusLabel) adjustments.push(`${bonusLabel}: +$${(Math.floor(totalSalary * bonusMultiplier) - totalSalary).toLocaleString()}`);
+            if (activeEvent) adjustments.push(`${eventLabel || 'Evento'}: ${activeEvent.multiplier}x`); // Show multiplier clearly
 
-            if (adjustments.length > 0) {
-                salaryBreakdown += `\n\n**Ajustes:**\n• ` + adjustments.join('\n• ');
-            }
-
-            salaryBreakdown += `\n\n**Deducciones:**\n• Impuestos (${(taxRate * 100).toFixed(0)}%): -$${taxAmount.toLocaleString()}`;
+            let adjustmentsText = "Ninguno";
+            if (adjustments.length > 0) adjustmentsText = adjustments.join('\n');
 
             // 7. Send success embed
             const successEmbed = new EmbedBuilder()
                 .setTitle('💰 SALARIO COLECTADO')
                 .setColor('#00FF00')
                 .setThumbnail(interaction.user.displayAvatarURL({ dynamic: true }))
-                .setDescription(`Has colectado tu salario de **${roleNames.length}** rol(es).`) // Add description context
+                .setDescription(`Detalles de tu pago semanal.`)
                 .addFields(
-                    { name: '📜 Desglose', value: salaryBreakdown, inline: false },
-                    { name: '💵 Total Neto Depositado', value: `**$${netAmount.toLocaleString()}**`, inline: false },
+                    { name: '📋 Roles', value: salaryBreakdown, inline: false },
+                    { name: '⚖️ Ajustes (Bonos/Eventos)', value: adjustmentsText, inline: false },
+                    { name: '💵 Subtotal Imponible', value: `$${grossSalary.toLocaleString()}`, inline: true },
+                    { name: `🏛️ Impuestos (${(taxRate * 100).toFixed(1)}%)`, value: `-$${taxAmount.toLocaleString()}`, inline: true },
+                    { name: '✅ Total Neto', value: `**$${netAmount.toLocaleString()}**`, inline: true },
                     { name: '💰 Nuevo Balance', value: `$${newCashBalance.toLocaleString()}`, inline: true },
                     { name: '⏰ Próxima Colecta', value: `<t:${Math.floor(moment().add(72, 'hours').valueOf() / 1000)}:R>`, inline: true }
                 )
