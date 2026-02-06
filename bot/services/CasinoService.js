@@ -158,8 +158,8 @@ class CasinoService {
         const session = this.sessions.tower[userId];
         const embed = new EmbedBuilder().setTitle('💀 TE CAÍSTE DE LA TORRE').setColor('#E74C3C').setDescription(`Elegiste columna ${col + 1} y había una mina.\nPerdiste **${session.bet}** fichas.`);
 
-        const { data: acc } = await this.supabase.from('casino_chips').select('total_lost').eq('discord_user_id', userId).single();
-        await this.supabase.from('casino_chips').update({ total_lost: (acc.total_lost || 0) + session.bet }).eq('discord_user_id', userId);
+        const { data: acc } = await this.supabase.from('casino_chips').select('total_lost').eq('user_id', userId).single();
+        await this.supabase.from('casino_chips').update({ total_lost: (acc.total_lost || 0) + session.bet }).eq('user_id', userId);
 
         delete this.sessions.tower[userId];
         await interaction.update({ embeds: [embed], components: [] }).catch(() => { });
@@ -175,11 +175,11 @@ class CasinoService {
             .setColor('#2ECC71')
             .setDescription(`Ganaste **${winAmount}** fichas\nMultiplicador: **${multiplier.toFixed(2)}x**`);
 
-        const { data: acc } = await this.supabase.from('casino_chips').select('chips_balance, total_won').eq('discord_user_id', userId).single();
+        const { data: acc } = await this.supabase.from('casino_chips').select('chips_balance, total_won').eq('user_id', userId).single();
         await this.supabase.from('casino_chips').update({
             chips_balance: acc.chips_balance + winAmount,
             total_won: (acc.total_won || 0) + (winAmount - session.bet)
-        }).eq('discord_user_id', userId);
+        }).eq('user_id', userId);
 
         delete this.sessions.tower[userId];
         await interaction.update({ embeds: [embed], components: [] }).catch(() => { });
@@ -341,55 +341,55 @@ class CasinoService {
     async checkChips(userId, amount) {
         const { data: account } = await this.supabase
             .from('casino_chips')
-            .select('chips_balance')
-            .eq('discord_user_id', userId)
+            .select('chips')
+            .eq('user_id', userId)
             .maybeSingle();
 
-        if (!account) return { hasEnough: false, message: '❌ No tienes cuenta de casino. Compra fichas con `/casino fichas comprar`' };
-        if (account.chips_balance < amount) {
+        if (!account) return { hasEnough: false, message: '❌ No tienes cuenta de casino. Compra fichas con `/fichas comprar`' };
+        if (account.chips < amount) {
             return {
                 hasEnough: false,
                 message: `❌ Fichas insuficientes.\n\nTienes: ${account.chips_balance.toLocaleString()}\nNecesitas: ${amount.toLocaleString()}`
             };
         }
-        return { hasEnough: true, balance: account.chips_balance };
+        return { hasEnough: true, balance: account.chips };
     }
 
     async addChips(userId, amount) {
         const { data: account } = await this.supabase
             .from('casino_chips')
-            .select('chips_balance')
-            .eq('discord_user_id', userId)
+            .select('chips')
+            .eq('user_id', userId)
             .maybeSingle();
 
         if (!account) {
             await this.supabase.from('casino_chips').insert({
-                discord_user_id: userId,
-                chips_balance: amount,
+                user_id: userId,
+                chips: amount,
                 total_won: 0,
                 total_lost: 0,
                 games_played: 0
             });
         } else {
             await this.supabase.from('casino_chips').update({
-                chips_balance: account.chips_balance + amount,
+                chips: account.chips + amount,
                 updated_at: new Date().toISOString()
-            }).eq('discord_user_id', userId);
+            }).eq('user_id', userId);
         }
     }
 
     async removeChips(userId, amount) {
         const { data: account } = await this.supabase
             .from('casino_chips')
-            .select('chips_balance')
-            .eq('discord_user_id', userId)
+            .select('chips')
+            .eq('user_id', userId)
             .single(); // Assuming checkChips was called before
 
         if (account) {
             await this.supabase.from('casino_chips').update({
-                chips_balance: account.chips_balance - amount,
+                chips: account.chips - amount,
                 updated_at: new Date().toISOString()
-            }).eq('discord_user_id', userId);
+            }).eq('user_id', userId);
         }
     }
 
@@ -397,7 +397,7 @@ class CasinoService {
         const { data: account } = await this.supabase
             .from('casino_chips')
             .select('*')
-            .eq('discord_user_id', userId)
+            .eq('user_id', userId)
             .single();
 
         if (account) {
@@ -407,7 +407,7 @@ class CasinoService {
             } else {
                 updates.total_lost = (account.total_lost || 0) + amount;
             }
-            await this.supabase.from('casino_chips').update(updates).eq('discord_user_id', userId);
+            await this.supabase.from('casino_chips').update(updates).eq('user_id', userId);
         }
     }
 
@@ -508,7 +508,7 @@ class CasinoService {
                     chips: (bet.currentChips - bet.amount + payout), // Note: Verify if column is chips or chips_balance. DB schema says chips_balance usually.
                     // Legacy code used "chips" in update but select "chips_balance". 
                     // Let's stick to safe increment via RPC if possible, or just update "chips_balance"
-                    chips_balance: (bet.currentChips - bet.amount + payout), // Correct column name assumption
+                    chips: (bet.currentChips - bet.amount + payout), // Correct column name assumption
                     total_won: (bet.totalWon || 0) + payout,
                     games_played: (bet.gamesPlayed || 0) + 1
                 }).eq('discord_user_id', bet.userId);
@@ -845,19 +845,19 @@ class CasinoService {
 
         // DB Update
         if (payout > 0) {
-            const { data: acc } = await this.supabase.from('casino_chips').select('chips_balance, total_won').eq('discord_user_id', userId).maybeSingle();
+            const { data: acc } = await this.supabase.from('casino_chips').select('chips_balance, total_won').eq('user_id', userId).maybeSingle();
             if (acc) {
                 await this.supabase.from('casino_chips').update({
                     chips_balance: acc.chips_balance + payout,
                     total_won: (acc.total_won || 0) + netProfit
-                }).eq('discord_user_id', userId);
+                }).eq('user_id', userId);
             }
         } else {
-            const { data: acc } = await this.supabase.from('casino_chips').select('total_lost').eq('discord_user_id', userId).maybeSingle();
+            const { data: acc } = await this.supabase.from('casino_chips').select('total_lost').eq('user_id', userId).maybeSingle();
             if (acc) {
                 await this.supabase.from('casino_chips').update({
                     total_lost: (acc.total_lost || 0) + session.bet
-                }).eq('discord_user_id', userId);
+                }).eq('user_id', userId);
             }
         }
 
@@ -964,18 +964,18 @@ class CasinoService {
                 if (netProfit > 0) winners.push(`✅ <@${userId}>: +$${profit.toLocaleString()} (${reason})`);
                 else winners.push(`♻️ <@${userId}>: Refund (${reason})`);
 
-                const { data: acc } = await this.supabase.from('casino_chips').select('*').eq('discord_user_id', userId).single();
+                const { data: acc } = await this.supabase.from('casino_chips').select('*').eq('user_id', userId).single();
                 if (acc) {
                     await this.supabase.from('casino_chips').update({
                         chips_balance: acc.chips_balance + profit,
                         total_won: acc.total_won + netProfit,
                         updated_at: new Date().toISOString()
-                    }).eq('discord_user_id', userId);
+                    }).eq('user_id', userId);
                 }
             } else {
                 // Loss update
-                const { data: acc } = await this.supabase.from('casino_chips').select('total_lost').eq('discord_user_id', userId).single();
-                if (acc) await this.supabase.from('casino_chips').update({ total_lost: acc.total_lost + player.bet }).eq('discord_user_id', userId);
+                const { data: acc } = await this.supabase.from('casino_chips').select('total_lost').eq('user_id', userId).single();
+                if (acc) await this.supabase.from('casino_chips').update({ total_lost: acc.total_lost + player.bet }).eq('user_id', userId);
             }
         }
 
@@ -1113,11 +1113,11 @@ class CasinoService {
             .setColor('#E74C3C');
 
         // Update DB (Loss)
-        const { data: acc } = await this.supabase.from('casino_chips').select('total_lost, games_played').eq('discord_user_id', userId).single();
+        const { data: acc } = await this.supabase.from('casino_chips').select('total_lost, games_played').eq('user_id', userId).single();
         await this.supabase.from('casino_chips').update({
             total_lost: (acc.total_lost || 0) + session.bet,
             games_played: (acc.games_played || 0) + 1
-        }).eq('discord_user_id', userId);
+        }).eq('user_id', userId);
 
         delete this.sessions.mines[userId];
         await interaction.editReply({ embeds: [embed], components: rows }).catch(() => { });
@@ -1136,12 +1136,12 @@ class CasinoService {
             .setColor('#2ECC71');
 
         // Update DB (Win)
-        const { data: acc } = await this.supabase.from('casino_chips').select('chips_balance, total_won, games_played').eq('discord_user_id', userId).single();
+        const { data: acc } = await this.supabase.from('casino_chips').select('chips_balance, total_won, games_played').eq('user_id', userId).single();
         await this.supabase.from('casino_chips').update({
             chips_balance: acc.chips_balance + winAmount, // Bet was already deducted
             total_won: (acc.total_won || 0) + netProfit,
             games_played: (acc.games_played || 0) + 1
-        }).eq('discord_user_id', userId);
+        }).eq('user_id', userId);
 
         delete this.sessions.mines[userId];
         await interaction.update({ embeds: [embed], components: [] }).catch(() => { });
@@ -1315,18 +1315,18 @@ class CasinoService {
         const winAmount = Math.floor(session.bet * multiplier);
 
         // Update DB
-        const { data: acc } = await this.supabase.from('casino_chips').select('*').eq('discord_user_id', userId).single();
+        const { data: acc } = await this.supabase.from('casino_chips').select('*').eq('user_id', userId).single();
         if (won) {
             await this.supabase.from('casino_chips').update({
                 chips_balance: acc.chips_balance + winAmount, // Bet already deducted? Usually yes.
                 total_won: acc.total_won + (winAmount - session.bet),
                 games_played: acc.games_played + 1
-            }).eq('discord_user_id', userId);
+            }).eq('user_id', userId);
         } else {
             await this.supabase.from('casino_chips').update({
                 total_lost: acc.total_lost + session.bet,
                 games_played: acc.games_played + 1
-            }).eq('discord_user_id', userId);
+            }).eq('user_id', userId);
         }
 
         const dirMap = { left: 'Izquierda ⬅️', center: 'Centro ⬆️', right: 'Derecha ➡️' };

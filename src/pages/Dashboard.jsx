@@ -13,6 +13,7 @@ import AdminPanel from './AdminPanel';
 
 import RoleGuard from '../components/auth/RoleGuard';
 import ShiftPanel from './ShiftPanel';
+import Elections from './Elections';
 
 const Dashboard = () => {
     return (
@@ -30,6 +31,7 @@ const Dashboard = () => {
                 <Route path="applications" element={<Applications />} />
                 <Route path="bank" element={<FinancePanel />} />
                 <Route path="cancellations" element={<RoleCancellation />} />
+                <Route path="votaciones" element={<Elections />} />
                 <Route path="rules" element={<Rules />} />
                 <Route path="admin" element={<AdminPanel />} />
                 <Route path="*" element={<Navigate to="/dashboard" replace />} />

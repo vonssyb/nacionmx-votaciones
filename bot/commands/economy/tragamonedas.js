@@ -30,10 +30,10 @@ module.exports = {
         // Deduct bet immediately
         await supabase.from('casino_chips')
             .update({
-                chips_balance: check.balance - bet,
+                chips: check.balance - bet,
                 updated_at: new Date().toISOString()
             })
-            .eq('discord_user_id', userId);
+            .eq('user_id', userId);
 
         // Spin logic
         const spinReel = () => {
@@ -99,16 +99,20 @@ module.exports = {
 
             // Update DB
             if (payout > 0) {
-                const { data: acc } = await supabase.from('casino_chips').select('chips_balance, total_won').eq('discord_user_id', userId).single();
+                const { data: acc } = await supabase.from('casino_chips').select('chips, total_won').eq('user_id', userId).single();
+                // Add payout (bet was already deducted)
                 await supabase.from('casino_chips').update({
-                    chips_balance: (acc.chips_balance || 0) + payout,
-                    total_won: (acc.total_won || 0) + payout
-                }).eq('discord_user_id', userId);
+                    chips: (acc.chips || 0) + payout,
+                    total_won: (acc.total_won || 0) + payout,
+                    updated_at: new Date().toISOString()
+                }).eq('user_id', userId);
             } else {
-                const { data: acc } = await supabase.from('casino_chips').select('total_lost').eq('discord_user_id', userId).single();
+                const { data: acc } = await supabase.from('casino_chips').select('chips, total_lost').eq('user_id', userId).single();
+                // Loss (bet confirmed lost, deduction happened at start)
                 await supabase.from('casino_chips').update({
-                    total_lost: (acc.total_lost || 0) + bet
-                }).eq('discord_user_id', userId);
+                    total_lost: (acc.total_lost || 0) + bet,
+                    updated_at: new Date().toISOString()
+                }).eq('user_id', userId);
             }
 
             const embedFinal = new EmbedBuilder()

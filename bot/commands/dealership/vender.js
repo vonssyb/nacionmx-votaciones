@@ -47,9 +47,9 @@ module.exports = {
 
             // Obtener tarjetas de crédito del cliente
             const { data: tarjetas } = await supabase
-                .from('user_cards')
+                .from('credit_cards')
                 .select('*')
-                .eq('user_id', cliente.id)
+                .eq('discord_id', cliente.id)
                 .order('created_at', { ascending: false });
 
             // Crear embed de venta
@@ -67,9 +67,10 @@ module.exports = {
 
             // Mostrar tarjetas disponibles
             if (tarjetas && tarjetas.length > 0) {
-                const tarjetasInfo = tarjetas.map((t, i) =>
-                    `${i + 1}. **${t.card_type}** - **** **** **** ${t.card_number.slice(-4)} (Límite: $${t.credit_limit?.toLocaleString() || 'N/A'})`
-                ).join('\n');
+                const tarjetasInfo = tarjetas.map((t, i) => {
+                    const limit = t.card_limit || t.credit_limit || 0;
+                    return `${i + 1}. **${t.card_type}** - **** **** **** ${t.card_number.slice(-4)} (Límite: $${limit.toLocaleString()})`;
+                }).join('\n');
                 embed.addFields({ name: '💳 Tarjetas del Cliente', value: tarjetasInfo });
             } else {
                 embed.addFields({ name: '💳 Tarjetas del Cliente', value: 'Sin tarjetas registradas' });

@@ -45,22 +45,20 @@ module.exports = {
         const result = await casino.playDice(userId, bet, type);
 
         // Update DB
-        const { data: acc } = await supabase.from('casino_chips').select('*').eq('discord_user_id', userId).single();
+        const { data: acc } = await supabase.from('casino_chips').select('*').eq('user_id', userId).single();
         if (result.won) {
             const profit = result.payout - bet;
             await supabase.from('casino_chips').update({
-                chips_balance: acc.chips_balance + profit, // Add profit (bet was not deducted yet? Wait.)
-                // If I didn't deduct bet: balance + payout - bet.
-                // Or balance + profit.
-                total_won: acc.total_won + profit,
-                games_played: acc.games_played + 1
-            }).eq('discord_user_id', userId);
+                chips: (acc.chips - bet) + result.payout,
+                total_won: (acc.total_won || 0) + (result.payout - bet),
+                games_played: (acc.games_played || 0) + 1
+            }).eq('user_id', userId);
         } else {
             await supabase.from('casino_chips').update({
-                chips_balance: acc.chips_balance - bet,
-                total_lost: acc.total_lost + bet,
-                games_played: acc.games_played + 1
-            }).eq('discord_user_id', userId);
+                chips: acc.chips - bet,
+                total_lost: (acc.total_lost || 0) + bet,
+                games_played: (acc.games_played || 0) + 1
+            }).eq('user_id', userId);
         }
 
         // Visualize

@@ -136,11 +136,13 @@ module.exports = {
                 if (salaryEvents.includes(activeEvent.event_type)) {
                     const oldSalary = grossSalary;
                     grossSalary = Math.floor(grossSalary * activeEvent.multiplier);
+                    const diff = grossSalary - oldSalary;
+                    const diffFormatted = diff > 0 ? `+$${diff.toLocaleString()}` : `-$${Math.abs(diff).toLocaleString()}`;
 
                     if (grossSalary > oldSalary) {
-                        eventLabel = `🎉 Evento: ${activeEvent.event_data?.emoji || ''} ${activeEvent.event_name} (x${activeEvent.multiplier})`;
+                        eventLabel = `🎉 Evento: ${activeEvent.event_data?.emoji || ''} ${activeEvent.event_name} (x${activeEvent.multiplier}) [${diffFormatted}]`;
                     } else if (grossSalary < oldSalary) {
-                        eventLabel = `📉 Evento: ${activeEvent.event_data?.emoji || ''} ${activeEvent.event_name} (x${activeEvent.multiplier})`;
+                        eventLabel = `📉 Evento: ${activeEvent.event_data?.emoji || ''} ${activeEvent.event_name} (x${activeEvent.multiplier}) [${diffFormatted}]`;
                     }
                 }
             }
@@ -229,7 +231,7 @@ module.exports = {
 
             const adjustments = [];
             if (bonusLabel) adjustments.push(`${bonusLabel}: +$${(Math.floor(totalSalary * bonusMultiplier) - totalSalary).toLocaleString()}`);
-            if (activeEvent) adjustments.push(`${eventLabel || 'Evento'}: ${activeEvent.multiplier}x`); // Show multiplier clearly
+            if (eventLabel) adjustments.push(eventLabel);
 
             let adjustmentsText = "Ninguno";
             if (adjustments.length > 0) adjustmentsText = adjustments.join('\n');

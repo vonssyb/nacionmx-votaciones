@@ -36,7 +36,7 @@ module.exports = {
         if (!check.hasEnough) return interaction.reply({ content: check.message, ephemeral: true });
 
         // Deduct bet
-        await supabase.from('casino_chips').update({ chips_balance: check.balance - bet }).eq('discord_user_id', userId);
+        await supabase.from('casino_chips').update({ chips: check.balance - bet }).eq('user_id', userId);
 
         // Start Game
         await interaction.reply({ content: '💣 **Iniciando Minas...**', components: [] }); // Placeholder

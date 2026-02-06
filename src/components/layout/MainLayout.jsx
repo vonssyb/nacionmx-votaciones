@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { Shield, BookOpen, FileText, Settings, LogOut, Users, Skull, Clock, DollarSign } from 'lucide-react';
+import { Shield, BookOpen, FileText, Settings, LogOut, Users, Skull, Clock, DollarSign, Vote } from 'lucide-react';
 import { supabase } from '../../services/supabase';
 import { useDiscordMember } from '../auth/RoleGuard'; // Import Context Hook
 import './MainLayout.css';
@@ -75,6 +75,10 @@ const MainLayout = () => {
                     <NavLink to="/dashboard/rules" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
                         <BookOpen size={20} />
                         <span>Reglamento</span>
+                    </NavLink>
+                    <NavLink to="/dashboard/votaciones" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+                        <Vote size={20} />
+                        <span>Votaciones</span>
                     </NavLink>
                     <NavLink to="/dashboard/admin" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
                         <Settings size={20} />

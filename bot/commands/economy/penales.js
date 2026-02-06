@@ -26,7 +26,7 @@ module.exports = {
         // startPenalty sets session. Inside handleInteraction we apply result.
         // It's safer to deduct NOW to prevent spam/exploit.
 
-        await supabase.from('casino_chips').update({ chips_balance: check.balance - bet }).eq('discord_user_id', userId);
+        await supabase.from('casino_chips').update({ chips: check.balance - bet }).eq('user_id', userId);
 
         await casino.startPenalty(interaction, bet);
     }

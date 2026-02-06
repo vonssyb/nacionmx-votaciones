@@ -185,9 +185,9 @@ async function handleCreditoPayment(interaction, supabase, vehiculo, cliente, as
     try {
         // Obtener tarjetas del cliente
         const { data: tarjetas } = await supabase
-            .from('user_cards')
+            .from('credit_cards')
             .select('*')
-            .eq('user_id', cliente.id)
+            .eq('discord_id', cliente.id)
             .order('created_at', { ascending: false });
 
         if (!tarjetas || tarjetas.length === 0) {
@@ -199,8 +199,13 @@ async function handleCreditoPayment(interaction, supabase, vehiculo, cliente, as
             return true;
         }
 
-        // Buscar tarjeta con suficiente límite
-        const tarjetaDisponible = tarjetas.find(t => (t.credit_limit || 0) >= precio);
+        // Buscar tarjeta con suficiente permiso y calcular deuda actual
+        const tarjetaDisponible = tarjetas.find(t => {
+            const limit = t.card_limit || t.credit_limit || 0;
+            const currentDebt = t.current_balance || 0;
+            const available = limit - currentDebt;
+            return available >= precio;
+        });
 
         if (!tarjetaDisponible) {
             await interaction.editReply({
@@ -227,9 +232,10 @@ async function handleCreditoPayment(interaction, supabase, vehiculo, cliente, as
 
         if (saleError) throw saleError;
 
-        // Reducir límite de tarjeta
-        await supabase.from('user_cards')
-            .update({ credit_limit: (tarjetaDisponible.credit_limit || 0) - precio })
+        // Aumentar deuda de tarjeta
+        const currentDebt = tarjetaDisponible.current_balance || 0;
+        await supabase.from('credit_cards')
+            .update({ current_balance: currentDebt + precio })
             .eq('id', tarjetaDisponible.id);
 
         // Reducir stock

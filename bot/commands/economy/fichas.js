@@ -163,25 +163,27 @@ module.exports = {
                             // Add Chips
                             const { data: chipsAccount } = await supabase
                                 .from('casino_chips')
-                                .select('chips_balance')
-                                .eq('discord_user_id', userId)
+                                .select('chips')
+                                .eq('user_id', userId)
                                 .maybeSingle();
 
-                            const currentChips = chipsAccount?.chips_balance || 0;
+                            const currentChips = chipsAccount?.chips || 0;
 
                             if (!chipsAccount) {
-                                await supabase.from('casino_chips').insert({
-                                    discord_user_id: userId,
-                                    chips_balance: amount,
+                                const { error: insertError } = await supabase.from('casino_chips').insert({
+                                    user_id: userId,
+                                    chips: amount,
                                     total_won: 0,
                                     total_lost: 0,
                                     games_played: 0
                                 });
+                                if (insertError) throw insertError;
                             } else {
-                                await supabase.from('casino_chips').update({
-                                    chips_balance: currentChips + amount,
+                                const { error: updateError } = await supabase.from('casino_chips').update({
+                                    chips: currentChips + amount,
                                     updated_at: new Date().toISOString()
-                                }).eq('discord_user_id', userId);
+                                }).eq('user_id', userId);
+                                if (updateError) throw updateError;
                             }
 
                             const finalEmbed = new EmbedBuilder()
@@ -221,9 +223,9 @@ module.exports = {
 
                 // Remove Chips first
                 await supabase.from('casino_chips').update({
-                    chips_balance: check.balance - amount,
+                    chips: check.balance - amount,
                     updated_at: new Date().toISOString()
-                }).eq('discord_user_id', userId);
+                }).eq('user_id', userId);
 
                 // Add Money via UB
                 let ubMethod = metodo === 'efectivo' ? 'cash' : 'bank';
@@ -251,10 +253,10 @@ module.exports = {
                 const { data: account } = await supabase
                     .from('casino_chips')
                     .select('*')
-                    .eq('discord_user_id', userId)
+                    .eq('user_id', userId)
                     .maybeSingle();
 
-                const balance = account?.chips_balance || 0;
+                const balance = account?.chips || 0;
 
                 const embed = new EmbedBuilder()
                     .setTitle('🎰 Balance de Casino')
@@ -272,7 +274,7 @@ module.exports = {
                 const { data: account } = await supabase
                     .from('casino_chips')
                     .select('*')
-                    .eq('discord_user_id', userId)
+                    .eq('user_id', userId)
                     .maybeSingle();
 
                 if (!account) {

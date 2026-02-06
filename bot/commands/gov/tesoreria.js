@@ -151,8 +151,8 @@ module.exports = {
             }
 
         } catch (error) {
-            logger.error('Error in tesoreria command:', error);
-            await interaction.editReply('❌ Ocurrió un error al procesar la solicitud.');
+            logger.errorWithContext('Error in tesoreria command:', error);
+            await interaction.editReply(`❌ Ocurrió un error al procesar la solicitud: ${error.message}`).catch(e => console.error(e));
         }
     }
 };

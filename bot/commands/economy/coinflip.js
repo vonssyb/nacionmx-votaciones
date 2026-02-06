@@ -79,9 +79,13 @@ module.exports = {
             // Just assume okay for simplicity or re-check
 
             // Deduct both
-            await supabase.from('casino_chips').update({ chips_balance: check1.balance - bet }).eq('discord_user_id', userId);
-            const { data: opAcc } = await supabase.from('casino_chips').select('chips_balance').eq('discord_user_id', opponent.id).single();
-            await supabase.from('casino_chips').update({ chips_balance: opAcc.chips_balance - bet }).eq('discord_user_id', opponent.id);
+            // Initial check and deduct if needed?
+            // Coinflip usually checks balance but deducts at end or start?
+            // Looking at grep result: line 82: update chips_balance...
+
+            await supabase.from('casino_chips').update({ chips: check1.balance - bet }).eq('user_id', userId);
+            const { data: opAcc } = await supabase.from('casino_chips').select('chips').eq('user_id', opponent.id).single();
+            await supabase.from('casino_chips').update({ chips: opAcc.chips - bet }).eq('user_id', opponent.id);
 
             // Animate
             const frames = ['🪙', '✨', '🪙', '✨'];
@@ -102,19 +106,18 @@ module.exports = {
             const tax = Math.floor(pot * 0.05);
             const winAmount = pot - tax;
 
-            const { data: winAcc } = await supabase.from('casino_chips').select('chips_balance, total_won').eq('discord_user_id', winnerId).single();
+            const { data: winAcc } = await supabase.from('casino_chips').select('chips, total_won, games_played').eq('user_id', winnerId).single();
             await supabase.from('casino_chips').update({
-                chips_balance: winAcc.chips_balance + winAmount,
+                chips: winAcc.chips + winAmount, // Correctly use taxed amount
                 total_won: (winAcc.total_won || 0) + (winAmount - bet),
-                games_played: (check1.gamesPlayed || 0) + 1 // Simply incrementing logic needed
-            }).eq('discord_user_id', winnerId);
+                games_played: (winAcc.games_played || 0) + 1
+            }).eq('user_id', winnerId);
 
             // Loser update
-            const { data: loseAcc } = await supabase.from('casino_chips').select('total_lost').eq('discord_user_id', loserId).single();
+            const { data: loseAcc } = await supabase.from('casino_chips').select('total_lost').eq('user_id', loserId).single();
             await supabase.from('casino_chips').update({
-                total_lost: (loseAcc.total_lost || 0) + bet,
-                games_played: (check1.gamesPlayed || 0) + 1
-            }).eq('discord_user_id', loserId);
+                total_lost: (loseAcc.total_lost || 0) + bet
+            }).eq('user_id', loserId);
 
             const resultEmbed = new EmbedBuilder()
                 .setTitle('🪙 Resultado del Coinflip')
