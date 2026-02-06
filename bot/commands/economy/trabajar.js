@@ -213,25 +213,17 @@ module.exports = {
                     if (activeEvent) {
                         const emoji = finalAmount > roleAmount ? '📈' : '📉';
                         perks.push(`[EVENTO] ${activeEvent.event_data?.emoji || emoji} ${activeEvent.event_name} (x${activeEvent.multiplier})`);
-
-                        // If result is LESS than original, the difference is an event tax. Deposit it.
-                        if (finalAmount < roleAmount) {
-                            const eventTax = roleAmount - finalAmount;
-                            if (client.treasuryService) {
-                                await client.treasuryService.addFunds(
-                                    interaction.guildId,
-                                    eventTax,
-                                    'Impuesto Evento',
-                                    `Evento: ${activeEvent.event_name} (x${activeEvent.multiplier}) - ${interaction.user.tag}`
-                                );
-                            }
-                        }
+                        // Note: We no longer send "Event Tax" (lost money) to treasury.
                     }
                 }
 
                 // 6.1 Tax Calculation
                 const TAX_RATE = 0.10; // 10% Income Tax
-                const taxAmount = Math.floor(finalAmount * TAX_RATE);
+                // Calculate tax only on the Base Amount (roleAmount) if there is a bonus.
+                // If there is a penalty (finalAmount < roleAmount), tax the reduced amount.
+                // This ensures Event Bonuses are tax-free.
+                const taxableAmount = (finalAmount > roleAmount) ? roleAmount : finalAmount;
+                const taxAmount = Math.floor(taxableAmount * TAX_RATE);
                 const netPay = finalAmount - taxAmount;
 
                 // Validation
