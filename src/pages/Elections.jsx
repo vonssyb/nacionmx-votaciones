@@ -127,7 +127,10 @@ const Elections = () => {
                             </div>
                         </div>
                         <button
-                            onClick={() => window.location.hash = '/login'}
+                            onClick={() => {
+                                sessionStorage.setItem('auth_redirect', '/votaciones');
+                                window.location.hash = '/login';
+                            }}
                             className="px-6 py-2.5 bg-yellow-600 hover:bg-yellow-500 text-black font-bold rounded-lg transition-all shadow-lg shadow-yellow-600/20 flex items-center gap-2 whitespace-nowrap"
                         >
                             <LogIn size={20} />

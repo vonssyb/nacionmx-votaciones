@@ -19,8 +19,14 @@ const AuthCallback = () => {
             const checkAndRedirect = async () => {
                 const { data: { session } } = await supabase.auth.getSession();
                 if (session) {
-                    console.log("AuthCallback: Session found, redirecting to dashboard.");
-                    navigate('/dashboard', { replace: true });
+                    console.log("AuthCallback: Session found, redirecting.");
+                    const redirectUrl = sessionStorage.getItem('auth_redirect');
+                    if (redirectUrl) {
+                        sessionStorage.removeItem('auth_redirect');
+                        navigate(redirectUrl, { replace: true });
+                    } else {
+                        navigate('/dashboard', { replace: true });
+                    }
                 }
             };
 
@@ -28,9 +34,15 @@ const AuthCallback = () => {
             const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
                 console.log(`AuthCallback: Auth Event ${event}`);
                 if (event === 'SIGNED_IN' && session) {
-                    navigate('/dashboard', { replace: true });
+                    const redirectUrl = sessionStorage.getItem('auth_redirect');
+                    if (redirectUrl) {
+                        sessionStorage.removeItem('auth_redirect');
+                        navigate(redirectUrl, { replace: true });
+                    } else {
+                        navigate('/dashboard', { replace: true });
+                    }
                 } else if (event === 'SIGNED_OUT') {
-                    // If failed or cancelled
+                    // ...
                     navigate('/login', { replace: true });
                 }
             });
