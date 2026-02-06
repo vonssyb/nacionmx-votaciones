@@ -125,13 +125,71 @@ module.exports = {
                 const cantidad = interaction.options.getInteger('cantidad');
 
                 await interaction.deferReply();
-                const result = await stockService.buyStock(interaction.user.id, interaction.guildId, ticker, cantidad, ubService);
 
-                const embed = new EmbedBuilder()
-                    .setColor(result.success ? '#2ecc71' : '#e74c3c')
-                    .setDescription(result.message);
+                // 1. Fetch details for preview
+                const { data: company } = await supabase
+                    .from('companies')
+                    .select('*')
+                    .eq('ticker', ticker)
+                    .single();
 
-                return interaction.editReply({ embeds: [embed] });
+                if (!company) {
+                    return interaction.editReply({ content: '❌ Empresa no encontrada.' });
+                }
+
+                const totalCost = Number(company.stock_price) * cantidad;
+
+                // 2. Confirmation Embed
+                const confirmEmbed = new EmbedBuilder()
+                    .setTitle(`🏦 Confirmar Compra: ${ticker}`)
+                    .setColor('#f1c40f')
+                    .setDescription(`Estás a punto de comprar **${cantidad}** acciones de **${company.name}**.\n\n` +
+                        `💵 **Precio Total:** $${totalCost.toLocaleString()}\n` +
+                        `🧾 **Precio/Acción:** $${Number(company.stock_price).toFixed(2)}`)
+                    .setFooter({ text: 'Selecciona método de pago o cancela.' });
+
+                const buttons = new ActionRowBuilder().addComponents(
+                    new ButtonBuilder().setCustomId('pay_cash').setLabel('💵 Efectivo').setStyle(ButtonStyle.Success),
+                    new ButtonBuilder().setCustomId('pay_debit').setLabel('💳 Débito').setStyle(ButtonStyle.Primary),
+                    new ButtonBuilder().setCustomId('pay_credit').setLabel('💳 Crédito').setStyle(ButtonStyle.Secondary),
+                    new ButtonBuilder().setCustomId('pay_cancel').setLabel('❌ Cancelar').setStyle(ButtonStyle.Danger)
+                );
+
+                const msg = await interaction.editReply({ embeds: [confirmEmbed], components: [buttons] });
+
+                // 3. Collect Interaction
+                try {
+                    const confirmation = await msg.awaitMessageComponent({
+                        filter: i => i.user.id === interaction.user.id,
+                        time: 60000
+                    });
+
+                    if (confirmation.customId === 'pay_cancel') {
+                        await confirmation.update({ content: '❌ Compra cancelada por el usuario.', embeds: [], components: [] });
+                        return;
+                    }
+
+                    // Map button to method
+                    const methodMap = {
+                        'pay_cash': 'cash',
+                        'pay_debit': 'bank',
+                        'pay_credit': 'credit' // Supported if logic allows
+                    };
+                    const method = methodMap[confirmation.customId];
+
+                    // Execute Buy
+                    const result = await stockService.buyStock(interaction.user.id, interaction.guildId, ticker, cantidad, ubService, method);
+
+                    const resultEmbed = new EmbedBuilder()
+                        .setColor(result.success ? '#2ecc71' : '#e74c3c')
+                        .setDescription(result.message);
+
+                    await confirmation.update({ embeds: [resultEmbed], components: [] });
+
+                } catch (e) {
+                    await interaction.editReply({ content: '⏱️ Tiempo de espera agotado. Compra cancelada.', components: [] });
+                }
+                return;
 
             } else if (subcommand === 'vender') {
                 const ticker = interaction.options.getString('ticker').toUpperCase();

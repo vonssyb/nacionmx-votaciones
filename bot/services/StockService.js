@@ -51,7 +51,7 @@ class StockService {
     /**
      * Buy stocks
      */
-    async buyStock(userId, guildId, ticker, quantity, ubService) {
+    async buyStock(userId, guildId, ticker, quantity, ubService, paymentMethod = 'bank') {
         if (quantity <= 0) return { success: false, message: 'La cantidad debe ser mayor a 0.' };
 
         // 1. Get Company & Price
@@ -65,16 +65,33 @@ class StockService {
 
         const totalCost = company.stock_price * quantity;
 
-        // 2. Check Balance & Deduct Money
-        const balance = await ubService.getUserBalance(guildId, userId);
-        if (balance.bank < totalCost) {
-            return {
-                success: false,
-                message: `Fondos insuficientes en banco. Costo: ${EconomyHelper.formatMoney(totalCost)}`
-            };
+        // 2. Check Balance & Deduct Money based on Method
+        // We can use the billingService if available, otherwise manual UB calls
+        // Assuming ubService is the UnbelievaBoat implementation
+
+        let userBalance;
+        try {
+            userBalance = await ubService.getUserBalance(guildId, userId);
+        } catch (e) {
+            return { success: false, message: 'Error consultando saldo.' };
         }
 
-        await ubService.removeMoney(guildId, userId, totalCost, `Compra acciones ${ticker}`, 'bank');
+        if (paymentMethod === 'cash') {
+            if (userBalance.cash < totalCost) {
+                return { success: false, message: `Efectivo insuficiente. Costo: ${EconomyHelper.formatMoney(totalCost)}` };
+            }
+            await ubService.removeMoney(guildId, userId, totalCost, `Compra acciones ${ticker} (Efectivo)`, 'cash');
+        } else if (paymentMethod === 'bank' || paymentMethod === 'debit') {
+            if (userBalance.bank < totalCost) {
+                return { success: false, message: `Saldo bancario insuficiente. Costo: ${EconomyHelper.formatMoney(totalCost)}` };
+            }
+            await ubService.removeMoney(guildId, userId, totalCost, `Compra acciones ${ticker} (Banco/Débito)`, 'bank');
+        } else if (paymentMethod === 'credit') {
+            // Basic Credit Implementation (if full credit system not linked here yet)
+            // Ideally use BillingService.processPayment for full credit card support
+            // For now, fallback to bank if credit not available or return error
+            return { success: false, message: 'Pago con crédito no disponible en este comando aún (Requiere BillingService).' };
+        }
 
         // 3. Update Portfolio
         const { data: existing } = await this.supabase
@@ -105,11 +122,16 @@ class StockService {
             });
         }
 
-        // 4. Update Company Balance (IPO or Treasury? For now, money disappears or goes to treasury? 
-        // Realistically, buying from secondary market doesn't pay the company unless it's new issuance.
-        // For simulation simplicity: Money sinks (tax) or goes to a "Market Maker".
-        // Let's sending 50% to company balance as "capital injection" if we want to support them.
-        // For now: 100% money sink (deflationary) or Treasury.
+        // 4. Update Company Balance (If User Company)
+        if (company.company_type === 'user') {
+            // Money Sink: 50% goes to company, 50% tax/burn? 
+            // Or 100% to company? Let's say 100% for IPO logic, but usually secondary market is P2P.
+            // Since this is buying "from the system/void", effectively new emission.
+            // Let's add 100% to company balance to support growth.
+            await this.supabase.from('companies').update({
+                balance: (company.balance || 0) + totalCost
+            }).eq('id', company.id);
+        }
 
         return { success: true, message: `Compraste ${quantity} acciones de ${ticker} por ${EconomyHelper.formatMoney(totalCost)}` };
     }
