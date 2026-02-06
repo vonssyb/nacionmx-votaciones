@@ -17,12 +17,10 @@ const Elections = () => {
     }, [memberData]);
 
     const fetchData = async () => {
-        if (!memberData?.user?.id) return;
-
         try {
             setLoading(true);
 
-            // 1. Fetch Active Elections
+            // 1. Fetch Active Elections (Anyone can see this now)
             const { data: electionsData, error: eError } = await supabase
                 .from('elections')
                 .select('*')
@@ -39,17 +37,21 @@ const Elections = () => {
 
             if (cError) throw cError;
 
-            // 3. Fetch User Votes
-            const { data: votesData, error: vError } = await supabase
-                .from('election_votes')
-                .select('election_id, candidate_id')
-                .eq('user_id', memberData.user.id);
+            // 3. Fetch User Votes (ONLY if logged in)
+            let votesData = [];
+            if (memberData?.user?.id) {
+                const { data: vData, error: vError } = await supabase
+                    .from('election_votes')
+                    .select('election_id, candidate_id')
+                    .eq('user_id', memberData.user.id);
 
-            if (vError) throw vError;
+                if (vError) throw vError;
+                votesData = vData || [];
+            }
 
             setElections(electionsData);
             setCandidates(candidatesData);
-            setUserVotes(votesData || []);
+            setUserVotes(votesData);
 
         } catch (error) {
             console.error('Error fetching election data:', error);
@@ -60,6 +62,16 @@ const Elections = () => {
     };
 
     const handleVote = async (electionId, candidateId) => {
+        // If not logged in, redirect to login
+        if (!memberData?.user?.id) {
+            const confirmLogin = window.confirm("Debes iniciar sesión con Discord para votar. ¿Quieres ir al login ahora?");
+            if (confirmLogin) {
+                // Redirect mostly to login page
+                window.location.hash = '/login';
+            }
+            return;
+        }
+
         if (voting) return;
         setVoting(true);
         setMessage(null);
@@ -93,16 +105,21 @@ const Elections = () => {
         }
     };
 
-    if (loading) return <div className="p-8 text-center">Cargando votaciones...</div>;
+    if (loading) return <div className="p-8 text-center text-white">Cargando votaciones...</div>;
 
     return (
-        <div className="p-6 max-w-7xl mx-auto space-y-8">
+        <div className="p-6 max-w-7xl mx-auto space-y-8 bg-gray-900 min-h-screen">
             <header className="mb-8">
                 <h1 className="text-3xl font-bold text-gray-100 flex items-center gap-3">
                     <Vote size={32} className="text-yellow-500" />
                     Centro de Votaciones 2026
                 </h1>
                 <p className="text-gray-400 mt-2">Elige a tus representantes para construir una mejor Nación.</p>
+                {!memberData && (
+                    <div className="mt-4 p-3 bg-blue-900/30 border border-blue-800 rounded text-blue-200 text-sm inline-block">
+                        ℹ️ Estás en modo invitado. Debes iniciar sesión para emitir tu voto.
+                    </div>
+                )}
             </header>
 
             {message && (
@@ -124,7 +141,7 @@ const Elections = () => {
                     const electionCandidates = candidates.filter(c => c.election_id === election.id);
 
                     return (
-                        <section key={election.id} className="bg-gray-800/40 rounded-xl border border-gray-700 overflow-hidden">
+                        <section key={election.id} className="bg-gray-800/40 rounded-xl border border-gray-700 overflow-hidden text-gray-200">
                             <div className="p-6 border-b border-gray-700 bg-gray-900/50">
                                 <h2 className="text-2xl font-bold text-yellow-500">{election.title}</h2>
                                 <p className="text-gray-400 text-sm mt-1">{election.description}</p>
@@ -142,8 +159,8 @@ const Elections = () => {
 
                                     return (
                                         <div key={candidate.id} className={`relative group rounded-lg overflow-hidden border transition-all duration-300 ${isSelected
-                                                ? 'border-green-500 bg-green-900/10 shadow-[0_0_15px_rgba(34,197,94,0.3)]'
-                                                : 'border-gray-700 bg-gray-800 hover:border-gray-500 hover:bg-gray-750'
+                                            ? 'border-green-500 bg-green-900/10 shadow-[0_0_15px_rgba(34,197,94,0.3)]'
+                                            : 'border-gray-700 bg-gray-800 hover:border-gray-500 hover:bg-gray-750'
                                             }`}>
                                             <div className="aspect-video bg-gray-900 relative overflow-hidden">
                                                 {candidate.photo_url ? (
@@ -179,10 +196,10 @@ const Elections = () => {
                                                     onClick={() => handleVote(election.id, candidate.id)}
                                                     disabled={!!userVotedFor || voting}
                                                     className={`w-full py-2 px-4 rounded font-medium flex items-center justify-center gap-2 transition-all ${isSelected
-                                                            ? 'bg-green-600 text-white cursor-default'
-                                                            : userVotedFor
-                                                                ? 'bg-gray-700 text-gray-500 cursor-not-allowed opacity-50'
-                                                                : 'bg-yellow-600 hover:bg-yellow-500 text-black shadow-lg hover:shadow-yellow-500/20'
+                                                        ? 'bg-green-600 text-white cursor-default'
+                                                        : userVotedFor
+                                                            ? 'bg-gray-700 text-gray-500 cursor-not-allowed opacity-50'
+                                                            : 'bg-yellow-600 hover:bg-yellow-500 text-black shadow-lg hover:shadow-yellow-500/20'
                                                         }`}
                                                 >
                                                     {isSelected ? (
@@ -193,7 +210,7 @@ const Elections = () => {
                                                     ) : (
                                                         <>
                                                             <Vote size={18} />
-                                                            Votar
+                                                            {memberData?.user?.id ? 'Votar' : 'Iniciar Sesión para Votar'}
                                                         </>
                                                     )}
                                                 </button>

@@ -4,6 +4,7 @@ import Dashboard from './pages/Dashboard';
 import AuthCallback from './components/auth/AuthCallback';
 import LandingPage from './pages/LandingPage';
 import ApplyPage from './pages/ApplyPage';
+import Elections from './pages/Elections';
 
 function App() {
   return (
@@ -12,6 +13,7 @@ function App() {
         <Route path="/" element={<LandingPage />} />
         <Route path="/aplicar" element={<ApplyPage />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/votaciones" element={<Elections />} />
         <Route path="/dashboard/*" element={<Dashboard />} />
         {/* Auth Callback for specific cases if needed, but Landing handles auth state */}
         <Route path="/auth/callback" element={<AuthCallback />} />
