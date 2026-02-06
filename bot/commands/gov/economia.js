@@ -38,7 +38,7 @@ module.exports = {
         const hasRole = interaction.member.roles.cache.has(economiaRole);
 
         if (!hasRole && !isAdmin) {
-            return interaction.reply({ content: '❌ No tienes permiso para usar este comando. (Secretaría de Economía)', ephemeral: true });
+            return interaction.editReply({ content: '❌ No tienes permiso para usar este comando. (Secretaría de Economía)' });
         }
 
         const subcommand = interaction.options.getSubcommand();
@@ -70,7 +70,7 @@ module.exports = {
                     .setColor('#00AA00')
                     .setFooter({ text: `Autorizado por: ${interaction.user.tag}` });
 
-                return interaction.reply({ embeds: [embed] });
+                return interaction.editReply({ embeds: [embed] });
 
             } else if (subcommand === 'salario') {
                 const multiplier = interaction.options.getNumber('multiplicador');
@@ -96,10 +96,10 @@ module.exports = {
                     .setColor('#00AA00')
                     .setFooter({ text: `Autorizado por: ${interaction.user.tag}` });
 
-                return interaction.reply({ embeds: [embed] });
+                return interaction.editReply({ embeds: [embed] });
 
             } else if (subcommand === 'subsidio') {
-                await interaction.deferReply();
+                // Defer handled by global handler
                 const target = interaction.options.getUser('usuario');
                 const amount = interaction.options.getInteger('monto');
                 const reason = interaction.options.getString('razon');
