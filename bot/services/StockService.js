@@ -1,50 +1,186 @@
+const { EmbedBuilder } = require('discord.js');
+const EconomyHelper = require('./EconomyHelper');
+
 class StockService {
     constructor(supabase) {
         this.supabase = supabase;
-        this.globalStocks = [
-            // Crypto (high volatility)
-            { symbol: 'BTC', name: 'Bitcoin', base: 842693, current: 842693, type: 'Cripto', volatility: 0.03 },
-            { symbol: 'ETH', name: 'Ethereum', base: 55473, current: 55473, type: 'Cripto', volatility: 0.04 },
-            { symbol: 'SOL', name: 'Solana', base: 2889, current: 2889, type: 'Cripto', volatility: 0.05 },
-            // Tech Companies (medium volatility)
-            { symbol: 'TSLA', name: 'Tesla Inc.', base: 4535, current: 4535, type: 'Empresa', volatility: 0.02 },
-            { symbol: 'AMZN', name: 'Amazon', base: 3195, current: 3195, type: 'Empresa', volatility: 0.015 },
-            { symbol: 'VNSSB', name: 'Vonssyb Studios', base: 2496, current: 2496, type: 'Empresa', volatility: 0.012 },
-            // Mexican Companies (low volatility)
-            { symbol: 'ALPEK', name: 'Alpek S.A.B. de C.V.', base: 147, current: 147, type: 'Empresa', volatility: 0.02 },
-            { symbol: 'WALMEX', name: 'Walmart México', base: 449, current: 449, type: 'Empresa', volatility: 0.015 },
-            { symbol: 'FEMSA', name: 'FEMSA', base: 1205, current: 1205, type: 'Empresa', volatility: 0.01 },
-            { symbol: 'AMX', name: 'América Móvil', base: 800, current: 800, type: 'Empresa', volatility: 0.012 },
-            { symbol: 'NMX', name: 'Nación MX Corp', base: 500, current: 500, type: 'Empresa', volatility: 0.025 }
-        ];
     }
 
-    updateStockPrices() {
-        console.log('📉 Actualizando precios de bolsa...');
-        this.globalStocks = this.globalStocks.map(stock => {
-            const volatility = stock.volatility || 0.02;
-            const variance = (Math.random() * (volatility * 2)) - volatility;
-            const newPrice = Math.floor(stock.current * (1 + variance));
+    /**
+     * Get all companies listed on the market
+     */
+    async getMarketData() {
+        const { data, error } = await this.supabase
+            .from('companies')
+            .select('id, name, ticker, stock_price, volatility, total_shares')
+            .not('ticker', 'is', null)
+            .order('market_cap', { ascending: false });
 
-            const minPrice = Math.floor(stock.base * 0.5);
-            const maxPrice = Math.floor(stock.base * 2.0);
-
-            let finalPrice = newPrice;
-            if (finalPrice < minPrice) finalPrice = minPrice;
-            if (finalPrice > maxPrice) finalPrice = maxPrice;
-            if (finalPrice < 1) finalPrice = 1;
-
-            return { ...stock, current: finalPrice };
-        });
-        console.log('✅ Precios actualizados:', this.globalStocks.map(s => `${s.symbol}: $${s.current}`).join(', '));
+        if (error) {
+            console.error('[StockService] Error fetching market data:', error);
+            return [];
+        }
+        return data;
     }
 
-    getStocks() {
-        return this.globalStocks;
+    /**
+     * Generate a unique ticker for a company
+     * @param {string} name 
+     */
+    generateTicker(name) {
+        return name.replace(/[^a-zA-Z]/g, '').substring(0, 4).toUpperCase();
     }
 
-    getStock(symbol) {
-        return this.globalStocks.find(s => s.symbol.toUpperCase() === symbol.toUpperCase());
+    /**
+     * Register a company in the stock market
+     */
+    async listCompany(companyId, ticker, initialPrice = 100.00, totalShares = 1000000) {
+        const { error } = await this.supabase
+            .from('companies')
+            .update({
+                ticker: ticker,
+                stock_price: initialPrice,
+                total_shares: totalShares,
+                volatility: 0.05 // 5% base volatility
+            })
+            .eq('id', companyId);
+
+        return !error;
+    }
+
+    /**
+     * Buy stocks
+     */
+    async buyStock(userId, guildId, ticker, quantity, ubService) {
+        if (quantity <= 0) return { success: false, message: 'La cantidad debe ser mayor a 0.' };
+
+        // 1. Get Company & Price
+        const { data: company } = await this.supabase
+            .from('companies')
+            .select('*')
+            .eq('ticker', ticker)
+            .single();
+
+        if (!company) return { success: false, message: 'Empresa no encontrada.' };
+
+        const totalCost = company.stock_price * quantity;
+
+        // 2. Check Balance & Deduct Money
+        const balance = await ubService.getUserBalance(guildId, userId);
+        if (balance.bank < totalCost) {
+            return {
+                success: false,
+                message: `Fondos insuficientes en banco. Costo: ${EconomyHelper.formatMoney(totalCost)}`
+            };
+        }
+
+        await ubService.removeMoney(guildId, userId, totalCost, `Compra acciones ${ticker}`, 'bank');
+
+        // 3. Update Portfolio
+        const { data: existing } = await this.supabase
+            .from('stock_portfolio')
+            .select('*')
+            .eq('user_id', userId)
+            .eq('company_id', company.id)
+            .maybeSingle();
+
+        if (existing) {
+            // Weighted Average Price
+            const totalValue = (existing.average_buy_price * existing.quantity) + totalCost;
+            const newQuantity = existing.quantity + quantity;
+            const newAvgPrice = totalValue / newQuantity;
+
+            await this.supabase.from('stock_portfolio').update({
+                quantity: newQuantity,
+                average_buy_price: newAvgPrice,
+                updated_at: new Date().toISOString()
+            }).eq('id', existing.id);
+        } else {
+            await this.supabase.from('stock_portfolio').insert({
+                user_id: userId,
+                guild_id: guildId,
+                company_id: company.id,
+                quantity: quantity,
+                average_buy_price: company.stock_price
+            });
+        }
+
+        // 4. Update Company Balance (IPO or Treasury? For now, money disappears or goes to treasury? 
+        // Realistically, buying from secondary market doesn't pay the company unless it's new issuance.
+        // For simulation simplicity: Money sinks (tax) or goes to a "Market Maker".
+        // Let's sending 50% to company balance as "capital injection" if we want to support them.
+        // For now: 100% money sink (deflationary) or Treasury.
+
+        return { success: true, message: `Compraste ${quantity} acciones de ${ticker} por ${EconomyHelper.formatMoney(totalCost)}` };
+    }
+
+    /**
+     * Sell stocks
+     */
+    async sellStock(userId, guildId, ticker, quantity, ubService) {
+        if (quantity <= 0) return { success: false, message: 'La cantidad debe ser mayor a 0.' };
+
+        const { data: company } = await this.supabase
+            .from('companies')
+            .select('*')
+            .eq('ticker', ticker)
+            .single();
+
+        if (!company) return { success: false, message: 'Empresa no encontrada.' };
+
+        // Get Portfolio
+        const { data: holding } = await this.supabase
+            .from('stock_portfolio')
+            .select('*')
+            .eq('user_id', userId)
+            .eq('company_id', company.id)
+            .maybeSingle();
+
+        if (!holding || holding.quantity < quantity) {
+            return { success: false, message: `No tienes suficientes acciones de ${ticker}.` };
+        }
+
+        const totalSale = company.stock_price * quantity;
+
+        // Update Portfolio
+        const newQuantity = holding.quantity - quantity;
+        if (newQuantity === 0) {
+            await this.supabase.from('stock_portfolio').delete().eq('id', holding.id);
+        } else {
+            await this.supabase.from('stock_portfolio').update({ quantity: newQuantity }).eq('id', holding.id);
+        }
+
+        // Add Money
+        await ubService.addMoney(guildId, userId, totalSale, `Venta acciones ${ticker}`, 'bank');
+
+        return { success: true, message: `Vendiste ${quantity} acciones de ${ticker} por ${EconomyHelper.formatMoney(totalSale)}` };
+    }
+
+    /**
+     * Market Simulation Step (Update Prices)
+     */
+    async updateMarketPrices() {
+        const companies = await this.getMarketData();
+
+        for (const company of companies) {
+            // Random Walk
+            const changePercent = (Math.random() - 0.5) * (company.volatility * 2); // +/- volatility
+            let newPrice = Number(company.stock_price) * (1 + changePercent);
+
+            // Limits
+            if (newPrice < 1) newPrice = 1;
+
+            // Update
+            await this.supabase.from('companies').update({
+                stock_price: newPrice
+            }).eq('id', company.id);
+
+            // Log History
+            await this.supabase.from('stock_market_history').insert({
+                company_id: company.id,
+                price: newPrice
+            });
+        }
     }
 }
 

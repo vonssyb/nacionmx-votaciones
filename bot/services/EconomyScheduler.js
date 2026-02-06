@@ -27,7 +27,14 @@ class EconomyScheduler {
             await this.triggerRandomEvent();
         });
 
-        // 4. Weekly Fiscal Check (Companies) - Placeholder for future taxes
+        // 4. Stock Market Updates (Hourly)
+        cron.schedule('0 * * * *', async () => {
+            const stockService = this.client.services?.stocks;
+            if (stockService) {
+                await stockService.updateMarketPrices();
+                logger.info('Stock market prices updated');
+            }
+        });
 
         logger.info('All economy schedulers registered successfully');
     }
