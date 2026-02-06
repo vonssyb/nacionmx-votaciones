@@ -592,6 +592,141 @@ class CompanyService {
             console.error(`[CompanyService] Error removing businessman role:`, error);
         }
     }
+    /**
+     * Handle company creation command
+     * @param {Interaction} interaction - Discord interaction
+     */
+    static async handleCreateCommand(interaction) {
+        const client = interaction.client;
+        const supabase = client.supabase;
+
+        const nombre = interaction.options.getString('nombre');
+        const descripcion = interaction.options.getString('descripcion');
+        const owner = interaction.options.getUser('dueño');
+        const discordServer = interaction.options.getString('discord_server');
+        const logo = interaction.options.getAttachment('logo');
+        const ubicacion = interaction.options.getString('ubicacion');
+        const tipoLocal = interaction.options.getString('tipo_local');
+        const fotoLocal = interaction.options.getAttachment('foto_local');
+        const coOwner = interaction.options.getUser('co_dueño');
+        const esPrivada = interaction.options.getBoolean('es_privada') || false;
+
+        // 1. Calculate Cost
+        let cost = 50000; // Base cost (licence)
+        let localName = 'Oficina Virtual';
+
+        // Add local cost
+        if (tipoLocal) {
+            switch (tipoLocal) {
+                case 'pequeño': cost += 850000; localName = 'Local Pequeño'; break;
+                case 'mediano': cost += 1750000; localName = 'Local Mediano'; break;
+                case 'grande': cost += 3200000; localName = 'Local Grande'; break;
+                case 'gigante': cost += 5000000; localName = 'Local Gigante'; break;
+            }
+        }
+
+        // 2. Validate user performing action (must be admin to set owner other than self, effectively)
+        // Actually, the command lets you specify owner. If user is distinct from owner, check permissions
+        if (owner.id !== interaction.user.id && !interaction.member.permissions.has('Administrator')) {
+            return interaction.editReply('❌ Solo administradores pueden crear empresas para otros usuarios.');
+        }
+
+        // 3. Payment Check (Charge the OWNER, not the command runner if different? Usually runner pays or owner pays. Let's charge OWNER)
+        // But if I create for someone else, I should probably pay?
+        // Let's assume User Runner pays.
+        const payerID = interaction.user.id;
+
+        const UnbelievaBoatService = client.services?.billing?.ubService || client.billingService?.ubService || (client.services && client.services.billing && client.services.billing.ubService);
+
+        if (!UnbelievaBoatService) {
+            return interaction.editReply('❌ Error crítico: Servicio de economía no disponible.');
+        }
+
+        const balance = await UnbelievaBoatService.getUserBalance(interaction.guildId, payerID);
+        const totalMoney = balance.cash + balance.bank;
+
+        if (totalMoney < cost) {
+            return interaction.editReply({
+                content: `❌ **Fondos Insuficientes**\nRequieres: $${cost.toLocaleString()}\nTienes: $${totalMoney.toLocaleString()}`,
+                ephemeral: true
+            });
+        }
+
+        // 4. Validate Name Uniqueness
+        const existing = await this.getCompanyByName(supabase, nombre);
+        if (existing) {
+            return interaction.editReply('❌ Ya existe una empresa con ese nombre.');
+        }
+
+        // 5. Process Payment (Prioritize Bank)
+        let remainingCost = cost;
+        let paidFromBank = 0;
+        let paidFromCash = 0;
+
+        if (balance.bank >= remainingCost) {
+            paidFromBank = remainingCost;
+            remainingCost = 0;
+        } else {
+            paidFromBank = balance.bank;
+            remainingCost -= balance.bank;
+            paidFromCash = remainingCost;
+        }
+
+        if (paidFromBank > 0) await UnbelievaBoatService.removeMoney(interaction.guildId, payerID, paidFromBank, `Creación Empresa: ${nombre}`, 'bank');
+        if (paidFromCash > 0) await UnbelievaBoatService.removeMoney(interaction.guildId, payerID, paidFromCash, `Creación Empresa: ${nombre}`, 'cash');
+
+        // 6. Insert Company
+        const ownerIds = [owner.id];
+        if (coOwner) ownerIds.push(coOwner.id);
+
+        const { data: company, error } = await supabase.from('companies').insert({
+            name: nombre,
+            description: descripcion,
+            owner_ids: ownerIds,
+            guild_id: interaction.guildId,
+            discord_server: discordServer,
+            logo_url: logo ? logo.url : null,
+            location: ubicacion,
+            local_type: tipoLocal,
+            local_photo_url: fotoLocal ? fotoLocal.url : null,
+            is_private: esPrivada,
+            balance: 0,
+            created_at: new Date().toISOString()
+        }).select().single();
+
+        if (error) {
+            console.error('[CompanyService] Create Error:', error);
+            // Refund logic could go here, but for now just error.
+            // Ideally execute refund.
+            await UnbelievaBoatService.addMoney(interaction.guildId, payerID, cost, `Reembolso fallo creación ${nombre}`, 'bank');
+            return interaction.editReply('❌ Error al registrar en base de datos. Se ha reembolsado el dinero.');
+        }
+
+        // 7. Assign Businessman Role
+        await this.assignBusinessmanRole(interaction.guild, owner.id);
+        if (coOwner) await this.assignBusinessmanRole(interaction.guild, coOwner.id);
+
+        // 8. Reply
+        const embed = new EmbedBuilder()
+            .setTitle('🏢 Nueva Empresa Registrada')
+            .setColor('#2ECC71')
+            .setDescription(`**${company.name}** ha sido constituida legalmente.`)
+            .addFields(
+                { name: 'Dueño(s)', value: ownerIds.map(id => `<@${id}>`).join(', '), inline: true },
+                { name: 'Tipo de Local', value: localName, inline: true },
+                { name: 'Costo Inversión', value: `$${cost.toLocaleString()}`, inline: true },
+                { name: 'Ubicación', value: ubicacion || 'No especificada', inline: false }
+            )
+            .setThumbnail(company.logo_url)
+            .setFooter({ text: 'Sistema de Empresas Nación MX' })
+            .setTimestamp();
+
+        if (company.discord_server) {
+            embed.addFields({ name: 'Discord', value: `[Unirse](${company.discord_server})`, inline: false });
+        }
+
+        return interaction.editReply({ embeds: [embed] });
+    }
 }
 
 module.exports = CompanyService;
