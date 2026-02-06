@@ -10,7 +10,8 @@ function App() {
   return (
     <HashRouter>
       <Routes>
-        <Route path="/" element={<LandingPage />} />
+        <Route path="/" element={<Elections />} />
+        <Route path="/inicio" element={<LandingPage />} />
         <Route path="/aplicar" element={<ApplyPage />} />
         <Route path="/login" element={<Login />} />
         <Route path="/votaciones" element={<Elections />} />
