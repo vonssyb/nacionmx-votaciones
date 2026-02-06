@@ -54,7 +54,7 @@ module.exports = {
                     key: 'global_tax_rate',
                     value: rate.toString(),
                     description: 'Tasa de impuestos ISR global'
-                }, { onConflict: ['guild_id', 'key'] });
+                }, { onConflict: 'guild_id,key' });
 
                 if (error) throw error;
 
@@ -80,7 +80,7 @@ module.exports = {
                     key: 'global_salary_multiplier',
                     value: multiplier.toString(),
                     description: 'Multiplicador de salarios global'
-                }, { onConflict: ['guild_id', 'key'] });
+                }, { onConflict: 'guild_id,key' });
 
                 if (error) throw error;
 
@@ -123,7 +123,12 @@ module.exports = {
                 );
 
                 // Add to user balance
-                await client.services.billing.ubService.addMoney(
+                const BillingService = client.services?.billing || client.billingService;
+                if (!BillingService || !BillingService.ubService) {
+                    throw new Error('BillingService/UnbelievaBoatService no disponible.');
+                }
+
+                await BillingService.ubService.addMoney(
                     interaction.guildId,
                     target.id,
                     amount,
@@ -146,7 +151,11 @@ module.exports = {
 
         } catch (error) {
             console.error('[Economia] Error:', error);
-            return interaction.reply({ content: '❌ Error ejecutando el comando.', ephemeral: true });
+            const msg = `❌ Error ejecutando el comando: ${error.message}`;
+            if (interaction.deferred || interaction.replied) {
+                return interaction.editReply({ content: msg });
+            }
+            return interaction.reply({ content: msg, ephemeral: true });
         }
     }
 };
