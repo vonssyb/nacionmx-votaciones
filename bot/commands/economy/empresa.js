@@ -928,7 +928,7 @@ module.exports = {
                         { name: '⏳ Estado', value: 'Pendiente de pago', inline: false }
                     )
                     .setColor('#F1C40F')
-                    .setThumbnail(company.logo_url || null)
+                    .setThumbnail((company.logo_url && company.logo_url.startsWith('http')) ? company.logo_url : null)
                     .setFooter({ text: 'Pagos seguros vía Nación MX Bank' })
                     .setTimestamp();
 
@@ -1224,7 +1224,7 @@ module.exports = {
                 const dashboardEmbed = new EmbedBuilder()
                     .setTitle(`📊 Dashboard: ${stats.company.name}`)
                     .setColor('#3498DB')
-                    .setThumbnail(stats.company.logo_url || null)
+                    .setThumbnail((stats.company.logo_url && stats.company.logo_url.startsWith('http')) ? stats.company.logo_url : null)
                     .setTimestamp();
 
                 // Balance and vehicles
@@ -1374,7 +1374,7 @@ module.exports = {
                     .setTitle(`📈 Reporte Financiero: ${report.company.name}`)
                     .setDescription(`**Periodo:** ${report.periodLabel}`)
                     .setColor(report.netIncome >= 0 ? '#2ECC71' : '#E74C3C')
-                    .setThumbnail(report.company.logo_url || null)
+                    .setThumbnail((report.company.logo_url && report.company.logo_url.startsWith('http')) ? report.company.logo_url : null)
                     .setTimestamp();
 
                 // Financial summary
