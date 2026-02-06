@@ -58,9 +58,18 @@ app.listen(port, '0.0.0.0', () => logger.info('🌐', `Health Server listening o
 // =============================================================================
 (async () => {
     try {
-        const locker = new SingleInstanceLock(supabase, INSTANCE_ID);
+        console.log("🔍 [DEBUG] Starting Launch Sequence...");
+
+        // ENV CHECK PROBE
+        console.log("🔍 [DEBUG] Checking Environment Variables...");
+        const vars = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'DISCORD_TOKEN_MOD', 'DISCORD_TOKEN_ECO', 'DISCORD_TOKEN_GOV', 'DISCORD_TOKEN_DEALERSHIP'];
+        vars.forEach(v => {
+            const exists = !!process.env[v];
+            console.log(`   - ${v}: ${exists ? '✅ Present' : '❌ MISSING'} (${exists ? (process.env[v].substring(0, 5) + '...') : 'N/A'})`);
+        });
 
         // LOCK ACQUISITION
+        const locker = new SingleInstanceLock(supabase, INSTANCE_ID);
         let acquired = await locker.acquireLock();
         let attempts = 0;
         const MAX_ATTEMPTS = 9;
@@ -107,6 +116,6 @@ app.listen(port, '0.0.0.0', () => logger.info('🌐', `Health Server listening o
         process.on('SIGINT', () => handleShutdown('SIGINT'));
 
     } catch (error) {
-        console.error('💥 FATAL CRASH:', error);
+        console.error('💥 FATAL CRASH:', error, error.stack);
     }
 })();
