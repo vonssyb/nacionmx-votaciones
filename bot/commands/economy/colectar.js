@@ -145,13 +145,18 @@ module.exports = {
                 }
             }
 
-            // Tax rates based on role
-            let taxRate = 0.08; // Default 8%
+            // Tax rates based on role (Dynamic)
+            const { getDynamicTaxRate } = require('../../services/EconomyHelper');
+            const baseTaxRate = await getDynamicTaxRate(supabase, guildId);
+
+            let discount = 0;
             if (isUltraPass || hasEvasorRole) {
-                taxRate = 0.04; // UltraPass or Evasor: 4%
+                discount = 0.50; // 50% Discount on tax
             } else if (isPremium || isBooster) {
-                taxRate = 0.06; // Premium/Booster: 6%
+                discount = 0.25; // 25% Discount on tax
             }
+
+            const taxRate = baseTaxRate * (1 - discount);
 
             const taxAmount = Math.floor(grossSalary * taxRate);
             const netAmount = grossSalary - taxAmount;
