@@ -40,7 +40,7 @@ class SanctionService {
         }
 
         // 2. Execute Discord Action
-        if (action && action !== 'Warn' && action !== 'Advertencia Verbal' && type !== 'notificacion') {
+        if (action && !action.includes('ERLC') && action !== 'Warn' && action !== 'Advertencia Verbal' && type !== 'notificacion') {
             const discordResult = await this.executeDiscordPunishment(interaction, targetUser, action, reason, durationMs);
             if (discordResult.success) {
                 result.messages.push(discordResult.message);
