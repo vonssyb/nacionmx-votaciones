@@ -266,7 +266,7 @@ module.exports = {
         if (sanctionType) {
             let text = sanctionType;
             if (String(sanctionType).toLowerCase().includes('ban temporal') && duration) {
-                text += ` (${duration} Días)`;
+                text += ` (${duration})`;
             }
             sanctionVisual = text;
         }
