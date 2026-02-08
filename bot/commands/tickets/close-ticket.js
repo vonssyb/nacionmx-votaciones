@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } = require('discord.js');
-const discordTranscripts = require('discord-html-transcripts');
+// const discordTranscripts = require('discord-html-transcripts'); // Removed in favor of custom service
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -31,12 +31,13 @@ module.exports = {
 
         try {
             // Generate transcript
-            const attachment = await discordTranscripts.createTranscript(interaction.channel, {
-                limit: -1,
-                returnType: 'attachment',
-                filename: `force-close-${interaction.channel.name}.html`,
-                saveImages: true
-            });
+            const TranscriptService = require('../../services/TranscriptService');
+            const ticketData = {
+                ...ticket,
+                closure_reason: 'Comando de Staff (/close-ticket)',
+                closed_by_id: interaction.user.id
+            };
+            const attachment = await TranscriptService.generate(interaction.channel, ticketData);
 
             // Log to transcripts channel
             const LOG_TRANSCRIPTS = '1414065296704016465';

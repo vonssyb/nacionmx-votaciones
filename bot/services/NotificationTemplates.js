@@ -274,7 +274,10 @@ module.exports = {
         // Check if it's a BLACKLIST TOTAL (Perm Ban)
         const isBlacklist = (sanctionType || '').toLowerCase().includes('blacklist');
         const isPerm = (sanctionType || '').toLowerCase().includes('total') || (sanctionType || '').toLowerCase().includes('permanente');
-        const isBan = isBlacklist || (sanctionType || '').toLowerCase().includes('ban');
+        // Fix: ERLC Bans should NOT use the Discord Ban image (which says "Baneado del Discord")
+        // Only use 'baneo.png' if it is explicitly a Discord Ban
+        const isDiscordBan = (sanctionType || '').toLowerCase().includes('discord');
+        const isBan = isDiscordBan && ((sanctionType || '').toLowerCase().includes('ban'));
 
         let title = '👮‍♂️ REPORTE OFICIAL DE SANCIÓN';
         let color = 0x2f3136; // Dark grey/formal

@@ -88,7 +88,7 @@ module.exports = {
             }
 
             let closed = 0;
-            const discordTranscripts = require('discord-html-transcripts');
+            // const discordTranscripts = require('discord-html-transcripts'); // Removed
 
             for (const ticket of tickets) {
                 const meta = ticket.metadata || {};
@@ -102,12 +102,14 @@ module.exports = {
                     if (!channel) continue;
 
                     // Generate transcript
-                    const attachment = await discordTranscripts.createTranscript(channel, {
-                        limit: -1,
-                        returnType: 'attachment',
-                        filename: `bulk-close-${channel.name}.html`,
-                        saveImages: true
-                    });
+                    const TranscriptService = require('../../services/TranscriptService');
+                    // We need to construct ticketData with closure reason for the transcript
+                    const ticketData = {
+                        ...ticket,
+                        closure_reason: `Inactividad (> ${days} días)`,
+                        closed_by_id: interaction.user.id
+                    };
+                    const attachment = await TranscriptService.generate(channel, ticketData);
 
                     // Send to user
                     if (ticket.user_id) { // Was creator_id, assume user_id per schema

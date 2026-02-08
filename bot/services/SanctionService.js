@@ -157,7 +157,7 @@ class SanctionService {
         if (!this.erlcService) return { success: false, message: 'Servicio ERLC no disponible.' };
 
         // 999999 is effectively permanent
-        const erlcDuration = (action === 'Ban Temporal ERLC') ? '999999' : '999999';
+        const erlcDuration = (action.includes('Ban Temporal ERLC')) ? '999999' : '999999';
         // ERLC API doesn't support temp bans natively usually, so we ban perm and auto-unban.
 
         let cmd = '';
@@ -171,7 +171,7 @@ class SanctionService {
             const success = await this.erlcService.runCommand(cmd);
             if (success) {
                 // If temp ban, schedule unban
-                if (action === 'Ban Temporal ERLC') {
+                if (action.includes('Ban Temporal ERLC')) {
                     const expiresAt = new Date(Date.now() + durationMs);
                     await this.supabase.from('temporary_bans').insert({
                         guild_id: interaction.guildId,

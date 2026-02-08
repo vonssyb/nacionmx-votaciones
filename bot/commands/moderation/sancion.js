@@ -277,7 +277,7 @@ module.exports = {
 
             if (accion === 'Ban Temporal ERLC' && durationMs > 0) {
                 expirationDate = moment().add(durationMs, 'ms').toISOString();
-                finalActionType = `Ban Temporal (${durationText})`;
+                finalActionType = `Ban Temporal ERLC (${durationText})`;
             } else if (accion === 'Timeout' && durationMs > 0) {
                 expirationDate = moment().add(durationMs, 'ms').toISOString();
                 finalActionType = `Timeout / Mute (${durationText})`;
