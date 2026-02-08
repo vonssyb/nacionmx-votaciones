@@ -3,7 +3,7 @@ const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('ver-coches')
-        .setDescription('🚗 Ver tus vehículos registrados o los de otro usuario')
+        .setDescription('🚗 Ver Catálogo Público de Vehículos (Nación MX)')
         .addUserOption(option =>
             option.setName('usuario')
                 .setDescription('Ver vehículos de otro usuario (Opcional)')
