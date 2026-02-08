@@ -4,7 +4,7 @@ const logger = require('./Logger');
 // Let's assume Logger is in services based on original file.
 
 const { EmbedBuilder } = require('discord.js');
-const discordTranscripts = require('discord-html-transcripts');
+const TranscriptService = require('./TranscriptService');
 
 /**
  * Ticket Cleanup Service
@@ -148,12 +148,8 @@ class TicketCleanupService {
             try {
                 const channel = await this.client.channels.fetch(ticket.channel_id).catch(() => null);
                 if (channel) {
-                    const attachment = await discordTranscripts.createTranscript(channel, {
-                        limit: -1,
-                        returnType: 'attachment',
-                        filename: `timeout-${channel.name}.html`,
-                        saveImages: true
-                    });
+                    const ticketData = { ...ticket, closure_reason: 'Timeout Valoración (1h)' };
+                    const attachment = await TranscriptService.generate(channel, ticketData);
 
                     const logChannel = this.client.channels.cache.get(this.config.LOG_TRANSCRIPTS);
                     if (logChannel) {
@@ -214,7 +210,8 @@ class TicketCleanupService {
 
                 const channel = await this.client.channels.fetch(ticket.channel_id).catch(() => null);
                 if (channel) {
-                    const attachment = await discordTranscripts.createTranscript(channel, { limit: -1, returnType: 'attachment', filename: `auto-close-${channel.name}.html`, saveImages: true });
+                    const ticketData = { ...ticket, closure_reason: 'Inactividad Automática' };
+                    const attachment = await TranscriptService.generate(channel, ticketData);
 
                     if (ticket.user_id) {
                         try {

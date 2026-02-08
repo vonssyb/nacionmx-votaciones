@@ -10,7 +10,8 @@ const {
     ChannelType,
     AttachmentBuilder
 } = require('discord.js');
-const discordTranscripts = require('discord-html-transcripts');
+// const discordTranscripts = require('discord-html-transcripts'); // Removed in favor of custom service
+
 const { generateAIResponse } = require('./ticketMessageHandler');
 const logger = require('../services/Logger');
 
@@ -169,8 +170,15 @@ module.exports = {
 
             // Procesar cierre de ticket
             const { data: ticket } = await supabase.from('tickets').select('*').eq('channel_id', interaction.channel.id).maybeSingle();
-            const discordTranscripts = require('discord-html-transcripts');
-            const attachment = await discordTranscripts.createTranscript(interaction.channel, { limit: -1, returnType: 'attachment', filename: `close-${interaction.channel.name}.html`, saveImages: true });
+            const TranscriptService = require('../services/TranscriptService');
+            // Gather extra data for the transcript
+            const ticketData = {
+                ...ticket,
+                metadata: { ...ticket?.metadata, rating, feedback_comments: comments },
+                claimed_by: ticket?.claimed_by
+            };
+
+            const attachment = await TranscriptService.generate(interaction.channel, ticketData);
 
             // Log Transcripts
             const logChannel = client.channels.cache.get(TICKET_CONFIG.LOG_TRANSCRIPTS);

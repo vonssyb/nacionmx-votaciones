@@ -1,5 +1,5 @@
 const { ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder, EmbedBuilder, PermissionFlagsBits, ChannelType, MessageFlags, ButtonBuilder, ButtonStyle, AttachmentBuilder } = require('discord.js');
-const discordTranscripts = require('discord-html-transcripts');
+const TranscriptService = require('../services/TranscriptService');
 const logger = require('../services/Logger');
 const ticketHandler = require('./ticketHandler'); // Reuse closing logic if needed or just button
 
@@ -531,12 +531,13 @@ async function handleBankCloseConfirm(interaction, client, supabase) {
     const channel = interaction.channel;
 
     // 1. Generate Transcript
-    const attachment = await discordTranscripts.createTranscript(channel, {
-        limit: -1,
-        returnType: 'attachment',
-        filename: `banco-close-${channel.name}.html`,
-        saveImages: true
-    });
+    const ticketData = {
+        channel_id: channel.id,
+        status: 'CLOSED',
+        closure_reason: 'Cierre de Oficina Bancaria',
+        claimed_by: interaction.user.id // Banker closing it likely claimed it or is handling it
+    };
+    const attachment = await TranscriptService.generate(channel, ticketData);
 
     // 2. Log
     const logChannel = client.channels.cache.get(BANK_CONFIG.LOG_CHANNEL);
