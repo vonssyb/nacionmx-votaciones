@@ -66,9 +66,9 @@ const Elections = () => {
             // Race between fetch and timeout
             const result = await Promise.race([loadDataPromise(), timeoutPromise]);
 
-            setElections(result.electionsData);
-            setCandidates(result.candidatesData);
-            setUserVotes(result.votesData);
+            setElections(result.electionsData || []);
+            setCandidates(result.candidatesData || []);
+            setUserVotes(result.votesData || []);
 
         } catch (error) {
             console.error('Error fetching election data:', error);
