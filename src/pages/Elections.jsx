@@ -206,9 +206,24 @@ const Elections = () => {
 
                                             <div className="p-5">
                                                 <h3 className="text-xl font-bold text-white mb-1">{candidate.name}</h3>
-                                                <p className="text-gray-400 text-sm mb-4 line-clamp-2 min-h-[2.5em]">
+                                                <p className="text-gray-400 text-sm mb-4 min-h-[2.5em]">
                                                     {candidate.proposals || "Sin propuestas registradas."}
                                                 </p>
+
+                                                {/* Gabinete Section */}
+                                                {candidate.cabinet && candidate.cabinet.length > 0 && (
+                                                    <div className="mb-4 bg-gray-900/50 rounded-lg p-3 border border-gray-700/50">
+                                                        <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 border-b border-gray-700/50 pb-1">Gabinete</h4>
+                                                        <div className="space-y-2 max-h-40 overflow-y-auto pr-1 custom-scrollbar">
+                                                            {candidate.cabinet.map((member, idx) => (
+                                                                <div key={idx} className="flex justify-between items-start text-xs">
+                                                                    <div className="font-medium text-gray-300">{member.position}:</div>
+                                                                    <div className="text-gray-400 text-right">{member.name}</div>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                )}
 
                                                 <button
                                                     onClick={() => handleVote(election.id, candidate.id)}
