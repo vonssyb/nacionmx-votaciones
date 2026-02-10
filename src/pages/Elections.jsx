@@ -24,9 +24,9 @@ const Elections = () => {
         try {
             setLoading(true);
 
-            // Safety timeout: 8 seconds
+            // Safety timeout: 20 seconds (Increased for Supabase Cold Starts)
             const timeoutPromise = new Promise((_, reject) => {
-                timeoutId = setTimeout(() => reject(new Error('Tiempo de espera agotado (Timeout). Verifica tu conexión.')), 8000);
+                timeoutId = setTimeout(() => reject(new Error('Tardando demasiado... Verifica tu conexión o intenta recargar.')), 20000);
             });
 
             // Data fetch promise
