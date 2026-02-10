@@ -109,14 +109,24 @@ const Elections = () => {
 
     return (
         <div className="p-6 max-w-7xl mx-auto space-y-8 bg-gray-900 min-h-screen">
-            <header className="mb-8">
-                <h1 className="text-3xl font-bold text-gray-100 flex items-center gap-3">
-                    <Vote size={32} className="text-yellow-500" />
-                    Centro de Votaciones 2026
-                </h1>
-                <p className="text-gray-400 mt-2">Elige a tus representantes para construir una mejor Nación.</p>
+            <header className="mb-8 border-b border-gray-700 pb-6">
+                <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+                    <div className="flex items-center gap-4">
+                        <img
+                            src="https://upload.wikimedia.org/wikipedia/commons/thumb/3/30/Logotipo_del_INE_%28M%C3%A9xico%29.svg/1200px-Logotipo_del_INE_%28M%C3%A9xico%29.svg.png"
+                            alt="INE Logo"
+                            className="h-16 w-auto object-contain bg-white/90 p-2 rounded-lg"
+                        />
+                        <div>
+                            <h1 className="text-3xl font-bold text-gray-100">
+                                Instituto Nacional Electoral
+                            </h1>
+                            <p className="text-[#D90F74] font-medium mt-1">Proceso Electoral Federal 2026</p>
+                        </div>
+                    </div>
+                </div>
                 {!memberData && (
-                    <div className="mt-6 p-4 bg-gray-800/80 border border-yellow-600/30 rounded-lg flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <div className="mt-6 p-4 bg-gray-800/80 border-l-4 border-[#D90F74] rounded-r-lg flex flex-col sm:flex-row items-center justify-between gap-4">
                         <div className="flex items-center gap-3">
                             <div className="p-2 bg-yellow-600/10 rounded-full text-yellow-500">
                                 <User size={24} />
