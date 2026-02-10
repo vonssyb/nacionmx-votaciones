@@ -34,12 +34,12 @@ const Login = () => {
                 <div style={styles.header}>
                     <Shield size={48} color="var(--primary)" />
                     <h1 style={styles.title}>NACIÓN MX</h1>
-                    <p style={styles.subtitle}>Portal de Moderación</p>
+                    <p style={styles.subtitle}>Portal Electoral</p>
                 </div>
 
                 <div style={styles.content}>
                     <p style={styles.description}>
-                        Identifícate con tu cuenta de Discord para acceder al panel de administración y registros.
+                        Identifícate con tu cuenta de Discord para validar tu identidad y poder emitir tu voto de forma segura.
                     </p>
 
                     <button
@@ -62,7 +62,7 @@ const Login = () => {
                 </div>
 
                 <div style={styles.footer}>
-                    <small>Acceso restringido únicamente para personal autorizado.</small>
+                    <small>Sistema de Votación Seguro - NACIÓN MX</small>
                 </div>
             </div>
         </div>

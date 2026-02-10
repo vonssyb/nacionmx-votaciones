@@ -10,6 +10,7 @@ const Elections = () => {
     const [userVotes, setUserVotes] = useState([]);
     const [loading, setLoading] = useState(true);
     const [confirmModal, setConfirmModal] = useState(null);
+    const [loginModal, setLoginModal] = useState(false);
     const [timer, setTimer] = useState(10);
 
     useEffect(() => {
@@ -27,10 +28,7 @@ const Elections = () => {
 
     const handleVoteClick = (electionId, candidateId, candidateName) => {
         if (!memberData?.user?.id) {
-            const confirmLogin = window.confirm("Debes iniciar sesión con Discord para votar. ¿Quieres ir al login ahora?");
-            if (confirmLogin) {
-                window.location.hash = '/login';
-            }
+            setLoginModal(true);
             return;
         }
 
@@ -86,7 +84,7 @@ const Elections = () => {
                 <div className="flex flex-col md:flex-row items-center justify-between gap-4">
                     <div className="flex items-center gap-4">
                         <img
-                            src="https://upload.wikimedia.org/wikipedia/commons/thumb/3/30/Logotipo_del_INE_%28M%C3%A9xico%29.svg/1200px-Logotipo_del_INE_%28M%C3%A9xico%29.svg.png"
+                            src="https://igjedwdxqwkpbgrmtrrq.supabase.co/storage/v1/object/public/evidence/others/partidos%20politicos/ine4.png"
                             alt="INE Logo"
                             className="h-16 w-auto object-contain bg-white/90 p-2 rounded-lg"
                         />
@@ -238,6 +236,42 @@ const Elections = () => {
                         </section>
                     );
                 })
+            )}
+
+            {/* Login Modal */}
+            {loginModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+                    <div className="bg-gray-900 border border-[#D90F74]/50 rounded-xl p-6 max-w-sm w-full shadow-2xl relative overflow-hidden">
+                        <div className="absolute top-0 left-0 right-0 h-1 bg-[#D90F74]"></div>
+                        <div className="flex justify-center mb-4">
+                            <div className="p-3 bg-[#D90F74]/20 rounded-full text-[#D90F74]">
+                                <LogIn size={32} />
+                            </div>
+                        </div>
+                        <h3 className="text-2xl font-bold text-white mb-2 text-center">Iniciar Sesión</h3>
+                        <p className="text-gray-300 mb-6 text-center">
+                            Para garantizar la seguridad y unicidad del voto, es necesario iniciar sesión con tu cuenta de Discord.
+                        </p>
+                        <div className="flex flex-col gap-3">
+                            <button
+                                onClick={() => {
+                                    sessionStorage.setItem('auth_redirect', '/votaciones');
+                                    window.location.hash = '/login';
+                                }}
+                                className="w-full py-3 bg-[#D90F74] hover:bg-[#b00c5e] text-white font-bold rounded-lg transition-all shadow-lg shadow-[#D90F74]/20 flex items-center justify-center gap-2"
+                            >
+                                <LogIn size={20} />
+                                Iniciar Sesión con Discord
+                            </button>
+                            <button
+                                onClick={() => setLoginModal(false)}
+                                className="w-full py-3 bg-gray-800 hover:bg-gray-700 text-gray-400 font-medium rounded-lg transition-all border border-gray-700"
+                            >
+                                Cancelar
+                            </button>
+                        </div>
+                    </div>
+                </div>
             )}
 
             {/* Confirmation Modal */}
