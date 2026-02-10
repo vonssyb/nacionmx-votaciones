@@ -36,10 +36,28 @@ const RoleGuard = ({ children }) => {
     const loadingRef = React.useRef(loading);
 
     useEffect(() => {
-        loadingRef.current = loading;
-    }, [loading]);
+        // [DEBUG] Check for valid configuration
+        // We can inspect the internal client config or just infer from connection failure
+        // But let's fail fast if we detect placeholders (if we could access them easily)
+        // Since we import 'supabase' instance, let's assume if it fails to connect, we show error.
 
-    useEffect(() => {
+        const checkConfig = () => {
+            // Accessing internal private properties is risky, but we can check if the URL contains 'placeholder'
+            // @ts-ignore
+            const url = supabase.supabaseUrl || '';
+            // @ts-ignore
+            const key = supabase.supabaseKey || '';
+
+            if (url.includes('placeholder') || key.includes('placeholder')) {
+                setError("Error de Configuración: API Keys inválidas (Placeholder detectado). Revisa los Secrets de GitHub.");
+                setLoading(false);
+                return false;
+            }
+            return true;
+        };
+
+        if (!checkConfig()) return;
+
         let mounted = true;
 
         const checkSession = async (retries = 3) => {
