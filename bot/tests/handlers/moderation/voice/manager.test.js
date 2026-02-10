@@ -3,6 +3,15 @@
  */
 
 const VoiceManager = require('../../../../handlers/moderation/voice/manager');
+const VoiceEmbeds = require('../../../../utils/voiceEmbeds');
+
+jest.mock('../../../../utils/voiceEmbeds', () => ({
+    createControlPanel: jest.fn().mockReturnValue({}),
+    createControlComponents: jest.fn().mockReturnValue([]),
+    createUserSelectMenu: jest.fn(),
+    createStatsEmbed: jest.fn(),
+    createChannelInfoEmbed: jest.fn()
+}));
 
 describe('Voice Manager', () => {
     let manager;
