@@ -14,6 +14,70 @@ const Elections = () => {
     const [timer, setTimer] = useState(10);
 
     useEffect(() => {
+        fetchData();
+    }, [memberData]);
+
+    const fetchData = async () => {
+        let timeoutId;
+        try {
+            setLoading(true);
+
+            // Safety timeout: 8 seconds
+            const timeoutPromise = new Promise((_, reject) => {
+                timeoutId = setTimeout(() => reject(new Error('Tiempo de espera agotado (Timeout). Verifica tu conexión.')), 8000);
+            });
+
+            // Data fetch promise
+            const loadDataPromise = async () => {
+                // 1. Fetch Active Elections
+                const { data: electionsData, error: eError } = await supabase
+                    .from('elections')
+                    .select('*')
+                    .eq('is_active', true)
+                    .order('id');
+
+                if (eError) throw eError;
+
+                // 2. Fetch Candidates
+                const { data: candidatesData, error: cError } = await supabase
+                    .from('election_candidates')
+                    .select('*')
+                    .in('election_id', electionsData.map(e => e.id));
+
+                if (cError) throw cError;
+
+                // 3. Fetch User Votes
+                let votesData = [];
+                if (memberData?.user?.id) {
+                    const { data: vData, error: vError } = await supabase
+                        .from('election_votes')
+                        .select('election_id, candidate_id')
+                        .eq('user_id', memberData.user.id);
+
+                    if (vError) throw vError;
+                    votesData = vData || [];
+                }
+
+                return { electionsData, candidatesData, votesData };
+            };
+
+            // Race between fetch and timeout
+            const result = await Promise.race([loadDataPromise(), timeoutPromise]);
+
+            setElections(result.electionsData);
+            setCandidates(result.candidatesData);
+            setUserVotes(result.votesData);
+
+        } catch (error) {
+            console.error('Error fetching election data:', error);
+            setMessage({ type: 'error', text: `Error al cargar datos: ${error.message || 'Error desconocido'}` });
+        } finally {
+            clearTimeout(timeoutId);
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
         let interval;
         if (confirmModal && timer > 0) {
             interval = setInterval(() => {
