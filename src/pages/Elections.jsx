@@ -128,7 +128,7 @@ const Elections = () => {
                 {!memberData && (
                     <div className="mt-6 p-4 bg-gray-800/80 border-l-4 border-[#D90F74] rounded-r-lg flex flex-col sm:flex-row items-center justify-between gap-4">
                         <div className="flex items-center gap-3">
-                            <div className="p-2 bg-yellow-600/10 rounded-full text-yellow-500">
+                            <div className="p-2 bg-[#D90F74]/10 rounded-full text-[#D90F74]">
                                 <User size={24} />
                             </div>
                             <div>
@@ -141,7 +141,7 @@ const Elections = () => {
                                 sessionStorage.setItem('auth_redirect', '/votaciones');
                                 window.location.hash = '/login';
                             }}
-                            className="px-6 py-2.5 bg-yellow-600 hover:bg-yellow-500 text-black font-bold rounded-lg transition-all shadow-lg shadow-yellow-600/20 flex items-center gap-2 whitespace-nowrap"
+                            className="px-6 py-2.5 bg-[#D90F74] hover:bg-[#b00c5e] text-white font-bold rounded-lg transition-all shadow-lg shadow-[#D90F74]/20 flex items-center gap-2 whitespace-nowrap"
                         >
                             <LogIn size={20} />
                             Iniciar Sesión
@@ -171,7 +171,7 @@ const Elections = () => {
                     return (
                         <section key={election.id} className="bg-gray-800/40 rounded-xl border border-gray-700 overflow-hidden text-gray-200">
                             <div className="p-6 border-b border-gray-700 bg-gray-900/50">
-                                <h2 className="text-2xl font-bold text-yellow-500">{election.title}</h2>
+                                <h2 className="text-2xl font-bold text-[#D90F74]">{election.title}</h2>
                                 <p className="text-gray-400 text-sm mt-1">{election.description}</p>
                                 {userVotedFor && (
                                     <div className="mt-3 inline-flex items-center gap-2 px-3 py-1 bg-green-900/30 text-green-400 rounded-full border border-green-800 text-xs font-medium">
@@ -242,7 +242,7 @@ const Elections = () => {
                                                         ? 'bg-green-600 text-white cursor-default'
                                                         : userVotedFor
                                                             ? 'bg-gray-700 text-gray-500 cursor-not-allowed opacity-50'
-                                                            : 'bg-yellow-600 hover:bg-yellow-500 text-black shadow-lg hover:shadow-yellow-500/20'
+                                                            : 'bg-[#D90F74] hover:bg-[#b00c5e] text-white shadow-lg hover:shadow-[#D90F74]/30'
                                                         }`}
                                                 >
                                                     {isSelected ? (
