@@ -9,72 +9,45 @@ const Elections = () => {
     const [candidates, setCandidates] = useState([]);
     const [userVotes, setUserVotes] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [voting, setVoting] = useState(false);
-    const [message, setMessage] = useState(null);
+    const [confirmModal, setConfirmModal] = useState(null);
+    const [timer, setTimer] = useState(10);
 
     useEffect(() => {
-        fetchData();
-    }, [memberData]);
-
-    const fetchData = async () => {
-        try {
-            setLoading(true);
-
-            // 1. Fetch Active Elections (Anyone can see this now)
-            const { data: electionsData, error: eError } = await supabase
-                .from('elections')
-                .select('*')
-                .eq('is_active', true)
-                .order('id');
-
-            if (eError) throw eError;
-
-            // 2. Fetch Candidates
-            const { data: candidatesData, error: cError } = await supabase
-                .from('election_candidates')
-                .select('*')
-                .in('election_id', electionsData.map(e => e.id));
-
-            if (cError) throw cError;
-
-            // 3. Fetch User Votes (ONLY if logged in)
-            let votesData = [];
-            if (memberData?.user?.id) {
-                const { data: vData, error: vError } = await supabase
-                    .from('election_votes')
-                    .select('election_id, candidate_id')
-                    .eq('user_id', memberData.user.id);
-
-                if (vError) throw vError;
-                votesData = vData || [];
-            }
-
-            setElections(electionsData);
-            setCandidates(candidatesData);
-            setUserVotes(votesData);
-
-        } catch (error) {
-            console.error('Error fetching election data:', error);
-            setMessage({ type: 'error', text: `Error al cargar las votaciones: ${error.message}` });
-        } finally {
-            setLoading(false);
+        let interval;
+        if (confirmModal && timer > 0) {
+            interval = setInterval(() => {
+                setTimer((prev) => prev - 1);
+            }, 1000);
+        } else if (confirmModal && timer === 0) {
+            // Auto-cancel logic
+            setConfirmModal(null);
         }
-    };
+        return () => clearInterval(interval);
+    }, [confirmModal, timer]);
 
-    const handleVote = async (electionId, candidateId) => {
-        // If not logged in, redirect to login
+    const handleVoteClick = (electionId, candidateId, candidateName) => {
         if (!memberData?.user?.id) {
             const confirmLogin = window.confirm("Debes iniciar sesión con Discord para votar. ¿Quieres ir al login ahora?");
             if (confirmLogin) {
-                // Redirect mostly to login page
                 window.location.hash = '/login';
             }
             return;
         }
 
         if (voting) return;
+
+        // Open Confirmation Modal
+        setConfirmModal({ electionId, candidateId, candidateName });
+        setTimer(10);
+    };
+
+    const confirmVote = async () => {
+        if (!confirmModal) return;
+        const { electionId, candidateId } = confirmModal;
+
         setVoting(true);
         setMessage(null);
+        setConfirmModal(null); // Close modal
 
         try {
             const { error } = await supabase
@@ -108,7 +81,7 @@ const Elections = () => {
     if (loading) return <div className="p-8 text-center text-white">Cargando votaciones...</div>;
 
     return (
-        <div className="p-6 max-w-7xl mx-auto space-y-8 bg-gray-900 min-h-screen">
+        <div className="p-6 max-w-7xl mx-auto space-y-8 bg-gray-900 min-h-screen relative">
             <header className="mb-8 border-b border-gray-700 pb-6">
                 <div className="flex flex-col md:flex-row items-center justify-between gap-4">
                     <div className="flex items-center gap-4">
@@ -236,7 +209,7 @@ const Elections = () => {
                                                 )}
 
                                                 <button
-                                                    onClick={() => handleVote(election.id, candidate.id)}
+                                                    onClick={() => handleVoteClick(election.id, candidate.id, candidate.name)}
                                                     disabled={!!userVotedFor || voting}
                                                     className={`w-full py-2 px-4 rounded font-medium flex items-center justify-center gap-2 transition-all ${isSelected
                                                         ? 'bg-green-600 text-white cursor-default'
@@ -265,6 +238,39 @@ const Elections = () => {
                         </section>
                     );
                 })
+            )}
+
+            {/* Confirmation Modal */}
+            {confirmModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+                    <div className="bg-gray-900 border border-[#D90F74]/50 rounded-xl p-6 max-w-sm w-full shadow-2xl relative overflow-hidden">
+                        {/* Pink top bar */}
+                        <div className="absolute top-0 left-0 right-0 h-1 bg-[#D90F74]"></div>
+
+                        <h3 className="text-2xl font-bold text-white mb-2">Confirmar Voto</h3>
+                        <p className="text-gray-300 mb-6">
+                            Estás a punto de emitir tu voto por <span className="text-[#D90F74] font-bold">{confirmModal.candidateName}</span>.
+                            <br /><br />
+                            ¿Estás seguro?
+                        </p>
+
+                        <div className="flex flex-col gap-3">
+                            <button
+                                onClick={confirmVote}
+                                className="w-full py-3 bg-[#D90F74] hover:bg-[#b00c5e] text-white font-bold rounded-lg transition-all shadow-lg shadow-[#D90F74]/20 flex items-center justify-center gap-2"
+                            >
+                                <Check size={20} />
+                                Confirmar Voto
+                            </button>
+                            <button
+                                onClick={() => setConfirmModal(null)}
+                                className="w-full py-3 bg-gray-800 hover:bg-gray-700 text-gray-400 font-medium rounded-lg transition-all border border-gray-700"
+                            >
+                                Cancelar ({timer}s)
+                            </button>
+                        </div>
+                    </div>
+                </div>
             )}
         </div>
     );
