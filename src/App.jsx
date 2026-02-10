@@ -7,6 +7,18 @@ import ApplyPage from './pages/ApplyPage';
 import Elections from './pages/Elections';
 
 function App() {
+  // Check if we are in an OAuth redirect (access_token in hash) BEFORE the router takes over
+  // Supabase puts the token in the hash, e.g. #access_token=...
+  // HashRouter thinks this is a route. We need to intercept it.
+  const hash = window.location.hash;
+  if (hash && (hash.includes('access_token=') || hash.includes('error='))) {
+    return (
+      <HashRouter>
+        <AuthCallback />
+      </HashRouter>
+    );
+  }
+
   return (
     <HashRouter>
       <Routes>
