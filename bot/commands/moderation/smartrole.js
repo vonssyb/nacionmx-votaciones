@@ -27,6 +27,15 @@ module.exports = {
                     { name: 'Lista Personalizada (Manual)', value: 'manual' }
                 )
         )
+        .addStringOption(opt =>
+            opt.setName('modo')
+                .setDescription('Acción a realizar')
+                .setRequired(true)
+                .addChoices(
+                    { name: 'Asignar Rol (Dar)', value: 'asignar' },
+                    { name: 'Quitar Rol (Remover)', value: 'quitar' }
+                )
+        )
         // Optional
         .addStringOption(opt =>
             opt.setName('usuarios')
@@ -42,6 +51,7 @@ module.exports = {
         const roleToExclude = interaction.options.getRole('rol_exclusion');
         const groupInput = interaction.options.getString('grupo');
         const usersInput = interaction.options.getString('usuarios');
+        const mode = interaction.options.getString('modo'); // 'asignar' or 'quitar'
 
         if (groupInput === 'manual' && !usersInput) {
             return interaction.reply({ content: '❌ Elegiste **Lista Personalizada** pero no escribiste nada en la opción `usuarios`.', ephemeral: true });
@@ -50,7 +60,7 @@ module.exports = {
         // Security Check
         const myHighestRole = interaction.guild.members.me.roles.highest.position;
         if (roleToGive.position >= myHighestRole) {
-            return interaction.reply({ content: `❌ No puedo asignar el rol **${roleToGive.name}** porque es superior al mío.`, ephemeral: true });
+            return interaction.reply({ content: `❌ No puedo gestionar el rol **${roleToGive.name}** porque es superior al mío.`, ephemeral: true });
         }
 
         await interaction.deferReply();
@@ -103,32 +113,41 @@ module.exports = {
             return interaction.editReply('⚠️ No se encontraron usuarios con los criterios especificados.');
         }
 
-        await interaction.editReply(`🔄 **Procesando SmartRole...**\nRol a dar: ${roleToGive}\nExclusión: ${roleToExclude}\nObjetivo: ${targetDescription} (${targetMembers.size})\n⏳ Iniciando...`);
+        const actionVerb = mode === 'asignar' ? 'Asignar' : 'Quitar';
+        await interaction.editReply(`🔄 **Procesando SmartRole (${actionVerb})...**\nRol: ${roleToGive}\nExclusión (Protección): ${roleToExclude}\nObjetivo: ${targetDescription} (${targetMembers.size})\n⏳ Iniciando...`);
 
         let successCount = 0;
-        let skippedExclusion = 0;
-        let skippedAlreadyHas = 0;
+        let skippedExclusion = 0; // Protected
+        let skippedNoAction = 0; // Already has (assign) or doesn't have (remove)
         let failCount = 0;
         let processed = 0;
 
         for (const [id, member] of targetMembers) {
             processed++;
             try {
-                // 1. Check Exclusion
+                // 1. Check Exclusion (Protects user from ANY change)
                 if (member.roles.cache.has(roleToExclude.id)) {
                     skippedExclusion++;
                     continue;
                 }
 
-                // 2. Check overlap
-                if (member.roles.cache.has(roleToGive.id)) {
-                    skippedAlreadyHas++;
-                    continue;
+                if (mode === 'asignar') {
+                    // MODO ASIGNAR
+                    if (member.roles.cache.has(roleToGive.id)) {
+                        skippedNoAction++;
+                        continue;
+                    }
+                    await member.roles.add(roleToGive);
+                    successCount++;
+                } else {
+                    // MODO QUITAR
+                    if (!member.roles.cache.has(roleToGive.id)) {
+                        skippedNoAction++; // Doesn't have it, can't remove
+                        continue;
+                    }
+                    await member.roles.remove(roleToGive);
+                    successCount++;
                 }
-
-                // 3. Assign
-                await member.roles.add(roleToGive);
-                successCount++;
 
                 // Rate Limit Protection
                 if (successCount % 5 === 0) await new Promise(r => setTimeout(r, 1000));
@@ -141,6 +160,6 @@ module.exports = {
             if (processed % 100 === 0) console.log(`SmartRole Progress: ${processed}/${targetMembers.size}`);
         }
 
-        await interaction.editReply(`✅ **SmartRole Finalizado**\n🎯 Asignados: ${successCount}\n⛔ Omitidos (Tenían exclusión): ${skippedExclusion}\nℹ️ Omitidos (Ya tenían el rol): ${skippedAlreadyHas}\n❌ Errores: ${failCount}`);
+        await interaction.editReply(`✅ **SmartRole Finalizado (${actionVerb})**\n🎯 Exitosos: ${successCount}\n🛡️ Protegidos (Exclusión): ${skippedExclusion}\nℹ️ Sin cambios necesarios: ${skippedNoAction}\n❌ Errores: ${failCount}`);
     }
 };
