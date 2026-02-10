@@ -86,7 +86,7 @@ const Elections = () => {
                         <img
                             src="https://igjedwdxqwkpbgrmtrrq.supabase.co/storage/v1/object/public/evidence/others/partidos%20politicos/ine4.png"
                             alt="INE Logo"
-                            className="h-16 w-auto object-contain bg-white/90 p-2 rounded-lg"
+                            className="h-16 w-auto object-contain"
                         />
                         <div>
                             <h1 className="text-3xl font-bold text-gray-100">
