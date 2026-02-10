@@ -10,18 +10,25 @@ const DEALERSHIP_CUSTOMER_ROLES = [
 const ImageGenerator = require('../../utils/ImageGenerator');
 
 module.exports = async (client, member, supabase) => {
-    const MAIN_GUILDS = [GUILDS.MAIN, GUILDS.STAFF];
+    const MAIN_GUILDS = [GUILDS.MAIN, GUILDS.STAFF, GUILDS.MCQUEEN];
     if (!MAIN_GUILDS.includes(member.guild.id)) return;
 
     try {
-        // Auto-Roles Configuration
-        const AUTO_ROLES = [
-            '1458506735185825993', '1449948588166611078', '1413541382869618731',
-            '1424534280725463071', '1412887179281305772', '1460051693092995174',
-            '1412887170267480215', '1413545285975801918', '1412882235547189362',
-            '1413645375918706820',
-            ...DEALERSHIP_CUSTOMER_ROLES // Add dealership/concesionario roles
-        ];
+        let AUTO_ROLES = [];
+
+        if (member.guild.id === GUILDS.MCQUEEN) {
+            // For McQueen Server: Only specific roles
+            AUTO_ROLES = DEALERSHIP_CUSTOMER_ROLES;
+        } else {
+            // For Main/Staff Servers: Existing comprehensive list
+            AUTO_ROLES = [
+                '1458506735185825993', '1449948588166611078', '1413541382869618731',
+                '1424534280725463071', '1412887179281305772', '1460051693092995174',
+                '1412887170267480215', '1413545285975801918', '1412882235547189362',
+                '1413645375918706820',
+                ...DEALERSHIP_CUSTOMER_ROLES
+            ];
+        }
 
         // Attempt to assign roles
         try {
