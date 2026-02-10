@@ -26,7 +26,6 @@ const AuthCallback = () => {
             const checkAndRedirect = async () => {
                 const { data: { session } } = await supabase.auth.getSession();
                 if (session) {
-                    clearTimeout(timer);
                     console.log("AuthCallback: Session found, redirecting.");
                     const redirectUrl = sessionStorage.getItem('auth_redirect');
                     if (redirectUrl) {
@@ -42,7 +41,6 @@ const AuthCallback = () => {
             const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
                 console.log(`AuthCallback: Auth Event ${event}`);
                 if (event === 'SIGNED_IN' && session) {
-                    clearTimeout(timer);
                     const redirectUrl = sessionStorage.getItem('auth_redirect');
                     if (redirectUrl) {
                         sessionStorage.removeItem('auth_redirect');
