@@ -185,7 +185,7 @@ const Elections = () => {
                                                     <img
                                                         src={candidate.photo_url}
                                                         alt={candidate.name}
-                                                        className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500"
+                                                        className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-500"
                                                         onError={(e) => {
                                                             e.target.onerror = null;
                                                             e.target.src = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(candidate.name) + '&background=random';
