@@ -14,7 +14,8 @@ module.exports = {
                 .setTitle('🚨 PROTOCOLO DE APAGADO DE EMERGENCIA')
                 .setDescription('**ADVERTENCIA:** Esta acción detendrá todos los procesos del sistema inmediatamente.\n\nPara proceder, presiona el botón y confirma la contraseña de seguridad.')
                 .setColor('#FF0000') // Red
-                .setThumbnail('https://i.imgur.com/8bfOq9t.png') // Optional: Warning icon
+                .setImage('https://media0.giphy.com/media/v1.Y2lkPTc5MGI3NjExbG9yMDl1MW1rZHN0NzlkN3RweDU2bjRiejNiOHN3d3BjMXM0bXk5OCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/Oi4Hr6Dy1Cdlx0Uj2J/giphy.gif')
+                .setThumbnail(null) // Remove thumbnail if replacing with big image, or keep both? User said "usa este gif". Usually big gif looks better as Image. Let's use setImage for impact.
                 .setFooter({ text: 'Sistema de Seguridad NacionMX' })
                 .setTimestamp();
 
