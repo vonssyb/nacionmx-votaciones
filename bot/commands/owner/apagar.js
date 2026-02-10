@@ -115,10 +115,11 @@ module.exports = {
             });
         } catch (error) {
             console.error('Error executing apagar:', error);
+            const errorMessage = `❌ Error ejecutando el comando:\n\`\`\`${error.message}\`\`\``;
             if (!interaction.replied && !interaction.deferred) {
-                await interaction.reply({ content: '❌ Error ejecutando el comando.', ephemeral: true });
+                await interaction.reply({ content: errorMessage, ephemeral: true });
             } else {
-                await interaction.editReply({ content: '❌ Error ejecutando el comando.' });
+                await interaction.editReply({ content: errorMessage });
             }
         }
     },
