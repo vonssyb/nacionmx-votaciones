@@ -12,6 +12,8 @@ const Elections = () => {
     const [confirmModal, setConfirmModal] = useState(null);
     const [loginModal, setLoginModal] = useState(false);
     const [timer, setTimer] = useState(10);
+    const [message, setMessage] = useState(null);
+    const [voting, setVoting] = useState(false);
 
     useEffect(() => {
         fetchData();
