@@ -27,10 +27,10 @@ module.exports = {
                 );
 
             // Send PUBLIC message (not ephemeral, as requested)
-            const response = await interaction.reply({
+            // Interaction is ALREADY DEFERRED by global handler (see instances/moderation.js)
+            const response = await interaction.editReply({
                 embeds: [embed],
-                components: [row],
-                fetchReply: true
+                components: [row]
             });
 
             // Create collector for the button
