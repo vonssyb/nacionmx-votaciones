@@ -142,7 +142,32 @@ const Elections = () => {
         }
     };
 
-    if (loading) return <div className="p-8 text-center text-white">Cargando votaciones...</div>;
+    if (loading) {
+        return (
+            <div className="min-h-screen bg-gray-900 flex flex-col items-center justify-center p-4">
+                <div className="relative mb-8">
+                    <div className="absolute inset-0 bg-[#D90F74]/20 blur-xl rounded-full animate-pulse"></div>
+                    <img
+                        src="https://igjedwdxqwkpbgrmtrrq.supabase.co/storage/v1/object/public/evidence/others/partidos%20politicos/ine4.png"
+                        alt="INE Loading"
+                        className="h-24 w-auto object-contain relative z-10 animate-bounce-slow"
+                    />
+                </div>
+                <div className="w-12 h-12 border-4 border-gray-700 border-t-[#D90F74] rounded-full animate-spin mb-4"></div>
+                <h2 className="text-xl font-bold text-white tracking-wider">SISTEMA ELECTORAL</h2>
+                <p className="text-[#D90F74] text-sm font-medium mt-2 animate-pulse">Cargando módulos de votación...</p>
+                <style>{`
+                    @keyframes bounce-slow {
+                        0%, 100% { transform: translateY(-5%); }
+                        50% { transform: translateY(5%); }
+                    }
+                    .animate-bounce-slow {
+                        animation: bounce-slow 2s infinite ease-in-out;
+                    }
+                `}</style>
+            </div>
+        );
+    }
 
     return (
         <div className="p-6 max-w-7xl mx-auto space-y-8 bg-gray-900 min-h-screen relative">
