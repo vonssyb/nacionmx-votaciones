@@ -20,8 +20,34 @@ const Elections = () => {
     }, [memberData]);
 
     const fetchData = async () => {
+        // [CACHE STRATEGY] Check local cache first
+        const cached = sessionStorage.getItem('election_cache');
+        if (cached) {
+            try {
+                const { timestamp, data } = JSON.parse(cached);
+                const isFresh = (Date.now() - timestamp) < 10 * 60 * 1000; // 10 minutes cache
+
+                // If we have data and it's fresh (or we are offline/loading), use it immediately
+                if (isFresh) {
+                    console.log('Using cached election data');
+                    setElections(data.electionsData || []);
+                    setCandidates(data.candidatesData || []);
+                    // We DO NOT cache userVotes heavily, or we merge it. 
+                    // But for speed, let's trust the cache for heavy data and maybe fetch votes in background?
+                    // For now, simple cache for everything.
+                    setUserVotes(data.votesData || []);
+                    setLoading(false);
+                    return;
+                }
+            } catch (e) {
+                console.warn('Cache parse error', e);
+                sessionStorage.removeItem('election_cache');
+            }
+        }
+
         let timeoutId;
         try {
+            // Only set loading if we didn't use cache (or if we want to show a spinner for re-fetch)
             setLoading(true);
 
             // Safety timeout: 20 seconds (Increased for Supabase Cold Starts)
@@ -69,6 +95,12 @@ const Elections = () => {
             setElections(result.electionsData || []);
             setCandidates(result.candidatesData || []);
             setUserVotes(result.votesData || []);
+
+            // [CACHE SAVE]
+            sessionStorage.setItem('election_cache', JSON.stringify({
+                timestamp: Date.now(),
+                data: result
+            }));
 
         } catch (error) {
             console.error('Error fetching election data:', error);
@@ -130,8 +162,20 @@ const Elections = () => {
                 }
             } else {
                 setMessage({ type: 'success', text: '¡Voto registrado exitosamente!' });
+
                 // Refresh votes locally
-                setUserVotes([...userVotes, { election_id: electionId, candidate_id: candidateId }]);
+                const newVotes = [...userVotes, { election_id: electionId, candidate_id: candidateId }];
+                setUserVotes(newVotes);
+
+                // [CACHE INVALIDATION/UPDATE]
+                // We can either remove cache to force refetch, or update it.
+                // Updating is better for UX (no reload needed).
+                const cached = sessionStorage.getItem('election_cache');
+                if (cached) {
+                    const parsed = JSON.parse(cached);
+                    parsed.data.votesData = newVotes; // Sync cache with new vote
+                    sessionStorage.setItem('election_cache', JSON.stringify(parsed));
+                }
             }
 
         } catch (error) {
