@@ -25,6 +25,9 @@ const Navbar = () => {
                             <Link to="/admin/elecciones" className="text-gray-300 hover:text-[#D90F74] px-3 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-1">
                                 <ShieldCheck size={16} /> Entrar como Empleado
                             </Link>
+                            <Link to="/admin/denuncias" className="text-gray-300 hover:text-[#D90F74] px-3 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-1">
+                                <ShieldAlert size={16} /> Denuncias
+                            </Link>
                         </div>
                     </div>
                     <div className="-mr-2 flex md:hidden">
