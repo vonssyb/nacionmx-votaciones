@@ -5,6 +5,40 @@ import { supabase } from '../services/supabase';
 
 const Rules = () => {
     const [successModal, setSuccessModal] = useState(false);
+    const [showReportModal, setShowReportModal] = useState(false);
+    const [submitting, setSubmitting] = useState(false);
+    const [uploading, setUploading] = useState(false);
+    const [reportData, setReportData] = useState({
+        offender_name: '',
+        description: '',
+        evidence_url: ''
+    });
+
+    const handleImageUpload = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        setUploading(true);
+        try {
+            const fileExt = file.name.split('.').pop();
+            const fileName = `evidence_${Date.now()}.${fileExt}`;
+            const filePath = `evidence/complaints/${fileName}`;
+
+            const { error: uploadError } = await supabase.storage
+                .from('evidence')
+                .upload(filePath, file);
+
+            if (uploadError) throw uploadError;
+
+            const { data } = supabase.storage.from('evidence').getPublicUrl(filePath);
+            setReportData({ ...reportData, evidence_url: data.publicUrl });
+        } catch (error) {
+            console.error('Error uploading evidence:', error);
+            alert('Error al subir la imagen. Por favor intenta de nuevo.');
+        } finally {
+            setUploading(false);
+        }
+    };
 
     const handleSubmitReport = async (e) => {
         e.preventDefault();
