@@ -4,6 +4,10 @@ import Dashboard from './pages/Dashboard';
 import AuthCallback from './components/auth/AuthCallback';
 import Home from './pages/Home';
 import Navbar from './components/layout/Navbar';
+import ApplyPage from './pages/ApplyPage';
+import Elections from './pages/Elections';
+import ElectionsAdmin from './pages/admin/ElectionsAdmin';
+import RoleGuard from './components/auth/RoleGuard';
 
 function App() {
   // Check if we are in an OAuth redirect (access_token in hash) BEFORE the router takes over
