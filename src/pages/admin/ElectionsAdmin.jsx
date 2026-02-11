@@ -108,6 +108,8 @@ const ElectionsAdmin = () => {
 
             const { data } = supabase.storage.from('evidence').getPublicUrl(fileName);
 
+            if (!data || !data.publicUrl) throw new Error('Error al obtener URL pública');
+
             setCandidateForm(prev => ({
                 ...prev,
                 [type === 'logo' ? 'logo_url' : 'photo_url']: data.publicUrl
