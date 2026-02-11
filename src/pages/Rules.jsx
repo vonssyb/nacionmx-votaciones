@@ -1,12 +1,10 @@
 import React from 'react';
 import { ShieldAlert, Ban, Eye, FileWarning, CheckCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import Navbar from '../components/layout/Navbar';
 
 const Rules = () => {
     return (
         <div className="min-h-screen bg-gray-900 text-gray-100 flex flex-col">
-            <Navbar />
             <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
 
                 {/* Header */}
