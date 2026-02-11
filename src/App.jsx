@@ -27,6 +27,7 @@ function App() {
         <Route path="/aplicar" element={<ApplyPage />} />
         <Route path="/login" element={<Login />} />
         <Route path="/votaciones" element={<Elections />} />
+        <Route path="/elecciones" element={<Elections />} />
         <Route path="/dashboard/*" element={<Dashboard />} />
         {/* Auth Callback for specific cases if needed, but Landing handles auth state */}
         <Route path="/auth/callback" element={<AuthCallback />} />
