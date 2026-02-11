@@ -1,12 +1,9 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import Navbar from '../components/layout/Navbar';
-import { FileText, User, ChevronRight, CheckCircle, HelpCircle } from 'lucide-react';
-
 const Home = () => {
     return (
         <div className="min-h-screen bg-gray-900 text-gray-100 flex flex-col">
-            <Navbar />
+
 
             {/* Hero Section */}
             <header className="relative py-20 lg:py-32 overflow-hidden">
