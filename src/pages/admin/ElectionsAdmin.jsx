@@ -282,7 +282,11 @@ const ElectionsAdmin = () => {
                                     <div className="flex gap-2">
                                         <button
                                             onClick={(e) => { e.stopPropagation(); toggleElectionStatus(election); }}
-                                            className={`text-xs px-2 py-0.5 rounded ${election.is_active ? 'bg-green-900 text-green-300' : 'bg-red-900 text-red-300'}`}
+                                            className={`text-xs px-2 py-0.5 rounded font-bold transition-colors cursor-pointer border ${election.is_active
+                                                    ? 'bg-green-900/50 text-green-400 border-green-700 hover:bg-green-800'
+                                                    : 'bg-red-900/50 text-red-400 border-red-700 hover:bg-red-800'
+                                                }`}
+                                            title="Click para cambiar estado"
                                         >
                                             {election.is_active ? 'ACTIVO' : 'INACTIVO'}
                                         </button>
