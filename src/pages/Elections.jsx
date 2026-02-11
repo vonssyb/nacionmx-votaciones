@@ -202,7 +202,7 @@ const Elections = () => {
     }
 
     return (
-        <div className="p-6 max-w-7xl mx-auto space-y-8 bg-gray-900 min-h-screen relative">
+        <div className="w-full px-4 md:px-8 py-6 space-y-8 bg-gray-900 min-h-screen relative">
             {/* ... Header omitted for brevity ... */}
             <header className="mb-8 border-b border-gray-700 pb-6">
                 <div className="flex flex-col md:flex-row items-center justify-between gap-4">
