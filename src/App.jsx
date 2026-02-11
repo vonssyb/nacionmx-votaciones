@@ -6,6 +6,7 @@ import Home from './pages/Home';
 import Navbar from './components/layout/Navbar';
 import ApplyPage from './pages/ApplyPage';
 import Elections from './pages/Elections';
+import Rules from './pages/Rules';
 import ElectionsAdmin from './pages/admin/ElectionsAdmin';
 import RoleGuard from './components/auth/RoleGuard';
 
@@ -28,6 +29,7 @@ function App() {
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/inicio" element={<Home />} />
+        <Route path="/reglas" element={<Rules />} />
         <Route path="/aplicar" element={<ApplyPage />} />
         <Route path="/login" element={<Login />} />
         <Route path="/votaciones" element={<RoleGuard key="elections-vote" requireAuth={false}><Elections /></RoleGuard>} />

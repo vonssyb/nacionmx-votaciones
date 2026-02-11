@@ -56,18 +56,23 @@ const Home = () => {
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
 
                         {/* Card 1: Rules */}
-                        <div className="bg-gray-800 rounded-xl p-8 border border-gray-700 hover:border-[#D90F74]/50 transition-all hover:bg-gray-800/80 group">
-                            <div className="w-12 h-12 bg-[#D90F74]/20 rounded-lg flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
-                                <FileText className="text-[#D90F74]" size={24} />
+                        <Link to="/reglas" className="block">
+                            <div className="bg-gray-800 rounded-xl p-8 border border-gray-700 hover:border-[#D90F74]/50 transition-all hover:bg-gray-800/80 group h-full cursor-pointer relative overflow-hidden">
+                                <div className="absolute top-0 right-0 p-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <ChevronRight className="text-[#D90F74]" />
+                                </div>
+                                <div className="w-12 h-12 bg-[#D90F74]/20 rounded-lg flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+                                    <FileText className="text-[#D90F74]" size={24} />
+                                </div>
+                                <h3 className="text-xl font-bold text-white mb-4">Reglas Electorales</h3>
+                                <p className="text-gray-400 mb-4">Conoce los lineamientos y normativas que rigen nuestros procesos democráticos para asegurar elecciones justas.</p>
+                                <ul className="text-sm text-gray-500 space-y-2">
+                                    <li className="flex items-center"><CheckCircle size={14} className="mr-2 text-green-500" /> Voto libre y secreto</li>
+                                    <li className="flex items-center"><CheckCircle size={14} className="mr-2 text-green-500" /> Un voto por ciudadano</li>
+                                    <li className="flex items-center"><CheckCircle size={14} className="mr-2 text-green-500" /> Transparencia total</li>
+                                </ul>
                             </div>
-                            <h3 className="text-xl font-bold text-white mb-4">Reglas Electorales</h3>
-                            <p className="text-gray-400 mb-4">Conoce los lineamientos y normativas que rigen nuestros procesos democráticos para asegurar elecciones justas.</p>
-                            <ul className="text-sm text-gray-500 space-y-2">
-                                <li className="flex items-center"><CheckCircle size={14} className="mr-2 text-green-500" /> Voto libre y secreto</li>
-                                <li className="flex items-center"><CheckCircle size={14} className="mr-2 text-green-500" /> Un voto por ciudadano</li>
-                                <li className="flex items-center"><CheckCircle size={14} className="mr-2 text-green-500" /> Transparencia total</li>
-                            </ul>
-                        </div>
+                        </Link>
 
                         {/* Card 2: Presidency */}
                         <div className="bg-gray-800 rounded-xl p-8 border border-gray-700 hover:border-[#D90F74]/50 transition-all hover:bg-gray-800/80 group">
