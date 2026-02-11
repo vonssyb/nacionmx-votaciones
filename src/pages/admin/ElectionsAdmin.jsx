@@ -175,6 +175,15 @@ const ElectionsAdmin = () => {
 
     return (
         <div className="min-h-screen bg-gray-900 text-gray-100 p-6 md:p-12">
+            <style>{`
+                @keyframes slide-down {
+                    from { opacity: 0; transform: translateY(-20px); }
+                    to { opacity: 1; transform: translateY(0); }
+                }
+                .animate-slide-down {
+                    animation: slide-down 0.3s ease-out forwards;
+                }
+            `}</style>
             <header className="flex justify-between items-center mb-10 pb-6 border-b border-gray-700">
                 <div className="flex items-center gap-4">
                     <ShieldCheck size={40} className="text-[#D90F74]" />
@@ -281,7 +290,7 @@ const ElectionsAdmin = () => {
                             </div>
 
                             {editingCandidate && (
-                                <div className="bg-gray-800 p-6 rounded-lg border border-[#D90F74] shadow-xl space-y-4">
+                                <div className="bg-gray-800 p-6 rounded-lg border border-[#D90F74] shadow-xl space-y-4 sticky top-6 z-10 animate-slide-down mb-6">
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <input
                                             className="bg-gray-900 border border-gray-700 p-3 rounded text-white"
