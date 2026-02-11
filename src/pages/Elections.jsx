@@ -203,10 +203,18 @@ const Elections = () => {
             {/* ... Header omitted for brevity ... */}
             <header className="mb-8 border-b border-gray-700 pb-6">
                 <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-                    <div>
-                        <h1 className="text-3xl font-bold text-gray-100">
-                            Proceso Electoral Federal 2026
-                        </h1>
+                    <div className="flex items-center gap-4">
+                        <img
+                            src="https://igjedwdxqwkpbgrmtrrq.supabase.co/storage/v1/object/public/evidence/others/partidos%20politicos/ine4.png"
+                            alt="INE Logo"
+                            className="h-16 w-auto object-contain"
+                        />
+                        <div>
+                            <h1 className="text-3xl font-bold text-gray-100">
+                                Instituto Nacional Electoral
+                            </h1>
+                            <p className="text-[#D90F74] font-medium mt-1">Proceso Electoral Federal 2026</p>
+                        </div>
                     </div>
                     <button
                         onClick={() => window.location.hash = '/admin/elecciones'}
