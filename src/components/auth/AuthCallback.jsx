@@ -10,11 +10,11 @@ const AuthCallback = () => {
     useEffect(() => {
         const hash = window.location.hash;
 
-        // Safety timeout: 10 seconds
+        // Safety timeout: 3 seconds to show manual exit
         const timer = setTimeout(() => {
-            console.warn("AuthCallback: Timeout reached, forcing navigation.");
+            console.warn("AuthCallback: Slow connection detected, showing exit option.");
             setTimeoutReached(true);
-        }, 10000);
+        }, 3000);
 
         // If this is an OAuth Redirect (contains access_token)
         if (hash.includes('access_token') || hash.includes('error')) {
@@ -69,56 +69,10 @@ const AuthCallback = () => {
         }
     }, [navigate]);
 
-    if (timeoutReached) {
-        return (
-            <div style={{
-                height: '100vh',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                background: '#111827',
-                color: '#fff',
-                fontFamily: 'system-ui, sans-serif'
-            }}>
-                <div style={{ padding: '2rem', background: '#1f2937', borderRadius: '1rem', border: '1px solid #374151', textAlign: 'center', maxWidth: '400px' }}>
-                    <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', marginBottom: '0.5rem', color: '#f87171' }}>Tiempo de espera agotado</h3>
-                    <p style={{ color: '#9ca3af', marginBottom: '1.5rem' }}>
-                        La verificación de credenciales está tardando demasiado. Esto puede deberse a problemas de conexión o seguridad (SSL) en tu red.
-                    </p>
-                    <button
-                        onClick={() => navigate('/login', { replace: true })}
-                        style={{
-                            padding: '0.75rem 1.5rem',
-                            background: '#D90F74',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '0.5rem',
-                            fontWeight: 'bold',
-                            cursor: 'pointer'
-                        }}
-                    >
-                        Volver a Intentar
-                    </button>
-                    <button
-                        onClick={() => navigate('/', { replace: true })}
-                        style={{
-                            display: 'block',
-                            margin: '1rem auto 0',
-                            background: 'transparent',
-                            color: '#6b7280',
-                            border: 'none',
-                            cursor: 'pointer',
-                            textDecoration: 'underline'
-                        }}
-                    >
-                        Ir al Inicio
-                    </button>
-                </div>
-            </div>
-        );
-    }
+    // Timeout handled in main return
 
+
+    return (
     return (
         <div className="min-h-screen bg-gray-900 flex flex-col items-center justify-center p-4">
             <div className="relative mb-8">
@@ -131,7 +85,20 @@ const AuthCallback = () => {
             </div>
             <div className="w-12 h-12 border-4 border-gray-700 border-t-[#D90F74] rounded-full animate-spin mb-4"></div>
             <h2 className="text-xl font-bold text-white tracking-wider">SISTEMA ELECTORAL</h2>
-            <p className="text-[#D90F74] text-sm font-medium mt-2 animate-pulse">Procesando credenciales...</p>
+            <p className="text-[#D90F74] text-sm font-medium mt-2 animate-pulse">Procesando credenciales (v2)...</p>
+
+            {timeoutReached && (
+                <div className="mt-8 animate-fade-in">
+                    <button
+                        onClick={() => navigate('/login', { replace: true })}
+                        className="px-6 py-2 bg-[#D90F74] text-white rounded-full font-bold hover:bg-[#b00c5e] transition-colors shadow-lg"
+                    >
+                        Cancelar / Volver
+                    </button>
+                    <p className="text-gray-500 text-xs mt-2 text-center">Si esto tarda mucho, pulsa cancelar.</p>
+                </div>
+            )}
+
             <style>{`
                 @keyframes bounce-slow {
                     0%, 100% { transform: translateY(-5%); }
@@ -139,6 +106,13 @@ const AuthCallback = () => {
                 }
                 .animate-bounce-slow {
                     animation: bounce-slow 2s infinite ease-in-out;
+                }
+                .animate-fade-in {
+                    animation: fadeIn 0.5s ease-in;
+                }
+                @keyframes fadeIn {
+                    from { opacity: 0; }
+                    to { opacity: 1; }
                 }
             `}</style>
         </div>
