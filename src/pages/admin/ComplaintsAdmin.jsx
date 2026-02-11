@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../../services/supabase';
-import Navbar from '../../components/layout/Navbar';
 import { ShieldAlert, CheckCircle, XCircle, ExternalLink, Calendar, Search, Filter } from 'lucide-react';
 
 const ComplaintsAdmin = () => {
