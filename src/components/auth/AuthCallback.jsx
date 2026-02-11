@@ -32,7 +32,7 @@ const AuthCallback = () => {
                         sessionStorage.removeItem('auth_redirect');
                         navigate(redirectUrl, { replace: true });
                     } else {
-                        navigate('/dashboard', { replace: true });
+                        navigate('/elecciones', { replace: true });
                     }
                 }
             };
@@ -46,7 +46,7 @@ const AuthCallback = () => {
                         sessionStorage.removeItem('auth_redirect');
                         navigate(redirectUrl, { replace: true });
                     } else {
-                        navigate('/dashboard', { replace: true });
+                        navigate('/elecciones', { replace: true });
                     }
                 } else if (event === 'SIGNED_OUT') {
                     // ...
@@ -64,8 +64,8 @@ const AuthCallback = () => {
         } else {
             // Normal 404 or Root access -> Go to Dashboard (which will redirect to Login if needed)
             clearTimeout(timer);
-            console.log("AuthCallback: No tokens, redirecting to dashboard.");
-            navigate('/dashboard', { replace: true });
+            console.log("AuthCallback: No tokens, redirecting to elections.");
+            navigate('/elecciones', { replace: true });
         }
     }, [navigate]);
 
