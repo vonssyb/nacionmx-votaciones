@@ -315,8 +315,8 @@ const Elections = () => {
 
                                                 {/* Logo Overlay on card (Optional but nice) */}
                                                 {candidate.logo_url && (
-                                                    <div className="absolute bottom-2 right-2 w-12 h-12 drop-shadow-md transition-transform hover:scale-110">
-                                                        <img src={candidate.logo_url} alt="Party Logo" className="w-full h-full object-contain" />
+                                                    <div className="absolute bottom-2 right-2 w-12 h-12 rounded-full overflow-hidden drop-shadow-md transition-transform hover:scale-110 bg-white/10 backdrop-blur-sm">
+                                                        <img src={candidate.logo_url} alt="Party Logo" className="w-full h-full object-cover" />
                                                     </div>
                                                 )}
                                             </div>

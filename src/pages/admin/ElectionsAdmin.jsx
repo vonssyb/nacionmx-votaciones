@@ -373,9 +373,9 @@ const ElectionsAdmin = () => {
                                         </div>
 
                                         <div className="flex items-center gap-4">
-                                            <div className="w-20 h-20 bg-gray-900 rounded border border-gray-700 flex items-center justify-center overflow-hidden">
+                                            <div className="w-20 h-20 bg-gray-900 rounded-full border border-gray-700 flex items-center justify-center overflow-hidden">
                                                 {candidateForm.logo_url ? (
-                                                    <img src={candidateForm.logo_url} alt="Preview" className="w-full h-full object-contain p-2" />
+                                                    <img src={candidateForm.logo_url} alt="Preview" className="w-full h-full object-cover" />
                                                 ) : <ImageIcon className="text-gray-600" />}
                                             </div>
                                             <div className="flex-1">
@@ -406,8 +406,8 @@ const ElectionsAdmin = () => {
                                                         ) : <User className="w-full h-full p-2 text-gray-500" />}
                                                     </div>
                                                     {candidate.logo_url && (
-                                                        <div className="absolute -bottom-2 -right-2 w-8 h-8 drop-shadow-md">
-                                                            <img src={candidate.logo_url} alt="Logo" className="w-full h-full object-contain" />
+                                                        <div className="absolute -bottom-2 -right-2 w-8 h-8 rounded-full overflow-hidden drop-shadow-md bg-white/10 backdrop-blur-sm">
+                                                            <img src={candidate.logo_url} alt="Logo" className="w-full h-full object-cover" />
                                                         </div>
                                                     )}
                                                 </div>
