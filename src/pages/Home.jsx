@@ -83,8 +83,7 @@ const Home = () => {
                             <p className="text-gray-400 mb-4">Liderazgo comprometido con la imparcialidad y el fortalecimiento de nuestras instituciones democráticas.</p>
                             <div className="flex items-center gap-4 mt-4 p-4 bg-gray-900 rounded-lg border border-gray-700">
                                 <div className="w-12 h-12 rounded-full bg-gray-700 overflow-hidden">
-                                    {/* Placeholder for President Photo */}
-                                    <User className="w-full h-full p-2 text-gray-500" />
+                                    <img src="https://igjedwdxqwkpbgrmtrrq.supabase.co/storage/v1/object/public/evidence/candidates/vonssyb.png" alt="Presidente del INE" className="w-full h-full object-cover" />
                                 </div>
                                 <div>
                                     <p className="text-white font-bold text-sm">Consejero Presidente</p>
