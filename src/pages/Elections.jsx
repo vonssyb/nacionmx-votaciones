@@ -334,18 +334,25 @@ const Elections = () => {
 
                                                 <button
                                                     onClick={() => handleVoteClick(election.id, candidate.id, candidate.name, candidate.party, candidate.photo_url, candidate.logo_url)}
-                                                    disabled={!!userVotedFor || voting}
+                                                    disabled={!!userVotedFor || voting || election.voting_open === false}
                                                     className={`w-full py-2 px-4 rounded font-medium flex items-center justify-center gap-2 transition-all ${isSelected
                                                         ? 'bg-green-600 text-white cursor-default'
                                                         : userVotedFor
                                                             ? 'bg-gray-700 text-gray-500 cursor-not-allowed opacity-50'
-                                                            : 'bg-[#D90F74] hover:bg-[#b00c5e] text-white shadow-lg hover:shadow-[#D90F74]/30'
+                                                            : election.voting_open === false
+                                                                ? 'bg-gray-700 text-gray-400 cursor-not-allowed border border-gray-600'
+                                                                : 'bg-[#D90F74] hover:bg-[#b00c5e] text-white shadow-lg hover:shadow-[#D90F74]/30'
                                                         }`}
                                                 >
                                                     {isSelected ? (
                                                         <>
                                                             <Check size={18} />
                                                             Votado
+                                                        </>
+                                                    ) : election.voting_open === false ? (
+                                                        <>
+                                                            <Vote size={18} className="opacity-50" />
+                                                            Votación Pausada
                                                         </>
                                                     ) : (
                                                         <>

@@ -84,18 +84,21 @@ const ElectionsAdmin = () => {
 
     const toggleElectionStatus = async (election) => {
         try {
-            console.log('Toggling election:', election.id, 'Current status:', election.is_active);
             const { error } = await supabase.from('elections').update({ is_active: !election.is_active }).eq('id', election.id);
-            if (error) {
-                console.error('Error toggling status:', error);
-                alert('Error al actualizar estado: ' + error.message);
-                return;
-            }
-            console.log('Status toggled successfully');
+            if (error) throw error;
+            fetchData();
+        } catch (e) { alert('Error: ' + e.message); }
+    };
+
+    const toggleVotingOpen = async (election) => {
+        try {
+            // Optimistic UI update or just wait for fetch
+            const { error } = await supabase.from('elections').update({ voting_open: !election.voting_open }).eq('id', election.id);
+            if (error) throw error;
             fetchData();
         } catch (e) {
-            console.error('Unexpected error:', e);
-            alert('Error inesperado: ' + e.message);
+            console.error(e);
+            alert('Error actualizando estado de votación (¿Ya corriste la migración?): ' + e.message);
         }
     };
 
@@ -342,6 +345,16 @@ const ElectionsAdmin = () => {
                                                 title="Click para cambiar estado"
                                             >
                                                 {election.is_active ? 'ACTIVO' : 'INACTIVO'}
+                                            </button>
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); toggleVotingOpen(election); }}
+                                                className={`text-xs px-2 py-0.5 rounded font-bold transition-colors cursor-pointer border ${election.voting_open !== false
+                                                    ? 'bg-blue-900/50 text-blue-400 border-blue-700 hover:bg-blue-800'
+                                                    : 'bg-orange-900/50 text-orange-400 border-orange-700 hover:bg-orange-800'
+                                                    }`}
+                                                title="Click para abrir/cerrar votación"
+                                            >
+                                                {election.voting_open !== false ? 'VOTACIÓN ON' : 'VOTACIÓN OFF'}
                                             </button>
                                             <button
                                                 onClick={(e) => {
