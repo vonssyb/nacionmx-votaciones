@@ -435,11 +435,11 @@ const Elections = () => {
                                 </div>
 
                                 {confirmModal.candidateLogo && (
-                                    <div className="absolute -bottom-2 -right-2 w-14 h-14 bg-white rounded-full border-2 border-[#D90F74] p-1 shadow-lg transform rotate-12">
+                                    <div className="absolute -bottom-2 -right-2 w-14 h-14 rounded-full overflow-hidden border-2 border-[#D90F74] shadow-lg transform rotate-12 bg-white/10 backdrop-blur-sm">
                                         <img
                                             src={confirmModal.candidateLogo}
                                             alt="Party Logo"
-                                            className="w-full h-full object-contain"
+                                            className="w-full h-full object-cover"
                                         />
                                     </div>
                                 )}
