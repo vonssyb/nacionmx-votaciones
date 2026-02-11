@@ -219,7 +219,7 @@ const Elections = () => {
                     </div>
                     <button
                         onClick={() => window.location.hash = '/admin/elecciones'}
-                        className="opacity-50 hover:opacity-100 text-gray-400 hover:text-[#D90F74] flex items-center gap-2 text-sm transition-all"
+                        className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-300 bg-gray-800 hover:bg-gray-700 rounded-lg border border-gray-700 transition-all hover:text-white shadow-sm"
                         title="Acceso Administrativo"
                     >
                         <ShieldCheck size={18} />
