@@ -34,6 +34,7 @@ const RoleGuard = ({ children }) => {
     const navigate = useNavigate();
 
     const loadingRef = React.useRef(loading);
+    useEffect(() => { loadingRef.current = loading; }, [loading]);
 
     useEffect(() => {
         // [DEBUG] Check for valid configuration
