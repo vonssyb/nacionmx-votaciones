@@ -42,10 +42,13 @@ const Elections = () => {
                     try {
                         const { timestamp, data } = JSON.parse(cached);
                         if ((Date.now() - timestamp) < 10 * 60 * 1000) {
-                            electionsData = data.electionsData;
-                            candidatesData = data.candidatesData;
-                            startFromCache = true;
-                            console.log('Using cached static data');
+                            // electionsData = data.electionsData;
+                            // candidatesData = data.candidatesData;
+                            // startFromCache = true;
+                            // console.log('Using cached static data');
+                            // FORCE INVALIDATE: To ensure 'is_active' changes are reflected immediately
+                            startFromCache = false;
+                            sessionStorage.removeItem('election_cache_static');
                         }
                     } catch (e) {
                         sessionStorage.removeItem('election_cache_static');
