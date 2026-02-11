@@ -322,8 +322,9 @@ const ElectionsAdmin = () => {
                                 </button>
                             </div>
 
-                            {editingCandidate && (
-                                <div className="bg-gray-800 p-6 rounded-lg border border-[#D90F74] shadow-xl space-y-4 sticky top-6 z-10 animate-slide-down mb-6">
+                            {editingCandidate === 'new' && (
+                                <div className="bg-gray-800 p-6 rounded-lg border border-[#D90F74] shadow-xl space-y-4 mb-6 animate-fade-in">
+                                    <h3 className="font-bold text-[#D90F74] flex items-center gap-2"><Plus size={18} /> Registrando Nuevo Candidato</h3>
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <input
                                             className="bg-gray-900 border border-gray-700 p-3 rounded text-white"
@@ -375,42 +376,112 @@ const ElectionsAdmin = () => {
 
                                     <div className="flex justify-end gap-3 pt-4 border-t border-gray-700">
                                         <button onClick={() => setEditingCandidate(null)} className="px-4 py-2 text-gray-400 hover:text-white">Cancelar</button>
-                                        <button onClick={handleSaveCandidate} disabled={uploading} className="px-6 py-2 bg-green-600 hover:bg-green-500 rounded text-white font-bold disabled:opacity-50">{uploading ? 'Subiendo...' : 'Guardar'}</button>
+                                        <button onClick={handleSaveCandidate} disabled={uploading} className="px-6 py-2 bg-green-600 hover:bg-green-500 rounded text-white font-bold disabled:opacity-50">{uploading ? 'Subiendo...' : 'Crear Candidato'}</button>
                                     </div>
                                 </div>
                             )}
 
                             <div className="grid grid-cols-1 gap-4">
                                 {candidates.filter(c => c.election_id === selectedElectionId).map(candidate => (
-                                    <div key={candidate.id} className="bg-gray-800 p-4 rounded-lg border border-gray-700 flex items-center justify-between">
-                                        <div className="flex items-center gap-4">
-                                            <div className="relative">
-                                                <div className="w-12 h-12 bg-gray-900 rounded-full overflow-hidden border border-gray-600">
-                                                    {candidate.photo_url ? (
-                                                        <img src={candidate.photo_url} alt={candidate.name} className="w-full h-full object-cover" />
-                                                    ) : <User className="w-full h-full p-2 text-gray-500" />}
-                                                </div>
-                                                {candidate.logo_url && (
-                                                    <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-white rounded-full border border-gray-500 overflow-hidden shadow-sm">
-                                                        <img src={candidate.logo_url} alt="Logo" className="w-full h-full object-contain" />
+                                    <div key={candidate.id} className="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden transition-all duration-300">
+                                        <div className="p-4 flex items-center justify-between">
+                                            <div className="flex items-center gap-4">
+                                                <div className="relative">
+                                                    <div className="w-12 h-12 bg-gray-900 rounded-full overflow-hidden border border-gray-600">
+                                                        {candidate.photo_url ? (
+                                                            <img src={candidate.photo_url} alt={candidate.name} className="w-full h-full object-cover" />
+                                                        ) : <User className="w-full h-full p-2 text-gray-500" />}
                                                     </div>
-                                                )}
+                                                    {candidate.logo_url && (
+                                                        <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-white rounded-full border border-gray-500 overflow-hidden shadow-sm">
+                                                            <img src={candidate.logo_url} alt="Logo" className="w-full h-full object-contain" />
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                <div>
+                                                    <h3 className="font-bold text-white">{candidate.name}</h3>
+                                                    <p className="text-sm text-gray-400">{candidate.party || 'Independiente'}</p>
+                                                </div>
                                             </div>
-                                            <div>
-                                                <h3 className="font-bold text-white">{candidate.name}</h3>
-                                                <p className="text-sm text-gray-400">{candidate.party || 'Independiente'}</p>
+                                            <div className="flex items-center gap-6">
+                                                <div className="text-right hidden sm:block">
+                                                    <span className="block text-2xl font-bold text-[#D90F74]">{candidate.vote_count || 0}</span>
+                                                    <span className="text-xs text-gray-500 uppercase">Votos</span>
+                                                </div>
+                                                <div className="flex gap-2">
+                                                    <button onClick={() => {
+                                                        if (editingCandidate?.id === candidate.id) {
+                                                            setEditingCandidate(null);
+                                                        } else {
+                                                            setEditingCandidate(candidate);
+                                                            setCandidateForm({ name: candidate.name, party: candidate.party, proposals: candidate.proposals, photo_url: candidate.photo_url, logo_url: candidate.logo_url });
+                                                        }
+                                                    }} className={`p-2 rounded transition ${editingCandidate?.id === candidate.id ? 'bg-[#D90F74] text-white' : 'bg-gray-700 text-gray-300 hover:bg-blue-600 hover:text-white'}`}>
+                                                        <Edit size={18} />
+                                                    </button>
+                                                    <button onClick={() => handleDeleteCandidate(candidate.id)} className="p-2 bg-gray-700 hover:bg-red-600 rounded text-gray-300 hover:text-white transition"><Trash2 size={18} /></button>
+                                                </div>
                                             </div>
                                         </div>
-                                        <div className="flex items-center gap-6">
-                                            <div className="text-right">
-                                                <span className="block text-2xl font-bold text-[#D90F74]">{candidate.vote_count || 0}</span>
-                                                <span className="text-xs text-gray-500 uppercase">Votos</span>
+
+                                        {/* EXPANDABLE EDIT FORM */}
+                                        {editingCandidate?.id === candidate.id && (
+                                            <div className="bg-gray-900/50 p-6 border-t border-[#D90F74] animate-slide-down">
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                                                    <input
+                                                        className="bg-gray-900 border border-gray-700 p-3 rounded text-white"
+                                                        placeholder="Nombre del Candidato"
+                                                        value={candidateForm.name}
+                                                        onChange={e => setCandidateForm({ ...candidateForm, name: e.target.value })}
+                                                    />
+                                                    <input
+                                                        className="bg-gray-900 border border-gray-700 p-3 rounded text-white"
+                                                        placeholder="Partido Político"
+                                                        value={candidateForm.party}
+                                                        onChange={e => setCandidateForm({ ...candidateForm, party: e.target.value })}
+                                                    />
+                                                </div>
+                                                <textarea
+                                                    className="w-full bg-gray-900 border border-gray-700 p-3 rounded text-white h-24 mb-6"
+                                                    placeholder="Propuestas..."
+                                                    value={candidateForm.proposals}
+                                                    onChange={e => setCandidateForm({ ...candidateForm, proposals: e.target.value })}
+                                                />
+
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                                                    <div className="flex items-center gap-4">
+                                                        <div className="w-20 h-20 bg-gray-900 rounded border border-gray-700 flex items-center justify-center overflow-hidden">
+                                                            {candidateForm.photo_url ? (
+                                                                <img src={candidateForm.photo_url} alt="Preview" className="w-full h-full object-cover" />
+                                                            ) : <ImageIcon className="text-gray-600" />}
+                                                        </div>
+                                                        <div className="flex-1">
+                                                            <label className="block text-sm text-gray-400 mb-1">Foto del Candidato</label>
+                                                            <input type="file" onChange={(e) => handleImageUpload(e, 'photo')} className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-[#D90F74] file:text-white hover:file:bg-[#b00c5e] cursor-pointer" />
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="flex items-center gap-4">
+                                                        <div className="w-20 h-20 bg-gray-900 rounded border border-gray-700 flex items-center justify-center overflow-hidden">
+                                                            {candidateForm.logo_url ? (
+                                                                <img src={candidateForm.logo_url} alt="Preview" className="w-full h-full object-contain p-1" />
+                                                            ) : <ImageIcon className="text-gray-600" />}
+                                                        </div>
+                                                        <div className="flex-1">
+                                                            <label className="block text-sm text-gray-400 mb-1">Logo del Partido</label>
+                                                            <input type="file" onChange={(e) => handleImageUpload(e, 'logo')} className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-[#D90F74] file:text-white hover:file:bg-[#b00c5e] cursor-pointer" />
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                {uploading && <p className="text-[#D90F74] text-xs text-center animate-pulse mb-4">Subiendo imagen...</p>}
+
+                                                <div className="flex justify-end gap-3">
+                                                    <button onClick={() => setEditingCandidate(null)} className="px-4 py-2 text-gray-400 hover:text-white">Cancelar</button>
+                                                    <button onClick={handleSaveCandidate} disabled={uploading} className="px-6 py-2 bg-green-600 hover:bg-green-500 rounded text-white font-bold disabled:opacity-50">{uploading ? 'Subiendo...' : 'Guardar Cambios'}</button>
+                                                </div>
                                             </div>
-                                            <div className="flex gap-2">
-                                                <button onClick={() => { setEditingCandidate(candidate); setCandidateForm({ name: candidate.name, party: candidate.party, proposals: candidate.proposals, photo_url: candidate.photo_url, logo_url: candidate.logo_url }); }} className="p-2 bg-gray-700 hover:bg-blue-600 rounded text-gray-300 hover:text-white transition"><Edit size={18} /></button>
-                                                <button onClick={() => handleDeleteCandidate(candidate.id)} className="p-2 bg-gray-700 hover:bg-red-600 rounded text-gray-300 hover:text-white transition"><Trash2 size={18} /></button>
-                                            </div>
-                                        </div>
+                                        )}
                                     </div>
                                 ))}
                                 {candidates.filter(c => c.election_id === selectedElectionId).length === 0 && <div className="text-center p-8 text-gray-500 border border-dashed border-gray-700 rounded-lg">No hay candidatos registrados en esta sección.</div>}
