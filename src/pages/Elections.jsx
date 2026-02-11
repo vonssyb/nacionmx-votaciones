@@ -211,14 +211,6 @@ const Elections = () => {
                             <p className="text-[#D90F74] font-medium mt-1">Proceso Electoral Federal 2026</p>
                         </div>
                     </div>
-                    <button
-                        onClick={() => window.location.hash = '/admin/elecciones'}
-                        className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-300 bg-gray-800 hover:bg-gray-700 rounded-lg border border-gray-700 transition-all hover:text-white shadow-sm"
-                        title="Acceso Administrativo"
-                    >
-                        <ShieldCheck size={18} />
-                        <span className="hidden md:inline">Entrar como Empleado</span>
-                    </button>
                 </div>
                 {!memberData && (
                     <div className="mt-6 p-4 bg-gray-800/80 border-l-4 border-[#D90F74] rounded-r-lg flex flex-col sm:flex-row items-center justify-between gap-4">

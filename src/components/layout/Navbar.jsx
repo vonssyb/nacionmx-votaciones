@@ -23,7 +23,7 @@ const Navbar = () => {
                                 Votaciones
                             </Link>
                             <Link to="/admin/elecciones" className="text-gray-300 hover:text-[#D90F74] px-3 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-1">
-                                <ShieldCheck size={16} /> Admin
+                                <ShieldCheck size={16} /> Entrar como Empleado
                             </Link>
                         </div>
                     </div>
