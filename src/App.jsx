@@ -8,6 +8,7 @@ import ApplyPage from './pages/ApplyPage';
 import Elections from './pages/Elections';
 import Rules from './pages/Rules';
 import ElectionsAdmin from './pages/admin/ElectionsAdmin';
+import ComplaintsAdmin from './pages/admin/ComplaintsAdmin';
 import RoleGuard from './components/auth/RoleGuard';
 
 function App() {
@@ -35,6 +36,7 @@ function App() {
         <Route path="/votaciones" element={<RoleGuard key="elections-vote" requireAuth={false}><Elections /></RoleGuard>} />
         <Route path="/elecciones" element={<RoleGuard key="elections-public" requireAuth={false}><Elections /></RoleGuard>} />
         <Route path="/admin/elecciones" element={<RoleGuard key="elections-admin"><ElectionsAdmin /></RoleGuard>} />
+        <Route path="/admin/denuncias" element={<RoleGuard key="complaints-admin"><ComplaintsAdmin /></RoleGuard>} />
         <Route path="/dashboard/*" element={<Dashboard />} />
         {/* Auth Callback for specific cases if needed, but Landing handles auth state */}
         <Route path="/auth/callback" element={<AuthCallback />} />
