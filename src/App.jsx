@@ -28,9 +28,9 @@ function App() {
         <Route path="/inicio" element={<LandingPage />} />
         <Route path="/aplicar" element={<ApplyPage />} />
         <Route path="/login" element={<Login />} />
-        <Route path="/votaciones" element={<RoleGuard requireAuth={false}><Elections /></RoleGuard>} />
-        <Route path="/elecciones" element={<RoleGuard requireAuth={false}><Elections /></RoleGuard>} />
-        <Route path="/admin/elecciones" element={<RoleGuard><ElectionsAdmin /></RoleGuard>} />
+        <Route path="/votaciones" element={<RoleGuard key="elections-vote" requireAuth={false}><Elections /></RoleGuard>} />
+        <Route path="/elecciones" element={<RoleGuard key="elections-public" requireAuth={false}><Elections /></RoleGuard>} />
+        <Route path="/admin/elecciones" element={<RoleGuard key="elections-admin"><ElectionsAdmin /></RoleGuard>} />
         <Route path="/dashboard/*" element={<Dashboard />} />
         {/* Auth Callback for specific cases if needed, but Landing handles auth state */}
         <Route path="/auth/callback" element={<AuthCallback />} />

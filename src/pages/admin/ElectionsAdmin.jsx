@@ -151,6 +151,22 @@ const ElectionsAdmin = () => {
 
     if (loading) return <div className="p-8 text-white text-center">Cargando Panel...</div>;
 
+    // Defense in Depth: Double check role access
+    // This handles cases where RoleGuard might have had a stale state (though fixed now)
+    const canAccess = memberData?.roles?.includes('1470948248507256965');
+
+    if (!canAccess) {
+        return (
+            <div className="min-h-screen bg-gray-900 flex flex-col items-center justify-center text-white">
+                <div className="bg-red-900/20 p-8 rounded-xl border border-red-500/50 flex flex-col items-center gap-4">
+                    <ShieldCheck size={64} className="text-red-500" />
+                    <h1 className="text-2xl font-bold text-red-400">Acceso Restringido</h1>
+                    <p className="text-gray-300">Este panel es exclusivo para el rol <strong>Admin Elecciones</strong>.</p>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="min-h-screen bg-gray-900 text-gray-100 p-6 md:p-12">
             <header className="flex justify-between items-center mb-10 pb-6 border-b border-gray-700">

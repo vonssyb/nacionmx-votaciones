@@ -183,7 +183,7 @@ const RoleGuard = ({ children, requireAuth = true }) => {
             mounted = false;
             clearTimeout(timeout);
         };
-    }, []);
+    }, [requireAuth]);
 
     const verifyDiscordRole = async (session) => {
         const providerToken = session.provider_token;
