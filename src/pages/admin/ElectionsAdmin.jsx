@@ -158,8 +158,17 @@ const ElectionsAdmin = () => {
     if (loading) return <div className="p-8 text-white text-center">Cargando Panel...</div>;
 
     // Defense in Depth: Double check role access
-    // This handles cases where RoleGuard might have had a stale state (though fixed now)
-    const canAccess = memberData?.roles?.includes('1470948248507256965');
+    // ALLOWED_ROLES from RoleGuard (Owner, Co-Owner, Directiva, Admin, Staff, etc.)
+    const ALLOWED_ROLES = [
+        '1412882240991658177', // Owner
+        '1449856794980516032', // Co Owner
+        '1412882245735420006', // Junta Directiva
+        '1412882248411381872', // Administrador
+        '1412887079612059660', // Staff (Moderador)
+        '1470948248507256965'  // Instituto Nacional Electoral
+    ];
+
+    const canAccess = memberData?.roles?.some(r => ALLOWED_ROLES.includes(r));
 
     if (!canAccess) {
         return (
@@ -167,13 +176,7 @@ const ElectionsAdmin = () => {
                 <div className="bg-red-900/20 p-8 rounded-xl border border-red-500/50 flex flex-col items-center gap-4">
                     <ShieldCheck size={64} className="text-red-500" />
                     <h1 className="text-2xl font-bold text-red-400">Acceso Restringido</h1>
-                    <p className="text-gray-300">Este panel es exclusivo para el rol <strong>Admin Elecciones</strong>.</p>
-                    <div className="mt-4 p-4 bg-black/30 rounded text-left text-xs font-mono text-gray-400 w-full max-w-md overflow-x-auto">
-                        <p className="mb-2 text-gray-500">Debug Info:</p>
-                        <p>User ID: {memberData?.user?.id || 'No User'}</p>
-                        <p>Roles Found: {memberData?.roles?.join(', ') || 'None'}</p>
-                        <p>Required: 1470948248507256965</p>
-                    </div>
+                    <p className="text-gray-300">Este panel es exclusivo para el rol <strong>Instituto Nacional Electoral</strong> y Administración.</p>
                 </div>
             </div>
         );
