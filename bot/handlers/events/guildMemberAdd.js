@@ -19,23 +19,37 @@ module.exports = async (client, member, supabase) => {
         if (member.guild.id === GUILDS.MCQUEEN) {
             // For McQueen Server: Only specific roles
             AUTO_ROLES = DEALERSHIP_CUSTOMER_ROLES;
+            logger.info(`[AutoRole] Processing join for McQueen server (${member.guild.id})`);
         } else {
             // For Main/Staff Servers: Existing comprehensive list
+            // REMOVED DEALERSHIP_CUSTOMER_ROLES from here as they are specific to McQueen guild
             AUTO_ROLES = [
                 '1458506735185825993', '1449948588166611078', '1413541382869618731',
                 '1424534280725463071', '1412887179281305772', '1460051693092995174',
                 '1412887170267480215', '1413545285975801918', '1412882235547189362',
-                '1413645375918706820',
-                ...DEALERSHIP_CUSTOMER_ROLES
+                '1413645375918706820'
             ];
+            logger.info(`[AutoRole] Processing join for Main/Staff server (${member.guild.id})`);
         }
 
-        // Attempt to assign roles
-        try {
-            await member.roles.add(AUTO_ROLES);
-            logger.info(`Auto-roles assigned to ${member.user.tag} (${member.user.id})`);
-        } catch (roleError) {
-            logger.warn(`Could not assign some auto-roles to ${member.user.tag}: ${roleError.message}`);
+        // Filter out roles that don't exist in this guild to prevent errors
+        const validRoles = AUTO_ROLES.filter(roleId => {
+            const exists = member.guild.roles.cache.has(roleId);
+            if (!exists) {
+                logger.warn(`[AutoRole] Role ${roleId} not found in guild ${member.guild.name} (${member.guild.id}) - Skipping`);
+            }
+            return exists;
+        });
+
+        if (validRoles.length > 0) {
+            try {
+                await member.roles.add(validRoles);
+                logger.info(`[AutoRole] Assigned ${validRoles.length} roles to ${member.user.tag} (${member.user.id})`);
+            } catch (roleError) {
+                logger.error(`[AutoRole] Failed to assign roles to ${member.user.tag}: ${roleError.message}`);
+            }
+        } else {
+            logger.info(`[AutoRole] No valid auto-roles to assign for ${member.user.tag} in ${member.guild.name}`);
         }
 
         let welcomeChannelId, message;
