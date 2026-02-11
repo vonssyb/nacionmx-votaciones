@@ -228,7 +228,7 @@ const Elections = () => {
                         </div>
                         <button
                             onClick={() => {
-                                sessionStorage.setItem('auth_redirect', '/votaciones');
+                                sessionStorage.setItem('auth_redirect', window.location.pathname);
                                 window.location.hash = '/login';
                             }}
                             className="px-6 py-2.5 bg-[#D90F74] hover:bg-[#b00c5e] text-white font-bold rounded-lg transition-all shadow-lg shadow-[#D90F74]/20 flex items-center gap-2 whitespace-nowrap"
@@ -381,7 +381,7 @@ const Elections = () => {
                         <div className="flex flex-col gap-3">
                             <button
                                 onClick={() => {
-                                    sessionStorage.setItem('auth_redirect', '/votaciones');
+                                    sessionStorage.setItem('auth_redirect', window.location.pathname);
                                     window.location.hash = '/login';
                                 }}
                                 className="w-full py-3 bg-[#D90F74] hover:bg-[#b00c5e] text-white font-bold rounded-lg transition-all shadow-lg shadow-[#D90F74]/20 flex items-center justify-center gap-2"

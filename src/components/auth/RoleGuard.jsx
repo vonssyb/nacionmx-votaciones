@@ -138,6 +138,7 @@ const RoleGuard = ({ children, requireAuth = true }) => {
                 if (mounted) {
                     if (requireAuth) {
                         console.warn("Redirecting to login.");
+                        sessionStorage.setItem('auth_redirect', window.location.pathname + window.location.search);
                         setLoading(false);
                         navigate('/login');
                     } else {
