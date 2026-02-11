@@ -20,62 +20,64 @@ const Elections = () => {
     }, [memberData]);
 
     const fetchData = async () => {
-        // [CACHE STRATEGY] Check local cache first
-        const cached = sessionStorage.getItem('election_cache');
-        if (cached) {
-            try {
-                const { timestamp, data } = JSON.parse(cached);
-                const isFresh = (Date.now() - timestamp) < 10 * 60 * 1000; // 10 minutes cache
-
-                // If we have data and it's fresh (or we are offline/loading), use it immediately
-                if (isFresh) {
-                    console.log('Using cached election data');
-                    setElections(data.electionsData || []);
-                    setCandidates(data.candidatesData || []);
-                    // We DO NOT cache userVotes heavily, or we merge it. 
-                    // But for speed, let's trust the cache for heavy data and maybe fetch votes in background?
-                    // For now, simple cache for everything.
-                    setUserVotes(data.votesData || []);
-                    setLoading(false);
-                    return;
-                }
-            } catch (e) {
-                console.warn('Cache parse error', e);
-                sessionStorage.removeItem('election_cache');
-            }
-        }
-
         let timeoutId;
         try {
-            // Only set loading if we didn't use cache (or if we want to show a spinner for re-fetch)
             setLoading(true);
 
-            // Safety timeout: 20 seconds (Increased for Supabase Cold Starts)
+            // Safety timeout
             const timeoutPromise = new Promise((_, reject) => {
-                timeoutId = setTimeout(() => reject(new Error('Tardando demasiado... Verifica tu conexión o intenta recargar.')), 20000);
+                timeoutId = setTimeout(() => reject(new Error('Tiempo de espera agotado.')), 20000);
             });
 
-            // Data fetch promise
-            const loadDataPromise = async () => {
-                // 1. Fetch Active Elections
-                const { data: electionsData, error: eError } = await supabase
-                    .from('elections')
-                    .select('*')
-                    .eq('is_active', true)
-                    .order('id');
-
-                if (eError) throw eError;
-
-                // 2. Fetch Candidates
-                const { data: candidatesData, error: cError } = await supabase
-                    .from('election_candidates')
-                    .select('*')
-                    .in('election_id', electionsData.map(e => e.id));
-
-                if (cError) throw cError;
-
-                // 3. Fetch User Votes
+            const loadData = async () => {
+                let electionsData = [];
+                let candidatesData = [];
                 let votesData = [];
+
+                // 1. Try Cache for Static Data (Elections & Candidates)
+                const cached = sessionStorage.getItem('election_cache_static');
+                let startFromCache = false;
+
+                if (cached) {
+                    try {
+                        const { timestamp, data } = JSON.parse(cached);
+                        if ((Date.now() - timestamp) < 10 * 60 * 1000) {
+                            electionsData = data.electionsData;
+                            candidatesData = data.candidatesData;
+                            startFromCache = true;
+                            console.log('Using cached static data');
+                        }
+                    } catch (e) {
+                        sessionStorage.removeItem('election_cache_static');
+                    }
+                }
+
+                // 2. Fetch Static Data if not valid in cache
+                if (!startFromCache) {
+                    const { data: eData, error: eError } = await supabase
+                        .from('elections')
+                        .select('*')
+                        .eq('is_active', true)
+                        .order('id');
+                    if (eError) throw eError;
+                    electionsData = eData;
+
+                    const { data: cData, error: cError } = await supabase
+                        .from('election_candidates')
+                        .select('*')
+                        .in('election_id', electionsData.map(e => e.id));
+                    if (cError) throw cError;
+                    candidatesData = cData;
+
+                    // Update Cache
+                    sessionStorage.setItem('election_cache_static', JSON.stringify({
+                        timestamp: Date.now(),
+                        data: { electionsData, candidatesData }
+                    }));
+                }
+
+                // 3. ALWAYS Fetch User Votes (Never Cache)
+                // This resolves the issue where deleting a vote in DB doesn't update UI
                 if (memberData?.user?.id) {
                     const { data: vData, error: vError } = await supabase
                         .from('election_votes')
@@ -89,18 +91,11 @@ const Elections = () => {
                 return { electionsData, candidatesData, votesData };
             };
 
-            // Race between fetch and timeout
-            const result = await Promise.race([loadDataPromise(), timeoutPromise]);
+            const result = await Promise.race([loadData(), timeoutPromise]);
 
             setElections(result.electionsData || []);
             setCandidates(result.candidatesData || []);
             setUserVotes(result.votesData || []);
-
-            // [CACHE SAVE]
-            sessionStorage.setItem('election_cache', JSON.stringify({
-                timestamp: Date.now(),
-                data: result
-            }));
 
         } catch (error) {
             console.error('Error fetching election data:', error);
@@ -124,7 +119,7 @@ const Elections = () => {
         return () => clearInterval(interval);
     }, [confirmModal, timer]);
 
-    const handleVoteClick = (electionId, candidateId, candidateName) => {
+    const handleVoteClick = (electionId, candidateId, candidateName, candidateParty, candidatePhoto) => {
         if (!memberData?.user?.id) {
             setLoginModal(true);
             return;
@@ -133,7 +128,7 @@ const Elections = () => {
         if (voting) return;
 
         // Open Confirmation Modal
-        setConfirmModal({ electionId, candidateId, candidateName });
+        setConfirmModal({ electionId, candidateId, candidateName, candidateParty, candidatePhoto });
         setTimer(10);
     };
 
@@ -166,16 +161,7 @@ const Elections = () => {
                 // Refresh votes locally
                 const newVotes = [...userVotes, { election_id: electionId, candidate_id: candidateId }];
                 setUserVotes(newVotes);
-
-                // [CACHE INVALIDATION/UPDATE]
-                // We can either remove cache to force refetch, or update it.
-                // Updating is better for UX (no reload needed).
-                const cached = sessionStorage.getItem('election_cache');
-                if (cached) {
-                    const parsed = JSON.parse(cached);
-                    parsed.data.votesData = newVotes; // Sync cache with new vote
-                    sessionStorage.setItem('election_cache', JSON.stringify(parsed));
-                }
+                // We don't cache votes anymore to prevent sync issues
             }
 
         } catch (error) {
@@ -342,7 +328,7 @@ const Elections = () => {
                                                 )}
 
                                                 <button
-                                                    onClick={() => handleVoteClick(election.id, candidate.id, candidate.name)}
+                                                    onClick={() => handleVoteClick(election.id, candidate.id, candidate.name, candidate.party, candidate.photo_url)}
                                                     disabled={!!userVotedFor || voting}
                                                     className={`w-full py-2 px-4 rounded font-medium flex items-center justify-center gap-2 transition-all ${isSelected
                                                         ? 'bg-green-600 text-white cursor-default'
@@ -402,7 +388,7 @@ const Elections = () => {
                                 onClick={() => setLoginModal(false)}
                                 className="w-full py-3 bg-gray-800 hover:bg-gray-700 text-gray-400 font-medium rounded-lg transition-all border border-gray-700"
                             >
-                                Cancelar
+                                <span className="text-gray-400">Cancelar</span>
                             </button>
                         </div>
                     </div>
@@ -416,11 +402,30 @@ const Elections = () => {
                         {/* Pink top bar */}
                         <div className="absolute top-0 left-0 right-0 h-1 bg-[#D90F74]"></div>
 
-                        <h3 className="text-2xl font-bold text-white mb-2">Confirmar Voto</h3>
-                        <p className="text-gray-300 mb-6">
-                            Estás a punto de emitir tu voto por <span className="text-[#D90F74] font-bold">{confirmModal.candidateName}</span>.
+                        <div className="text-center mb-4">
+                            {confirmModal.candidatePhoto && (
+                                <div className="w-24 h-24 mx-auto rounded-full overflow-hidden border-4 border-[#D90F74]/30 mb-3 shadow-[0_0_20px_rgba(217,15,116,0.2)]">
+                                    <img
+                                        src={confirmModal.candidatePhoto}
+                                        alt={confirmModal.candidateName}
+                                        className="w-full h-full object-cover"
+                                    />
+                                </div>
+                            )}
+
+                            {confirmModal.candidateParty && (
+                                <div className="inline-block px-3 py-1 bg-[#D90F74] text-white text-xs font-bold uppercase tracking-wider rounded-sm mb-2">
+                                    {confirmModal.candidateParty}
+                                </div>
+                            )}
+
+                            <h3 className="text-xl font-bold text-white mb-1">Confirmar Voto</h3>
+                        </div>
+
+                        <p className="text-gray-300 mb-6 text-center">
+                            Estás a punto de emitir tu voto por <span className="text-white font-bold">{confirmModal.candidateName}</span>.
                             <br /><br />
-                            ¿Estás seguro?
+                            <span className="text-sm text-gray-500">¿Estás seguro? Esta acción no se puede deshacer.</span>
                         </p>
 
                         <div className="flex flex-col gap-3">
