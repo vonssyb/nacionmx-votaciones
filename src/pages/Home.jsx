@@ -102,6 +102,40 @@ const Home = () => {
                         </div>
 
                     </div>
+
+                    {/* News Section */}
+                    <div className="mt-20">
+                        <div className="flex items-center justify-between mb-8">
+                            <h2 className="text-3xl font-bold text-white border-l-4 border-[#D90F74] pl-4">Noticias Recientes</h2>
+                            <button className="text-sm text-[#D90F74] hover:text-white transition-colors uppercase font-bold tracking-wider">Ver todas</button>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                            <article className="bg-gray-800 rounded-lg overflow-hidden border border-gray-700 hover:border-gray-600 transition-all">
+                                <div className="h-48 bg-gray-700 relative">
+                                    <div className="absolute top-4 left-4 bg-[#D90F74] text-white text-xs font-bold px-2 py-1 rounded">COMUNICADO</div>
+                                    <img src="https://igjedwdxqwkpbgrmtrrq.supabase.co/storage/v1/object/public/evidence/others/partidos%20politicos/ine4.png" className="w-full h-full object-cover opacity-50" alt="News" />
+                                </div>
+                                <div className="p-6">
+                                    <p className="text-gray-400 text-sm mb-2">10 de Febrero, 2026</p>
+                                    <h3 className="text-xl font-bold text-white mb-2">Inicia el Proceso Electoral 2026</h3>
+                                    <p className="text-gray-400 line-clamp-2">El Consejo General del INE declara formalmente el inicio de las actividades para la elección de cargos federales.</p>
+                                    <button className="mt-4 text-[#D90F74] hover:text-white text-sm font-bold flex items-center">Leer más <ChevronRight className="ml-1" size={16} /></button>
+                                </div>
+                            </article>
+                            <article className="bg-gray-800 rounded-lg overflow-hidden border border-gray-700 hover:border-gray-600 transition-all">
+                                <div className="h-48 bg-gray-700 relative">
+                                    <div className="absolute top-4 left-4 bg-blue-600 text-white text-xs font-bold px-2 py-1 rounded">TECNOLOGÍA</div>
+                                    <img src="https://igjedwdxqwkpbgrmtrrq.supabase.co/storage/v1/object/public/evidence/others/partidos%20politicos/ine4.png" className="w-full h-full object-cover opacity-50" alt="News" />
+                                </div>
+                                <div className="p-6">
+                                    <p className="text-gray-400 text-sm mb-2">08 de Febrero, 2026</p>
+                                    <h3 className="text-xl font-bold text-white mb-2">Nuevo Sistema de Votación Digital</h3>
+                                    <p className="text-gray-400 line-clamp-2">NaciónMX implementa moderna plataforma de voto electrónico garantizando seguridad y transparencia mediante tecnología blockchain.</p>
+                                    <button className="mt-4 text-[#D90F74] hover:text-white text-sm font-bold flex items-center">Leer más <ChevronRight className="ml-1" size={16} /></button>
+                                </div>
+                            </article>
+                        </div>
+                    </div>
                 </div>
             </main>
 
