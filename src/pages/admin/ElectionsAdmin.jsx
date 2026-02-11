@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../../services/supabase';
 import { useDiscordMember } from '../../components/auth/RoleGuard';
-import { ShieldCheck, Plus, Edit, Trash2, Save, X, Image as ImageIcon, Upload } from 'lucide-react';
+import { ShieldCheck, Plus, Edit, Trash2, Save, X, Image as ImageIcon, Upload, ArrowLeft } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 const ElectionsAdmin = () => {
     const memberData = useDiscordMember();
+    const navigate = useNavigate();
 
     // Data State
     const [elections, setElections] = useState([]);
@@ -225,6 +227,13 @@ const ElectionsAdmin = () => {
                         <p className="text-gray-400">Gestión de Elecciones y Candidatos</p>
                     </div>
                 </div>
+                <button
+                    onClick={() => navigate('/votaciones')}
+                    className="flex items-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg text-gray-300 hover:text-white transition-colors border border-gray-700"
+                >
+                    <ArrowLeft size={20} />
+                    Volver a Votaciones
+                </button>
             </header>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -283,8 +292,8 @@ const ElectionsAdmin = () => {
                                         <button
                                             onClick={(e) => { e.stopPropagation(); toggleElectionStatus(election); }}
                                             className={`text-xs px-2 py-0.5 rounded font-bold transition-colors cursor-pointer border ${election.is_active
-                                                    ? 'bg-green-900/50 text-green-400 border-green-700 hover:bg-green-800'
-                                                    : 'bg-red-900/50 text-red-400 border-red-700 hover:bg-red-800'
+                                                ? 'bg-green-900/50 text-green-400 border-green-700 hover:bg-green-800'
+                                                : 'bg-red-900/50 text-red-400 border-red-700 hover:bg-red-800'
                                                 }`}
                                             title="Click para cambiar estado"
                                         >
