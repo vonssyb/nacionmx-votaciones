@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { ShieldAlert, Ban, Eye, FileWarning, CheckCircle, Upload, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { supabase } from '../supabase/client';
+import { supabase } from '../services/supabase';
 
 const Rules = () => {
     const [showReportModal, setShowReportModal] = useState(false);
