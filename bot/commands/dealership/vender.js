@@ -28,29 +28,40 @@ module.exports = {
 
         const cliente = interaction.options.getUser('cliente');
         const vehiculoId = interaction.options.getInteger('vehiculo_id');
+        console.log(`[Vender] Iniciando venta. Asesor: ${interaction.user.tag}, Cliente: ${cliente.tag}, VehículoID: ${vehiculoId}`);
 
         try {
             // Obtener vehículo
+            console.log(`[Vender] Buscando vehículo ID: ${vehiculoId}`);
             const { data: vehiculo, error: vError } = await supabase
                 .from('dealership_catalog')
                 .select('*')
                 .eq('id', vehiculoId)
                 .single();
 
+            if (vError) console.error('[Vender] Error buscando vehículo:', vError);
+            if (!vehiculo) console.warn('[Vender] Vehículo no encontrado');
+
             if (vError || !vehiculo) {
                 return interaction.editReply('❌ No se encontró el vehículo con ese ID.');
             }
+
+            console.log(`[Vender] Vehículo encontrado: ${vehiculo.make} ${vehiculo.model}`);
 
             if (vehiculo.stock <= 0) {
                 return interaction.editReply('❌ Este vehículo no tiene stock disponible.');
             }
 
             // Obtener tarjetas de crédito del cliente
-            const { data: tarjetas } = await supabase
+            console.log(`[Vender] Buscando tarjetas para cliente ${cliente.id}`);
+            const { data: tarjetas, error: cError } = await supabase
                 .from('credit_cards')
                 .select('*')
                 .eq('discord_id', cliente.id)
                 .order('created_at', { ascending: false });
+
+            if (cError) console.error('[Vender] Error buscando tarjetas:', cError);
+            console.log(`[Vender] Tarjetas encontradas: ${tarjetas ? tarjetas.length : 0}`);
 
             // Crear embed de venta
             const embed = new EmbedBuilder()
