@@ -2,11 +2,8 @@ import { HashRouter, Routes, Route } from 'react-router-dom';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import AuthCallback from './components/auth/AuthCallback';
-import LandingPage from './pages/LandingPage';
-import ApplyPage from './pages/ApplyPage';
-import Elections from './pages/Elections';
-import ElectionsAdmin from './pages/admin/ElectionsAdmin';
-import RoleGuard from './components/auth/RoleGuard';
+import Home from './pages/Home';
+import Navbar from './components/layout/Navbar';
 
 function App() {
   // Check if we are in an OAuth redirect (access_token in hash) BEFORE the router takes over
@@ -23,9 +20,10 @@ function App() {
 
   return (
     <HashRouter>
+      <Navbar />
       <Routes>
-        <Route path="/" element={<RoleGuard requireAuth={false}><Elections /></RoleGuard>} />
-        <Route path="/inicio" element={<LandingPage />} />
+        <Route path="/" element={<Home />} />
+        <Route path="/inicio" element={<Home />} />
         <Route path="/aplicar" element={<ApplyPage />} />
         <Route path="/login" element={<Login />} />
         <Route path="/votaciones" element={<RoleGuard key="elections-vote" requireAuth={false}><Elections /></RoleGuard>} />
@@ -34,7 +32,7 @@ function App() {
         <Route path="/dashboard/*" element={<Dashboard />} />
         {/* Auth Callback for specific cases if needed, but Landing handles auth state */}
         <Route path="/auth/callback" element={<AuthCallback />} />
-        <Route path="*" element={<LandingPage />} />
+        <Route path="*" element={<Home />} />
       </Routes>
     </HashRouter>
   );
