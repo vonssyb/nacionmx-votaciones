@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { ShieldCheck, Vote, FileText, User, Menu, X } from 'lucide-react';
+import { ShieldCheck, Vote, FileText, User, Menu, X, ShieldAlert } from 'lucide-react';
 import { useState } from 'react';
 
 const Navbar = () => {
