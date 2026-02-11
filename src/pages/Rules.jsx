@@ -4,40 +4,7 @@ import { Link } from 'react-router-dom';
 import { supabase } from '../services/supabase';
 
 const Rules = () => {
-    const [showReportModal, setShowReportModal] = useState(false);
-    const [submitting, setSubmitting] = useState(false);
-    const [uploading, setUploading] = useState(false);
-    const [reportData, setReportData] = useState({
-        offender_name: '',
-        description: '',
-        evidence_url: ''
-    });
-
-    const handleImageUpload = async (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-
-        setUploading(true);
-        try {
-            const fileExt = file.name.split('.').pop();
-            const fileName = `evidence_${Date.now()}.${fileExt}`;
-            const filePath = `evidence/complaints/${fileName}`;
-
-            const { error: uploadError } = await supabase.storage
-                .from('evidence')
-                .upload(filePath, file);
-
-            if (uploadError) throw uploadError;
-
-            const { data } = supabase.storage.from('evidence').getPublicUrl(filePath);
-            setReportData({ ...reportData, evidence_url: data.publicUrl });
-        } catch (error) {
-            console.error('Error uploading evidence:', error);
-            alert('Error al subir la imagen. Por favor intenta de nuevo.');
-        } finally {
-            setUploading(false);
-        }
-    };
+    const [successModal, setSuccessModal] = useState(false);
 
     const handleSubmitReport = async (e) => {
         e.preventDefault();
@@ -57,7 +24,8 @@ const Rules = () => {
 
             if (error) throw error;
 
-            alert('Denuncia enviada correctamente. Gracias por proteger la democracia.');
+            // Show success modal instead of alert
+            setSuccessModal(true);
             setShowReportModal(false);
             setReportData({ offender_name: '', description: '', evidence_url: '' });
         } catch (error) {
@@ -82,7 +50,8 @@ const Rules = () => {
                     </p>
                 </div>
 
-                {/* Main Warning: Vote Buying */}
+                {/* ... (Existing warnings and rules grid remains the same) ... */}
+
                 {/* Main Warning: Vote Buying */}
                 <div className="relative overflow-hidden rounded-2xl bg-gray-800 border border-gray-700 shadow-2xl mb-12 group hover:border-red-500/50 transition-colors duration-300">
                     <div className="absolute top-0 left-0 w-2 h-full bg-gradient-to-b from-red-500 to-red-700"></div>
@@ -276,6 +245,29 @@ const Rules = () => {
                                     </button>
                                 </div>
                             </form>
+                        </div>
+                    </div>
+                )}
+
+                {/* Success Modal */}
+                {successModal && (
+                    <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-4 animate-fade-in">
+                        <div className="bg-gray-900 border-2 border-green-500/50 rounded-2xl max-w-sm w-full p-8 shadow-[0_0_50px_rgba(34,197,94,0.2)] relative text-center transform transition-all scale-100">
+                            <div className="w-20 h-20 bg-green-500/10 rounded-full flex items-center justify-center mx-auto mb-6 ring-4 ring-green-500/20">
+                                <CheckCircle size={40} className="text-green-500" strokeWidth={3} />
+                            </div>
+
+                            <h2 className="text-3xl font-extrabold text-white mb-2">¡Reporte Enviado!</h2>
+                            <p className="text-gray-300 text-lg mb-8 leading-relaxed">
+                                Gracias por proteger la democracia. Tu denuncia ha sido recibida de forma segura.
+                            </p>
+
+                            <button
+                                onClick={() => setSuccessModal(false)}
+                                className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-xl transition-all shadow-lg hover:shadow-green-500/30 transform hover:scale-[1.02]"
+                            >
+                                Entendido
+                            </button>
                         </div>
                     </div>
                 )}
