@@ -541,9 +541,10 @@ const ElectionsAdmin = () => {
                         )}
                     </div>
                 </div>
-            );
-};
-            );
+            )}
+        </div>
+    );
 };
 
-            export default ElectionsAdmin;
+
+export default ElectionsAdmin;
