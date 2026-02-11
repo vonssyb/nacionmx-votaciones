@@ -33,7 +33,9 @@ const AuthCallback = () => {
                     // FORCE RELOAD: Required because App.jsx conditionally renders based on initial hash.
                     // Client-side navigation won't trigger App.jsx to re-render and switch views.
                     window.location.hash = redirectUrl || '/elecciones';
-                    window.location.reload();
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1000);
                 }
             };
 
@@ -46,7 +48,9 @@ const AuthCallback = () => {
 
                     // FORCE RELOAD
                     window.location.hash = redirectUrl || '/elecciones';
-                    window.location.reload();
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1000);
 
                 } else if (event === 'SIGNED_OUT') {
                     // ...
