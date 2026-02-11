@@ -36,7 +36,7 @@ function App() {
         <Route path="/votaciones" element={<RoleGuard key="elections-vote" requireAuth={false}><Elections /></RoleGuard>} />
         <Route path="/elecciones" element={<RoleGuard key="elections-public" requireAuth={false}><Elections /></RoleGuard>} />
         <Route path="/admin/elecciones" element={<RoleGuard key="elections-admin"><ElectionsAdmin /></RoleGuard>} />
-        <Route path="/admin/denuncias" element={<RoleGuard key="complaints-admin"><ComplaintsAdmin /></RoleGuard>} />
+
         <Route path="/dashboard/*" element={<Dashboard />} />
         {/* Auth Callback for specific cases if needed, but Landing handles auth state */}
         <Route path="/auth/callback" element={<AuthCallback />} />
