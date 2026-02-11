@@ -362,7 +362,7 @@ const ElectionsAdmin = () => {
                                         <div className="flex items-center gap-4">
                                             <div className="w-20 h-20 bg-gray-900 rounded border border-gray-700 flex items-center justify-center overflow-hidden">
                                                 {candidateForm.logo_url ? (
-                                                    <img src={candidateForm.logo_url} alt="Preview" className="w-full h-full object-contain p-1" />
+                                                    <img src={candidateForm.logo_url} alt="Preview" className="w-full h-full object-contain p-2" />
                                                 ) : <ImageIcon className="text-gray-600" />}
                                             </div>
                                             <div className="flex-1">
@@ -393,7 +393,7 @@ const ElectionsAdmin = () => {
                                                         ) : <User className="w-full h-full p-2 text-gray-500" />}
                                                     </div>
                                                     {candidate.logo_url && (
-                                                        <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-white rounded-full border border-gray-500 overflow-hidden shadow-sm">
+                                                        <div className="absolute -bottom-2 -right-2 w-8 h-8 drop-shadow-md">
                                                             <img src={candidate.logo_url} alt="Logo" className="w-full h-full object-contain" />
                                                         </div>
                                                     )}
@@ -464,7 +464,7 @@ const ElectionsAdmin = () => {
                                                     <div className="flex items-center gap-4">
                                                         <div className="w-20 h-20 bg-gray-900 rounded border border-gray-700 flex items-center justify-center overflow-hidden">
                                                             {candidateForm.logo_url ? (
-                                                                <img src={candidateForm.logo_url} alt="Preview" className="w-full h-full object-contain p-1" />
+                                                                <img src={candidateForm.logo_url} alt="Preview" className="w-full h-full object-contain p-2" />
                                                             ) : <ImageIcon className="text-gray-600" />}
                                                         </div>
                                                         <div className="flex-1">
