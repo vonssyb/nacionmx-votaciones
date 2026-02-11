@@ -22,6 +22,7 @@ const ElectionsAdmin = () => {
     // Form inputs
     const [electionForm, setElectionForm] = useState({ title: '', position: '', description: '' });
     const [candidateForm, setCandidateForm] = useState({ name: '', party: '', proposals: '', photo_url: '', logo_url: '' });
+    const [activeTab, setActiveTab] = useState('elections'); // 'elections' | 'complaints'
     const [uploading, setUploading] = useState(false);
 
     useEffect(() => {
@@ -209,7 +210,7 @@ const ElectionsAdmin = () => {
         );
     }
 
-    const [activeTab, setActiveTab] = useState('elections'); // 'elections' | 'complaints'
+
 
     // Import dynamically or lazily if needed, but here we just need to import it at the top.
     // NOTE: I will add the import statement in a separate step or assume it's added.
