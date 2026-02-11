@@ -25,7 +25,7 @@ const DiscordContext = createContext(null);
 
 export const useDiscordMember = () => useContext(DiscordContext);
 
-const RoleGuard = ({ children }) => {
+const RoleGuard = ({ children, requireAuth = true }) => {
     const [loading, setLoading] = useState(true);
     const [authorized, setAuthorized] = useState(false);
     const [error, setError] = useState(null);
@@ -82,10 +82,19 @@ const RoleGuard = ({ children }) => {
 
                 // Specific check for errors
                 if (hash.includes('error') || search.includes('error')) {
-                    console.warn("OAuth Error detected. Redirecting to login.");
-                    if (mounted) {
-                        setLoading(false);
-                        navigate('/login');
+                    console.warn("OAuth Error detected.");
+                    if (requireAuth) {
+                        console.warn("Redirecting to login.");
+                        if (mounted) {
+                            setLoading(false);
+                            navigate('/login');
+                        }
+                    } else {
+                        // Allow guest
+                        if (mounted) {
+                            setAuthorized(true);
+                            setLoading(false);
+                        }
                     }
                     return;
                 }
@@ -99,9 +108,14 @@ const RoleGuard = ({ children }) => {
                             if (mounted) verifyDiscordRole(session);
                         } else if (event === 'SIGNED_OUT') {
                             if (mounted) {
-                                setAuthorized(false);
-                                setLoading(false);
-                                navigate('/login');
+                                if (requireAuth) {
+                                    setAuthorized(false);
+                                    setLoading(false);
+                                    navigate('/login');
+                                } else {
+                                    setAuthorized(true);
+                                    setLoading(false);
+                                }
                             }
                         }
                     });
@@ -119,29 +133,48 @@ const RoleGuard = ({ children }) => {
                 }
 
                 // If retries exhausted and still no session:
-                console.warn("No session and no callback detected (after retries). Redirecting to login.");
+                console.warn("No session and no callback detected (after retries).");
                 if (mounted) {
-                    setLoading(false);
-                    navigate('/login');
+                    if (requireAuth) {
+                        console.warn("Redirecting to login.");
+                        setLoading(false);
+                        navigate('/login');
+                    } else {
+                        // Guest mode access
+                        setAuthorized(true);
+                        setLoading(false);
+                    }
                 }
 
             } catch (err) {
                 console.error("Critical Session Error:", err);
                 if (mounted) {
-                    setLoading(false);
-                    navigate('/login');
+                    if (requireAuth) {
+                        setLoading(false);
+                        navigate('/login');
+                    } else {
+                        setAuthorized(true);
+                        setLoading(false);
+                    }
                 }
             }
         };
 
         checkSession();
 
-        // Failsafe: If truly stuck (loading is still true in ref), force redirect
+        // Failsafe: If truly stuck (loading is still true in ref)
         const timeout = setTimeout(() => {
             if (mounted && loadingRef.current) {
-                console.warn("RoleGuard timeout. Force redirecting to login.");
-                setLoading(false);
-                navigate('/login');
+                console.warn("RoleGuard timeout.");
+                if (requireAuth) {
+                    console.warn("Force redirecting to login.");
+                    setLoading(false);
+                    navigate('/login');
+                } else {
+                    // Force open for guest
+                    setLoading(false);
+                    setAuthorized(true);
+                }
             }
         }, 6000);
 
@@ -154,9 +187,14 @@ const RoleGuard = ({ children }) => {
     const verifyDiscordRole = async (session) => {
         const providerToken = session.provider_token;
         if (!providerToken) {
-            console.warn("No provider token found. Re-login required.");
-            await supabase.auth.signOut();
-            navigate('/login');
+            console.warn("No provider token found.");
+            if (requireAuth) {
+                console.warn("Re-login required.");
+                await supabase.auth.signOut();
+                navigate('/login');
+            } else {
+                setAuthorized(true);
+            }
             return;
         }
 
@@ -209,16 +247,33 @@ const RoleGuard = ({ children }) => {
             if (hasRole) {
                 console.log("DEBUG: Authorization Success!");
                 setAuthorized(true);
-                setMemberData(data); // Save for context
+                setMemberData({ ...data, user: session.user }); // Merge Supabase user
             } else {
-                console.error("DEBUG: Authorization FAILED. Missing role.");
-                throw new Error("No tienes los roles necesarios para acceder a este panel.");
+                // Has session but no role
+                console.error("DEBUG: Role check failed.");
+                if (requireAuth) {
+                    throw new Error("No tienes los roles necesarios para acceder a este panel.");
+                } else {
+                    // If allowing guests (e.g. for simple voting if we relaxed rules, or just viewing)
+                    // But here user IS logged in but lacking roles.
+                    // For 'Elections', we might want them to be able to VOTE if logged in? 
+                    // Or just view? 
+                    // Assuming if !requireAuth, we let them through with whatever data we have.
+                    setAuthorized(true);
+                    setMemberData({ ...data, user: session.user });
+                }
             }
 
         } catch (err) {
             console.error(err);
-            setError(err.message);
-            setAuthorized(false);
+            if (requireAuth) {
+                setError(err.message);
+                setAuthorized(false);
+            } else {
+                // Fallback to guest for error
+                setAuthorized(true);
+                // No memberData
+            }
         } finally {
             setLoading(false);
         }
@@ -251,7 +306,7 @@ const RoleGuard = ({ children }) => {
         );
     }
 
-    if (error) {
+    if (error && requireAuth) {
         return (
             <div style={styles.center}>
                 <div style={styles.card}>
@@ -279,7 +334,7 @@ const RoleGuard = ({ children }) => {
 
     return (
         <DiscordContext.Provider value={memberData}>
-            {authorized ? children : null}
+            {requireAuth ? (authorized ? children : null) : children}
         </DiscordContext.Provider>
     );
 };
