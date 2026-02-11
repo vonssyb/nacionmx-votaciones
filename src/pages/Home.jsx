@@ -24,6 +24,30 @@ const Home = () => {
                 </div>
             </header>
 
+            {/* Live Stats Section */}
+            <section className="bg-gray-800 border-y border-gray-700">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center divide-x divide-gray-700">
+                        <div>
+                            <p className="text-3xl font-bold text-white">2026</p>
+                            <p className="text-xs text-gray-400 uppercase tracking-widest mt-1">Proceso Electoral</p>
+                        </div>
+                        <div>
+                            <p className="text-3xl font-bold text-[#D90F74]">3</p>
+                            <p className="text-xs text-gray-400 uppercase tracking-widest mt-1">Elecciones Activas</p>
+                        </div>
+                        <div>
+                            <p className="text-3xl font-bold text-white">24/7</p>
+                            <p className="text-xs text-gray-400 uppercase tracking-widest mt-1">Monitoreo</p>
+                        </div>
+                        <div>
+                            <p className="text-3xl font-bold text-[#D90F74]">98%</p>
+                            <p className="text-xs text-gray-400 uppercase tracking-widest mt-1">Participación</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
             {/* Features / Information Grid */}
             <main className="flex-grow">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
