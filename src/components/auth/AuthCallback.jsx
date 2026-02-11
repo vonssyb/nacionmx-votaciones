@@ -28,12 +28,12 @@ const AuthCallback = () => {
                 if (session) {
                     console.log("AuthCallback: Session found, redirecting.");
                     const redirectUrl = sessionStorage.getItem('auth_redirect');
-                    if (redirectUrl) {
-                        sessionStorage.removeItem('auth_redirect');
-                        navigate(redirectUrl, { replace: true });
-                    } else {
-                        navigate('/elecciones', { replace: true });
-                    }
+                    sessionStorage.removeItem('auth_redirect');
+
+                    // FORCE RELOAD: Required because App.jsx conditionally renders based on initial hash.
+                    // Client-side navigation won't trigger App.jsx to re-render and switch views.
+                    window.location.hash = redirectUrl || '/elecciones';
+                    window.location.reload();
                 }
             };
 
@@ -42,15 +42,16 @@ const AuthCallback = () => {
                 console.log(`AuthCallback: Auth Event ${event}`);
                 if (event === 'SIGNED_IN' && session) {
                     const redirectUrl = sessionStorage.getItem('auth_redirect');
-                    if (redirectUrl) {
-                        sessionStorage.removeItem('auth_redirect');
-                        navigate(redirectUrl, { replace: true });
-                    } else {
-                        navigate('/elecciones', { replace: true });
-                    }
+                    sessionStorage.removeItem('auth_redirect');
+
+                    // FORCE RELOAD
+                    window.location.hash = redirectUrl || '/elecciones';
+                    window.location.reload();
+
                 } else if (event === 'SIGNED_OUT') {
                     // ...
-                    navigate('/login', { replace: true });
+                    window.location.hash = '/login';
+                    window.location.reload();
                 }
             });
 
@@ -65,7 +66,8 @@ const AuthCallback = () => {
             // Normal 404 or Root access -> Go to Dashboard (which will redirect to Login if needed)
             clearTimeout(timer);
             console.log("AuthCallback: No tokens, redirecting to elections.");
-            navigate('/elecciones', { replace: true });
+            window.location.hash = '/elecciones';
+            window.location.reload();
         }
     }, [navigate]);
 
@@ -89,7 +91,10 @@ const AuthCallback = () => {
             {timeoutReached && (
                 <div className="mt-8 animate-fade-in">
                     <button
-                        onClick={() => navigate('/login', { replace: true })}
+                        onClick={() => {
+                            window.location.hash = '/login';
+                            window.location.reload();
+                        }}
                         className="px-6 py-2 bg-[#D90F74] text-white rounded-full font-bold hover:bg-[#b00c5e] transition-colors shadow-lg"
                     >
                         Cancelar / Volver
