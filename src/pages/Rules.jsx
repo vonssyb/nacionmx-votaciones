@@ -18,38 +18,45 @@ const Rules = () => {
                 </div>
 
                 {/* Main Warning: Vote Buying */}
-                <div className="bg-red-900/20 border border-red-500/50 rounded-2xl p-8 mb-12 relative overflow-hidden">
-                    <div className="absolute top-0 right-0 -mt-4 -mr-4 bg-red-500 text-white text-xs font-bold px-4 py-2 transform rotate-45">
-                        DELITO GRAVE
+                {/* Main Warning: Vote Buying */}
+                <div className="relative overflow-hidden rounded-2xl bg-gray-800 border border-gray-700 shadow-2xl mb-12 group hover:border-red-500/50 transition-colors duration-300">
+                    <div className="absolute top-0 left-0 w-2 h-full bg-gradient-to-b from-red-500 to-red-700"></div>
+                    <div className="absolute top-0 right-0 p-4">
+                        <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-red-500/10 text-red-500 border border-red-500/20 uppercase tracking-wider">
+                            <ShieldAlert size={12} /> Delito Grave
+                        </span>
                     </div>
-                    <div className="flex items-start gap-6">
-                        <div className="bg-red-500/20 p-4 rounded-full hidden sm:block">
-                            <Ban className="text-red-500 w-12 h-12" />
+
+                    <div className="p-8 md:p-10 flex flex-col md:flex-row gap-8 items-start">
+                        <div className="flex-shrink-0">
+                            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-red-500 to-red-700 flex items-center justify-center shadow-lg shadow-red-500/20 transform group-hover:scale-105 transition-transform duration-300">
+                                <Ban className="text-white w-8 h-8" strokeWidth={3} />
+                            </div>
                         </div>
-                        <div>
-                            <h2 className="text-2xl font-bold text-white mb-4 flex items-center gap-2">
-                                <span className="sm:hidden"><Ban className="text-red-500 w-6 h-6 inline" /></span>
+
+                        <div className="flex-grow">
+                            <h2 className="text-2xl md:text-3xl font-bold text-white mb-4">
                                 Compra y Coacción del Voto
                             </h2>
-                            <p className="text-gray-300 mb-4">
-                                El voto es personal, libre y secreto. <strong>Está terminantemente prohibido</strong> aceptar dinero, bienes, favores o privilegios a cambio de tu voto.
+                            <p className="text-gray-300 text-lg mb-6 leading-relaxed">
+                                El voto es personal, libre y secreto. <span className="text-red-400 font-bold">Está terminantemente prohibido</span> aceptar dinero, bienes, favores o privilegios a cambio de tu elección en las urnas.
                             </p>
-                            <div className="bg-gray-900/50 p-4 rounded-lg border border-red-500/20">
-                                <h3 className="font-bold text-red-400 mb-2">¿Qué se considera delito?</h3>
-                                <ul className="space-y-2 text-sm text-gray-400">
-                                    <li className="flex items-start gap-2">
-                                        <ShieldAlert size={16} className="mt-1 flex-shrink-0" />
-                                        Ofrecer o recibir dinero (IC o OOC) por un voto.
-                                    </li>
-                                    <li className="flex items-start gap-2">
-                                        <ShieldAlert size={16} className="mt-1 flex-shrink-0" />
-                                        Amenazar con expulsiones o sanciones si no se vota por cierto candidato.
-                                    </li>
-                                    <li className="flex items-start gap-2">
-                                        <ShieldAlert size={16} className="mt-1 flex-shrink-0" />
-                                        Pedir capturas de pantalla del voto como "prueba".
-                                    </li>
-                                </ul>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="bg-gray-900/50 p-4 rounded-xl border border-gray-700 hover:border-red-500/30 transition-colors">
+                                    <h4 className="flex items-center gap-2 text-white font-bold mb-2">
+                                        <div className="w-2 h-2 rounded-full bg-red-500"></div>
+                                        Sobornos (IC / OOC)
+                                    </h4>
+                                    <p className="text-sm text-gray-400">Ofrecer dinero, rangos o beneficios externos para alterar el voto.</p>
+                                </div>
+                                <div className="bg-gray-900/50 p-4 rounded-xl border border-gray-700 hover:border-red-500/30 transition-colors">
+                                    <h4 className="flex items-center gap-2 text-white font-bold mb-2">
+                                        <div className="w-2 h-2 rounded-full bg-red-500"></div>
+                                        Amenazas
+                                    </h4>
+                                    <p className="text-sm text-gray-400">Intimidar con expulsiones o castigos si no se vota por alguien.</p>
+                                </div>
                             </div>
                         </div>
                     </div>
