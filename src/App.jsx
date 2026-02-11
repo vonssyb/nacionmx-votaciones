@@ -5,6 +5,7 @@ import AuthCallback from './components/auth/AuthCallback';
 import LandingPage from './pages/LandingPage';
 import ApplyPage from './pages/ApplyPage';
 import Elections from './pages/Elections';
+import ElectionsAdmin from './pages/admin/ElectionsAdmin';
 import RoleGuard from './components/auth/RoleGuard';
 
 function App() {
@@ -29,6 +30,7 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/votaciones" element={<RoleGuard requireAuth={false}><Elections /></RoleGuard>} />
         <Route path="/elecciones" element={<RoleGuard requireAuth={false}><Elections /></RoleGuard>} />
+        <Route path="/admin/elecciones" element={<RoleGuard><ElectionsAdmin /></RoleGuard>} />
         <Route path="/dashboard/*" element={<Dashboard />} />
         {/* Auth Callback for specific cases if needed, but Landing handles auth state */}
         <Route path="/auth/callback" element={<AuthCallback />} />
