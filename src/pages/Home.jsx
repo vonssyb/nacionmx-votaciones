@@ -11,7 +11,6 @@ const Home = () => {
             <header className="relative py-20 lg:py-32 overflow-hidden">
                 <div className="absolute inset-0 bg-[url('https://igjedwdxqwkpbgrmtrrq.supabase.co/storage/v1/object/public/evidence/others/partidos%20politicos/ine4.png')] bg-center bg-no-repeat opacity-5 blur-3xl scale-150 animate-pulse"></div>
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center">
-                    <img src="https://igjedwdxqwkpbgrmtrrq.supabase.co/storage/v1/object/public/evidence/others/partidos%20politicos/ine4.png" alt="INE Logo" className="h-32 w-auto mx-auto mb-8 animate-fade-in" />
                     <h1 className="text-4xl md:text-6xl font-extrabold text-white tracking-tight mb-4 animate-slide-up">
                         Instituto Nacional Electoral <span className="text-[#D90F74]">NaciónMX</span>
                     </h1>
