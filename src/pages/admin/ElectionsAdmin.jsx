@@ -84,9 +84,19 @@ const ElectionsAdmin = () => {
 
     const toggleElectionStatus = async (election) => {
         try {
-            await supabase.from('elections').update({ is_active: !election.is_active }).eq('id', election.id);
+            console.log('Toggling election:', election.id, 'Current status:', election.is_active);
+            const { error } = await supabase.from('elections').update({ is_active: !election.is_active }).eq('id', election.id);
+            if (error) {
+                console.error('Error toggling status:', error);
+                alert('Error al actualizar estado: ' + error.message);
+                return;
+            }
+            console.log('Status toggled successfully');
             fetchData();
-        } catch (e) { console.error(e); }
+        } catch (e) {
+            console.error('Unexpected error:', e);
+            alert('Error inesperado: ' + e.message);
+        }
     };
 
     const handleDeleteElection = async (id) => {
