@@ -13,7 +13,6 @@ const Navbar = () => {
                     <div className="flex items-center">
                         <Link to="/" className="flex-shrink-0 flex items-center gap-2">
                             <img src="https://igjedwdxqwkpbgrmtrrq.supabase.co/storage/v1/object/public/evidence/others/partidos%20politicos/ine4.png" alt="INE Logo" className="h-10 w-auto" />
-                            <span className="text-white font-bold text-lg hidden sm:block">INE NaciónMX</span>
                         </Link>
                     </div>
                     <div className="hidden md:block">
