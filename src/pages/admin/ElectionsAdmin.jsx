@@ -110,6 +110,10 @@ const ElectionsAdmin = () => {
 
             if (!data || !data.publicUrl) throw new Error('Error al obtener URL pública');
 
+            console.log('Upload success:', data.publicUrl);
+            // DEBUG: Alert so user can see it's working
+            // alert(`Imagen subida: ${data.publicUrl}`);
+
             setCandidateForm(prev => ({
                 ...prev,
                 [type === 'logo' ? 'logo_url' : 'photo_url']: data.publicUrl
