@@ -475,9 +475,9 @@ const ElectionsAdmin = () => {
                                                     </div>
 
                                                     <div className="flex items-center gap-4">
-                                                        <div className="w-20 h-20 bg-gray-900 rounded border border-gray-700 flex items-center justify-center overflow-hidden">
+                                                        <div className="w-20 h-20 bg-gray-900 rounded-full border border-gray-700 flex items-center justify-center overflow-hidden">
                                                             {candidateForm.logo_url ? (
-                                                                <img src={candidateForm.logo_url} alt="Preview" className="w-full h-full object-contain p-2" />
+                                                                <img src={candidateForm.logo_url} alt="Preview" className="w-full h-full object-cover" />
                                                             ) : <ImageIcon className="text-gray-600" />}
                                                         </div>
                                                         <div className="flex-1">
