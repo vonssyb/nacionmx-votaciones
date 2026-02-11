@@ -168,6 +168,12 @@ const ElectionsAdmin = () => {
                     <ShieldCheck size={64} className="text-red-500" />
                     <h1 className="text-2xl font-bold text-red-400">Acceso Restringido</h1>
                     <p className="text-gray-300">Este panel es exclusivo para el rol <strong>Admin Elecciones</strong>.</p>
+                    <div className="mt-4 p-4 bg-black/30 rounded text-left text-xs font-mono text-gray-400 w-full max-w-md overflow-x-auto">
+                        <p className="mb-2 text-gray-500">Debug Info:</p>
+                        <p>User ID: {memberData?.user?.id || 'No User'}</p>
+                        <p>Roles Found: {memberData?.roles?.join(', ') || 'None'}</p>
+                        <p>Required: 1470948248507256965</p>
+                    </div>
                 </div>
             </div>
         );
