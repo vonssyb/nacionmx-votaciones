@@ -119,7 +119,7 @@ const Elections = () => {
         return () => clearInterval(interval);
     }, [confirmModal, timer]);
 
-    const handleVoteClick = (electionId, candidateId, candidateName, candidateParty, candidatePhoto) => {
+    const handleVoteClick = (electionId, candidateId, candidateName, candidateParty, candidatePhoto, candidateLogo) => {
         if (!memberData?.user?.id) {
             setLoginModal(true);
             return;
@@ -128,7 +128,7 @@ const Elections = () => {
         if (voting) return;
 
         // Open Confirmation Modal
-        setConfirmModal({ electionId, candidateId, candidateName, candidateParty, candidatePhoto });
+        setConfirmModal({ electionId, candidateId, candidateName, candidateParty, candidatePhoto, candidateLogo });
         setTimer(10);
     };
 
@@ -201,6 +201,7 @@ const Elections = () => {
 
     return (
         <div className="p-6 max-w-7xl mx-auto space-y-8 bg-gray-900 min-h-screen relative">
+            {/* ... Header omitted for brevity ... */}
             <header className="mb-8 border-b border-gray-700 pb-6">
                 <div className="flex flex-col md:flex-row items-center justify-between gap-4">
                     <div className="flex items-center gap-4">
@@ -304,6 +305,13 @@ const Elections = () => {
                                                         {candidate.party}
                                                     </div>
                                                 )}
+
+                                                {/* Logo Overlay on card (Optional but nice) */}
+                                                {candidate.logo_url && (
+                                                    <div className="absolute bottom-2 right-2 w-10 h-10 bg-white/90 rounded-full p-1 shadow-lg">
+                                                        <img src={candidate.logo_url} alt="Party Logo" className="w-full h-full object-contain" />
+                                                    </div>
+                                                )}
                                             </div>
 
                                             <div className="p-5">
@@ -328,7 +336,7 @@ const Elections = () => {
                                                 )}
 
                                                 <button
-                                                    onClick={() => handleVoteClick(election.id, candidate.id, candidate.name, candidate.party, candidate.photo_url)}
+                                                    onClick={() => handleVoteClick(election.id, candidate.id, candidate.name, candidate.party, candidate.photo_url, candidate.logo_url)}
                                                     disabled={!!userVotedFor || voting}
                                                     className={`w-full py-2 px-4 rounded font-medium flex items-center justify-center gap-2 transition-all ${isSelected
                                                         ? 'bg-green-600 text-white cursor-default'
@@ -402,19 +410,36 @@ const Elections = () => {
                         {/* Pink top bar */}
                         <div className="absolute top-0 left-0 right-0 h-1 bg-[#D90F74]"></div>
 
-                        <div className="text-center mb-4">
-                            {confirmModal.candidatePhoto && (
-                                <div className="w-24 h-24 mx-auto rounded-full overflow-hidden border-4 border-[#D90F74]/30 mb-3 shadow-[0_0_20px_rgba(217,15,116,0.2)]">
-                                    <img
-                                        src={confirmModal.candidatePhoto}
-                                        alt={confirmModal.candidateName}
-                                        className="w-full h-full object-cover"
-                                    />
+                        <div className="text-center mb-4 pt-4">
+                            {/* Candidate Photo + Party Logo */}
+                            <div className="relative w-32 h-32 mx-auto mb-4">
+                                <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-[#D90F74]/30 shadow-[0_0_20px_rgba(217,15,116,0.2)]">
+                                    {confirmModal.candidatePhoto ? (
+                                        <img
+                                            src={confirmModal.candidatePhoto}
+                                            alt={confirmModal.candidateName}
+                                            className="w-full h-full object-cover"
+                                        />
+                                    ) : (
+                                        <div className="w-full h-full bg-gray-800 flex items-center justify-center">
+                                            <User size={40} className="text-gray-500" />
+                                        </div>
+                                    )}
                                 </div>
-                            )}
+
+                                {confirmModal.candidateLogo && (
+                                    <div className="absolute -bottom-2 -right-2 w-14 h-14 bg-white rounded-full border-2 border-[#D90F74] p-1 shadow-lg transform rotate-12">
+                                        <img
+                                            src={confirmModal.candidateLogo}
+                                            alt="Party Logo"
+                                            className="w-full h-full object-contain"
+                                        />
+                                    </div>
+                                )}
+                            </div>
 
                             {confirmModal.candidateParty && (
-                                <div className="inline-block px-3 py-1 bg-[#D90F74] text-white text-xs font-bold uppercase tracking-wider rounded-sm mb-2">
+                                <div className="inline-block px-3 py-1 bg-[#D90F74] text-white text-xs font-bold uppercase tracking-wider rounded-sm mb-2 shadow-lg">
                                     {confirmModal.candidateParty}
                                 </div>
                             )}
