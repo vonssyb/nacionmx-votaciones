@@ -128,6 +128,20 @@ const Elections = () => {
             return;
         }
 
+        // CHECK ROLE for Voting
+        // Role ID: 1412899401000685588
+        const REQUIRED_ROLE_ID = '1412899401000685588';
+        const hasRole = memberData.roles && memberData.roles.includes(REQUIRED_ROLE_ID);
+
+        if (!hasRole) {
+            setMessage({
+                type: 'error',
+                text: 'No tienes permiso para votar. Necesitas el rol verificado en el servidor de Discord.'
+            });
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            return;
+        }
+
         if (voting) return;
 
         // Open Confirmation Modal

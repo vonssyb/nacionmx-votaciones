@@ -18,7 +18,8 @@ const ALLOWED_ROLE_IDS = [
     '1458597791906533477', // Tercer Al Mando
     '1450242319121911848', // Key Mod
     '1454985316292100226', // Encargado Staff
-    '1470948248507256965'  // Admin Elecciones
+    '1470948248507256965', // Admin Elecciones
+    '1412899401000685588'  // Rol Permitido para Votar (Ciudadano/Verificado)
 ];
 
 // Context to share member data with children (MainLayout)
