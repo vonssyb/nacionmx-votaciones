@@ -328,7 +328,7 @@ async function handleBankModalSubmit(customId, interaction, client, supabase) {
     let automationData = null;
     let autoEmbed = null;
 
-    // 1. Pre-Create Data for Automation
+    // 1. Pre-Create Data for Automation (only for prestamo and ahorro)
     if (serviceType === 'prestamo') {
         const monto = parseInt(interaction.fields.getTextInputValue('monto'));
         const plazo = parseInt(interaction.fields.getTextInputValue('plazo').replace(/[^0-9]/g, ''));
@@ -368,9 +368,7 @@ async function handleBankModalSubmit(customId, interaction, client, supabase) {
                 )
                 .setColor(0xFFA500);
         }
-    }
-
-    if (serviceType === 'ahorro') {
+    } else if (serviceType === 'ahorro') {
         const deposito = parseInt(interaction.fields.getTextInputValue('deposito'));
         const plazo = parseInt(interaction.fields.getTextInputValue('plazo').replace(/[^0-9]/g, ''));
 
@@ -407,8 +405,10 @@ async function handleBankModalSubmit(customId, interaction, client, supabase) {
                 .setColor(0x2ECC71);
         }
     }
+    // Note: For other services (debito, credito, cambio, empresa), we just create a ticket
+    // without automation. The modal fields will be captured in the ticket description.
 
-    // 2. Create Ticket
+    // 2. Create Ticket for ALL service types
     const ticketChannel = await createBankingTicket(interaction, serviceType, client, supabase, automationData, autoEmbed);
 
     if (ticketChannel) {
