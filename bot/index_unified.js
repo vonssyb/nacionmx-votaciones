@@ -44,7 +44,25 @@ if (!SUPABASE_URL || !SUPABASE_KEY) {
     logger.error('CRITICAL: Supabase credentials missing (.env)');
     process.exit(1);
 }
-const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// Configure Supabase client with timeout settings
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
+    auth: {
+        persistSession: false,
+        autoRefreshToken: false
+    },
+    global: {
+        headers: {
+            'x-client-info': 'nacionmx-bot'
+        }
+    },
+    db: {
+        schema: 'public'
+    },
+    realtime: {
+        enabled: false // Disable realtime to reduce connection overhead
+    }
+});
 
 // --- GLOBAL ERROR HANDLERS ---
 process.on('uncaughtException', (err) => logger.errorWithContext('Uncaught Exception', err, { source: 'global' }));
@@ -67,6 +85,38 @@ app.get('/', (req, res) => {
         <p>🕒 Time: ${new Date().toISOString()}</p>
         <p>🆔 Instance: ${INSTANCE_ID}</p>
     `);
+});
+
+app.get('/health', async (req, res) => {
+    try {
+        // Quick DB health check with timeout
+        const healthCheckPromise = supabase
+            .from('bot_heartbeats')
+            .select('id')
+            .limit(1);
+
+        const timeoutPromise = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('Health check timeout')), 5000)
+        );
+
+        await Promise.race([healthCheckPromise, timeoutPromise]);
+
+        res.status(200).json({
+            status: 'healthy',
+            instance: INSTANCE_ID,
+            timestamp: new Date().toISOString(),
+            database: 'connected'
+        });
+    } catch (error) {
+        logger.warn('Health check failed:', error.message);
+        res.status(503).json({
+            status: 'degraded',
+            instance: INSTANCE_ID,
+            timestamp: new Date().toISOString(),
+            database: 'disconnected',
+            error: error.message
+        });
+    }
 });
 
 app.listen(port, '0.0.0.0', () => logger.info('🌐', `Health Server listening on port ${port}`));
