@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../../services/supabase';
 import { useDiscordMember } from '../../components/auth/RoleGuard';
-import { ShieldCheck, Plus, Edit, Trash2, Save, X, Image as ImageIcon, Upload, ArrowLeft } from 'lucide-react';
+import { ShieldCheck, Plus, Edit, Trash2, Save, X, Image as ImageIcon, Upload, ArrowLeft, AlertCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import ComplaintsAdmin from './ComplaintsAdmin';
 
@@ -18,6 +18,7 @@ const ElectionsAdmin = () => {
     const [editingElection, setEditingElection] = useState(null);
     const [editingCandidate, setEditingCandidate] = useState(null);
     const [selectedElectionId, setSelectedElectionId] = useState(null);
+    const [confirmModal, setConfirmModal] = useState(null); // { type: 'election'|'candidate', id: number, title: string, onConfirm: () => void }
 
     // Form inputs
     const [electionForm, setElectionForm] = useState({ title: '', position: '', description: '' });
@@ -102,12 +103,19 @@ const ElectionsAdmin = () => {
         }
     };
 
-    const handleDeleteElection = async (id) => {
-        if (!window.confirm('¿Seguro? Se borrarán candidatos y votos asociados.')) return;
-        try {
-            await supabase.from('elections').delete().eq('id', id);
-            fetchData();
-        } catch (e) { console.error(e); }
+    const handleDeleteElection = (id) => {
+        setConfirmModal({
+            type: 'election',
+            title: '¿Eliminar Elección?',
+            message: 'Esta acción borrará la elección y todos los candidatos/votos asociados. No se puede deshacer.',
+            onConfirm: async () => {
+                try {
+                    await supabase.from('elections').delete().eq('id', id);
+                    fetchData();
+                    setConfirmModal(null);
+                } catch (e) { console.error(e); }
+            }
+        });
     };
 
     const handleImageUpload = async (e, type) => {
@@ -163,12 +171,19 @@ const ElectionsAdmin = () => {
         } catch (e) { console.error(e); alert('Error guardando candidato'); }
     };
 
-    const handleDeleteCandidate = async (id) => {
-        if (!window.confirm('¿Borrar candidato?')) return;
-        try {
-            await supabase.from('election_candidates').delete().eq('id', id);
-            fetchData();
-        } catch (e) { console.error(e); }
+    const handleDeleteCandidate = (id) => {
+        setConfirmModal({
+            type: 'candidate',
+            title: '¿Eliminar Candidato?',
+            message: 'Eliminarás este candidato permanentemente. ¿Estás seguro?',
+            onConfirm: async () => {
+                try {
+                    await supabase.from('election_candidates').delete().eq('id', id);
+                    fetchData();
+                    setConfirmModal(null);
+                } catch (e) { console.error(e); }
+            }
+        });
     };
 
 
@@ -563,6 +578,35 @@ const ElectionsAdmin = () => {
                                 <p className="text-xl">Selecciona una elección del menú izquierdo.</p>
                             </div>
                         )}
+                    </div>
+                </div>
+            )}
+            {/* CONFIRMATION MODAL */}
+            {confirmModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+                    <div className="bg-gray-900 border border-[#D90F74] rounded-xl p-6 max-w-sm w-full shadow-2xl relative overflow-hidden transform transition-all scale-100">
+                        <div className="absolute top-0 left-0 right-0 h-1 bg-[#D90F74]"></div>
+                        <div className="flex justify-center mb-4 text-[#D90F74]">
+                            <AlertCircle size={48} />
+                        </div>
+                        <h3 className="text-xl font-bold text-white text-center mb-2">{confirmModal.title}</h3>
+                        <p className="text-gray-300 text-center mb-6 text-sm">
+                            {confirmModal.message}
+                        </p>
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => setConfirmModal(null)}
+                                className="flex-1 py-2 px-4 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded font-medium transition-colors"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={confirmModal.onConfirm}
+                                className="flex-1 py-2 px-4 bg-red-600 hover:bg-red-500 text-white rounded font-bold shadow-lg shadow-red-900/20 transition-all"
+                            >
+                                Eliminar
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}
