@@ -3,8 +3,9 @@ const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 class CasinoService {
-    constructor(supabase) {
+    constructor(supabase, transactionManager = null) {
         this.supabase = supabase;
+        this.transactionManager = transactionManager;
         this.sessions = {
             roulette: { /* ... */ },
             race: { /* ... */ },
@@ -17,6 +18,154 @@ class CasinoService {
 
         // ... constants ...
     }
+
+    // ========================================
+    // CENTRALIZED TRANSACTION METHODS (NEW)
+    // ========================================
+
+    /**
+     * Play dados with automatic transaction handling
+     * @param {string} userId
+     * @param {number} bet
+     * @param {string} type
+     * @returns {Promise<{won: boolean, payout: number, d1: number, d2: number, sum: number, newBalance?: number}>}
+     */
+    async playDiceAndUpdate(userId, bet, type) {
+        // Calculate game result
+        const gameResult = await this.playDice(userId, bet, type);
+
+        // If TransactionManager is available, use atomic transaction
+        if (this.transactionManager) {
+            const txResult = await this.transactionManager.executeCasinoTransaction(
+                userId,
+                bet,
+                gameResult.payout,
+                'dados',
+                { type, d1: gameResult.d1, d2: gameResult.d2, sum: gameResult.sum }
+            );
+
+            if (!txResult.success) {
+                return { ...gameResult, error: txResult.error };
+            }
+
+            return {
+                ...gameResult,
+                newBalance: txResult.newBalance,
+                balanceBefore: txResult.balanceBefore
+            };
+        }
+
+        // Fallback to direct DB update (legacy mode)
+        return await this._legacyUpdateBalance(userId, bet, gameResult.payout, 'dados');
+    }
+
+    /**
+     * Play slots with automatic transaction handling
+     * @param {string} userId
+     * @param {number} bet
+     * @returns {Promise<{symbols: array, won: boolean, payout: number, matchType: string, newBalance?: number}>}
+     */
+    async playSlotsAndUpdate(userId, bet) {
+        const { symbols, won, payout, matchType } = await this.playSlots(userId, bet);
+
+        if (this.transactionManager) {
+            const txResult = await this.transactionManager.executeCasinoTransaction(
+                userId,
+                bet,
+                payout,
+                'tragamonedas',
+                { symbols, matchType }
+            );
+
+            if (!txResult.success) {
+                return { symbols, won, payout, matchType, error: txResult.error };
+            }
+
+            return { symbols, won, payout, matchType, newBalance: txResult.newBalance };
+        }
+
+        return await this._legacyUpdateBalance(userId, bet, payout, 'tragamonedas', { symbols, won, payout, matchType });
+    }
+
+    /**
+     * Play scratch card with automatic transaction handling
+     * @param {string} userId
+     * @param {number} bet
+     */
+    async playScratchAndUpdate(userId, bet) {
+        const gameResult = await this.playScratch(userId, bet);
+
+        if (this.transactionManager) {
+            const txResult = await this.transactionManager.executeCasinoTransaction(
+                userId,
+                bet,
+                gameResult.payout,
+                'raspa',
+                { grid: gameResult.grid, match: gameResult.match }
+            );
+
+            if (!txResult.success) {
+                return { ...gameResult, error: txResult.error };
+            }
+
+            return { ...gameResult, newBalance: txResult.newBalance };
+        }
+
+        return await this._legacyUpdateBalance(userId, bet, gameResult.payout, 'raspa', gameResult);
+    }
+
+    /**
+     * Legacy fallback method for balance updates without TransactionManager
+     * @private
+     */
+    async _legacyUpdateBalance(userId, bet, payout, gameType, gameData = {}) {
+        try {
+            const { data: acc } = await this.supabase
+                .from('casino_chips')
+                .select('*')
+                .eq('user_id', userId)
+                .single();
+
+            if (!acc) {
+                return { ...gameData, error: '❌ Cuenta de casino no encontrada' };
+            }
+
+            const won = payout > bet;
+            const newBalance = acc.chips - bet + payout;
+
+            const updates = {
+                chips: newBalance,
+                games_played: (acc.games_played || 0) + 1,
+                updated_at: new Date().toISOString()
+            };
+
+            if (won) {
+                updates.total_won = (acc.total_won || 0) + (payout - bet);
+            } else {
+                updates.total_lost = (acc.total_lost || 0) + bet;
+            }
+
+            await this.supabase
+                .from('casino_chips')
+                .update(updates)
+                .eq('user_id', userId);
+
+            return {
+                ...gameData,
+                newBalance,
+                balanceBefore: acc.chips
+            };
+
+        } catch (error) {
+            console.error('[CasinoService] Legacy update failed:', error);
+            return { ...gameData, error: '❌ Error al actualizar el balance' };
+        }
+    }
+
+    // ========================================
+    // ORIGINAL METHODS BELOW
+    // ========================================
+
 
     // --- TOWER LOGIC ---
     // Difficulties:

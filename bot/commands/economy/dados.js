@@ -32,42 +32,38 @@ module.exports = {
         let casino = client.casinoService;
         if (!casino) casino = new CasinoService(supabase);
 
+        // Check balance
         const check = await casino.checkChips(userId, bet);
-        if (!check.hasEnough) return interaction.reply({ content: check.message, ephemeral: true });
-
-        // Deduct bet (Optimistic UI handled by service update? No, service playDice just returns result)
-        // Need to update DB here or in Service. Service is Instant return, so update here.
-
-        // Wait, playDice is pure logic? 
-        // Let's check playDice definition I wrote.
-        // It returns result object using random numbers. It does NOT update DB.
-
-        const result = await casino.playDice(userId, bet, type);
-
-        // Update DB
-        const { data: acc } = await supabase.from('casino_chips').select('*').eq('user_id', userId).single();
-        if (result.won) {
-            const profit = result.payout - bet;
-            await supabase.from('casino_chips').update({
-                chips: (acc.chips - bet) + result.payout,
-                total_won: (acc.total_won || 0) + (result.payout - bet),
-                games_played: (acc.games_played || 0) + 1
-            }).eq('user_id', userId);
-        } else {
-            await supabase.from('casino_chips').update({
-                chips: acc.chips - bet,
-                total_lost: (acc.total_lost || 0) + bet,
-                games_played: (acc.games_played || 0) + 1
-            }).eq('user_id', userId);
+        if (!check.hasEnough) {
+            return interaction.reply({ content: check.message, ephemeral: true });
         }
 
-        // Visualize
+        // Defer reply for animation
+        await interaction.deferReply();
+
+        // Animate dice roll
         await casino.animateDice(interaction);
 
+        // Execute game with atomic transaction
+        const result = await casino.playDiceAndUpdate(userId, bet, type);
+
+        // Handle errors
+        if (result.error) {
+            return interaction.editReply({ content: result.error });
+        }
+
+        // Build result embed
         const embed = new EmbedBuilder()
             .setTitle(`🎲 DADOS: ${result.sum}`)
-            .setDescription(`🎲 ${result.d1} | 🎲 ${result.d2}\n\nApuesta: **${type.toUpperCase()}**\nResultado: **${result.won ? '✅ GANASTE' : '❌ PERDISTE'}**\n${result.won ? `Premio: **${result.payout}** fichas` : `Perdiste: **${bet}** fichas`}`)
-            .setColor(result.won ? '#2ECC71' : '#E74C3C');
+            .setDescription(
+                `🎲 ${result.d1} | 🎲 ${result.d2}\n\n` +
+                `Apuesta: **${type.toUpperCase()}**\n` +
+                `Resultado: **${result.won ? '✅ GANASTE' : '❌ PERDISTE'}**\n` +
+                `${result.won ? `Premio: **${result.payout}** fichas` : `Perdiste: **${bet}** fichas`}\n\n` +
+                `💰 Balance: **${result.newBalance}** fichas`
+            )
+            .setColor(result.won ? '#2ECC71' : '#E74C3C')
+            .setFooter({ text: result.won ? '¡Felicidades!' : 'Mejor suerte la próxima' });
 
         await interaction.editReply({ content: null, embeds: [embed] });
     }
