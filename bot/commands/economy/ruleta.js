@@ -59,21 +59,21 @@ module.exports = {
         // If I do `const casino = new CasinoService(supabase)`, it's a new instance.
         // I NEED A SHARED INSTANCE.
 
+        // Initialize service
         let casino = client.casinoService;
         if (!casino) {
-            // Lazy init if not on client (though it should be added to index.js)
             casino = new CasinoService(supabase);
             client.casinoService = casino;
         }
 
-        // Check chips
-        const check = await casino.checkChips(userId, betAmount);
-        if (!check.hasEnough) return interaction.editReply({ content: check.message, ephemeral: true });
+        // Atomic Transaction (Result determined upfront)
+        const result = await casino.playRouletteAndUpdate(userId, betAmount, betType, number);
 
-        // Deduct chips immediately
-        await casino.removeChips(userId, betAmount);
+        if (!result.success) {
+            return interaction.editReply({ content: result.error || '❌ Error al jugar ruleta.', ephemeral: true });
+        }
 
-        // TENSION FLOW (30s)
+        // TENSION FLOW (30s Animation)
         const embedInitial = new EmbedBuilder()
             .setTitle('🎡 RULETA: GIRANDO')
             .setDescription('La ruleta ha comenzado a girar... 🎲\n\n> ⏳ **Tiempo restante:** 30s')
@@ -106,48 +106,17 @@ module.exports = {
 
         // Phase 3: 30s (Result)
         setTimeout(async () => {
-            // Logic to determine win/loss
-            const resultNumber = Math.floor(Math.random() * 37);
-            let won = false;
-            let payout = 0;
-            let multiplier = 0;
-
-            // Determine Color
-            const reds = [1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36];
-            const color = resultNumber === 0 ? 'green' : (reds.includes(resultNumber) ? 'red' : 'black');
-
-            // Check Win
-            if (betType === 'numero' && number === resultNumber) { won = true; multiplier = 35; }
-            else if (betType === 'red' && color === 'red') { won = true; multiplier = 1; }
-            else if (betType === 'black' && color === 'black') { won = true; multiplier = 1; }
-            else if (betType === 'even' && resultNumber !== 0 && resultNumber % 2 === 0) { won = true; multiplier = 1; }
-            else if (betType === 'odd' && resultNumber !== 0 && resultNumber % 2 !== 0) { won = true; multiplier = 1; }
-            else if (betType === '1-18' && resultNumber >= 1 && resultNumber <= 18) { won = true; multiplier = 1; }
-            else if (betType === '19-36' && resultNumber >= 19 && resultNumber <= 36) { won = true; multiplier = 1; }
-            // Columns (simplification)
-            else if (betType === 'col1' && resultNumber % 3 === 1) { won = true; multiplier = 2; }
-            else if (betType === 'col2' && resultNumber % 3 === 2) { won = true; multiplier = 2; }
-            else if (betType === 'col3' && resultNumber % 3 === 0 && resultNumber !== 0) { won = true; multiplier = 2; }
-
-            if (won) {
-                payout = betAmount + (betAmount * multiplier);
-                await casino.addChips(userId, payout);
-                await client.services.stats?.recordWin(userId, payout - betAmount);
-            } else {
-                await client.services.stats?.recordLoss(userId, betAmount);
-            }
-
-            const colorEmoji = color === 'red' ? '🔴' : (color === 'black' ? '⚫' : '🟢');
+            const colorEmoji = result.color === 'red' ? '🔴' : (result.color === 'black' ? '⚫' : '🟢');
 
             const embedResult = new EmbedBuilder()
-                .setTitle(`🎡 Resultado: ${resultNumber} ${colorEmoji}`)
-                .setDescription(won
-                    ? `🎉 **¡GANASTE!** 🎉\nRecibes **${payout}** fichas.`
-                    : `❌ **Perdiste...**\nLa bola cayó en ${resultNumber} (${color}).`)
-                .setColor(won ? '#2ECC71' : '#E74C3C')
+                .setTitle(`🎡 Resultado: ${result.resultNumber} ${colorEmoji}`)
+                .setDescription(result.won
+                    ? `🎉 **¡GANASTE!** 🎉\nRecibes **${result.payout}** fichas.`
+                    : `❌ **Perdiste...**\nLa bola cayó en ${result.resultNumber} (${result.color}).`)
+                .setColor(result.won ? '#2ECC71' : '#E74C3C')
                 .addFields(
                     { name: 'Apuesta', value: `${betAmount}`, inline: true },
-                    { name: 'Resultado', value: `${resultNumber} ${colorEmoji.toUpperCase()}`, inline: true }
+                    { name: 'Resultado', value: `${result.resultNumber} ${colorEmoji.toUpperCase()}`, inline: true }
                 );
 
             await interaction.editReply({ embeds: [embedResult] }).catch(() => { });

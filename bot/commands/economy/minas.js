@@ -31,15 +31,13 @@ module.exports = {
             return interaction.reply({ content: '❌ Ya tienes un juego de Minas activo. Termínalo antes de empezar otro.', ephemeral: true });
         }
 
-        // Check chips
-        const check = await casino.checkChips(userId, bet);
-        if (!check.hasEnough) return interaction.reply({ content: check.message, ephemeral: true });
+        // Check chips & Start Game Atomically
+        await interaction.deferReply();
 
-        // Deduct bet
-        await supabase.from('casino_chips').update({ chips: check.balance - bet }).eq('user_id', userId);
+        const result = await casino.startMinesAndUpdate(interaction, bet, mines);
 
-        // Start Game
-        await interaction.reply({ content: '💣 **Iniciando Minas...**', components: [] }); // Placeholder
-        await casino.startMinesGame(interaction, bet, mines);
+        if (!result.success) {
+            return interaction.editReply({ content: result.error || '❌ Error al iniciar el juego.' });
+        }
     }
 };

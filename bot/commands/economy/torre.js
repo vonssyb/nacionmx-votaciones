@@ -31,12 +31,12 @@ module.exports = {
 
         if (casino.sessions.tower[userId]) return interaction.reply({ content: '❌ Ya estás escalando una torre.', ephemeral: true });
 
-        const check = await casino.checkChips(userId, bet);
-        if (!check.hasEnough) return interaction.reply({ content: check.message, ephemeral: true });
+        // Atomic Start
+        await interaction.deferReply();
+        const result = await casino.startTowerAndUpdate(interaction, bet, diff);
 
-        await supabase.from('casino_chips').update({ chips: check.balance - bet }).eq('user_id', userId);
-
-        await interaction.reply({ content: '🗼 **Construyendo torre...**', components: [] });
-        await casino.startTowerGame(interaction, bet, diff);
+        if (!result.success) {
+            return interaction.editReply({ content: result.error || '❌ Error al iniciar la torre.' });
+        }
     }
 };
