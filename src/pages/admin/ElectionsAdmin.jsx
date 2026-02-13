@@ -378,8 +378,19 @@ const ElectionsAdmin = () => {
                                                     setElectionForm({ title: election.title, position: election.position, description: election.description });
                                                 }}
                                                 className="text-gray-400 hover:text-blue-400"
+                                                title="Editar"
                                             >
                                                 <Edit size={16} />
+                                            </button>
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleDeleteElection(election.id);
+                                                }}
+                                                className="text-gray-400 hover:text-red-400"
+                                                title="Eliminar"
+                                            >
+                                                <Trash2 size={16} />
                                             </button>
                                         </div>
                                     </div>
