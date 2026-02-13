@@ -124,22 +124,17 @@ const handleEconomyLegacy = async (interaction, client, supabase) => {
                     const amount = interaction.options.getInteger('cantidad');
                     const target = interaction.options.getNumber('target') || 2.0;
 
-                    const { hasEnough, message } = await client.services.casino.checkChips(userId, amount);
-                    if (!hasEnough) return interaction.editReply(message);
+                    const result = await client.services.casino.joinCrashAndUpdate(interaction, amount, target);
 
-                    // Deduct
-                    const { data: acc } = await supabase.from('casino_chips').select('chips_balance').eq('discord_user_id', userId).single();
-                    await supabase.from('casino_chips').update({ chips_balance: acc.chips_balance - amount }).eq('discord_user_id', userId);
-
-                    client.services.casino.sessions.crash.bets.push({ userId, amount, target, interaction });
-
-                    if (!client.services.casino.sessions.crash.isOpen) {
-                        client.services.casino.sessions.crash.isOpen = true;
-                        client.services.casino.startCrashGame(interaction.channel);
-                        return interaction.editReply(`🚀 Te uniste al Crash con **$${amount}** buscando **${target}x**.`);
-                    } else {
-                        return interaction.editReply(`🚀 Te uniste a la ronda en curso.`);
+                    if (!result.success) {
+                        return interaction.editReply(result.error || '❌ Error al unirse al Crash.');
                     }
+
+                    let msg = `🚀 Te uniste al Crash con **$${amount}** buscando **${target}x**.`;
+                    if (result.isNew) msg += '\n⏳ Iniciando ronda en 15s...';
+                    else msg += '\n⏳ Esperando inicio...';
+
+                    return interaction.editReply(msg);
                 }
             }
         }

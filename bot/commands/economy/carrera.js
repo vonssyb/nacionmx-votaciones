@@ -24,35 +24,26 @@ module.exports = {
 
     async execute(interaction, client, supabase) {
         let casino = client.casinoService;
-        if (!casino) casino = new CasinoService(supabase);
+        if (!casino) {
+            casino = new CasinoService(supabase);
+            client.casinoService = casino;
+        }
 
         const userId = interaction.user.id;
         const bet = interaction.options.getInteger('apuesta');
         const horseId = interaction.options.getInteger('caballo');
 
-        // Check chips
-        const check = await casino.checkChips(userId, bet);
-        if (!check.hasEnough) return interaction.reply({ content: check.message, ephemeral: true });
+        // Atomic Join & Bet
+        const result = await casino.joinRaceAndUpdate(interaction, bet, horseId);
 
-        // Deduct bet
-        await supabase.from('casino_chips').update({ chips: check.balance - bet }).eq('user_id', userId);
+        if (!result.success) {
+            return interaction.reply({ content: result.error || '❌ Error al unirse a la carrera.', ephemeral: true });
+        }
 
-        // Start or join session
-        const isNewSession = casino.startRaceSession(interaction);
-
-        // Add bet
-        casino.sessions.race.bets.push({
-            userId,
-            amount: bet,
-            horseId,
-            interaction
-        });
-
-        if (isNewSession) {
+        if (result.isNew) {
             await interaction.reply(`🏇 **CARRERA INICIADA**\n\nApuestas abiertas por 45s...\n¡Elige tu caballo ganador!`);
         } else {
-            const horseName = casino.sessions.race.horses.find(h => h.id === horseId).name;
-            await interaction.reply({ content: `✅ Apostaste **${bet}** fichas a **${horseName}**`, ephemeral: true });
+            await interaction.reply({ content: `✅ Apostaste **${bet}** fichas a **${result.horseName}**`, ephemeral: true });
         }
     }
 };

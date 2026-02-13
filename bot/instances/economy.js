@@ -195,6 +195,17 @@ async function startEconomyBot(supabase) {
                 return;
             }
 
+            // Handle Casino Interactions (Crash Buttons)
+            if (interaction.isButton() && interaction.customId.startsWith('btn_crash_')) {
+                const result = await casinoService.cashoutCrashAndUpdate(interaction);
+                if (result.success) {
+                    await interaction.reply({ content: `✅ Retirado a **${result.multiplier.toFixed(2)}x**`, ephemeral: true });
+                } else {
+                    await interaction.reply({ content: result.error, ephemeral: true });
+                }
+                return;
+            }
+
             // Handle Ranking Category Selection (Dropdown Menu)
             if (interaction.isStringSelectMenu() && interaction.customId === 'ranking_category') {
                 const { handleRankingCategorySelect } = require('../handlers/rankingHandler');
