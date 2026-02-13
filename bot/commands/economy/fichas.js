@@ -160,31 +160,26 @@ module.exports = {
                         if (!paymentSuccess) {
                             await interaction.editReply({ content: errorMsg, embeds: [], components: [] });
                         } else {
-                            // Add Chips
-                            const { data: chipsAccount } = await supabase
-                                .from('casino_chips')
-                                .select('chips')
-                                .eq('user_id', userId)
-                                .maybeSingle();
+                            // Add Chips via TransactionManager
+                            const tx = await casinoService.transactionManager.executeCasinoChipsExchange(userId, amount, amount, 'buy');
 
-                            const currentChips = chipsAccount?.chips || 0;
-
-                            if (!chipsAccount) {
-                                const { error: insertError } = await supabase.from('casino_chips').insert({
-                                    user_id: userId,
-                                    chips: amount,
-                                    total_won: 0,
-                                    total_lost: 0,
-                                    games_played: 0
-                                });
-                                if (insertError) throw insertError;
-                            } else {
-                                const { error: updateError } = await supabase.from('casino_chips').update({
-                                    chips: currentChips + amount,
-                                    updated_at: new Date().toISOString()
-                                }).eq('user_id', userId);
-                                if (updateError) throw updateError;
+                            if (!tx.success) {
+                                // Refund Money if chips failed
+                                const refundMethod = method === 'efectivo' ? 'cash' : 'bank';
+                                if (method === 'credito') {
+                                    // Refund credit card? Complex. Just log error for now or try to revert credit card balance.
+                                    // For now, manual refund message.
+                                    const { data: cards } = await supabase.from('credit_cards').select('current_balance').eq('discord_id', userId).eq('status', 'active');
+                                    if (cards && cards[0]) {
+                                        await supabase.from('credit_cards').update({ current_balance: cards[0].current_balance - amount }).eq('discord_id', userId);
+                                    }
+                                } else {
+                                    await ubService.addMoney(guildId, userId, amount, 'Reembolso Fichas Fallido', refundMethod);
+                                }
+                                return interaction.editReply({ content: `❌ Error al entregar fichas: ${tx.error}`, embeds: [], components: [] });
                             }
+
+                            const currentChips = tx.newChipsBalance;
 
                             const finalEmbed = new EmbedBuilder()
                                 .setTitle('🎰 Compra Exitosa')
@@ -221,20 +216,21 @@ module.exports = {
                     return interaction.editReply({ content: check.message });
                 }
 
-                // Remove Chips first
-                await supabase.from('casino_chips').update({
-                    chips: check.balance - amount,
-                    updated_at: new Date().toISOString()
-                }).eq('user_id', userId);
+                // Remove Chips first via TransactionManager
+                const tx = await casinoService.transactionManager.executeCasinoChipsExchange(userId, amount, amount, 'sell');
+
+                if (!tx.success) {
+                    return interaction.editReply({ content: tx.error });
+                }
 
                 // Add Money via UB
                 let ubMethod = metodo === 'efectivo' ? 'cash' : 'bank';
                 const result = await ubService.addMoney(guildId, userId, amount, 'Venta de Fichas Casino', ubMethod);
 
                 if (!result.success) {
-                    // Rollback chips if payout fails (Optional but good practice)
-                    // await supabase.from('casino_chips').update({ chips_balance: check.balance }).eq('discord_user_id', userId);
-                    return interaction.editReply({ content: '❌ Error al depositar el dinero (Fichas descontadas, contacta a admin).' });
+                    // Rollback chips (Refund them back)
+                    await casinoService.transactionManager.executeCasinoChipsExchange(userId, amount, amount, 'buy');
+                    return interaction.editReply({ content: '❌ Error al depositar el dinero. Se han devuelto las fichas.' });
                 }
 
                 const embed = new EmbedBuilder()

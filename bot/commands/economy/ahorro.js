@@ -156,7 +156,9 @@ async function handleAbrir(interaction, supabase, client) {
         return interaction.editReply('❌ Error al procesar el cobro en UnbelievaBoat.');
     }
 
-    // Create account
+    // Use TransactionManager for consistent logging/updating
+    // For initial open, we just insert.
+    // Actually, create 0 balance account, then deposit.
     const { data: account, error } = await supabase
         .from('savings_accounts')
         .insert({
@@ -164,33 +166,36 @@ async function handleAbrir(interaction, supabase, client) {
             discord_user_id: targetUser.id,
             account_number: accountNumber,
             initial_deposit: deposito,
-            current_balance: deposito,
+            current_balance: 0, // Start 0, then deposit
             interest_rate: interestRate,
             term_months: plazo,
             opened_by: interaction.user.id,
-            maturity_date: maturityDate.toISOString()
+            maturity_date: maturityDate.toISOString(),
+            status: 'active'
         })
         .select()
         .maybeSingle();
 
     if (error) {
-        console.error('[Ahorro] Error:', error);
-        // Refund
+        console.error('[Ahorro] Error creating account:', error);
         await ubService.addMoney(interaction.guildId, interaction.user.id, deposito, 'Reembolso cuenta ahorro fallida', 'cash');
         return interaction.editReply('❌ Error al abrir la cuenta de ahorro.');
     }
 
-    // Record transaction
-    await supabase
-        .from('savings_transactions')
-        .insert({
-            account_id: account.id,
-            transaction_type: 'deposit',
-            amount: deposito,
-            balance_after: deposito,
-            executed_by: interaction.user.id,
-            notes: 'Depósito inicial'
-        });
+    const TransactionManager = require('../../services/TransactionManager');
+    const tm = new TransactionManager(supabase);
+
+    // Execute Deposit
+    const tx = await tm.executeSavingsTransaction(account.id, interaction.user.id, deposito, 'deposit', 'Depósito inicial');
+
+    if (!tx.success) {
+        // Refund and Close logs? Complex.
+        // Just log error, user has money deducted but account empty?
+        // Should refund UB?
+        await ubService.addMoney(interaction.guildId, interaction.user.id, deposito, 'Reembolso cuenta ahorro fallida (TX)', 'cash');
+        await supabase.from('savings_accounts').delete().eq('id', account.id);
+        return interaction.editReply('❌ Error al registrar el depósito inicial.');
+    }
 
     const embed = new EmbedBuilder()
         .setTitle('💵 Cuenta de Ahorro Abierta')
@@ -291,24 +296,19 @@ async function handleDepositar(interaction, supabase, client) {
     }
 
     // Process deposit
-    await ubService.removeMoney(interaction.guildId, interaction.user.id, monto, `Depósito a cuenta ${accountNumber}`, 'cash');
+    // Process deposit via TransactionManager
+    const TransactionManager = require('../../services/TransactionManager');
+    const tm = new TransactionManager(supabase);
 
-    const newBalance = account.current_balance + monto;
+    const tx = await tm.executeSavingsTransaction(account.id, interaction.user.id, monto, 'deposit');
 
-    await supabase
-        .from('savings_accounts')
-        .update({ current_balance: newBalance })
-        .eq('id', account.id);
+    if (!tx.success) {
+        // Refund UB
+        await ubService.addMoney(interaction.guildId, interaction.user.id, monto, 'Reembolso depósito fallido', 'cash');
+        return interaction.editReply(`❌ Error al depositar: ${tx.error || 'Error desconocido'}`);
+    }
 
-    await supabase
-        .from('savings_transactions')
-        .insert({
-            account_id: account.id,
-            transaction_type: 'deposit',
-            amount: monto,
-            balance_after: newBalance,
-            executed_by: interaction.user.id
-        });
+    const newBalance = tx.newBalance;
 
     await interaction.editReply(`✅ Depósito exitoso de $${monto.toLocaleString()}.\nNuevo saldo: $${newBalance.toLocaleString()}`);
 }
@@ -350,40 +350,33 @@ async function handleRetirar(interaction, supabase, client) {
         finalAmount = withdrawAmount - penalty;
     }
 
-    // Process withdrawal
+    // Process withdrawal via TransactionManager
+    const TransactionManager = require('../../services/TransactionManager');
+    const tm = new TransactionManager(supabase);
+
+    // 1. Deduct from Savings
+    const tx = await tm.executeSavingsTransaction(account.id, interaction.user.id, -withdrawAmount, 'withdrawal', penalty > 0 ? `Retiro anticipado (Penalización: $${penalty})` : null);
+
+    if (!tx.success) {
+        return interaction.editReply(`❌ Error al retirar: ${tx.error || 'Saldo insuficiente o error interno.'}`);
+    }
+
+    const newBalance = tx.newBalance;
+
+    // 2. Add to UB
     const UnbelievaBoatService = require('../../services/UnbelievaBoatService');
     const ubService = new UnbelievaBoatService(process.env.UNBELIEVABOAT_TOKEN, supabase);
-    await ubService.addMoney(interaction.guildId, interaction.user.id, finalAmount, `Retiro cuenta ${accountNumber}`, 'cash');
+    const result = await ubService.addMoney(interaction.guildId, interaction.user.id, finalAmount, `Retiro cuenta ${accountNumber}`, 'cash');
 
-    const newBalance = account.current_balance - withdrawAmount;
+    if (!result.success) {
+        // Refund Savings (Deposit back)
+        await tm.executeSavingsTransaction(account.id, interaction.user.id, withdrawAmount, 'deposit', 'Reembolso retiro fallido (UB Error)');
+        return interaction.editReply('❌ Error al entregar el efectivo. Se ha devuelto el saldo a tu cuenta.');
+    }
 
-    await supabase
-        .from('savings_accounts')
-        .update({ current_balance: newBalance })
-        .eq('id', account.id);
-
-    await supabase
-        .from('savings_transactions')
-        .insert({
-            account_id: account.id,
-            transaction_type: 'withdrawal',
-            amount: withdrawAmount,
-            balance_after: newBalance,
-            executed_by: interaction.user.id,
-            notes: penalty > 0 ? `Retiro anticipado - Penalización: $${penalty.toLocaleString()}` : null
-        });
-
+    // 3. Log Penalty if needed (0 amount transaction)
     if (penalty > 0) {
-        await supabase
-            .from('savings_transactions')
-            .insert({
-                account_id: account.id,
-                transaction_type: 'penalty',
-                amount: penalty,
-                balance_after: newBalance,
-                executed_by: 'SYSTEM',
-                notes: 'Penalización por retiro anticipado'
-            });
+        await tm.executeSavingsTransaction(account.id, 'SYSTEM', 0, 'penalty', `Penalización retiro anticipado: $${penalty}`);
     }
 
     const embed = new EmbedBuilder()

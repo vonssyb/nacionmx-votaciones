@@ -1,16 +1,20 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../services/supabase';
 import { useDiscordMember } from '../components/auth/RoleGuard';
-import { Check, AlertCircle, Vote, User, LogIn } from 'lucide-react';
+import { toPng } from 'html-to-image';
+import { Check, AlertCircle, Vote, User, LogIn, Download, FileText, BarChart2 } from 'lucide-react';
 
 const Elections = () => {
     const memberData = useDiscordMember();
     const [elections, setElections] = useState([]);
     const [candidates, setCandidates] = useState([]);
     const [userVotes, setUserVotes] = useState([]);
+    const [publicResults, setPublicResults] = useState({}); // { electionId: { candidateId: count } }
     const [loading, setLoading] = useState(true);
     const [confirmModal, setConfirmModal] = useState(null);
     const [loginModal, setLoginModal] = useState(false);
+    const [showCertificate, setShowCertificate] = useState(null); // { election, folio, date }
+    const certificateRef = React.useRef(null);
     const [timer, setTimer] = useState(10);
     const [votingAnimation, setVotingAnimation] = useState(null);
     const [inkEffect, setInkEffect] = useState(false);
@@ -23,8 +27,6 @@ const Elections = () => {
     // Timer Logic
     useEffect(() => {
         // Target Date: Use the first active election's end_date or fallback
-        // If multiple elections, which one to track? Usually the "General" one.
-        // For now, let's pick the first active election with an end_date.
         const activeElection = elections.find(e => e.is_active && e.end_date);
         const targetDate = activeElection?.end_date ? new Date(activeElection.end_date) : new Date('2026-02-15T20:00:00');
 
@@ -60,8 +62,6 @@ const Elections = () => {
 
     useEffect(() => {
         fetchData();
-        // Calculate initial total votes
-        // (This will be updated in fetchData but good to init)
     }, [memberData]);
 
     const fetchData = async () => {
@@ -78,7 +78,6 @@ const Elections = () => {
                 let electionsData = [];
                 let candidatesData = [];
                 let votesData = [];
-                let allVotesCount = 0;
 
                 const { data: eData, error: eError } = await supabase
                     .from('elections')
@@ -100,15 +99,12 @@ const Elections = () => {
                 if (memberData?.user?.id) {
                     const { data: vData, error: vError } = await supabase
                         .from('election_votes')
-                        .select('election_id, candidate_id')
+                        .select('election_id, candidate_id, folio')
                         .eq('user_id', memberData.user.id);
 
                     if (vError) throw vError;
                     votesData = vData || [];
                 }
-
-                // Global vote count disabled for stability
-                // allVotesCount = ...
 
                 return { electionsData, candidatesData, votesData };
             };
@@ -125,6 +121,21 @@ const Elections = () => {
                 if (!countError && countData !== null) {
                     setTotalVotes(countData);
                 }
+
+                // 5. Fetch Public Results for Closed Elections
+                const closedElections = result.electionsData.filter(e => e.end_date && new Date(e.end_date) < new Date());
+                const newPublicResults = {};
+
+                await Promise.all(closedElections.map(async (e) => {
+                    const { data: resData, error: resError } = await supabase.rpc('get_public_results', { election_id_param: e.id });
+                    if (!resError && resData) {
+                        newPublicResults[e.id] = {};
+                        resData.forEach(r => {
+                            newPublicResults[e.id][r.candidate_id] = r.vote_count;
+                        });
+                    }
+                }));
+                setPublicResults(newPublicResults);
             }
 
         } catch (error) {
@@ -213,13 +224,15 @@ const Elections = () => {
         await new Promise(r => setTimeout(r, 600));
 
         try {
-            const { error } = await supabase
+            const { data, error } = await supabase
                 .from('election_votes')
                 .insert({
                     user_id: memberData.user.id,
                     election_id: electionId,
                     candidate_id: candidateId
-                });
+                })
+                .select()
+                .single();
 
             if (error) {
                 if (error.code === '23505') { // Unique violation
@@ -236,7 +249,8 @@ const Elections = () => {
                 setMessage({ type: 'success', text: '¡Voto registrado y boleta depositada!' });
 
                 // Refresh votes locally
-                const newVotes = [...userVotes, { election_id: electionId, candidate_id: candidateId }];
+                const newVote = { election_id: electionId, candidate_id: candidateId, folio: data?.folio };
+                const newVotes = [...userVotes, newVote];
                 setUserVotes(newVotes);
                 setTotalVotes(prev => prev + 1);
 
@@ -252,6 +266,20 @@ const Elections = () => {
             setVotingAnimation(null);
         } finally {
             setVoting(false);
+        }
+    };
+
+    const downloadCertificate = async () => {
+        if (!certificateRef.current || !showCertificate) return;
+        try {
+            const dataUrl = await toPng(certificateRef.current, { quality: 0.95, backgroundColor: '#f3f4f6' });
+            const link = document.createElement('a');
+            link.download = `INE_Certificado_${showCertificate.folio?.slice(0, 8)}.png`;
+            link.href = dataUrl;
+            link.click();
+        } catch (err) {
+            console.error('Error generando certificado', err);
+            setMessage({ type: 'error', text: 'Error al descargar certificado.' });
         }
     };
 
@@ -359,9 +387,27 @@ const Elections = () => {
                                     <p className="text-gray-400 text-sm mt-1 max-w-2xl">{election.description}</p>
                                 </div>
                                 {userVotedFor && (
-                                    <div className="hidden md:flex items-center gap-2 px-4 py-2 bg-green-900/20 text-green-400 rounded border border-green-800/50 text-xs font-bold uppercase tracking-widest shadow-[0_0_10px_rgba(74,222,128,0.1)]">
-                                        <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-                                        Voto Registrado
+                                    <div className="flex flex-col items-end gap-1">
+                                        <div className="flex items-center gap-2 px-4 py-2 bg-green-900/20 text-green-400 rounded border border-green-800/50 text-xs font-bold uppercase tracking-widest shadow-[0_0_10px_rgba(74,222,128,0.1)]">
+                                            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+                                            Voto Registrado
+                                        </div>
+                                        {userVotedFor.folio && (
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-[10px] font-mono text-gray-500">Folio: {userVotedFor.folio.slice(0, 8)}...</span>
+                                                <button
+                                                    onClick={() => setShowCertificate({
+                                                        election,
+                                                        folio: userVotedFor.folio,
+                                                        date: new Date().toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' })
+                                                    })}
+                                                    className="text-[#D90F74] hover:text-white transition-colors"
+                                                    title="Descargar Certificado de Votación"
+                                                >
+                                                    <FileText size={14} />
+                                                </button>
+                                            </div>
+                                        )}
                                     </div>
                                 )}
                             </div>
@@ -425,20 +471,38 @@ const Elections = () => {
                                                         Ver Perfil
                                                     </button>
 
-                                                    <button
-                                                        onClick={() => handleVoteClick(election.id, candidate.id, candidate.name, candidate.party, candidate.photo_url, candidate.logo_url)}
-                                                        disabled={!!userVotedFor || voting || election.voting_open === false}
-                                                        className={`py-2 px-4 rounded flex items-center justify-center gap-2 transition-all font-bold text-xs uppercase tracking-wider ${isSelected
-                                                            ? 'bg-green-600 text-white cursor-default'
-                                                            : userVotedFor
-                                                                ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
-                                                                : election.voting_open === false
-                                                                    ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
-                                                                    : 'bg-[#D90F74] hover:bg-[#b00c5e] text-white shadow-lg disabled:opacity-50'
-                                                            }`}
-                                                    >
-                                                        {isSelected ? 'Votado' : (election.voting_open === false ? 'Cerrada' : 'Votar')}
-                                                    </button>
+                                                    {/* PUBLIC RESULTS OR VOTE BUTTONS */}
+                                                    {election.end_date && new Date(election.end_date) < new Date() && publicResults[election.id] ? (
+                                                        <div className="col-span-2">
+                                                            <div className="flex justify-between text-xs mb-1">
+                                                                <span className="font-bold text-gray-300">Resultados Preliminares</span>
+                                                                <span className="font-mono text-[#D90F74]">{publicResults[election.id][candidate.id] || 0} Votos</span>
+                                                            </div>
+                                                            <div className="w-full bg-gray-700/50 rounded-full h-2 overflow-hidden">
+                                                                <div
+                                                                    className="bg-[#D90F74] h-full transition-all duration-1000"
+                                                                    style={{
+                                                                        width: `${(publicResults[election.id][candidate.id] || 0) / (Object.values(publicResults[election.id]).reduce((a, b) => a + b, 0) || 1) * 100}%`
+                                                                    }}
+                                                                ></div>
+                                                            </div>
+                                                        </div>
+                                                    ) : (
+                                                        <button
+                                                            onClick={() => handleVoteClick(election.id, candidate.id, candidate.name, candidate.party, candidate.photo_url, candidate.logo_url)}
+                                                            disabled={!!userVotedFor || voting || election.voting_open === false}
+                                                            className={`py-2 px-4 rounded flex items-center justify-center gap-2 transition-all font-bold text-xs uppercase tracking-wider ${isSelected
+                                                                ? 'bg-green-600 text-white cursor-default'
+                                                                : userVotedFor
+                                                                    ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
+                                                                    : election.voting_open === false
+                                                                        ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
+                                                                        : 'bg-[#D90F74] hover:bg-[#b00c5e] text-white shadow-lg disabled:opacity-50'
+                                                                }`}
+                                                        >
+                                                            {isSelected ? 'Votado' : (election.voting_open === false ? 'Cerrada' : 'Votar')}
+                                                        </button>
+                                                    )}
                                                 </div>
                                             </div>
                                         </div>
@@ -552,6 +616,63 @@ const Elections = () => {
                                     </>
                                 )}
                             </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* CERTIFICATE MODAL */}
+            {showCertificate && (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+                    <div className="bg-white rounded-lg shadow-2xl max-w-2xl w-full overflow-hidden">
+                        <div className="p-4 bg-gray-100 border-b flex justify-between items-center">
+                            <h3 className="font-bold text-gray-800 flex items-center gap-2"><FileText className="text-[#D90F74]" size={20} /> Certificado de Participación Ciudadana</h3>
+                            <button onClick={() => setShowCertificate(null)} className="text-gray-500 hover:text-black">×</button>
+                        </div>
+
+                        <div className="p-8 bg-gray-50 flex justify-center">
+                            {/* CERTIFICATE TEMPLATE */}
+                            <div ref={certificateRef} className="w-[600px] h-[400px] bg-white border-8 border-double border-[#D90F74]/20 relative p-12 text-center shadow-lg text-gray-900"
+                                style={{
+                                    backgroundImage: 'radial-gradient(circle at center, #f3f4f6 1px, transparent 1px)',
+                                    backgroundSize: '20px 20px',
+                                    fontFamily: 'serif'
+                                }}>
+                                <div className="absolute top-4 left-4 opacity-50"><img src="https://igjedwdxqwkpbgrmtrrq.supabase.co/storage/v1/object/public/evidence/others/partidos%20politicos/ine4.png" className="h-16 grayscale" alt="" /></div>
+                                <div className="absolute bottom-4 right-4 opacity-50"><img src="https://igjedwdxqwkpbgrmtrrq.supabase.co/storage/v1/object/public/evidence/others/partidos%20politicos/ine4.png" className="h-16 grayscale" alt="" /></div>
+
+                                <h1 className="text-4xl font-bold text-[#D90F74] mb-2 uppercase tracking-widest border-b-2 border-[#D90F74] inline-block pb-2">Constancia de Voto</h1>
+                                <p className="text-sm font-bold text-gray-500 uppercase tracking-[0.3em] mb-8">Instituto Nacional Electoral • Nación MX</p>
+
+                                <p className="text-lg text-gray-600 italic mb-4">Se hace constar que el ciudadano/a:</p>
+                                <h2 className="text-3xl font-bold text-black mb-6 uppercase underline decoration-[#D90F74]/30 decoration-4 underline-offset-4">
+                                    {memberData?.user?.username || "Ciudadano Distinguido"}
+                                </h2>
+
+                                <p className="text-gray-600 mb-8 leading-relaxed">
+                                    Ha ejercido su derecho al voto libre y secreto en el proceso electoral:
+                                    <br />
+                                    <strong className="text-[#D90F74]">{showCertificate.election.title}</strong>
+                                </p>
+
+                                <div className="flex justify-between items-end border-t border-gray-300 pt-4 mt-8">
+                                    <div className="text-left">
+                                        <p className="text-xs text-gray-400 uppercase font-bold">Fecha de Emisión</p>
+                                        <p className="font-mono font-bold text-lg">{showCertificate.date}</p>
+                                    </div>
+                                    <div className="text-right">
+                                        <p className="text-xs text-gray-400 uppercase font-bold">Folio Digital</p>
+                                        <p className="font-mono font-bold text-[#D90F74] text-lg">{showCertificate.folio}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="p-4 bg-gray-100 border-t flex justify-end gap-3">
+                            <button onClick={() => setShowCertificate(null)} className="px-4 py-2 text-gray-600 font-medium">Cerrar</button>
+                            <button onClick={downloadCertificate} className="px-6 py-2 bg-[#D90F74] hover:bg-[#b00c5e] text-white font-bold rounded shadow-lg flex items-center gap-2">
+                                <Download size={18} /> Descargar Imagen
+                            </button>
                         </div>
                     </div>
                 </div>

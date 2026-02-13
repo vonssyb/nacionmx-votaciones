@@ -108,11 +108,24 @@ class TransactionManager {
      */
     async executeCasinoChipsExchange(userId, chipsAmount, cashAmount, operation) {
         try {
-            const { data, error } = await this.supabase.rpc('execute_chips_exchange', {
+            // Map operation to bet/payout for execute_casino_transaction
+            // Buy: Add chips (Payout = Amount, Bet = 0)
+            // Sell: Remove chips (Payout = 0, Bet = Amount)
+            let bet = 0;
+            let payout = 0;
+
+            if (operation === 'buy') {
+                payout = chipsAmount;
+            } else if (operation === 'sell') {
+                bet = chipsAmount;
+            }
+
+            const { data, error } = await this.supabase.rpc('execute_casino_transaction', {
                 p_user_id: userId,
-                p_chips_amount: chipsAmount,
-                p_cash_amount: cashAmount,
-                p_operation: operation
+                p_bet_amount: bet,
+                p_payout_amount: payout,
+                p_game_type: 'chips_' + operation,
+                p_metadata: { cashAmount }
             });
 
             if (error) throw error;
@@ -124,14 +137,15 @@ class TransactionManager {
                     operation,
                     chipsAmount,
                     cashAmount,
-                    metadata: { newChips: data.new_chips_balance, newCash: data.new_cash_balance }
+                    metadata: { newChips: data.new_balance }
                 }).catch(() => { });
             }
 
+            // Note: We don't return newCashBalance because we don't track it locally anymore (Hybrid model)
             return {
                 success: true,
-                newChipsBalance: data.new_chips_balance,
-                newCashBalance: data.new_cash_balance
+                newChipsBalance: data.new_balance,
+                newCashBalance: null // Handled by UB service
             };
 
         } catch (error) {
@@ -242,6 +256,92 @@ class TransactionManager {
                 error: '❌ Error al procesar el duelo.'
             };
         }
+    }
+
+    /**
+     * Execute atomic Savings transaction (Deposit/Withdraw)
+     * @param {number} accountId
+     * @param {string} userId
+     * @param {number} amount - Positive/Negative
+     * @param {string} type - 'deposit', 'withdrawal'
+     * @param {string} notes
+     */
+    async executeSavingsTransaction(accountId, userId, amount, type, notes = null) {
+        try {
+            const { data, error } = await this.supabase.rpc('execute_savings_transaction', {
+                p_account_id: accountId,
+                p_user_id: userId,
+                p_amount: amount,
+                p_transaction_type: type,
+                p_notes: notes
+            });
+
+            if (error) {
+                // Fallback if RPC is missing
+                if (error.message && (error.message.includes('function') || error.message.includes('does not exist'))) {
+                    logger.warn('RPC execute_savings_transaction missing, using manual fallback', { accountId });
+                    return this._executeSavingsTransactionManual(accountId, userId, amount, type, notes);
+                }
+                throw error;
+            }
+
+            if (this.auditLogger) {
+                await this.auditLogger.logTransaction({
+                    userId,
+                    type: 'savings_' + type,
+                    amount: Math.abs(amount),
+                    metadata: { accountId, newBalance: data.new_balance }
+                }).catch(() => { });
+            }
+
+            return { success: true, newBalance: data.new_balance };
+
+        } catch (error) {
+            logger.error('Savings transaction failed', { accountId, userId, amount, type, error: error.message });
+            return {
+                success: false,
+                error: '❌ Error al procesar la transacción de ahorro.'
+            };
+        }
+    }
+
+    /**
+     * Manual fallback for savings transaction (Not atomic, but functional)
+     * @private
+     */
+    async _executeSavingsTransactionManual(accountId, userId, amount, type, notes) {
+        // 1. Get current balance
+        const { data: account, error: fetchError } = await this.supabase
+            .from('savings_accounts')
+            .select('*')
+            .eq('id', accountId)
+            .single();
+
+        if (fetchError || !account) return { success: false, error: 'Cuenta no encontrada.' };
+
+        // 2. Calculate new balance
+        const newBalance = account.current_balance + amount;
+        if (newBalance < 0) return { success: false, error: 'Saldo insuficiente.' };
+
+        // 3. Update Balance
+        const { error: updateError } = await this.supabase
+            .from('savings_accounts')
+            .update({ current_balance: newBalance })
+            .eq('id', accountId);
+
+        if (updateError) return { success: false, error: 'Error al actualizar saldo.' };
+
+        // 4. Insert Log
+        await this.supabase.from('savings_transactions').insert({
+            account_id: accountId,
+            transaction_type: type,
+            amount: Math.abs(amount),
+            balance_after: newBalance,
+            executed_by: userId,
+            notes: notes
+        });
+
+        return { success: true, newBalance };
     }
 
     /**
