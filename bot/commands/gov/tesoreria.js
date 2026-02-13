@@ -84,10 +84,10 @@ module.exports = {
             } else if (subcommand === 'retirar') {
                 const monto = interaction.options.getInteger('monto');
                 const motivo = interaction.options.getString('motivo');
-                const balance = await treasuryService.getBalance(interaction.guildId);
+                const currentBalance = await treasuryService.getBalance(interaction.guildId);
 
-                if (balance < monto) {
-                    return interaction.editReply(`❌ Fondos insuficientes. Balance actual: $${balance.toLocaleString()}`);
+                if (currentBalance < monto) {
+                    return interaction.editReply(`❌ Fondos insuficientes. Balance actual: $${currentBalance.toLocaleString()}`);
                 }
 
                 // Add to user via UB
@@ -98,7 +98,13 @@ module.exports = {
                 }
 
                 // 1. Withdraw from Treasury (Add negative funds)
-                await treasuryService.addFunds(interaction.guildId, -monto, 'Retiro Gubernamental', `Retiro por ${interaction.user.tag}: ${motivo}`);
+                // This will throw if funds are insufficient or other error
+                const newBalance = await treasuryService.addFunds(
+                    interaction.guildId,
+                    -monto,
+                    'Retiro Gubernamental',
+                    `Retiro por ${interaction.user.tag}: ${motivo}`
+                );
 
                 // 2. Add to user
                 await UnbelievaBoatService.addMoney(interaction.guildId, interaction.user.id, monto, `Retiro Tesorería: ${motivo}`, 'bank');
@@ -108,7 +114,7 @@ module.exports = {
                     .setColor('#E74C3C')
                     .addFields(
                         { name: 'Monto Retirado', value: `$${monto.toLocaleString()}`, inline: true },
-                        { name: 'Nuevo Balance', value: `$${(balance - monto).toLocaleString()}`, inline: true },
+                        { name: 'Nuevo Balance', value: `$${newBalance.toLocaleString()}`, inline: true },
                         { name: 'Beneficiario', value: `<@${interaction.user.id}>`, inline: true },
                         { name: 'Motivo', value: motivo, inline: false }
                     );
@@ -136,7 +142,12 @@ module.exports = {
                 await UnbelievaBoatService.removeMoney(interaction.guildId, interaction.user.id, monto, `Depósito a Tesorería: ${origen}`, 'bank');
 
                 // 2. Add to Treasury
-                const newBalance = await treasuryService.addFunds(interaction.guildId, monto, 'Depósito Manual', `Depósito por ${interaction.user.tag}: ${origen}`);
+                const newBalance = await treasuryService.addFunds(
+                    interaction.guildId,
+                    monto,
+                    'Depósito Manual',
+                    `Depósito por ${interaction.user.tag}: ${origen}`
+                );
 
                 const embed = new EmbedBuilder()
                     .setTitle('💰 Depósito a Tesorería Exitoso')
