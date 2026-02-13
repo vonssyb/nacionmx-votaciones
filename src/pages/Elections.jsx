@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../services/supabase';
 import { useDiscordMember } from '../components/auth/RoleGuard';
-import { Check, AlertCircle, Vote, User, LogIn, ShieldCheck } from 'lucide-react';
+import { Check, AlertCircle, Vote, User, LogIn } from 'lucide-react';
 
 const Elections = () => {
     const memberData = useDiscordMember();
@@ -12,7 +12,7 @@ const Elections = () => {
     const [confirmModal, setConfirmModal] = useState(null);
     const [loginModal, setLoginModal] = useState(false);
     const [timer, setTimer] = useState(10);
-    const [votingAnimation, setVotingAnimation] = useState(null); // 'folded' | 'stamped'
+    const [votingAnimation, setVotingAnimation] = useState(null);
     const [inkEffect, setInkEffect] = useState(false);
     const [expandedCandidate, setExpandedCandidate] = useState(null);
     const [totalVotes, setTotalVotes] = useState(0);
@@ -66,12 +66,8 @@ const Elections = () => {
                     votesData = vData || [];
                 }
 
-                // Get Total Global Votes for Counter
-                const { count, error: countError } = await supabase
-                    .from('election_votes')
-                    .select('*', { count: 'exact', head: true });
-
-                if (!countError) allVotesCount = count;
+                // Global vote count disabled for stability
+                // allVotesCount = ...
 
                 return { electionsData, candidatesData, votesData, allVotesCount };
             };
@@ -81,7 +77,8 @@ const Elections = () => {
             setElections(result.electionsData || []);
             setCandidates(result.candidatesData || []);
             setUserVotes(result.votesData || []);
-            setTotalVotes(result.allVotesCount || 0);
+            setUserVotes(result.votesData || []);
+            // setTotalVotes(result.allVotesCount || 0);
 
         } catch (error) {
             console.error('Error fetching election data:', error);
@@ -199,7 +196,7 @@ const Elections = () => {
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-gray-900 flex flex-col items-center justify-center p-4 bg-guilloche">
+            <div className="min-h-screen bg-gray-900 flex flex-col items-center justify-center p-4">
                 <div className="relative mb-8">
                     <img
                         src="https://igjedwdxqwkpbgrmtrrq.supabase.co/storage/v1/object/public/evidence/others/partidos%20politicos/ine4.png"
@@ -224,7 +221,7 @@ const Elections = () => {
     }
 
     return (
-        <div className="w-full px-4 md:px-8 py-6 space-y-8 bg-gray-900 min-h-screen relative bg-guilloche" onClick={inkEffect ? (e) => { triggerInkEffect(e); setInkEffect(false); } : undefined}>
+        <div className="w-full px-4 md:px-8 py-6 space-y-8 bg-gray-900 min-h-screen relative" onClick={inkEffect ? (e) => { triggerInkEffect(e); setInkEffect(false); } : undefined}>
 
             {/* Header with Stats */}
             <header className="mb-8 border-b border-gray-700/50 pb-6 bg-gray-900/80 backdrop-blur-md p-6 rounded-xl border border-white/5 shadow-2xl">
