@@ -17,6 +17,42 @@ const Elections = () => {
     const [expandedCandidate, setExpandedCandidate] = useState(null);
     const [totalVotes, setTotalVotes] = useState(0);
     const [message, setMessage] = useState(null);
+    const [timeLeft, setTimeLeft] = useState('00:00:00');
+
+    // Timer Logic
+    useEffect(() => {
+        // Target Date: February 15, 2026 at 20:00:00
+        const targetDate = new Date('2026-02-15T20:00:00');
+
+        const updateTimer = () => {
+            const now = new Date();
+            const difference = targetDate - now;
+
+            if (difference > 0) {
+                const hours = Math.floor((difference / (1000 * 60 * 60)) % 24);
+                const minutes = Math.floor((difference / 1000 / 60) % 60);
+                const seconds = Math.floor((difference / 1000) % 60);
+                const d = Math.floor(difference / (1000 * 60 * 60 * 24));
+
+                const h = hours.toString().padStart(2, '0');
+                const m = minutes.toString().padStart(2, '0');
+                const s = seconds.toString().padStart(2, '0');
+
+                if (d > 0) {
+                    setTimeLeft(`${d}d ${h}:${m}:${s}`);
+                } else {
+                    setTimeLeft(`${h}:${m}:${s}`);
+                }
+            } else {
+                setTimeLeft('CERRADO');
+            }
+        };
+
+        const timerId = setInterval(updateTimer, 1000);
+        updateTimer();
+
+        return () => clearInterval(timerId);
+    }, []);
 
     useEffect(() => {
         fetchData();
@@ -243,8 +279,7 @@ const Elections = () => {
                         </div>
                         <div className="px-4 py-2 bg-gray-800 rounded-lg border border-gray-700 text-center min-w-[100px]">
                             <span className="text-[10px] uppercase text-gray-500 font-bold block mb-1">Cierre de Casillas</span>
-                            {/* Placeholder Countdown - In real app, calculate diff from election.end_date */}
-                            <span className="text-xl font-mono text-white font-bold">20:00:00</span>
+                            <span className="text-xl font-mono text-white font-bold">{timeLeft}</span>
                         </div>
                     </div>
                 </div>
