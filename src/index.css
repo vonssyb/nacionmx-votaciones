@@ -81,3 +81,104 @@ button {
 ::-webkit-scrollbar-thumb:hover {
   background: var(--text-muted);
 }
+
+/* GUILLOCHÉ PATTERN */
+.bg-guilloche {
+  background-color: #0a0a0a;
+  background-image:
+    radial-gradient(circle at 100% 50%, transparent 20%, rgba(212, 175, 55, 0.05) 21%, rgba(212, 175, 55, 0.05) 34%, transparent 35%, transparent),
+    radial-gradient(circle at 0% 50%, transparent 20%, rgba(217, 15, 116, 0.05) 21%, rgba(217, 15, 116, 0.05) 34%, transparent 35%, transparent),
+    repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.02) 0, rgba(255, 255, 255, 0.02) 2px, transparent 2px, transparent 8px);
+  background-attachment: fixed;
+}
+
+/* BALLOT ANIMATIONS */
+@keyframes ballot-slide-in {
+  0% {
+    transform: translateY(100%) rotate(-5deg);
+    opacity: 0;
+  }
+
+  100% {
+    transform: translateY(0) rotate(0);
+    opacity: 1;
+  }
+}
+
+@keyframes ballot-stamp {
+  0% {
+    transform: scale(3);
+    opacity: 0;
+  }
+
+  50% {
+    transform: scale(1);
+    opacity: 1;
+  }
+
+  70% {
+    transform: scale(1.1);
+  }
+
+  100% {
+    transform: scale(1) rotate(-15deg);
+  }
+}
+
+@keyframes ballot-fold-drop {
+  0% {
+    transform: translateY(0) rotate(0);
+    filter: brightness(1);
+  }
+
+  30% {
+    transform: translateY(-20px) scale(0.9);
+  }
+
+  100% {
+    transform: translateY(400px) rotate(20deg);
+    opacity: 0;
+    filter: brightness(0.5);
+  }
+}
+
+.animate-ballot-slide-in {
+  animation: ballot-slide-in 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+}
+
+.animate-ballot-stamp {
+  animation: ballot-stamp 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+.animate-ballot-drop {
+  animation: ballot-fold-drop 1.5s ease-in forwards;
+}
+
+/* INK EFFECT */
+@keyframes ink-spread {
+  0% {
+    transform: scale(0);
+    opacity: 0.8;
+  }
+
+  100% {
+    transform: scale(1);
+    opacity: 0;
+  }
+}
+
+.ink-stain {
+  position: fixed;
+  width: 40px;
+  height: 40px;
+  background: radial-gradient(circle, #4b0082 0%, transparent 70%);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 9999;
+  mix-blend-mode: multiply;
+  transform: translate(-50%, -50%);
+}
+
+.animate-ink-spread {
+  animation: ink-spread 2s ease-out forwards;
+}

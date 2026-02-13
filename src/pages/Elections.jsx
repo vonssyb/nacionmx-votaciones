@@ -12,11 +12,15 @@ const Elections = () => {
     const [confirmModal, setConfirmModal] = useState(null);
     const [loginModal, setLoginModal] = useState(false);
     const [timer, setTimer] = useState(10);
-    const [message, setMessage] = useState(null);
-    const [voting, setVoting] = useState(false);
+    const [votingAnimation, setVotingAnimation] = useState(null); // 'folded' | 'stamped'
+    const [inkEffect, setInkEffect] = useState(false);
+    const [expandedCandidate, setExpandedCandidate] = useState(null);
+    const [totalVotes, setTotalVotes] = useState(0);
 
     useEffect(() => {
         fetchData();
+        // Calculate initial total votes
+        // (This will be updated in fetchData but good to init)
     }, [memberData]);
 
     const fetchData = async () => {
@@ -33,55 +37,25 @@ const Elections = () => {
                 let electionsData = [];
                 let candidatesData = [];
                 let votesData = [];
+                let allVotesCount = 0;
 
-                // 1. Try Cache for Static Data (Elections & Candidates)
-                const cached = sessionStorage.getItem('election_cache_static');
-                let startFromCache = false;
+                const { data: eData, error: eError } = await supabase
+                    .from('elections')
+                    .select('*')
+                    .eq('is_active', true)
+                    .order('id');
+                if (eError) throw eError;
+                electionsData = eData;
 
-                if (cached) {
-                    try {
-                        const { timestamp, data } = JSON.parse(cached);
-                        if ((Date.now() - timestamp) < 10 * 60 * 1000) {
-                            // electionsData = data.electionsData;
-                            // candidatesData = data.candidatesData;
-                            // startFromCache = true;
-                            // console.log('Using cached static data');
-                            // FORCE INVALIDATE: To ensure 'is_active' changes are reflected immediately
-                            startFromCache = false;
-                            sessionStorage.removeItem('election_cache_static');
-                        }
-                    } catch (e) {
-                        sessionStorage.removeItem('election_cache_static');
-                    }
-                }
-
-                // 2. Fetch Static Data if not valid in cache
-                if (!startFromCache) {
-                    const { data: eData, error: eError } = await supabase
-                        .from('elections')
-                        .select('*')
-                        .eq('is_active', true)
-                        .order('id');
-                    if (eError) throw eError;
-                    electionsData = eData;
-
-                    const { data: cData, error: cError } = await supabase
-                        .from('election_candidates')
-                        .select('*')
-                        .in('election_id', electionsData.map(e => e.id))
-                        .order('party', { ascending: true });
-                    if (cError) throw cError;
-                    candidatesData = cData;
-
-                    // Update Cache
-                    sessionStorage.setItem('election_cache_static', JSON.stringify({
-                        timestamp: Date.now(),
-                        data: { electionsData, candidatesData }
-                    }));
-                }
+                const { data: cData, error: cError } = await supabase
+                    .from('election_candidates')
+                    .select('*')
+                    .in('election_id', electionsData.map(e => e.id))
+                    .order('party', { ascending: true });
+                if (cError) throw cError;
+                candidatesData = cData;
 
                 // 3. ALWAYS Fetch User Votes (Never Cache)
-                // This resolves the issue where deleting a vote in DB doesn't update UI
                 if (memberData?.user?.id) {
                     const { data: vData, error: vError } = await supabase
                         .from('election_votes')
@@ -92,7 +66,14 @@ const Elections = () => {
                     votesData = vData || [];
                 }
 
-                return { electionsData, candidatesData, votesData };
+                // Get Total Global Votes for Counter
+                const { count, error: countError } = await supabase
+                    .from('election_votes')
+                    .select('*', { count: 'exact', head: true });
+
+                if (!countError) allVotesCount = count;
+
+                return { electionsData, candidatesData, votesData, allVotesCount };
             };
 
             const result = await Promise.race([loadData(), timeoutPromise]);
@@ -100,6 +81,7 @@ const Elections = () => {
             setElections(result.electionsData || []);
             setCandidates(result.candidatesData || []);
             setUserVotes(result.votesData || []);
+            setTotalVotes(result.allVotesCount || 0);
 
         } catch (error) {
             console.error('Error fetching election data:', error);
@@ -112,16 +94,28 @@ const Elections = () => {
 
     useEffect(() => {
         let interval;
-        if (confirmModal && timer > 0) {
+        if (confirmModal && timer > 0 && !votingAnimation) {
             interval = setInterval(() => {
                 setTimer((prev) => prev - 1);
             }, 1000);
-        } else if (confirmModal && timer === 0) {
+        } else if (confirmModal && timer === 0 && !votingAnimation) {
             // Auto-cancel logic
             setConfirmModal(null);
         }
         return () => clearInterval(interval);
-    }, [confirmModal, timer]);
+    }, [confirmModal, timer, votingAnimation]);
+
+    // Ink Effect Logic
+    const triggerInkEffect = (e) => {
+        const x = e.clientX;
+        const y = e.clientY;
+        const ink = document.createElement('div');
+        ink.className = 'ink-stain animate-ink-spread';
+        ink.style.left = `${x}px`;
+        ink.style.top = `${y}px`;
+        document.body.appendChild(ink);
+        setTimeout(() => ink.remove(), 2000);
+    };
 
     const handleVoteClick = (electionId, candidateId, candidateName, candidateParty, candidatePhoto, candidateLogo) => {
         if (!memberData?.user?.id) {
@@ -130,7 +124,6 @@ const Elections = () => {
         }
 
         // CHECK ROLE for Voting
-        // Role ID: 1412899401000685588
         const REQUIRED_ROLE_ID = '1412899401000685588';
         const hasRole = memberData.roles && memberData.roles.includes(REQUIRED_ROLE_ID);
 
@@ -145,9 +138,9 @@ const Elections = () => {
 
         if (voting) return;
 
-        // Open Confirmation Modal
+        // Open Virtual Ballot Modal
         setConfirmModal({ electionId, candidateId, candidateName, candidateParty, candidatePhoto, candidateLogo });
-        setTimer(10);
+        setTimer(15); // More time for the immersive experience
     };
 
     const confirmVote = async () => {
@@ -155,8 +148,11 @@ const Elections = () => {
         const { electionId, candidateId } = confirmModal;
 
         setVoting(true);
-        setMessage(null);
-        setConfirmModal(null); // Close modal
+        // Start Animation Sequence
+        setVotingAnimation('stamping');
+
+        // Wait for stamp animation
+        await new Promise(r => setTimeout(r, 600));
 
         try {
             const { error } = await supabase
@@ -173,18 +169,29 @@ const Elections = () => {
                 } else {
                     throw error;
                 }
+                setConfirmModal(null);
+                setVotingAnimation(null);
             } else {
-                setMessage({ type: 'success', text: '¡Voto registrado exitosamente!' });
+                setVotingAnimation('dropping'); // Fold and drop animation
+                await new Promise(r => setTimeout(r, 1000));
+
+                setMessage({ type: 'success', text: '¡Voto registrado y boleta depositada!' });
 
                 // Refresh votes locally
                 const newVotes = [...userVotes, { election_id: electionId, candidate_id: candidateId }];
                 setUserVotes(newVotes);
-                // We don't cache votes anymore to prevent sync issues
+                setTotalVotes(prev => prev + 1);
+
+                setConfirmModal(null);
+                setVotingAnimation(null);
+                setInkEffect(true); // Show ink on finger/screen
             }
 
         } catch (error) {
             console.error('Error voting:', error);
             setMessage({ type: 'error', text: 'Error al registrar el voto.' });
+            setConfirmModal(null);
+            setVotingAnimation(null);
         } finally {
             setVoting(false);
         }
@@ -192,7 +199,7 @@ const Elections = () => {
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-gray-900 flex flex-col items-center justify-center p-4">
+            <div className="min-h-screen bg-gray-900 flex flex-col items-center justify-center p-4 bg-guilloche">
                 <div className="relative mb-8">
                     <img
                         src="https://igjedwdxqwkpbgrmtrrq.supabase.co/storage/v1/object/public/evidence/others/partidos%20politicos/ine4.png"
@@ -202,7 +209,7 @@ const Elections = () => {
                 </div>
                 <div className="w-12 h-12 border-4 border-gray-700 border-t-[#D90F74] rounded-full animate-spin mb-4"></div>
                 <h2 className="text-xl font-bold text-white tracking-wider">SISTEMA ELECTORAL</h2>
-                <p className="text-[#D90F74] text-sm font-medium mt-2 animate-pulse">Cargando módulos de votación...</p>
+                <p className="text-[#D90F74] text-sm font-medium mt-2 animate-pulse">Verificando padrón electoral...</p>
                 <style>{`
                     @keyframes bounce-slow {
                         0%, 100% { transform: translateY(-5%); }
@@ -217,28 +224,39 @@ const Elections = () => {
     }
 
     return (
-        <div className="w-full px-4 md:px-8 py-6 space-y-8 bg-gray-900 min-h-screen relative">
-            {/* ... Header omitted for brevity ... */}
-            <header className="mb-8 border-b border-gray-700 pb-6">
+        <div className="w-full px-4 md:px-8 py-6 space-y-8 bg-gray-900 min-h-screen relative bg-guilloche" onClick={inkEffect ? (e) => { triggerInkEffect(e); setInkEffect(false); } : undefined}>
+
+            {/* Header with Stats */}
+            <header className="mb-8 border-b border-gray-700/50 pb-6 bg-gray-900/80 backdrop-blur-md p-6 rounded-xl border border-white/5 shadow-2xl">
                 <div className="flex flex-col md:flex-row items-center justify-between gap-4">
                     <div className="flex items-center gap-4">
+                        <img src="https://igjedwdxqwkpbgrmtrrq.supabase.co/storage/v1/object/public/evidence/others/partidos%20politicos/ine4.png" className="h-16 w-auto" alt="INE Logo" />
                         <div>
-                            <h1 className="text-3xl font-bold text-gray-100">
-                                Votaciones
+                            <h1 className="text-3xl font-bold text-gray-100 uppercase tracking-widest">
+                                Elecciones Federales
                             </h1>
-                            <p className="text-[#D90F74] font-medium mt-1">Proceso Electoral Federal 2026</p>
+                            <p className="text-[#D90F74] font-bold text-sm tracking-[0.2em] mt-1">INSTITUTO NACIONAL ELECTORAL</p>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-6 text-right">
+                        <div className="hidden md:block">
+                            <span className="text-gray-400 text-xs uppercase tracking-wider block">Participación Ciudadana</span>
+                            <span className="text-2xl font-mono font-bold text-white">{totalVotes.toLocaleString()} <span className="text-[#D90F74] text-sm">Votos</span></span>
+                        </div>
+                        <div className="px-4 py-2 bg-gray-800 rounded-lg border border-gray-700 text-center min-w-[100px]">
+                            <span className="text-[10px] uppercase text-gray-500 font-bold block mb-1">Cierre de Casillas</span>
+                            {/* Placeholder Countdown - In real app, calculate diff from election.end_date */}
+                            <span className="text-xl font-mono text-white font-bold">20:00:00</span>
                         </div>
                     </div>
                 </div>
                 {!memberData && (
                     <div className="mt-6 p-4 bg-gray-800/80 border-l-4 border-[#D90F74] rounded-r-lg flex flex-col sm:flex-row items-center justify-between gap-4">
                         <div className="flex items-center gap-3">
-                            <div className="p-2 bg-[#D90F74]/10 rounded-full text-[#D90F74]">
-                                <User size={24} />
-                            </div>
+                            <User size={24} className="text-[#D90F74]" />
                             <div>
                                 <h3 className="text-white font-medium">Modo Invitado</h3>
-                                <p className="text-gray-400 text-sm">Inicia sesión con Discord para poder emitir tu voto.</p>
+                                <p className="text-gray-400 text-sm">Inicia sesión con Discord para ejercer tu derecho al voto.</p>
                             </div>
                         </div>
                         <button
@@ -246,10 +264,10 @@ const Elections = () => {
                                 sessionStorage.setItem('auth_redirect', window.location.pathname);
                                 window.location.hash = '/login';
                             }}
-                            className="px-6 py-2.5 bg-[#D90F74] hover:bg-[#b00c5e] text-white font-bold rounded-lg transition-all shadow-lg shadow-[#D90F74]/20 flex items-center gap-2 whitespace-nowrap"
+                            className="px-6 py-2 bg-[#D90F74] hover:bg-[#b00c5e] text-white font-bold rounded shadow-lg flex items-center gap-2 uppercase text-sm tracking-wider"
                         >
-                            <LogIn size={20} />
-                            Iniciar Sesión
+                            <LogIn size={18} />
+                            Identificarse
                         </button>
                     </div>
                 )}
@@ -266,7 +284,7 @@ const Elections = () => {
             {elections.length === 0 ? (
                 <div className="text-center p-12 bg-gray-800/50 rounded-xl border border-gray-700">
                     <Vote size={48} className="mx-auto text-gray-600 mb-4" />
-                    <h3 className="text-xl text-gray-300">No hay elecciones activas en este momento.</h3>
+                    <h3 className="text-xl text-gray-300">No hay procesos electorales activos.</h3>
                 </div>
             ) : (
                 elections.map(election => {
@@ -274,14 +292,19 @@ const Elections = () => {
                     const electionCandidates = candidates.filter(c => c.election_id === election.id);
 
                     return (
-                        <section key={election.id} className="bg-gray-800/40 rounded-xl border border-gray-700 overflow-hidden text-gray-200">
-                            <div className="p-6 border-b border-gray-700 bg-gray-900/50">
-                                <h2 className="text-2xl font-bold text-[#D90F74]">{election.title}</h2>
-                                <p className="text-gray-400 text-sm mt-1">{election.description}</p>
+                        <section key={election.id} className="bg-gray-800/60 backdrop-blur-sm rounded-xl border border-gray-700/50 overflow-hidden text-gray-200 shadow-2xl relative">
+                            {/* Decorative header line */}
+                            <div className="h-1 w-full bg-gradient-to-r from-[#D90F74] via-purple-600 to-[#D90F74]"></div>
+
+                            <div className="p-6 border-b border-gray-700/50 bg-gray-900/50 flex justify-between items-start">
+                                <div>
+                                    <h2 className="text-2xl font-bold text-white uppercase tracking-wider">{election.title}</h2>
+                                    <p className="text-gray-400 text-sm mt-1 max-w-2xl">{election.description}</p>
+                                </div>
                                 {userVotedFor && (
-                                    <div className="mt-3 inline-flex items-center gap-2 px-3 py-1 bg-green-900/30 text-green-400 rounded-full border border-green-800 text-xs font-medium">
-                                        <Check size={14} />
-                                        Ya has votado en esta elección
+                                    <div className="hidden md:flex items-center gap-2 px-4 py-2 bg-green-900/20 text-green-400 rounded border border-green-800/50 text-xs font-bold uppercase tracking-widest shadow-[0_0_10px_rgba(74,222,128,0.1)]">
+                                        <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+                                        Voto Registrado
                                     </div>
                                 )}
                             </div>
@@ -292,90 +315,74 @@ const Elections = () => {
 
                                     return (
                                         <div key={candidate.id} className={`relative group rounded-lg overflow-hidden border transition-all duration-300 ${isSelected
-                                            ? 'border-green-500 bg-green-900/10 shadow-[0_0_15px_rgba(34,197,94,0.3)]'
-                                            : 'border-gray-700 bg-gray-800 hover:border-gray-500 hover:bg-gray-750'
+                                            ? 'border-green-500/50 bg-green-900/5 shadow-[0_0_20px_rgba(34,197,94,0.1)]'
+                                            : 'border-gray-700/50 bg-gray-800/40 hover:border-[#D90F74]/50 hover:bg-gray-800/60 hover:shadow-lg'
                                             }`}>
-                                            <div className="aspect-video bg-gray-900 relative overflow-hidden">
+                                            <div className="aspect-[16/9] bg-gray-900 relative overflow-hidden">
                                                 {candidate.photo_url ? (
                                                     <img
                                                         src={candidate.photo_url}
                                                         alt={candidate.name}
-                                                        className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-500"
+                                                        className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-700 grayscale-[20%] group-hover:grayscale-0"
                                                         onError={(e) => {
                                                             e.target.onerror = null;
                                                             e.target.src = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(candidate.name) + '&background=random';
                                                         }}
                                                     />
                                                 ) : (
-                                                    <div className="w-full h-full flex items-center justify-center text-gray-600">
+                                                    <div className="w-full h-full flex items-center justify-center text-gray-600 bg-gray-800">
                                                         <User size={48} />
                                                     </div>
                                                 )}
 
+                                                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-90"></div>
+
                                                 {candidate.party && (
-                                                    <div className="absolute top-2 right-2 px-2 py-1 bg-black/70 backdrop-blur-sm rounded text-xs font-bold text-white border border-white/10">
+                                                    <div className="absolute top-2 right-2 px-2 py-1 bg-black/60 backdrop-blur-md rounded border border-white/10 text-[10px] font-bold text-white uppercase tracking-wider">
                                                         {candidate.party}
                                                     </div>
                                                 )}
 
-                                                {/* Logo Overlay on card (Optional but nice) */}
+                                                <div className="absolute bottom-0 left-0 p-4 w-full">
+                                                    <h3 className="text-xl font-bold text-white mb-0 leading-tight">{candidate.name}</h3>
+                                                    <p className="text-gray-300 text-xs font-medium opacity-80 mt-1">{candidate.party || 'Candidato Independiente'}</p>
+                                                </div>
+
                                                 {candidate.logo_url && (
-                                                    <div className="absolute bottom-2 right-2 w-12 h-12 rounded-full overflow-hidden drop-shadow-md transition-transform hover:scale-110 bg-white/10 backdrop-blur-sm">
-                                                        <img src={candidate.logo_url} alt="Party Logo" className="w-full h-full object-cover" />
+                                                    <div className="absolute bottom-4 right-4 w-10 h-10 rounded-full overflow-hidden border border-white/20 shadow-lg bg-white/5 backdrop-blur-sm">
+                                                        <img src={candidate.logo_url} alt="Logo" className="w-full h-full object-cover" />
                                                     </div>
                                                 )}
                                             </div>
 
-                                            <div className="p-5">
-                                                <h3 className="text-xl font-bold text-white mb-1">{candidate.name}</h3>
-                                                <p className="text-gray-400 text-sm mb-4 min-h-[2.5em]">
+                                            <div className="p-4 border-t border-white/5">
+                                                <p className="text-gray-400 text-sm mb-4 line-clamp-2 h-[2.5em]">
                                                     {candidate.proposals || "Sin propuestas registradas."}
                                                 </p>
 
-                                                {/* Gabinete Section */}
-                                                {candidate.cabinet && candidate.cabinet.length > 0 && (
-                                                    <div className="mb-4 bg-gray-900/50 rounded-lg p-3 border border-gray-700/50">
-                                                        <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 border-b border-gray-700/50 pb-1">Gabinete</h4>
-                                                        <div className="space-y-2 max-h-40 overflow-y-auto pr-1 custom-scrollbar">
-                                                            {candidate.cabinet.map((member, idx) => (
-                                                                <div key={idx} className="flex justify-between items-start text-xs">
-                                                                    <div className="font-medium text-gray-300">{member.position}:</div>
-                                                                    <div className="text-gray-400 text-right">{member.name}</div>
-                                                                </div>
-                                                            ))}
-                                                        </div>
-                                                    </div>
-                                                )}
+                                                <div className="grid grid-cols-2 gap-2">
+                                                    <button
+                                                        onClick={() => setExpandedCandidate(candidate)}
+                                                        className="py-2 px-4 rounded border border-gray-600 text-gray-400 hover:text-white hover:border-gray-500 text-xs font-bold uppercase tracking-wider transition-colors"
+                                                    >
+                                                        Ver Perfil
+                                                    </button>
 
-                                                <button
-                                                    onClick={() => handleVoteClick(election.id, candidate.id, candidate.name, candidate.party, candidate.photo_url, candidate.logo_url)}
-                                                    disabled={!!userVotedFor || voting || election.voting_open === false}
-                                                    className={`w-full py-2 px-4 rounded font-medium flex items-center justify-center gap-2 transition-all ${isSelected
-                                                        ? 'bg-green-600 text-white cursor-default'
-                                                        : userVotedFor
-                                                            ? 'bg-gray-700 text-gray-500 cursor-not-allowed opacity-50'
-                                                            : election.voting_open === false
-                                                                ? 'bg-gray-700 text-gray-400 cursor-not-allowed border border-gray-600'
-                                                                : 'bg-[#D90F74] hover:bg-[#b00c5e] text-white shadow-lg hover:shadow-[#D90F74]/30'
-                                                        }`}
-                                                >
-                                                    {isSelected ? (
-                                                        <>
-                                                            <Check size={18} />
-                                                            Votado
-                                                        </>
-                                                    ) : election.voting_open === false ? (
-                                                        <>
-                                                            <Vote size={18} className="opacity-50" />
-                                                            Votación Pausada
-                                                        </>
-                                                    ) : (
-                                                        <>
-                                                            <Vote size={18} />
-                                                            {memberData?.user?.id ? 'Votar' : 'Iniciar Sesión para Votar'}
-                                                        </>
-                                                    )}
-                                                </button>
+                                                    <button
+                                                        onClick={() => handleVoteClick(election.id, candidate.id, candidate.name, candidate.party, candidate.photo_url, candidate.logo_url)}
+                                                        disabled={!!userVotedFor || voting || election.voting_open === false}
+                                                        className={`py-2 px-4 rounded flex items-center justify-center gap-2 transition-all font-bold text-xs uppercase tracking-wider ${isSelected
+                                                            ? 'bg-green-600 text-white cursor-default'
+                                                            : userVotedFor
+                                                                ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
+                                                                : election.voting_open === false
+                                                                    ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
+                                                                    : 'bg-[#D90F74] hover:bg-[#b00c5e] text-white shadow-lg disabled:opacity-50'
+                                                            }`}
+                                                    >
+                                                        {isSelected ? 'Votado' : (election.voting_open === false ? 'Cerrada' : 'Votar')}
+                                                    </button>
+                                                </div>
                                             </div>
                                         </div>
                                     );
@@ -386,106 +393,108 @@ const Elections = () => {
                 })
             )}
 
-            {/* Login Modal */}
-            {loginModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-                    <div className="bg-gray-900 border border-[#D90F74]/50 rounded-xl p-6 max-w-sm w-full shadow-2xl relative overflow-hidden">
-                        <div className="absolute top-0 left-0 right-0 h-1 bg-[#D90F74]"></div>
-                        <div className="flex justify-center mb-4">
-                            <div className="p-3 bg-[#D90F74]/20 rounded-full text-[#D90F74]">
-                                <LogIn size={32} />
+            {/* EXPANDED CANDIDATE MODAL */}
+            {expandedCandidate && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-fade-in" onClick={() => setExpandedCandidate(null)}>
+                    <div className="bg-gray-900 border border-gray-700 rounded-xl max-w-2xl w-full max-h-[80vh] overflow-y-auto relative shadow-2xl" onClick={e => e.stopPropagation()}>
+                        <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-[#D90F74]/20 to-transparent pointer-events-none"></div>
+                        <button className="absolute top-4 right-4 z-10 p-2 bg-black/50 rounded-full text-white hover:bg-black/80" onClick={() => setExpandedCandidate(null)}><span className="text-xl">×</span></button>
+
+                        <div className="p-8">
+                            <div className="flex flex-col md:flex-row gap-6 mb-8 items-center md:items-start">
+                                <img src={expandedCandidate.photo_url || "https://ui-avatars.com/api/?name=" + expandedCandidate.name} className="w-32 h-32 rounded-xl object-cover border-2 border-[#D90F74] shadow-[0_0_30px_rgba(217,15,116,0.2)]" alt="" />
+                                <div>
+                                    <div className="inline-block px-2 py-1 bg-[#D90F74] text-white text-[10px] font-bold uppercase tracking-widest rounded mb-2">{expandedCandidate.party}</div>
+                                    <h2 className="text-3xl font-bold text-white mb-2">{expandedCandidate.name}</h2>
+                                    <p className="text-gray-400 text-lg italic">"{expandedCandidate.proposals?.substring(0, 50)}..."</p>
+                                </div>
                             </div>
-                        </div>
-                        <h3 className="text-2xl font-bold text-white mb-2 text-center">Iniciar Sesión</h3>
-                        <p className="text-gray-300 mb-6 text-center">
-                            Para garantizar la seguridad y unicidad del voto, es necesario iniciar sesión con tu cuenta de Discord.
-                        </p>
-                        <div className="flex flex-col gap-3">
-                            <button
-                                onClick={() => {
-                                    sessionStorage.setItem('auth_redirect', window.location.pathname);
-                                    window.location.hash = '/login';
-                                }}
-                                className="w-full py-3 bg-[#D90F74] hover:bg-[#b00c5e] text-white font-bold rounded-lg transition-all shadow-lg shadow-[#D90F74]/20 flex items-center justify-center gap-2"
-                            >
-                                <LogIn size={20} />
-                                Iniciar Sesión con Discord
-                            </button>
-                            <button
-                                onClick={() => setLoginModal(false)}
-                                className="w-full py-3 bg-gray-800 hover:bg-gray-700 text-gray-400 font-medium rounded-lg transition-all border border-gray-700"
-                            >
-                                <span className="text-gray-400">Cancelar</span>
-                            </button>
+
+                            <div className="space-y-6">
+                                <div>
+                                    <h3 className="text-[#D90F74] font-bold uppercase tracking-widest text-sm mb-3 border-b border-gray-800 pb-2">Propuestas de Campaña</h3>
+                                    <p className="text-gray-300 leading-relaxed whitespace-pre-line">{expandedCandidate.proposals || "No hay información detallada disponible."}</p>
+                                </div>
+
+                                {expandedCandidate.cabinet && expandedCandidate.cabinet.length > 0 && (
+                                    <div>
+                                        <h3 className="text-[#D90F74] font-bold uppercase tracking-widest text-sm mb-3 border-b border-gray-800 pb-2">Gabinete Propuesto</h3>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                            {expandedCandidate.cabinet.map((m, i) => (
+                                                <div key={i} className="flex items-center justify-between p-3 bg-gray-800/50 rounded border border-gray-700/50">
+                                                    <span className="text-gray-400 text-sm">{m.position}</span>
+                                                    <span className="text-white font-medium text-sm">{m.name}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </div>
                 </div>
             )}
 
-            {/* Confirmation Modal */}
+            {/* VIRTUAL BALLOT MODAL */}
             {confirmModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-                    <div className="bg-gray-900 border border-[#D90F74]/50 rounded-xl p-6 max-w-sm w-full shadow-2xl relative overflow-hidden">
-                        {/* Pink top bar */}
-                        <div className="absolute top-0 left-0 right-0 h-1 bg-[#D90F74]"></div>
-
-                        <div className="text-center mb-4 pt-4">
-                            {/* Candidate Photo + Party Logo */}
-                            <div className="relative w-32 h-32 mx-auto mb-4">
-                                <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-[#D90F74]/30 shadow-[0_0_20px_rgba(217,15,116,0.2)]">
-                                    {confirmModal.candidatePhoto ? (
-                                        <img
-                                            src={confirmModal.candidatePhoto}
-                                            alt={confirmModal.candidateName}
-                                            className="w-full h-full object-cover"
-                                        />
-                                    ) : (
-                                        <div className="w-full h-full bg-gray-800 flex items-center justify-center">
-                                            <User size={40} className="text-gray-500" />
-                                        </div>
-                                    )}
-                                </div>
-
-                                {confirmModal.candidateLogo && (
-                                    <div className="absolute -bottom-2 -right-2 w-14 h-14 rounded-full overflow-hidden border-2 border-[#D90F74] shadow-lg transform rotate-12 bg-white/10 backdrop-blur-sm">
-                                        <img
-                                            src={confirmModal.candidateLogo}
-                                            alt="Party Logo"
-                                            className="w-full h-full object-cover"
-                                        />
-                                    </div>
-                                )}
+                    {/* The Ballot */}
+                    <div className={`relative bg-[#f8f5e6] text-black w-full max-w-md p-8 shadow-2xl transition-all duration-500 transform 
+                        ${votingAnimation === 'stamping' ? 'animate-ballot-stamp' : ''}
+                        ${votingAnimation === 'dropping' ? 'animate-ballot-drop' : 'animate-ballot-slide-in'}
+                        rounded-sm border-2 border-[#d4af37] pattern-paper`}
+                        style={{ backgroundImage: 'radial-gradient(#d4af37 0.5px, transparent 0.5px)', backgroundSize: '20px 20px' }}
+                    >
+                        {/* Watermark / Header */}
+                        <div className="border-b-2 border-black/80 pb-4 mb-6 flex justify-between items-center opacity-90">
+                            <div>
+                                <h2 className="text-lg font-bold uppercase tracking-widest">Boleta Electoral</h2>
+                                <p className="text-[10px] uppercase font-bold text-gray-600">Proceso Federal 2026 • Entidad Federativa MX</p>
                             </div>
-
-                            {confirmModal.candidateParty && (
-                                <div className="inline-block px-3 py-1 bg-[#D90F74] text-white text-xs font-bold uppercase tracking-wider rounded-sm mb-2 shadow-lg">
-                                    {confirmModal.candidateParty}
-                                </div>
-                            )}
-
-                            <h3 className="text-xl font-bold text-white mb-1">Confirmar Voto</h3>
+                            <img src="https://igjedwdxqwkpbgrmtrrq.supabase.co/storage/v1/object/public/evidence/others/partidos%20politicos/ine4.png" className="h-10 grayscale opacity-50" alt="" />
                         </div>
 
-                        <p className="text-gray-300 mb-6 text-center">
-                            Estás a punto de emitir tu voto por <span className="text-white font-bold">{confirmModal.candidateName}</span>.
-                            <br /><br />
-                            <span className="text-sm text-gray-500">¿Estás seguro? Esta acción no se puede deshacer.</span>
-                        </p>
+                        {/* Candidate Selection Area */}
+                        <div className="border-4 border-black relative p-6 mb-8 bg-white shadow-inner">
+                            <div className="flex gap-4 items-center">
+                                <div className="border border-gray-300 p-1 w-20 h-20 shrink-0">
+                                    <img src={confirmModal.candidateLogo || confirmModal.candidatePhoto} className="w-full h-full object-contain grayscale" alt="" />
+                                </div>
+                                <div>
+                                    <h3 className="font-bold text-2xl uppercase">{confirmModal.candidateName}</h3>
+                                    <p className="text-sm font-bold text-gray-500 uppercase">{confirmModal.candidateParty}</p>
+                                </div>
+                            </div>
 
-                        <div className="flex flex-col gap-3">
-                            <button
-                                onClick={confirmVote}
-                                className="w-full py-3 bg-[#D90F74] hover:bg-[#b00c5e] text-white font-bold rounded-lg transition-all shadow-lg shadow-[#D90F74]/20 flex items-center justify-center gap-2"
-                            >
-                                <Check size={20} />
-                                Confirmar Voto
-                            </button>
-                            <button
-                                onClick={() => setConfirmModal(null)}
-                                className="w-full py-3 bg-gray-800 hover:bg-gray-700 text-gray-400 font-medium rounded-lg transition-all border border-gray-700"
-                            >
-                                Cancelar ({timer}s)
-                            </button>
+                            {/* THE X MARK */}
+                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                <span className={`text-9xl text-black font-handwriting transform -rotate-12 opacity-0 transition-opacity duration-300 ${votingAnimation ? 'opacity-90' : ''}`} style={{ fontFamily: 'cursive' }}>X</span>
+                            </div>
+                        </div>
+
+                        {/* Stamped 'VOTADO' Effect */}
+                        {votingAnimation && (
+                            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 border-4 border-[#D90F74] text-[#D90F74] p-4 text-4xl font-bold uppercase opacity-80 rotate-[-25deg] mix-blend-multiply animate-pulse pointer-events-none z-20">
+                                VOTADO
+                            </div>
+                        )}
+
+                        <div className="text-center mt-4">
+                            <p className="text-xs uppercase font-bold text-gray-500 mb-4">Confirme su selección para depositar la boleta.</p>
+                            <div className="flex gap-2 justify-center">
+                                {votingAnimation ? (
+                                    <button disabled className="px-8 py-3 bg-gray-800 text-white font-bold uppercase tracking-widest rounded shadow-xl cursor-wait">
+                                        Procesando...
+                                    </button>
+                                ) : (
+                                    <>
+                                        <button onClick={() => setConfirmModal(null)} className="px-4 py-2 text-gray-600 hover:text-black font-bold uppercase text-xs border border-gray-400 hover:bg-gray-100 transition-colors">Cancelar</button>
+                                        <button onClick={confirmVote} className="px-8 py-2 bg-black text-white hover:bg-gray-800 font-bold uppercase text-xs shadow-lg transition-transform transform hover:-translate-y-1">
+                                            Depositar en Urna
+                                        </button>
+                                    </>
+                                )}
+                            </div>
                         </div>
                     </div>
                 </div>
