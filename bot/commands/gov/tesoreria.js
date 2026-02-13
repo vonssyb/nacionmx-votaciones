@@ -176,17 +176,18 @@ module.exports = {
                     .setTitle('💰 Depósito a Tesorería Exitoso')
                     .setColor('#2ECC71')
                     .addFields(
-                        { name: 'Monto Depositado', value: `$${monto.toLocaleString()}`, inline: true },
+                        { name: 'Monto Depositado', value: `$${monto ? monto.toLocaleString() : '0'}`, inline: true },
                         { name: 'Nuevo Balance', value: `$${newBalance !== undefined && newBalance !== null ? newBalance.toLocaleString() : 'Error'}`, inline: true },
-                        { name: 'Origen', value: origen, inline: false }
+                        { name: 'Origen', value: origen || 'Desconocido', inline: false }
                     );
 
                 await interaction.editReply({ embeds: [embed] });
             }
 
         } catch (error) {
+            console.error('[Tesoreria Debug] FATAL ERROR:', error);
             logger.errorWithContext('Error in tesoreria command:', error);
-            await interaction.editReply(`❌ Ocurrió un error al procesar la solicitud: ${error.message}`).catch(e => console.error(e));
+            await interaction.editReply(`❌ Ocurrió un error al procesar la solicitud (v2): ${error.message}`).catch(e => console.error(e));
         }
     }
 };
