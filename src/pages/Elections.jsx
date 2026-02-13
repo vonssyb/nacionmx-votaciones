@@ -181,6 +181,20 @@ const Elections = () => {
 
         if (voting) return;
 
+        // CHECK DATE
+        const election = elections.find(e => e.id === electionId);
+        if (election && election.end_date) {
+            const endDate = new Date(election.end_date);
+            if (new Date() > endDate) {
+                setMessage({
+                    type: 'error',
+                    text: 'Las votaciones para esta elección han cerrado.'
+                });
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+                return;
+            }
+        }
+
         // Open Virtual Ballot Modal
         setConfirmModal({ electionId, candidateId, candidateName, candidateParty, candidatePhoto, candidateLogo });
         setTimer(15); // More time for the immersive experience

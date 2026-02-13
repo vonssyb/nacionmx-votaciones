@@ -48,11 +48,20 @@ const ElectionsAdmin = () => {
             const { data: vData, error: vError } = await supabase.from('election_votes').select('election_id, candidate_id');
 
             if (!vError && vData) {
+                // OLD: Local count (RLS restricted)
+                // const counts = {};
+                // vData.forEach(v => { ... });
+
+                // NEW: RPC count (Secure, Global)
+                const { data: rpcData, error: rpcError } = await supabase.rpc('get_all_votes_grouped');
+
                 const counts = {};
-                vData.forEach(v => {
-                    const key = `${v.election_id}-${v.candidate_id}`;
-                    counts[key] = (counts[key] || 0) + 1;
-                });
+                if (!rpcError && rpcData) {
+                    rpcData.forEach(item => {
+                        const key = `${item.election_id}-${item.candidate_id}`;
+                        counts[key] = item.vote_count;
+                    });
+                }
 
                 const candidatesWithVotes = cData.map(c => ({
                     ...c,
@@ -302,7 +311,8 @@ const ElectionsAdmin = () => {
                                     <input
                                         type="datetime-local"
                                         className="w-full bg-gray-900 border border-gray-700 p-2 rounded text-white"
-                                        value={electionForm.end_date ? new Date(electionForm.end_date).toISOString().slice(0, 16) : ''}
+                                        // Use the raw string from state if available, or convert DB value to local string for display
+                                        value={electionForm.end_date ? (electionForm.end_date.includes('T') && electionForm.end_date.length > 16 ? electionForm.end_date.slice(0, 16) : electionForm.end_date) : ''}
                                         onChange={e => setElectionForm({ ...electionForm, end_date: e.target.value })}
                                     />
                                 </div>
@@ -329,7 +339,18 @@ const ElectionsAdmin = () => {
                                             <button onClick={(e) => { e.stopPropagation(); handleFinalizeElection(election); }} className="p-1 text-gray-400 hover:text-gray-300" title="Finalizar/Archivar Elección"><Archive size={16} /></button>
                                             <button onClick={(e) => { e.stopPropagation(); openResultsModal(election); }} className="p-1 text-purple-400 hover:text-purple-300" title="Resultados e Imagen"><Download size={16} /></button>
 
-                                            <button onClick={(e) => { e.stopPropagation(); setEditingElection(election); setElectionForm({ title: election.title, position: election.position, description: election.description, end_date: election.end_date }); }} className="p-1 text-blue-400 hover:text-blue-300" title="Editar"><Edit size={16} /></button>
+                                            <button onClick={(e) => {
+                                                e.stopPropagation();
+                                                setEditingElection(election);
+                                                // Convert DB UTC timestamp to local datetime-local string format for editing
+                                                let localDateStr = '';
+                                                if (election.end_date) {
+                                                    const d = new Date(election.end_date);
+                                                    d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); // Adjust to local
+                                                    localDateStr = d.toISOString().slice(0, 16);
+                                                }
+                                                setElectionForm({ title: election.title, position: election.position, description: election.description, end_date: localDateStr });
+                                            }} className="p-1 text-blue-400 hover:text-blue-300" title="Editar"><Edit size={16} /></button>
                                             <button onClick={(e) => { e.stopPropagation(); handleDeleteElection(election.id); }} className="p-1 text-red-400 hover:text-red-300" title="Eliminar"><Trash2 size={16} /></button>
                                         </div>
                                     </div>
