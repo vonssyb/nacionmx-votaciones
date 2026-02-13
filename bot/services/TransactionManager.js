@@ -194,6 +194,57 @@ class TransactionManager {
     }
 
     /**
+     * Execute atomic PvP duel (Coinflip)
+     * @param {string} winnerId
+     * @param {string} loserId
+     * @param {number} betAmount
+     * @param {string} gameType
+     */
+    async executePvPDuel(winnerId, loserId, betAmount, gameType) {
+        try {
+            const { data, error } = await this.supabase.rpc('execute_pvp_duel', {
+                p_winner_id: winnerId,
+                p_loser_id: loserId,
+                p_bet_amount: betAmount,
+                p_game_type: gameType
+            });
+
+            if (error) throw error;
+
+            if (this.auditLogger) {
+                await this.auditLogger.logTransaction({
+                    userId: winnerId,
+                    type: 'pvp_win',
+                    amount: data.win_amount,
+                    metadata: { game: gameType, opponent: loserId, pot: data.pot }
+                }).catch(() => { });
+
+                await this.auditLogger.logTransaction({
+                    userId: loserId,
+                    type: 'pvp_loss',
+                    amount: betAmount,
+                    metadata: { game: gameType, opponent: winnerId }
+                }).catch(() => { });
+            }
+
+            return {
+                success: true,
+                winnerNewBalance: data.winner_new_balance,
+                loserNewBalance: data.loser_new_balance,
+                winAmount: data.win_amount,
+                tax: data.tax
+            };
+
+        } catch (error) {
+            logger.error('PvP duel failed', { winnerId, loserId, betAmount, error: error.message });
+            return {
+                success: false,
+                error: '❌ Error al procesar el duelo.'
+            };
+        }
+    }
+
+    /**
      * Execute bank deposit/withdrawal atomically
      * @param {string} userId
      * @param {number} amount - Positive for deposit, negative for withdrawal

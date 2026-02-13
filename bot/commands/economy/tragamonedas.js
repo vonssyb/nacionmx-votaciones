@@ -16,115 +16,54 @@ module.exports = {
                 .setMaxValue(5000)),
 
     async execute(interaction, client, supabase) {
-        await interaction.deferReply(); // FIXED: Reduce timeout risk
+        await interaction.deferReply();
         const userId = interaction.user.id;
         const bet = interaction.options.getInteger('apuesta');
 
-        // Load CasinoService (assuming it's available on client or we instantiate new)
-        const casino = new CasinoService(supabase);
+        // Load Service
+        let casino = client.casinoService;
+        if (!casino) casino = new CasinoService(supabase);
 
         // Check balance
         const check = await casino.checkChips(userId, bet);
         if (!check.hasEnough) return interaction.editReply({ content: check.message, ephemeral: true });
 
-        // Deduct bet immediately
-        await supabase.from('casino_chips')
-            .update({
-                chips: check.balance - bet,
-                updated_at: new Date().toISOString()
-            })
-            .eq('user_id', userId);
+        // Animation Frames
+        const frames = [
+            { text: '**[ ❓ | ❓ | ❓ ]**\n\n> 🎰 Tirando de la palanca...', delay: 1000 },
+            { text: '**[ 🍒 | ❓ | ❓ ]**\n\n> ⏳ Primer rodillo...', delay: 2000 },
+            { text: '**[ 🍒 | 🍋 | ❓ ]**\n\n> ⏳ Segundo rodillo...', delay: 3000 }
+        ];
 
-        // Spin logic
-        const spinReel = () => {
-            const rand = Math.random() * 100;
-            let sum = 0;
-            for (let i = 0; i < SYMBOLS.length; i++) {
-                sum += WEIGHTS[i];
-                if (rand < sum) return SYMBOLS[i];
-            }
-            return SYMBOLS[0];
-        };
-
-        const result = [spinReel(), spinReel(), spinReel()];
-
-        // TENSION FLOW start
-        // 0s
-        const embedStart = new EmbedBuilder()
+        // Play Animation
+        const embed = new EmbedBuilder()
             .setTitle('🎰 TRAGAMONEDAS')
-            .setDescription('**[ ❓ | ❓ | ❓ ]**\n\n> 🎰 Tirando de la palanca...')
             .setColor('#3498DB');
-        await interaction.editReply({ embeds: [embedStart] });
 
-        // 5s - Reel 1
-        setTimeout(async () => {
-            const embedReel1 = new EmbedBuilder()
-                .setTitle('🎰 TRAGAMONEDAS')
-                .setDescription(`**[ ${result[0]} | ❓ | ❓ ]**\n\n> ⏳ Primer rodillo detenido...`)
-                .setColor('#3498DB');
-            await interaction.editReply({ embeds: [embedReel1] }).catch(() => { });
-        }, 5000);
+        for (const frame of frames) {
+            embed.setDescription(frame.text);
+            await interaction.editReply({ embeds: [embed] }).catch(() => { });
+            await new Promise(r => setTimeout(r, 1000));
+        }
 
-        // 10s - Reel 2
-        setTimeout(async () => {
-            const embedReel2 = new EmbedBuilder()
-                .setTitle('🎰 TRAGAMONEDAS')
-                .setDescription(`**[ ${result[0]} | ${result[1]} | ❓ ]**\n\n> ⏳ Segundo rodillo detenido...`)
-                .setColor('#3498DB');
-            await interaction.editReply({ embeds: [embedReel2] }).catch(() => { });
-        }, 10000);
+        // Execute Atomic Transaction
+        const result = await casino.playSlotsAndUpdate(userId, bet);
 
-        // 15s - Reel 3 (Result) -> Reduced to 15s total for slots as 30s is too long for this mechanic usually, but satisfying "suspense"
-        // User asked for 30s approx. I'll extend the final wait to 15s to make it ~20-25s total? 
-        // Let's do 5s, 10s, 15s. It feels responsive but tense.
-        setTimeout(async () => {
-            // Calculate payout
-            let payout = 0;
-            let multiplier = 0;
+        if (result.error) {
+            return interaction.editReply({ content: result.error, embeds: [] });
+        }
 
-            if (result[0] === result[1] && result[1] === result[2]) {
-                const sym = result[0];
-                if (sym === '🎰') multiplier = 100;
-                else if (sym === '7️⃣') multiplier = 50;
-                else if (sym === '💎') multiplier = 25;
-                else if (sym === '🍉') multiplier = 15;
-                else if (sym === '🍊') multiplier = 10;
-                else if (sym === '🍋') multiplier = 7;
-                else if (sym === '🍒') multiplier = 5;
-            } else if (result[0] === result[1] || result[1] === result[2] || result[0] === result[2]) {
-                multiplier = 2;
-            }
+        // Final Result
+        const finalEmbed = new EmbedBuilder()
+            .setTitle('🎰 TRAGAMONEDAS: RESULTADO')
+            .setDescription(`**[ ${result.symbols[0]} | ${result.symbols[1]} | ${result.symbols[2]} ]**\n\n${result.matchType ? `✨ Jugada: **${result.matchType}**` : ''}`)
+            .setColor(result.won ? '#2ECC71' : '#E74C3C')
+            .addFields(
+                { name: 'Apuesta', value: `${bet}`, inline: true },
+                { name: 'Ganancia', value: result.won ? `✅ +${result.payout}` : '❌ 0', inline: true },
+                { name: 'Balance', value: `💰 ${result.newBalance ? result.newBalance.toLocaleString() : '---'}`, inline: true }
+            );
 
-            payout = bet * multiplier;
-
-            // Update DB
-            if (payout > 0) {
-                const { data: acc } = await supabase.from('casino_chips').select('chips, total_won').eq('user_id', userId).single();
-                // Add payout (bet was already deducted)
-                await supabase.from('casino_chips').update({
-                    chips: (acc.chips || 0) + payout,
-                    total_won: (acc.total_won || 0) + payout,
-                    updated_at: new Date().toISOString()
-                }).eq('user_id', userId);
-            } else {
-                const { data: acc } = await supabase.from('casino_chips').select('chips, total_lost').eq('user_id', userId).single();
-                // Loss (bet confirmed lost, deduction happened at start)
-                await supabase.from('casino_chips').update({
-                    total_lost: (acc.total_lost || 0) + bet,
-                    updated_at: new Date().toISOString()
-                }).eq('user_id', userId);
-            }
-
-            const embedFinal = new EmbedBuilder()
-                .setTitle('🎰 TRAGAMONEDAS: RESULTADO')
-                .setDescription(`**[ ${result[0]} | ${result[1]} | ${result[2]} ]**`)
-                .setColor(payout > 0 ? '#2ECC71' : '#E74C3C')
-                .addFields(
-                    { name: 'Apuesta', value: `${bet}`, inline: true },
-                    { name: 'Ganancia', value: payout > 0 ? `✅ +${payout} (${multiplier}x)` : '❌ 0', inline: true }
-                );
-
-            await interaction.editReply({ embeds: [embedFinal] }).catch(() => { });
-        }, 15000);
+        await interaction.editReply({ embeds: [finalEmbed] });
     }
 };

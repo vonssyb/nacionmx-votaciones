@@ -26,6 +26,7 @@ const ElectionsAdmin = () => {
     // Form inputs
     const [electionForm, setElectionForm] = useState({ title: '', position: '', description: '' });
     const [candidateForm, setCandidateForm] = useState({ name: '', party: '', proposals: '', photo_url: '', logo_url: '' });
+    const [viewMode, setViewMode] = useState('active'); // 'active' | 'archived'
     const [activeTab, setActiveTab] = useState('elections');
     const [uploading, setUploading] = useState(false);
 
@@ -279,8 +280,17 @@ const ElectionsAdmin = () => {
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                     <div className="lg:col-span-1 space-y-6">
                         <div className="flex justify-between items-center">
-                            <h2 className="text-xl font-bold text-[#D90F74]">Elecciones</h2>
-                            <button onClick={() => { setEditingElection('new'); setElectionForm({ title: '', position: '', description: '' }); }} className="bg-gray-800 hover:bg-gray-700 p-2 rounded text-[#D90F74]"><Plus size={20} /></button>
+                            <h2 className="text-xl font-bold text-[#D90F74]">{viewMode === 'active' ? 'Elecciones Activas' : 'Historial de Elecciones'}</h2>
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={() => setViewMode(viewMode === 'active' ? 'archived' : 'active')}
+                                    className={`p-2 rounded transition-colors ${viewMode === 'archived' ? 'bg-[#D90F74] text-white' : 'bg-gray-800 text-gray-400 hover:text-white'}`}
+                                    title={viewMode === 'active' ? "Ver Historial / Archivadas" : "Ver Activas"}
+                                >
+                                    <Archive size={20} />
+                                </button>
+                                <button onClick={() => { setEditingElection('new'); setElectionForm({ title: '', position: '', description: '' }); }} className="bg-gray-800 hover:bg-gray-700 p-2 rounded text-[#D90F74]"><Plus size={20} /></button>
+                            </div>
                         </div>
 
                         {editingElection && (
@@ -296,7 +306,7 @@ const ElectionsAdmin = () => {
                         )}
 
                         <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-2 custom-scrollbar">
-                            {elections.map(election => (
+                            {elections.filter(e => viewMode === 'active' ? e.is_active : !e.is_active).map(election => (
                                 <div key={election.id} onClick={() => setSelectedElectionId(election.id)}
                                     className={`p-4 rounded-lg border cursor-pointer transition-all ${selectedElectionId === election.id ? 'bg-[#D90F74]/20 border-[#D90F74]' : 'bg-gray-800 border-gray-700 hover:bg-gray-750'} ${!election.is_active ? 'opacity-70 grayscale-[0.5]' : ''}`}>
                                     <div className="flex justify-between items-start">

@@ -108,11 +108,19 @@ const bots = [
 
             const rest = new REST({ version: '10' }).setToken(bot.token.trim());
 
-            // 1. CLEANUP GLOBAL COMMANDS (To avoid "duplicate" entries if they were global before)
+            // 1. CLEANUP OPPOSITE SCOPE
             if (!bot.useGlobal) {
+                // If using Guild, clean Global
                 try {
+                    console.log('   🧹 Cleaning Global commands...');
                     await rest.put(Routes.applicationCommands(bot.appId), { body: [] });
-                } catch (e) { /* Ignore 401/403 on globals cleanup */ }
+                } catch (e) { console.log('   (No global commands found or permission error)'); }
+            } else {
+                // If using Global, clean Guild (THIS FIXES DUPLICATES)
+                try {
+                    console.log(`   🧹 Cleaning Guild commands for ${GUILD_ID}...`);
+                    await rest.put(Routes.applicationGuildCommands(bot.appId, GUILD_ID), { body: [] });
+                } catch (e) { console.log('   (No guild commands found or permission error)'); }
             }
 
             const route = bot.useGlobal

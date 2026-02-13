@@ -48,10 +48,13 @@ module.exports = {
                 }
 
                 const bet = interaction.options.getInteger('apuesta');
-                const check = await casino.checkChips(userId, bet);
-                if (!check.hasEnough) return interaction.reply({ content: check.message, ephemeral: true });
+                // Join with Atomic Transaction
+                const joinResult = await casino.joinBlackjackAndUpdate(userId, bet);
+                if (!joinResult.success) {
+                    return interaction.reply({ content: joinResult.error || '❌ Error al unirse.', ephemeral: true });
+                }
 
-                // Start Lobby
+                // Start Lobby (Restored)
                 session.isOpen = true;
                 session.state = 'LOBBY';
                 session.players = {};
@@ -59,12 +62,9 @@ module.exports = {
                     id: userId,
                     bet: bet,
                     hand: [],
-                    status: 'PLAYING', // Will be active when game starts
+                    status: 'PLAYING',
                     username: interaction.user.username
                 };
-
-                // Deduct chips using helper
-                await casino.removeChips(userId, bet);
 
                 const embed = new EmbedBuilder()
                     .setTitle('🃏 Mesa de Blackjack')
@@ -89,8 +89,12 @@ module.exports = {
                 }
 
                 const bet = interaction.options.getInteger('apuesta');
-                const check = await casino.checkChips(userId, bet);
-                if (!check.hasEnough) return interaction.reply({ content: check.message, ephemeral: true });
+
+                // Join with Atomic Transaction
+                const joinResult = await casino.joinBlackjackAndUpdate(userId, bet);
+                if (!joinResult.success) {
+                    return interaction.reply({ content: joinResult.error || '❌ Error al unirse.', ephemeral: true });
+                }
 
                 session.players[userId] = {
                     id: userId,
@@ -99,8 +103,6 @@ module.exports = {
                     status: 'PLAYING',
                     username: interaction.user.username
                 };
-
-                await casino.removeChips(userId, bet);
 
                 await interaction.reply(`✅ **${interaction.user.username}** se unió con $${bet}.`);
 
