@@ -68,7 +68,8 @@ const Elections = () => {
                     const { data: cData, error: cError } = await supabase
                         .from('election_candidates')
                         .select('*')
-                        .in('election_id', electionsData.map(e => e.id));
+                        .in('election_id', electionsData.map(e => e.id))
+                        .order('party', { ascending: true });
                     if (cError) throw cError;
                     candidatesData = cData;
 
