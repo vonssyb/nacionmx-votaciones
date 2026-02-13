@@ -16,6 +16,7 @@ const Elections = () => {
     const [inkEffect, setInkEffect] = useState(false);
     const [expandedCandidate, setExpandedCandidate] = useState(null);
     const [totalVotes, setTotalVotes] = useState(0);
+    const [message, setMessage] = useState(null);
 
     useEffect(() => {
         fetchData();
