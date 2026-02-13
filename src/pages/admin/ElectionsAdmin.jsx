@@ -24,7 +24,7 @@ const ElectionsAdmin = () => {
     const resultsRef = useRef(null);
 
     // Form inputs
-    const [electionForm, setElectionForm] = useState({ title: '', position: '', description: '' });
+    const [electionForm, setElectionForm] = useState({ title: '', position: '', description: '', end_date: '' });
     const [candidateForm, setCandidateForm] = useState({ name: '', party: '', proposals: '', photo_url: '', logo_url: '' });
     const [viewMode, setViewMode] = useState('active'); // 'active' | 'archived'
     const [activeTab, setActiveTab] = useState('elections');
@@ -94,7 +94,7 @@ const ElectionsAdmin = () => {
                 if (error) throw error;
             }
             setEditingElection(null);
-            setElectionForm({ title: '', position: '', description: '' });
+            setElectionForm({ title: '', position: '', description: '', end_date: '' });
             fetchData();
         } catch (e) { console.error(e); alert('Error guardando elección'); }
     };
@@ -289,7 +289,7 @@ const ElectionsAdmin = () => {
                                 >
                                     <Archive size={20} />
                                 </button>
-                                <button onClick={() => { setEditingElection('new'); setElectionForm({ title: '', position: '', description: '' }); }} className="bg-gray-800 hover:bg-gray-700 p-2 rounded text-[#D90F74]"><Plus size={20} /></button>
+                                <button onClick={() => { setEditingElection('new'); setElectionForm({ title: '', position: '', description: '', end_date: '' }); }} className="bg-gray-800 hover:bg-gray-700 p-2 rounded text-[#D90F74]"><Plus size={20} /></button>
                             </div>
                         </div>
 
@@ -297,6 +297,15 @@ const ElectionsAdmin = () => {
                             <div className="bg-gray-800 p-4 rounded-lg border border-[#D90F74] space-y-3">
                                 <input className="w-full bg-gray-900 border border-gray-700 p-2 rounded" placeholder="Título" value={electionForm.title} onChange={e => setElectionForm({ ...electionForm, title: e.target.value })} />
                                 <input className="w-full bg-gray-900 border border-gray-700 p-2 rounded" placeholder="Cargo" value={electionForm.position} onChange={e => setElectionForm({ ...electionForm, position: e.target.value })} />
+                                <div className="flex flex-col gap-1">
+                                    <label className="text-xs text-gray-400">Cierre de Casillas (Fecha y Hora)</label>
+                                    <input
+                                        type="datetime-local"
+                                        className="w-full bg-gray-900 border border-gray-700 p-2 rounded text-white"
+                                        value={electionForm.end_date ? new Date(electionForm.end_date).toISOString().slice(0, 16) : ''}
+                                        onChange={e => setElectionForm({ ...electionForm, end_date: e.target.value })}
+                                    />
+                                </div>
                                 <textarea className="w-full bg-gray-900 border border-gray-700 p-2 rounded" placeholder="Descripción" value={electionForm.description} onChange={e => setElectionForm({ ...electionForm, description: e.target.value })} />
                                 <div className="flex gap-2 justify-end">
                                     <button onClick={() => setEditingElection(null)} className="text-gray-400 hover:text-white"><X size={20} /></button>
@@ -320,7 +329,7 @@ const ElectionsAdmin = () => {
                                             <button onClick={(e) => { e.stopPropagation(); handleFinalizeElection(election); }} className="p-1 text-gray-400 hover:text-gray-300" title="Finalizar/Archivar Elección"><Archive size={16} /></button>
                                             <button onClick={(e) => { e.stopPropagation(); openResultsModal(election); }} className="p-1 text-purple-400 hover:text-purple-300" title="Resultados e Imagen"><Download size={16} /></button>
 
-                                            <button onClick={(e) => { e.stopPropagation(); setEditingElection(election); setElectionForm({ title: election.title, position: election.position, description: election.description }); }} className="p-1 text-blue-400 hover:text-blue-300" title="Editar"><Edit size={16} /></button>
+                                            <button onClick={(e) => { e.stopPropagation(); setEditingElection(election); setElectionForm({ title: election.title, position: election.position, description: election.description, end_date: election.end_date }); }} className="p-1 text-blue-400 hover:text-blue-300" title="Editar"><Edit size={16} /></button>
                                             <button onClick={(e) => { e.stopPropagation(); handleDeleteElection(election.id); }} className="p-1 text-red-400 hover:text-red-300" title="Eliminar"><Trash2 size={16} /></button>
                                         </div>
                                     </div>

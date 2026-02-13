@@ -21,8 +21,11 @@ const Elections = () => {
 
     // Timer Logic
     useEffect(() => {
-        // Target Date: February 15, 2026 at 20:00:00
-        const targetDate = new Date('2026-02-15T20:00:00');
+        // Target Date: Use the first active election's end_date or fallback
+        // If multiple elections, which one to track? Usually the "General" one.
+        // For now, let's pick the first active election with an end_date.
+        const activeElection = elections.find(e => e.is_active && e.end_date);
+        const targetDate = activeElection?.end_date ? new Date(activeElection.end_date) : new Date('2026-02-15T20:00:00');
 
         const updateTimer = () => {
             const now = new Date();
@@ -52,7 +55,7 @@ const Elections = () => {
         updateTimer();
 
         return () => clearInterval(timerId);
-    }, []);
+    }, [elections]);
 
     useEffect(() => {
         fetchData();
@@ -106,7 +109,7 @@ const Elections = () => {
                 // Global vote count disabled for stability
                 // allVotesCount = ...
 
-                return { electionsData, candidatesData, votesData, allVotesCount };
+                return { electionsData, candidatesData, votesData };
             };
 
             const result = await Promise.race([loadData(), timeoutPromise]);
@@ -114,8 +117,14 @@ const Elections = () => {
             setElections(result.electionsData || []);
             setCandidates(result.candidatesData || []);
             setUserVotes(result.votesData || []);
-            setUserVotes(result.votesData || []);
-            // setTotalVotes(result.allVotesCount || 0);
+
+            // 4. Fetch Global Vote Count via RPC (bypasses RLS)
+            if (result.electionsData.length > 0) {
+                const { data: countData, error: countError } = await supabase.rpc('get_total_votes');
+                if (!countError && countData !== null) {
+                    setTotalVotes(countData);
+                }
+            }
 
         } catch (error) {
             console.error('Error fetching election data:', error);
