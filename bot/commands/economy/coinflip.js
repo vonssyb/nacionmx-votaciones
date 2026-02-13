@@ -75,18 +75,6 @@ module.exports = {
             // Accepted
             await confirmation.update({ content: '✅ Desafío aceptado. Girando moneda...', components: [] });
 
-            // Re-check balances before deduct (race condition protection)
-            // Just assume okay for simplicity or re-check
-
-            // Deduct both
-            // Initial check and deduct if needed?
-            // Coinflip usually checks balance but deducts at end or start?
-            // Looking at grep result: line 82: update chips_balance...
-
-            await supabase.from('casino_chips').update({ chips: check1.balance - bet }).eq('user_id', userId);
-            const { data: opAcc } = await supabase.from('casino_chips').select('chips').eq('user_id', opponent.id).single();
-            await supabase.from('casino_chips').update({ chips: opAcc.chips - bet }).eq('user_id', opponent.id);
-
             // Animate
             const frames = ['🪙', '✨', '🪙', '✨'];
             for (const f of frames) {
@@ -94,40 +82,36 @@ module.exports = {
                 await new Promise(r => setTimeout(r, 500));
             }
 
-            // Result
-            const winnerIsChallenger = Math.random() < 0.5;
-            const winnerId = winnerIsChallenger ? userId : opponent.id;
-            const loserId = winnerIsChallenger ? opponent.id : userId;
+            // Execute via CasinoService (Atomic PvP)
+            const result = await casino.playCoinflipDuel(userId, opponent.id, bet);
 
-            // Winner gets pot (2 * bet)
-            // Optional: Tax/Rake (e.g. 5%)
-            // Let's implement 5% tax to burn chips
-            const pot = bet * 2;
-            const tax = Math.floor(pot * 0.05);
-            const winAmount = pot - tax;
+            if (result.error) {
+                return interaction.editReply({
+                    content: null,
+                    embeds: [new EmbedBuilder().setTitle('❌ Error').setDescription(result.error).setColor('#E74C3C')]
+                });
+            }
 
-            const { data: winAcc } = await supabase.from('casino_chips').select('chips, total_won, games_played').eq('user_id', winnerId).single();
-            await supabase.from('casino_chips').update({
-                chips: winAcc.chips + winAmount, // Correctly use taxed amount
-                total_won: (winAcc.total_won || 0) + (winAmount - bet),
-                games_played: (winAcc.games_played || 0) + 1
-            }).eq('user_id', winnerId);
-
-            // Loser update
-            const { data: loseAcc } = await supabase.from('casino_chips').select('total_lost').eq('user_id', loserId).single();
-            await supabase.from('casino_chips').update({
-                total_lost: (loseAcc.total_lost || 0) + bet
-            }).eq('user_id', loserId);
-
+            // Build Result Embed
             const resultEmbed = new EmbedBuilder()
                 .setTitle('🪙 Resultado del Coinflip')
-                .setDescription(`🏆 Ganador: <@${winnerId}>\n\n💰 Se lleva: **${winAmount}** fichas\n🏛️ Comisión: ${tax} fichas`)
-                .setColor('#2ECC71');
+                .setDescription(
+                    `🏆 Ganador: <@${result.winnerId}>\n` +
+                    `💀 Perdedor: <@${result.loserId}>\n\n` +
+                    `💰 Pozo: **${bet * 2}** fichas\n` +
+                    `🏛️ Comisión (5%): **${result.tax}** fichas\n` +
+                    `💵 Ganancia Neta: **${result.winAmount}** fichas\n\n` +
+                    `📊 Balance Ganador: **${result.winnerNewBalance.toLocaleString()}**\n` +
+                    `📉 Balance Perdedor: **${result.loserNewBalance.toLocaleString()}**`
+                )
+                .setColor('#2ECC71')
+                .setThumbnail(result.winnerId === userId ? interaction.user.displayAvatarURL() : opponent.displayAvatarURL());
 
             await interaction.editReply({ content: null, embeds: [resultEmbed] });
 
         } catch (e) {
-            await interaction.editReply({ content: '⏱️ El desafío expiró.', components: [] });
+            console.error(e);
+            await interaction.editReply({ content: '⏱️ El desafío expiró o ocurrió un error.', components: [] });
         }
     }
 };

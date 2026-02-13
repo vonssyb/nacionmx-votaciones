@@ -115,6 +115,47 @@ class CasinoService {
     }
 
     /**
+     * Play Coinflip Duel (PvP) with atomic transaction
+     * @param {string} challengerId
+     * @param {string} opponentId
+     * @param {number} betAmount
+     */
+    async playCoinflipDuel(challengerId, opponentId, betAmount) {
+        // 1. Determine Winner
+        // 50/50 chance
+        const winnerIsChallenger = Math.random() < 0.5;
+        const winnerId = winnerIsChallenger ? challengerId : opponentId;
+        const loserId = winnerIsChallenger ? opponentId : challengerId;
+
+        // 2. Execute Atomic Transaction
+        if (this.transactionManager) {
+            const txResult = await this.transactionManager.executePvPDuel(
+                winnerId,
+                loserId,
+                betAmount,
+                'coinflip'
+            );
+
+            if (!txResult.success) {
+                return { error: txResult.error };
+            }
+
+            return {
+                winnerId,
+                loserId,
+                winAmount: txResult.winAmount,
+                tax: txResult.tax,
+                winnerNewBalance: txResult.winnerNewBalance,
+                loserNewBalance: txResult.loserNewBalance
+            };
+        }
+
+        // Fallback for legacy (Manual update - unsafe but keeps compatibility if TM missing)
+        // NOT IMPLEMENTING LEGACY FALLBACK FOR PVP TO ENFORCE ATOMICITY
+        return { error: '❌ Error interno: Gestor de transacciones no disponible.' };
+    }
+
+    /**
      * Legacy fallback method for balance updates without TransactionManager
      * @private
      */
@@ -1081,6 +1122,36 @@ class CasinoService {
         }
     }
 
+    /**
+     * Join Blackjack with atomic transaction (Bet Deduction)
+     * @param {string} userId
+     * @param {number} bet
+     */
+    async joinBlackjackAndUpdate(userId, bet) {
+        if (this.transactionManager) {
+            // Deduct bet and count as "loss" initially (standard safe practice)
+            // If they win later, we pay them out.
+            const txResult = await this.transactionManager.executeCasinoTransaction(
+                userId,
+                bet,
+                0, // No payout yet
+                'blackjack_bet',
+                { action: 'join_table' }
+            );
+
+            if (!txResult.success) {
+                return { success: false, error: txResult.error };
+            }
+            return { success: true, newBalance: txResult.newBalance };
+        }
+
+        // Legacy Fallback
+        const check = await this.checkChips(userId, bet);
+        if (!check.hasEnough) return { success: false, error: check.message };
+        await this.removeChips(userId, bet);
+        return { success: true };
+    }
+
     async dealerPlay(channel) {
         const session = this.sessions.blackjack;
         session.state = 'DEALER_TURN';
@@ -1108,23 +1179,41 @@ class CasinoService {
             }
 
             if (multiplier > 0) {
-                const profit = Math.floor(player.bet * multiplier);
-                const netProfit = profit - player.bet;
-                if (netProfit > 0) winners.push(`✅ <@${userId}>: +$${profit.toLocaleString()} (${reason})`);
+                const payout = Math.floor(player.bet * multiplier);
+                const netProfit = payout - player.bet;
+
+                if (netProfit > 0) winners.push(`✅ <@${userId}>: +$${Math.floor(payout).toLocaleString()} (${reason})`); // Show Payout
                 else winners.push(`♻️ <@${userId}>: Refund (${reason})`);
 
-                const { data: acc } = await this.supabase.from('casino_chips').select('*').eq('user_id', userId).single();
-                if (acc) {
-                    await this.supabase.from('casino_chips').update({
-                        chips_balance: acc.chips_balance + profit,
-                        total_won: acc.total_won + netProfit,
-                        updated_at: new Date().toISOString()
-                    }).eq('user_id', userId);
+                if (this.transactionManager) {
+                    // Atomic Payout
+                    // We pass bet=0 because bet was already deducted on join
+                    await this.transactionManager.executeCasinoTransaction(
+                        userId,
+                        0,
+                        payout,
+                        'blackjack_payout',
+                        { reason, hand: player.hand, dealer: session.dealerHand }
+                    ).catch(e => console.error('BJ Payout Error:', e));
+                } else {
+                    // Legacy Update
+                    const { data: acc } = await this.supabase.from('casino_chips').select('*').eq('user_id', userId).single();
+                    if (acc) {
+                        await this.supabase.from('casino_chips').update({
+                            chips: acc.chips + payout, // Use chips (legacy) or chips_balance if migrated
+                            total_won: (acc.total_won || 0) + (payout - player.bet),
+                            updated_at: new Date().toISOString()
+                        }).eq('user_id', userId);
+                    }
                 }
             } else {
-                // Loss update
-                const { data: acc } = await this.supabase.from('casino_chips').select('total_lost').eq('user_id', userId).single();
-                if (acc) await this.supabase.from('casino_chips').update({ total_lost: acc.total_lost + player.bet }).eq('user_id', userId);
+                // Loser
+                // In Atomic mode: Already deducted and logged as "total_lost" on join.
+                // In Legacy mode: We need to update stats now.
+                if (!this.transactionManager) {
+                    const { data: acc } = await this.supabase.from('casino_chips').select('total_lost').eq('user_id', userId).single();
+                    if (acc) await this.supabase.from('casino_chips').update({ total_lost: (acc.total_lost || 0) + player.bet }).eq('user_id', userId);
+                }
             }
         }
 
