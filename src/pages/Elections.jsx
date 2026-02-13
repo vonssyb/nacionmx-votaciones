@@ -18,6 +18,7 @@ const Elections = () => {
     const [totalVotes, setTotalVotes] = useState(0);
     const [message, setMessage] = useState(null);
     const [timeLeft, setTimeLeft] = useState('00:00:00');
+    const [voting, setVoting] = useState(false);
 
     // Timer Logic
     useEffect(() => {
