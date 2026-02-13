@@ -73,14 +73,18 @@ class TreasuryService {
     }
 
     async logTreasuryTransaction(guildId, amount, type, source, reason, balanceAfter) {
-        await this.supabase.from('treasury_logs').insert({
+        const { error } = await this.supabase.from('treasury_logs').insert({
             guild_id: guildId,
             amount: amount,
             type: type, // DEPOSIT / WITHDRAW
             source: source,
             reason: reason,
             balance_after: balanceAfter
-        }).catch(err => console.error('[Treasury] Log failed:', err.message));
+        });
+
+        if (error) {
+            console.error('[Treasury] Log failed:', error.message);
+        }
     }
 }
 
