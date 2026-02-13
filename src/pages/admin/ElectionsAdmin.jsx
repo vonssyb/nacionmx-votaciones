@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { supabase } from '../../services/supabase';
 import { useDiscordMember } from '../../components/auth/RoleGuard';
-import { ShieldCheck, Plus, Edit, Trash2, Save, X, Image as ImageIcon, Upload, ArrowLeft, AlertCircle, Download, Archive } from 'lucide-react';
+import { ShieldCheck, Plus, Edit, Trash2, Save, X, Image as ImageIcon, Upload, ArrowLeft, AlertCircle, Download, Archive, Eye, EyeOff } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toPng } from 'html-to-image';
 import ComplaintsAdmin from './ComplaintsAdmin';
@@ -305,7 +305,7 @@ const ElectionsAdmin = () => {
                                             {!election.is_active && <span className="text-[10px] bg-gray-700 text-gray-300 px-1.5 py-0.5 rounded uppercase tracking-wider ml-0">Archivado</span>}
                                         </div>
                                         <div className="flex gap-1">
-                                            <button onClick={(e) => { e.stopPropagation(); toggleElectionStatus(election); }} className={`p-1 rounded ${election.is_active ? 'text-green-400' : 'text-gray-500'}`} title={election.is_active ? "Activo (Click para desactivar)" : "Inactivo (Click para activar)"}><Archive size={16} /></button>
+                                            <button onClick={(e) => { e.stopPropagation(); toggleElectionStatus(election); }} className={`p-1 rounded ${election.is_active ? 'text-green-400' : 'text-gray-500'}`} title={election.is_active ? "Activo (Click para desactivar)" : "Inactivo (Click para activar)"}>{election.is_active ? <Eye size={16} /> : <EyeOff size={16} />}</button>
                                             <button onClick={(e) => { e.stopPropagation(); toggleVotingOpen(election); }} className={`p-1 rounded ${election.voting_open ? 'text-blue-400' : 'text-orange-400'}`} title={election.voting_open ? "Votación Abierta" : "Votación Cerrada"}><ShieldCheck size={16} /></button>
                                             <button onClick={(e) => { e.stopPropagation(); handleFinalizeElection(election); }} className="p-1 text-gray-400 hover:text-gray-300" title="Finalizar/Archivar Elección"><Archive size={16} /></button>
                                             <button onClick={(e) => { e.stopPropagation(); openResultsModal(election); }} className="p-1 text-purple-400 hover:text-purple-300" title="Resultados e Imagen"><Download size={16} /></button>
