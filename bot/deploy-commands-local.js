@@ -55,7 +55,7 @@ const bots = [
         name: 'Gobierno',
         appId: '1458134280352829443',
         token: process.env.DISCORD_TOKEN_GOV,
-        commandFolders: ['gov', 'economy', 'business']
+        commandFolders: ['gov']
     }
 ];
 
