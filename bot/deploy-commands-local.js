@@ -4,6 +4,11 @@ const path = require('path');
 const envPath = fs.existsSync(path.join(__dirname, '.env')) ? path.join(__dirname, '.env') : path.join(__dirname, '../.env');
 require('dotenv').config({ path: envPath });
 
+console.log('--- DEBUG ENV ---');
+console.log('Path:', envPath);
+console.log('DISCORD_TOKEN_GOV:', process.env.DISCORD_TOKEN_GOV ? (process.env.DISCORD_TOKEN_GOV.substring(0, 10) + '...') : 'UNDEFINED');
+console.log('-----------------');
+
 const GUILD_ID = process.env.GUILD_ID;
 
 // Collect all commands from all bots
@@ -88,8 +93,20 @@ const bots = [
             }
 
             console.log(`   📋 Registering ${botCommands.length} commands for ${bot.name}...`);
+            console.log(`   [DEBUG] Token length: ${bot.token?.length}, First 5: ${bot.token?.substring(0, 5)}...`);
+            console.log(`   [DEBUG] App ID: ${bot.appId}, Guild ID: ${GUILD_ID}`);
 
-            const rest = new REST({ version: '10' }).setToken(bot.token);
+            if (!bot.token) {
+                console.error('   ❌ Token is missing/empty string!');
+                continue;
+            }
+
+            if (!bot.token) {
+                console.error('   ❌ Token is missing/empty string!');
+                continue;
+            }
+
+            const rest = new REST({ version: '10' }).setToken(bot.token.trim());
 
             // 1. CLEANUP GLOBAL COMMANDS (To avoid "duplicate" entries if they were global before)
             if (!bot.useGlobal) {
