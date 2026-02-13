@@ -64,6 +64,14 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
     }
 });
 
+// --- SUPABASE KEEP-ALIVE SERVICE ---
+// Prevents automatic pausing of free tier Supabase database
+const keepAliveService = require('./services/SupabaseKeepAlive');
+logger.info('Starting Supabase keep-alive service...');
+// Note: pg_cron job already handles this in database, but keeping as backup
+// keepAliveService.start();
+
+
 // --- GLOBAL ERROR HANDLERS ---
 process.on('uncaughtException', (err) => logger.errorWithContext('Uncaught Exception', err, { source: 'global' }));
 process.on('unhandledRejection', (reason) => logger.error('Unhandled Rejection', { reason }));
