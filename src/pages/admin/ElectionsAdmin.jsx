@@ -95,11 +95,20 @@ const ElectionsAdmin = () => {
     const handleSaveElection = async () => {
         if (!electionForm.title || !electionForm.position) return alert('Completa título y cargo');
         try {
+            // Convert local datetime-local string to UTC for storage
+            const payload = { ...electionForm };
+            if (payload.end_date) {
+                // new Date("YYYY-MM-DDTHH:MM") constructs a date in LOCAL time
+                const localDate = new Date(payload.end_date);
+                // Convert to UTC ISO string
+                payload.end_date = localDate.toISOString();
+            }
+
             if (editingElection === 'new') {
-                const { error } = await supabase.from('elections').insert([electionForm]);
+                const { error } = await supabase.from('elections').insert([payload]);
                 if (error) throw error;
             } else {
-                const { error } = await supabase.from('elections').update(electionForm).eq('id', editingElection.id);
+                const { error } = await supabase.from('elections').update(payload).eq('id', editingElection.id);
                 if (error) throw error;
             }
             setEditingElection(null);
