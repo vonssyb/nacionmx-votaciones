@@ -310,8 +310,8 @@ const ElectionsAdmin = () => {
                                             <button onClick={(e) => { e.stopPropagation(); handleFinalizeElection(election); }} className="p-1 text-gray-400 hover:text-gray-300" title="Finalizar/Archivar Elección"><Archive size={16} /></button>
                                             <button onClick={(e) => { e.stopPropagation(); openResultsModal(election); }} className="p-1 text-purple-400 hover:text-purple-300" title="Resultados e Imagen"><Download size={16} /></button>
 
-                                            <button onClick={(e) => { e.stopPropagation(); setEditingElection(election); setElectionForm({ title: election.title, position: election.position, description: election.description }); }} className="p-1 text-blue-400 hover:text-blue-300"><Edit size={16} /></button>
-                                            <button onClick={(e) => { e.stopPropagation(); handleDeleteElection(election.id); }} className="p-1 text-red-400 hover:text-red-300"><Trash2 size={16} /></button>
+                                            <button onClick={(e) => { e.stopPropagation(); setEditingElection(election); setElectionForm({ title: election.title, position: election.position, description: election.description }); }} className="p-1 text-blue-400 hover:text-blue-300" title="Editar"><Edit size={16} /></button>
+                                            <button onClick={(e) => { e.stopPropagation(); handleDeleteElection(election.id); }} className="p-1 text-red-400 hover:text-red-300" title="Eliminar"><Trash2 size={16} /></button>
                                         </div>
                                     </div>
                                     <p className="text-xs text-gray-500 mt-1 truncate">{election.position}</p>
