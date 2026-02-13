@@ -125,14 +125,27 @@ module.exports = {
                 const monto = interaction.options.getInteger('monto');
                 const origen = interaction.options.getString('origen');
 
+                console.log(`[Tesoreria Debug] Depositar - Monto: ${monto}, Origen: ${origen}, User: ${interaction.user.tag}`);
+
+                if (monto === null || monto === undefined) {
+                    return interaction.editReply('❌ Error interno: Monto inválido.');
+                }
+
                 // Check user balance first
                 const UnbelievaBoatService = client.services?.billing?.ubService || client.billingService?.ubService || (client.services && client.services.billing && client.services.billing.ubService);
 
                 if (!UnbelievaBoatService) {
+                    console.error('[Tesoreria Debug] UB Service not found');
                     return interaction.editReply('❌ Error: Servicio bancario no disponible.');
                 }
 
                 const userBalance = await UnbelievaBoatService.getUserBalance(interaction.guildId, interaction.user.id);
+                console.log(`[Tesoreria Debug] User Balance:`, userBalance);
+
+                if (!userBalance || typeof userBalance.bank === 'undefined') {
+                    console.error('[Tesoreria Debug] Invalid user balance response', userBalance);
+                    return interaction.editReply('❌ Error al obtener tu balance bancario.');
+                }
 
                 if (userBalance.bank < monto) {
                     return interaction.editReply(`❌ No tienes suficientes fondos en banco para depositar $${monto.toLocaleString()}.`);
@@ -142,19 +155,29 @@ module.exports = {
                 await UnbelievaBoatService.removeMoney(interaction.guildId, interaction.user.id, monto, `Depósito a Tesorería: ${origen}`, 'bank');
 
                 // 2. Add to Treasury
-                const newBalance = await treasuryService.addFunds(
+                console.log('[Tesoreria Debug] Calling addFunds...');
+                let newBalance = await treasuryService.addFunds(
                     interaction.guildId,
                     monto,
                     'Depósito Manual',
                     `Depósito por ${interaction.user.tag}: ${origen}`
                 );
 
+                console.log(`[Tesoreria Debug] addFunds returned: ${newBalance}`);
+
+                if (newBalance === undefined || newBalance === null) {
+                    console.error('[Tesoreria Debug] addFunds returned null/undefined!');
+                    // Fetch directly as fallback to prevent crash
+                    newBalance = await treasuryService.getBalance(interaction.guildId);
+                    console.log(`[Tesoreria Debug] Fetched fallback balance: ${newBalance}`);
+                }
+
                 const embed = new EmbedBuilder()
                     .setTitle('💰 Depósito a Tesorería Exitoso')
                     .setColor('#2ECC71')
                     .addFields(
                         { name: 'Monto Depositado', value: `$${monto.toLocaleString()}`, inline: true },
-                        { name: 'Nuevo Balance', value: `$${newBalance.toLocaleString()}`, inline: true },
+                        { name: 'Nuevo Balance', value: `$${newBalance !== undefined && newBalance !== null ? newBalance.toLocaleString() : 'Error'}`, inline: true },
                         { name: 'Origen', value: origen, inline: false }
                     );
 
