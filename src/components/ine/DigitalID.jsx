@@ -8,14 +8,21 @@ const DigitalID = ({ userData, dniData, votes }) => {
 
     // Mock Data if missing
     const userAvatar = userData?.user_metadata?.avatar_url || userData?.avatar_url || "https://ui-avatars.com/api/?name=" + (dniData?.nombre || userData?.email || 'User');
-    const name = dniData?.nombre ? `${dniData.nombre} ${dniData.apellido}` : (userData?.user_metadata?.full_name || 'Ciudadano');
-    const curp = dniData?.curp || 'S/R';
+
+    // Construct Name from DNI parts
+    let fullName = dniData?.nombre || (userData?.user_metadata?.full_name || 'Ciudadano');
+    if (dniData?.apellido_paterno) fullName += ` ${dniData.apellido_paterno}`;
+    if (dniData?.apellido_materno) fullName += ` ${dniData.apellido_materno}`;
+
+    const name = fullName.toUpperCase();
+    const curp = dniData?.curp || dniData?.dni_number || 'S/R';
     const address = dniData?.domicilio || 'Domicilio Desconocido';
     const birthDate = dniData?.fecha_nacimiento || 'N/A';
     const registerDate = dniData?.created_at
         ? new Date(dniData.created_at).getFullYear()
         : new Date(userData?.created_at || Date.now()).getFullYear();
-    const section = "0520"; // Static for now
+    const section = "0520";
+    const folio = dniData?.dni_number || "0000000000";
 
     // Stamps Logic: Check if user voted in specific years
     // This is a mock logic. In real implementation, we'd check `votes` array for specific election dates.
@@ -56,9 +63,15 @@ const DigitalID = ({ userData, dniData, votes }) => {
 
                         {/* Data Area */}
                         <div className="flex-1 space-y-1">
-                            <div className="mb-2">
-                                <p className="text-[10px] text-gray-500 font-bold uppercase">Nombre</p>
-                                <h2 className="text-xl font-bold text-gray-900 leading-none">{name.toUpperCase()}</h2>
+                            <div className="flex justify-between items-start mb-2">
+                                {/* INE Logo (Black) */}
+                                <div className="flex flex-col leading-none select-none">
+                                    <span className="text-2xl font-black tracking-tighter text-black" style={{ fontFamily: 'Arial Black, sans-serif' }}>INE</span>
+                                    <span className="text-[6px] font-bold tracking-widest text-black uppercase">Instituto Nacional Electoral</span>
+                                </div>
+                                <div className="text-[10px] font-bold text-[#D90F74] uppercase tracking-wide border-b-2 border-[#D90F74] pb-0.5">
+                                    Credencial para Votar
+                                </div>
                             </div>
 
                             <div className="grid grid-cols-2 gap-2">
@@ -86,7 +99,7 @@ const DigitalID = ({ userData, dniData, votes }) => {
                             {/* Bottom Codes */}
                             <div className="absolute bottom-4 left-40 right-4 flex justify-between items-end border-t border-gray-300 pt-1">
                                 <div className="text-[8px] font-mono text-gray-400 tracking-wider">
-                                    IDMEX{section}1234567890&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;
+                                    IDMEX{section}{folio}&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;
                                 </div>
                                 <div className="text-xl font-signature text-black opacity-80 -rotate-3">
                                     {name.split(' ')[0]} {/* Fake Signature */}
