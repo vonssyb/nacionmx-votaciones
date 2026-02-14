@@ -143,7 +143,7 @@ const Elections = () => {
                 const newPublicResults = {};
 
                 await Promise.all(closedElections.map(async (e) => {
-                    const { data: resData, error: resError } = await supabase.rpc('get_public_results', { election_id_param: e.id });
+                    const { data: resData, error: resError } = await supabase.rpc('get_election_results_v2', { p_election_id: e.id });
                     if (!resError && resData) {
                         newPublicResults[e.id] = {};
                         resData.forEach(r => {
