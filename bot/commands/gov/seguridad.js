@@ -44,7 +44,7 @@ module.exports = {
         const hasRole = interaction.member.roles.cache.has(sspRole) || interaction.member.roles.cache.has(sspcRole);
 
         if (!hasRole && !isAdmin) {
-            return interaction.reply({ content: '❌ No tienes permiso para usar este comando. (Secretario de Seguridad)', ephemeral: true });
+            return interaction.editReply({ content: '❌ No tienes permiso para usar este comando. (Secretario de Seguridad)' });
         }
 
         const subcommand = interaction.options.getSubcommand();
@@ -65,12 +65,14 @@ module.exports = {
                 const defcon = levels[level];
 
                 // Update setting
-                await supabase.from('server_settings').upsert({
+                const { error: upsertError } = await supabase.from('server_settings').upsert({
                     guild_id: interaction.guildId,
                     key: 'defcon_level',
                     value: level.toString(),
                     description: 'Nivel de alerta de seguridad'
                 });
+
+                if (upsertError) throw upsertError;
 
                 const embed = new EmbedBuilder()
                     .setTitle('📢 ALERTA DE SEGURIDAD NACIONAL')
@@ -79,14 +81,14 @@ module.exports = {
                     .setFooter({ text: `Autorizado por: ${interaction.user.tag}` })
                     .setTimestamp();
 
-                await interaction.reply({ embeds: [embed] });
+                await interaction.editReply({ embeds: [embed] });
 
                 // Optional: Ping users or send to announcements if configured
                 // interaction.channel.send('@here'); 
 
             } else if (subcommand === 'buscar') {
                 const plate = interaction.options.getString('placa').toUpperCase();
-                await interaction.deferReply();
+                // Check if already deferred by gov handler (yes) so no need to defer again
 
                 // Join with users or similar requires complex query or multiple steps
                 // Simplified: Get sale info
@@ -138,7 +140,7 @@ module.exports = {
                     .setColor('#FF0000')
                     .setTimestamp();
 
-                return interaction.reply({ embeds: [embed] });
+                return interaction.editReply({ embeds: [embed] });
 
             } else if (subcommand === 'redada') {
                 const zone = interaction.options.getString('zona');
@@ -149,12 +151,13 @@ module.exports = {
                     .setImage('https://media.discordapp.net/attachments/1398888916303487028/1398888916303487028/raid.png?width=800') // Placeholder
                     .setColor('#FF0000');
 
-                return interaction.reply({ embeds: [embed] });
+                return interaction.editReply({ embeds: [embed] });
             }
 
         } catch (error) {
             console.error('[Seguridad] Error:', error);
-            return interaction.reply({ content: '❌ Error ejecutando el comando.', ephemeral: true });
+            // Ignore if already replied/deferred error? No, just try to edit.
+            return interaction.editReply({ content: '❌ Error ejecutando el comando.' }).catch(() => { });
         }
     }
 };

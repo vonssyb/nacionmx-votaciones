@@ -37,7 +37,7 @@ module.exports = {
         const hasRole = interaction.member.roles.cache.has(justiciaRole) || interaction.member.roles.cache.has(juezRole);
 
         if (!hasRole && !isAdmin) {
-            return interaction.reply({ content: '❌ No tienes permiso para usar este comando. (Secretaría de Justicia / Juez)', ephemeral: true });
+            return interaction.editReply({ content: '❌ No tienes permiso para usar este comando. (Secretaría de Justicia / Juez)' });
         }
 
         const subcommand = interaction.options.getSubcommand();
@@ -58,7 +58,7 @@ module.exports = {
 
                 if (error) {
                     console.error('Indulto error:', error);
-                    return interaction.reply({ content: '❌ Error al actualizar antecedentes.', ephemeral: true });
+                    return interaction.editReply({ content: '❌ Error al actualizar antecedentes.' });
                 }
 
                 const embed = new EmbedBuilder()
@@ -69,7 +69,7 @@ module.exports = {
                     .setImage('https://media.discordapp.net/attachments/1398888916303487028/1398888916303487028/freedom.png?width=800') // Placeholder or nice image
                     .setFooter({ text: `Autorizado por: ${interaction.user.tag}` });
 
-                return interaction.reply({ embeds: [embed] });
+                return interaction.editReply({ embeds: [embed] });
 
             } else if (subcommand === 'orden') {
                 const target = interaction.options.getUser('objetivo');
@@ -101,7 +101,7 @@ module.exports = {
 
                 // Notify in public channel if possible (e.g. #policia or #warrants)
                 // For now, reply here.
-                return interaction.reply({ embeds: [embed] });
+                return interaction.editReply({ embeds: [embed] });
 
             } else if (subcommand === 'ley') {
                 const title = interaction.options.getString('titulo');
@@ -115,7 +115,7 @@ module.exports = {
                     .setFooter({ text: `Publicado por: ${interaction.user.tag} | Nación MX` })
                     .setTimestamp();
 
-                await interaction.reply({ content: '✅ Ley publicada.', ephemeral: true });
+                await interaction.editReply({ content: '✅ Ley publicada.' });
 
                 // Try to find a laws channel
                 // We should look into roles.json/channels or find by name
@@ -128,7 +128,7 @@ module.exports = {
 
         } catch (error) {
             console.error('[Justicia] Error:', error);
-            return interaction.reply({ content: '❌ Error ejecutando el comando.', ephemeral: true });
+            return interaction.editReply({ content: '❌ Error ejecutando el comando.' });
         }
     }
 };

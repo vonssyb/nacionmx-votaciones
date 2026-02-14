@@ -30,7 +30,7 @@ module.exports = {
         const hasRole = interaction.member.roles.cache.has(saludRole);
 
         if (!hasRole && !isAdmin) {
-            return interaction.reply({ content: '❌ No tienes permiso para usar este comando. (Secretario de Salud)', ephemeral: true });
+            return interaction.editReply({ content: '❌ No tienes permiso para usar este comando. (Secretario de Salud)' });
         }
 
         const subcommand = interaction.options.getSubcommand();
@@ -75,7 +75,7 @@ module.exports = {
                 .setTimestamp();
 
             // Send to channel and user DM
-            await interaction.reply({ embeds: [embed] });
+            await interaction.editReply({ embeds: [embed] });
             target.send({ content: 'Has recibido una licencia médica oficial.', embeds: [embed] }).catch(() => { });
 
         } else if (subcommand === 'revivir') {
@@ -94,7 +94,7 @@ module.exports = {
                 .setDescription(`El usuario **${target}** ha sido reanimado por la intervención de la Secretaría de Salud.`)
                 .setColor('#00FFFF');
 
-            await interaction.reply({ embeds: [embed] });
+            await interaction.editReply({ embeds: [embed] });
         }
     }
 };
