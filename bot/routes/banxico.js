@@ -81,5 +81,42 @@ module.exports = (supabase) => {
         res.json(data);
     });
 
+    /**
+     * POST /api/banxico/companies
+     * Returns companies owned by the user and their employment status
+     */
+    router.post('/companies', async (req, res) => {
+        const { userId } = req.body;
+        if (!userId) return res.status(400).json({ error: 'Falta User ID' });
+
+        try {
+            // 1. Get Owned Companies
+            const { data: ownedCompanies, error: ownedError } = await supabase
+                .from('companies')
+                .select('*, company_employees(*)')
+                .eq('owner_id', userId);
+
+            if (ownedError) throw ownedError;
+
+            // 2. Get Employment (Where user is an employee but not owner)
+            const { data: employment, error: empError } = await supabase
+                .from('company_employees')
+                .select('*, companies(*)')
+                .eq('discord_id', userId);
+
+            if (empError) throw empError;
+
+            res.json({
+                success: true,
+                owned: ownedCompanies || [],
+                employment: employment || []
+            });
+
+        } catch (err) {
+            console.error('Banxico Companies Error:', err);
+            res.status(500).json({ error: 'Error obteniendo empresas' });
+        }
+    });
+
     return router;
 };

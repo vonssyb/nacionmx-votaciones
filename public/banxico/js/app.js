@@ -118,6 +118,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                     // Load Dashboard
                     loadDashboardData(user);
+                    loadBusinessData(user.id);
                     initializeChart();
 
                 }, 800);
@@ -138,6 +139,81 @@ document.addEventListener('DOMContentLoaded', async () => {
                 });
             }
         });
+    }
+
+    // Business Data Loading
+    async function loadBusinessData(userId) {
+        const companiesContainer = document.getElementById('companies-list');
+        const employmentContainer = document.getElementById('employment-list');
+
+        try {
+            const response = await fetch('/api/banxico/companies', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId })
+            });
+            const data = await response.json();
+
+            if (!data.success) throw new Error(data.error);
+
+            // Render Owned Companies
+            if (companiesContainer) {
+                if (data.owned.length === 0) {
+                    companiesContainer.innerHTML = `
+                        <div class="p-4 border border-dashed border-gray-700 rounded-lg text-center">
+                            <i class="fas fa-folder-open text-gray-600 text-xl mb-2"></i>
+                            <div class="text-xs text-gray-500">No tienes empresas registradas</div>
+                        </div>`;
+                } else {
+                    companiesContainer.innerHTML = data.owned.map(comp => `
+                        <div class="bg-gray-800/50 p-3 rounded border border-white/5 flex justify-between items-center group hover:border-[#b38728]/50 transition">
+                            <div class="flex items-center gap-3">
+                                <div class="w-8 h-8 rounded bg-[#b38728]/10 text-[#b38728] flex items-center justify-center font-bold text-xs uppercase">
+                                    ${comp.name.substring(0, 2)}
+                                </div>
+                                <div>
+                                    <div class="text-xs font-bold text-gray-200">${comp.name}</div>
+                                    <div class="text-[9px] text-gray-500 uppercase tracking-wider">Dueño</div>
+                                </div>
+                            </div>
+                             <div class="font-mono font-bold text-xs text-[#b38728]">
+                                $${(comp.balance || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+                            </div>
+                        </div>
+                    `).join('');
+                }
+            }
+
+            // Render Employment
+            if (employmentContainer) {
+                if (data.employment.length === 0) {
+                    employmentContainer.innerHTML = `
+                         <div class="p-4 border border-dashed border-gray-700 rounded-lg text-center">
+                            <i class="fas fa-user-slash text-gray-600 text-xl mb-2"></i>
+                            <div class="text-xs text-gray-500">No tienes empleos registrados</div>
+                        </div>`;
+                } else {
+                    employmentContainer.innerHTML = data.employment.map(emp => `
+                        <div class="bg-gray-800/50 p-3 rounded border border-white/5 flex justify-between items-center">
+                            <div class="flex items-center gap-3">
+                                <div class="w-8 h-8 rounded bg-blue-500/10 text-blue-400 flex items-center justify-center font-bold text-xs">
+                                    <i class="fas fa-briefcase"></i>
+                                </div>
+                                <div>
+                                    <div class="text-xs font-bold text-gray-200">${emp.companies?.name || 'Empresa'}</div>
+                                    <div class="text-[9px] text-gray-500 uppercase tracking-wider">Empleado</div>
+                                </div>
+                            </div>
+                            <div class="text-[10px] bg-green-500/20 text-green-400 px-2 py-0.5 rounded uppercase font-bold">Activo</div>
+                        </div>
+                    `).join('');
+                }
+            }
+
+        } catch (e) {
+            console.error(e);
+            if (companiesContainer) companiesContainer.innerHTML = '<div class="text-red-500 text-xs">Error cargando empresas</div>';
+        }
     }
 
     // Dashboard Data Loading
