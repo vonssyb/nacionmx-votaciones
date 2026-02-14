@@ -4,168 +4,149 @@ const SUPABASE_URL = 'https://igjedwdxqwkpbgrmtrrq.supabase.co';
 // NOTE: Ideally this comes from env, but for this demo/static site we might need it exposed or use a backend proxy.
 const SUPABASE_KEY_PLACEHOLDER = '';
 
-document.addEventListener('DOMContentLoaded', async () => {
-    console.log('Banxico Portal Loaded | Premium Mode');
 
-    // Elements
-    const navLoginBtn = document.getElementById('nav-login-btn');
-    const loginModal = document.getElementById('login-modal');
-    const closeLoginBtn = document.getElementById('close-login-btn');
-    const closeLoginOverlay = document.getElementById('close-login-overlay');
+// Logic defined in global scope to ensure availability
+window.handleBanxicoLogin = async (e) => {
+    if (e) e.preventDefault();
+    console.log('Login Action Triggered via ' + (e ? 'Event' : 'Manual Call'));
+
     const performLoginBtn = document.getElementById('perform-login-btn');
     const codeInput = document.getElementById('code-input');
 
-    // Modal Logic
-    const toggleModal = (show) => {
-        if (loginModal) {
-            if (show) {
-                loginModal.classList.remove('hidden');
-                setTimeout(() => loginModal.classList.remove('opacity-0'), 10);
-                if (codeInput) codeInput.focus();
-            } else {
+    if (!performLoginBtn || !codeInput) {
+        console.error('Elements missing');
+        Swal.fire('Error', 'No se encontraron los elementos de login', 'error');
+        return;
+    }
+
+    const code = codeInput.value.trim();
+
+    // Validation
+    if (code.length < 6) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Código Invalido',
+            text: 'El código de acceso debe tener 6 caracteres.',
+            background: '#1f2937',
+            color: '#fff',
+            confirmButtonColor: '#b38728'
+        });
+        return;
+    }
+
+    // Loading State
+    const originalText = performLoginBtn.innerHTML;
+    performLoginBtn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Verificando...';
+    performLoginBtn.disabled = true;
+    performLoginBtn.classList.add('opacity-75', 'cursor-not-allowed');
+
+    // Perform Login Request
+    try {
+        const response = await fetch('/api/banxico/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code })
+        });
+
+        const data = await response.json();
+
+        if (!data.success) {
+            throw new Error(data.error || 'Error de autenticación');
+        }
+
+        // SUCCESS
+        const user = data.user;
+        window.currentUser = user; // Set Global for other functions
+
+        performLoginBtn.innerHTML = '<i class="fas fa-check"></i> Acceso Concedido';
+        performLoginBtn.classList.remove('bg-[#b38728]', 'hover:bg-[#967020]');
+        performLoginBtn.classList.add('bg-green-600', 'hover:bg-green-700');
+
+        setTimeout(() => {
+            // Transition to Dashboard
+            const loginModal = document.getElementById('login-modal');
+            if (loginModal) {
                 loginModal.classList.add('opacity-0');
                 setTimeout(() => loginModal.classList.add('hidden'), 300);
             }
-        }
-    };
 
-    if (navLoginBtn) navLoginBtn.addEventListener('click', () => toggleModal(true));
-    if (closeLoginBtn) closeLoginBtn.addEventListener('click', () => toggleModal(false));
-    if (closeLoginOverlay) closeLoginOverlay.addEventListener('click', () => toggleModal(false));
-
-    // Login Logic
-    // Login Logic
-    window.handleBanxicoLogin = async (e) => {
-        if (e) e.preventDefault();
-        console.log('Login Action Triggered via ' + (e ? 'Event' : 'Manual Call'));
-
-        const performLoginBtn = document.getElementById('perform-login-btn');
-        const codeInput = document.getElementById('code-input');
-
-        if (!performLoginBtn || !codeInput) return console.error('Elements missing');
-
-        const code = codeInput.value.trim();
-
-        // Validation
-        if (code.length < 6) {
-            Swal.fire({
-                icon: 'warning',
-                title: 'Código Invalido',
-                text: 'El código de acceso debe tener 6 caracteres.',
+            // Show Welcome Toast
+            const Toast = Swal.mixin({
+                toast: true,
+                position: 'top-end',
+                showConfirmButton: false,
+                timer: 3000,
+                timerProgressBar: true,
                 background: '#1f2937',
                 color: '#fff',
-                confirmButtonColor: '#b38728'
+                iconColor: '#b38728'
             });
-            return;
-        }
-
-        // Loading State
-        const originalText = performLoginBtn.innerHTML;
-        performLoginBtn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Verificando...';
-        performLoginBtn.disabled = true;
-        performLoginBtn.classList.add('opacity-75', 'cursor-not-allowed');
-
-        // Perform Login Request
-        try {
-            const response = await fetch('/api/banxico/login', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ code })
+            Toast.fire({
+                icon: 'success',
+                title: `Bienvenido, ${user.name}`
             });
 
-            const data = await response.json();
+            // Switch Views
+            const landingPage = document.getElementById('landing-page');
+            const dashboard = document.getElementById('dashboard');
+            const navLoginBtn = document.getElementById('nav-login-btn');
+            const navUserProfile = document.getElementById('nav-user-profile');
+            const userAvatar = document.getElementById('user-avatar');
+            const dashAvatar = document.getElementById('dashboard-avatar');
 
-            if (!data.success) {
-                throw new Error(data.error || 'Error de autenticación');
+            if (landingPage) landingPage.classList.add('hidden');
+            if (dashboard) dashboard.classList.remove('hidden');
+            if (navLoginBtn) navLoginBtn.classList.add('hidden');
+            if (navUserProfile) navUserProfile.classList.remove('hidden');
+
+            // Set Avatar
+            const avatarUrl = user.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=b38728&color=fff`;
+            if (userAvatar) userAvatar.src = avatarUrl;
+            if (dashAvatar) dashAvatar.src = avatarUrl;
+
+            // Load Dashboard
+            // Since this function is now global, these helper functions must be available or this logic needs to be robust.
+            // Check if loadDashboardData is defined, if not wait or fail gracefully?
+            // Actually, loadDashboardData is defined inside DOMContentLoaded. 
+            // WE MUST MOVE HELPER FUNCTIONS TO GLOBAL SCOPE AS WELL or attach them to window.
+            if (typeof window.loadDashboardData === 'function') {
+                window.loadDashboardData(user);
+                window.loadBusinessData(user.id);
+                window.loadCreditCards(user.id);
+                window.loadSatDebts();
+                window.initializeChart();
+            } else {
+                console.error('Helper functions not loaded yet!');
+                // Fallback: Trigger event? Or just hope they are hoisted/attached? 
+                // They were defined as function declarations so they are hoisted within the closure.
+                // We need to move them out too.
             }
 
-            // SUCCESS
-            const user = data.user;
-            window.currentUser = user; // Set Global for other functions
+        }, 800);
 
-            performLoginBtn.innerHTML = '<i class="fas fa-check"></i> Acceso Concedido';
-            performLoginBtn.classList.remove('bg-[#b38728]', 'hover:bg-[#967020]');
-            performLoginBtn.classList.add('bg-green-600', 'hover:bg-green-700');
+    } catch (error) {
+        console.error(error);
+        performLoginBtn.innerHTML = originalText;
+        performLoginBtn.disabled = false;
+        performLoginBtn.classList.remove('opacity-75', 'cursor-not-allowed');
 
-            setTimeout(() => {
-                // Transition to Dashboard
-                const loginModal = document.getElementById('login-modal');
-                if (loginModal) {
-                    loginModal.classList.add('opacity-0');
-                    setTimeout(() => loginModal.classList.add('hidden'), 300);
-                }
-
-                // Show Welcome Toast
-                const Toast = Swal.mixin({
-                    toast: true,
-                    position: 'top-end',
-                    showConfirmButton: false,
-                    timer: 3000,
-                    timerProgressBar: true,
-                    background: '#1f2937',
-                    color: '#fff',
-                    iconColor: '#b38728'
-                });
-                Toast.fire({
-                    icon: 'success',
-                    title: `Bienvenido, ${user.name}`
-                });
-
-                // Switch Views
-                const landingPage = document.getElementById('landing-page');
-                const dashboard = document.getElementById('dashboard');
-                const navLoginBtn = document.getElementById('nav-login-btn');
-                const navUserProfile = document.getElementById('nav-user-profile');
-                const userAvatar = document.getElementById('user-avatar');
-                const dashAvatar = document.getElementById('dashboard-avatar');
-
-                if (landingPage) landingPage.classList.add('hidden');
-                if (dashboard) dashboard.classList.remove('hidden');
-                if (navLoginBtn) navLoginBtn.classList.add('hidden');
-                if (navUserProfile) navUserProfile.classList.remove('hidden');
-
-                // Set Avatar
-                const avatarUrl = user.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=b38728&color=fff`;
-                if (userAvatar) userAvatar.src = avatarUrl;
-                if (dashAvatar) dashAvatar.src = avatarUrl;
-
-                // Load Dashboard
-                loadDashboardData(user);
-                loadBusinessData(user.id);
-                loadCreditCards(user.id);
-                loadSatDebts(); // Load SAT debts on startup too
-                initializeChart();
-
-            }, 800);
-
-        } catch (error) {
-            console.error(error);
-            performLoginBtn.innerHTML = originalText;
-            performLoginBtn.disabled = false;
-            performLoginBtn.classList.remove('opacity-75', 'cursor-not-allowed');
-
-            Swal.fire({
-                icon: 'error',
-                title: 'Error de Acceso',
-                text: error.message,
-                background: '#1f2937',
-                color: '#fff',
-                confirmButtonColor: '#d33'
-            });
-        }
-    };
-
-    // Attach listener as backup, but mainly rely on global now
-    if (performLoginBtn) {
-        performLoginBtn.addEventListener('click', window.handleBanxicoLogin);
+        Swal.fire({
+            icon: 'error',
+            title: 'Error de Acceso',
+            text: error.message,
+            background: '#1f2937',
+            color: '#fff',
+            confirmButtonColor: '#d33'
+        });
     }
+};
 
-    async function loadCreditCards(userId) {
+document.addEventListener('DOMContentLoaded', async () => {
+    console.log('App.js Loaded - DOM Ready');
+
+    window.loadCreditCards = async function (userId) {
         const container = document.getElementById('cards-container');
-        // valid check: we don't want to clear it because loadDashboardData put the seeds there.
-        // But we want to avoid duplicates if called multiple times.
-        // For now, let's assume it's called once or we clear "dynamic" cards. 
-        // Simpler: Just append.
+        // ...
 
         try {
             const response = await fetch(`/api/banxico/cards/${userId}`);
@@ -262,8 +243,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 // Refresh Dashboard (Cards + Balance)
                 document.getElementById('cards-container').innerHTML = ''; // Clear to reload
-                loadDashboardData(window.currentUser); // Reload static
-                loadCreditCards(window.currentUser.id); // Reload dynamic
+                window.loadDashboardData(window.currentUser); // Reload static
+                window.loadCreditCards(window.currentUser.id); // Reload dynamic
                 // Also update global balance display if returned
                 if (res.newBalance) document.getElementById('balance-display').innerHTML = `$${res.newBalance.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`;
 
@@ -278,7 +259,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     };
 
     // Business Data Loading
-    async function loadBusinessData(userId) {
+    window.loadBusinessData = async function (userId) {
         const companiesContainer = document.getElementById('companies-list');
         const employmentContainer = document.getElementById('employment-list');
 
@@ -493,7 +474,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
 // Dashboard Data Loading
-function loadDashboardData(user) {
+window.loadDashboardData = function (user) {
     const balanceEl = document.getElementById('balance-display');
     const cardsContainer = document.getElementById('cards-container');
     const transactionsList = document.getElementById('transactions-list');
@@ -509,7 +490,7 @@ function loadDashboardData(user) {
 
     // Animate Balance
     if (balanceEl) {
-        animateValue(balanceEl, 0, realBalance, 2000);
+        window.animateValue(balanceEl, 0, realBalance, 2000);
     }
 
     // Render Cards with Glass/Premium Look
@@ -542,8 +523,8 @@ function loadDashboardData(user) {
                             <div class="text-xs font-bold tracking-wider">${user.name.toUpperCase()}</div>
                         </div>
                         <div class="text-right">
-                             <div class="text-[8px] uppercase opacity-40">Disponibilidad</div>
-                             <div class="text-sm font-mono font-bold text-[#b38728]">$${card.balance.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</div>
+                            <div class="text-[8px] uppercase opacity-40">Disponibilidad</div>
+                            <div class="text-sm font-mono font-bold text-[#b38728]">$${card.balance.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</div>
                         </div>
                     </div>
                 </div>
@@ -576,7 +557,7 @@ function loadDashboardData(user) {
 }
 
 // Chart Initialization
-function initializeChart() {
+window.initializeChart = function () {
     const ctx = document.getElementById('balanceChart');
     if (ctx) {
         new Chart(ctx, {
@@ -623,7 +604,7 @@ function initializeChart() {
 }
 
 // Utility: Number Animation
-function animateValue(obj, start, end, duration) {
+window.animateValue = function (obj, start, end, duration) {
     let startTimestamp = null;
     const step = (timestamp) => {
         if (!startTimestamp) startTimestamp = timestamp;
@@ -638,4 +619,74 @@ function animateValue(obj, start, end, duration) {
     };
     window.requestAnimationFrame(step);
 }
+
+window.loadSatDebts = async function () {
+    const container = document.getElementById('sat-debts-list');
+    // We need to check if container exists, it's in the SAT modal
+    if (!container || !window.currentUser) return;
+
+    try {
+        const response = await fetch(`/api/banxico/taxes/${window.currentUser.id}`);
+        const data = await response.json();
+
+        if (data.success && data.debts && data.debts.length > 0) {
+            container.innerHTML = data.debts.map(debt => `
+                <div class="bg-gray-800/50 p-4 rounded border border-white/5 flex justify-between items-center">
+                    <div>
+                        <div class="text-xs font-bold text-gray-200">Impuesto ID: ${debt.id.substring(0, 8)}</div>
+                        <div class="text-[10px] text-gray-500 text-red-400">Vence: ${new Date(debt.due_date).toLocaleDateString()}</div>
+                    </div>
+                     <div class="text-right">
+                        <div class="text-sm font-bold text-white">$${debt.amount}</div>
+                        <button class="text-[10px] text-[#b38728] hover:underline" onclick="payTax('${debt.id}', ${debt.amount})">Pagar</button>
+                    </div>
+                </div>
+            `).join('');
+        } else {
+            container.innerHTML = '<div class="text-center py-4 text-xs text-gray-500">No tienes deudas fiscales pendientes.</div>';
+        }
+    } catch (e) {
+        console.error('Error loading SAT debts', e);
+        container.innerHTML = '<div class="text-center py-4 text-xs text-red-500">Error cargando información fiscal.</div>';
+    }
+};
+
+window.payTax = async (debtId, amount) => {
+    try {
+        const { isConfirmed } = await Swal.fire({
+            title: 'Pagar Impuesto',
+            text: `¿Deseas pagar el impuesto por $${amount}?`,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#b38728',
+            confirmButtonText: 'Sí, pagar',
+            cancelButtonText: 'Cancelar',
+            background: '#1f2937', color: '#fff'
+        });
+
+        if (isConfirmed) {
+            Swal.showLoading();
+            const response = await fetch('/api/banxico/taxes/pay', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId: window.currentUser.id, debtId })
+            });
+            const data = await response.json();
+
+            if (!data.success) throw new Error(data.error);
+
+            Swal.fire({
+                icon: 'success', title: 'Pago Exitoso',
+                text: data.message,
+                background: '#1f2937', color: '#fff'
+            });
+
+            window.loadSatDebts();
+            if (data.newBalance) document.getElementById('balance-display').innerHTML = `$${data.newBalance.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`;
+        }
+    } catch (e) {
+        Swal.fire({ icon: 'error', title: 'Error', text: e.message, background: '#1f2937', color: '#fff' });
+    }
+};
+
 });
