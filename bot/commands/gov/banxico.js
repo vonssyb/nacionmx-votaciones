@@ -51,9 +51,14 @@ module.exports = {
         if (subcommand === 'acceso') {
             // Generate 6-digit code
             const code = Math.floor(100000 + Math.random() * 900000).toString();
-            const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString(); // 5 minutes
+            const expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString(); // 30 minutes
 
             try {
+                // Get service from client (standard pattern)
+                const banxicoService = interaction.client.services?.banxico;
+                // OR fallback to global/singleton if not in client. 
+                // Actually, line 19 defines banxicoService.
+
                 await banxicoService.createAuthCode(interaction.user.id, code, expiresAt);
 
                 // Send DM
@@ -62,7 +67,7 @@ module.exports = {
                         embeds: [
                             new EmbedBuilder()
                                 .setTitle('🔐 Código de Acceso - Banco de México')
-                                .setDescription(`Tu código de seguridad para la Banca en Línea es:\n\n# \`${code}\`\n\n⚠️ Este código expira en 5 minutos. No lo compartas con nadie.`)
+                                .setDescription(`Tu código de seguridad para la Banca en Línea es:\n\n# \`${code}\`\n\n⚠️ Este código expira en 30 minutos. No lo compartas con nadie.`)
                                 .setColor('#b38728')
                                 .setFooter({ text: 'Sistema de Seguridad Banxico' })
                         ]

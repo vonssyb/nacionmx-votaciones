@@ -35,7 +35,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Login Logic
     if (performLoginBtn && codeInput) {
-        performLoginBtn.addEventListener('click', async () => {
+        console.log('Login button found, attaching listener');
+        performLoginBtn.addEventListener('click', async (e) => {
+            e.preventDefault(); // Prevent accidental form submission
+            console.log('Login button clicked');
             const code = codeInput.value.trim();
 
             // Validation
@@ -467,28 +470,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         };
     };
-    if (data.employment.length === 0) {
-        employmentContainer.innerHTML = `
-                         <div class="p-4 border border-dashed border-gray-700 rounded-lg text-center">
-                            <i class="fas fa-user-slash text-gray-600 text-xl mb-2"></i>
-                            <div class="text-xs text-gray-500">No tienes empleos registrados</div>
-                        </div>`;
-    } else {
-        employmentContainer.innerHTML = data.employment.map(emp => `
-                        <div class="bg-gray-800/50 p-3 rounded border border-white/5 flex justify-between items-center">
-                            <div class="flex items-center gap-3">
-                                <div class="w-8 h-8 rounded bg-blue-500/10 text-blue-400 flex items-center justify-center font-bold text-xs">
-                                    <i class="fas fa-briefcase"></i>
-                                </div>
-                                <div>
-                                    <div class="text-xs font-bold text-gray-200">${emp.companies?.name || 'Empresa'}</div>
-                                    <div class="text-[9px] text-gray-500 uppercase tracking-wider">Empleado</div>
-                                </div>
-                            </div>
-                            <div class="text-[10px] bg-green-500/20 text-green-400 px-2 py-0.5 rounded uppercase font-bold">Activo</div>
-                        </div>
-                    `).join('');
-    }
+
 }
 
         } catch (e) {
