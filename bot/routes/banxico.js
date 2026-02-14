@@ -260,5 +260,91 @@ module.exports = (supabase) => {
         }
     });
 
-    return router;
+    res.json({ success: true, newBalance, message: 'Impuesto pagado correctamente' });
+
+} catch (err) {
+    console.error('Tax Payment Error:', err);
+    res.status(500).json({ error: 'Error procesando el pago' });
+}
+    });
+
+/**
+ * POST /api/banxico/cards/pay
+ * Pay off credit card debt
+ */
+router.post('/cards/pay', async (req, res) => {
+    const { userId, cardId, amount } = req.body; // Amount is optional (if null, pay full debt)
+
+    if (!userId || !cardId) return res.status(400).json({ error: 'Datos incompletos' });
+
+    try {
+        // 1. Get Card Details
+        const { data: card, error: cardError } = await supabase
+            .from('credit_cards')
+            .select('*')
+            .eq('id', cardId)
+            .single();
+
+        if (cardError || !card) return res.status(404).json({ error: 'Tarjeta no encontrada' });
+
+        const debt = parseFloat(card.current_balance || 0);
+        if (debt <= 0) return res.status(400).json({ error: 'La tarjeta no tiene deuda pendiente' });
+
+        // Determine Payment Amount
+        let payAmount = amount ? parseFloat(amount) : debt;
+        if (payAmount > debt) payAmount = debt; // Cap at max debt
+        if (payAmount <= 0) return res.status(400).json({ error: 'Monto inválido' });
+
+        // 2. Check User Bank Balance
+        const { data: economy, error: ecoError } = await supabase
+            .from('economy_balances')
+            .select('*')
+            .eq('user_id', userId)
+            .eq('guild_id', '1398525215134318713')
+            .single();
+
+        if (ecoError || !economy) return res.status(400).json({ error: 'Cuenta bancaria no encontrada' });
+        if (economy.bank < payAmount) return res.status(400).json({ error: 'Fondos insuficientes en banco' });
+
+        // 3. Process Transaction
+        // Deduct from Bank
+        const newBankBalance = parseFloat(economy.bank) - payAmount;
+        const { error: bankUpdateError } = await supabase
+            .from('economy_balances')
+            .update({ bank: newBankBalance })
+            .eq('user_id', userId)
+            .eq('guild_id', '1398525215134318713');
+
+        if (bankUpdateError) throw bankUpdateError;
+
+        // Reduce Card Debt
+        const newCardDebt = debt - payAmount;
+        const { error: cardUpdateError } = await supabase
+            .from('credit_cards')
+            .update({ current_balance: newCardDebt })
+            .eq('id', cardId);
+
+        if (cardUpdateError) throw cardUpdateError;
+
+        // Log Transaction
+        await supabase.from('banxico_logs').insert({
+            action: 'credit_payment',
+            executor_id: userId,
+            details: { card_id: cardId, amount: payAmount, old_debt: debt, new_debt: newCardDebt }
+        });
+
+        res.json({
+            success: true,
+            message: `Pago de $${payAmount.toLocaleString('es-MX')} realizado correctamente`,
+            newBalance: newBankBalance,
+            newDebt: newCardDebt
+        });
+
+    } catch (err) {
+        console.error('Card Payment Error:', err);
+        res.status(500).json({ error: 'Error procesando el pago de tarjeta' });
+    }
+});
+
+return router;
 };

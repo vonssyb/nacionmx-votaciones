@@ -120,6 +120,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                     // Load Dashboard
                     loadDashboardData(user);
                     loadBusinessData(user.id);
+                    loadCreditCards(user.id);
+                    loadSatDebts(); // Load SAT debts on startup too
                     initializeChart();
 
                 }, 800);
@@ -141,6 +143,123 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         });
     }
+
+    async function loadCreditCards(userId) {
+        const container = document.getElementById('cards-container');
+        // valid check: we don't want to clear it because loadDashboardData put the seeds there.
+        // But we want to avoid duplicates if called multiple times.
+        // For now, let's assume it's called once or we clear "dynamic" cards. 
+        // Simpler: Just append.
+
+        try {
+            const response = await fetch(`/api/banxico/cards/${userId}`);
+            const data = await response.json();
+
+            if (!data.success) return;
+
+            if (data.cards.length > 0) {
+                // Determine card provider based on name (mock logic)
+                const getProvider = (name) => name.toLowerCase().includes('amex') ? 'amex' : 'visa';
+
+                const cardsHTML = data.cards.map(card => {
+                    const debt = parseFloat(card.current_balance || 0);
+                    const provider = getProvider(card.card_name || 'VISA');
+                    const bgClass = provider === 'amex' ? 'bg-gradient-to-br from-slate-900 to-black border-slate-700' : 'bg-gradient-to-br from-indigo-900 to-blue-900 border-indigo-500';
+                    const logoIcon = provider === 'amex' ? 'fa-cc-amex' : 'fa-cc-visa';
+
+                    return `
+                        <div class="glass-card p-6 rounded-xl relative overflow-hidden ${bgClass} border opacity-0 animate-fade-in text-white group" style="animation-fill-mode: forwards;">
+                            <div class="flex justify-between items-start mb-8">
+                                <i class="fab ${logoIcon} text-4xl opacity-80"></i>
+                                <div class="text-right">
+                                    <div class="text-[10px] uppercase opacity-60 font-bold tracking-widest">${card.card_name}</div>
+                                    <div class="font-mono text-lg tracking-widest text-[#b38728] font-bold">**** ${card.id.substring(0, 4)}</div>
+                                </div>
+                            </div>
+                            
+                            <div class="flex justify-between items-end">
+                                <div>
+                                    <div class="text-[9px] uppercase opacity-50 mb-1">Deuda Actual</div>
+                                    <div class="text-xl font-mono font-bold ${debt > 0 ? 'text-red-400' : 'text-green-400'}">
+                                        $${debt.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+                                    </div>
+                                </div>
+                                ${debt > 0 ? `
+                                <button onclick="payCard('${card.id}', ${debt})" 
+                                    class="bg-white/10 hover:bg-white/20 text-white text-[10px] font-bold uppercase px-3 py-1.5 rounded transition backdrop-blur-sm border border-white/10">
+                                    Pagar
+                                </button>
+                                ` : '<div class="text-[10px] text-gray-400 px-2"><i class="fas fa-check"></i> Al corriente</div>'}
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+
+                container.insertAdjacentHTML('beforeend', cardsHTML);
+            }
+
+        } catch (e) {
+            console.error('Error loading cards', e);
+        }
+    }
+
+    window.payCard = async (cardId, currentDebt) => {
+        const { value: amount } = await Swal.fire({
+            title: 'Pagar Tarjeta',
+            text: `Deuda actual: $${currentDebt.toLocaleString('es-MX')}`,
+            input: 'text',
+            inputLabel: 'Monto a pagar (Dejar vacío para pagar todo)',
+            inputValue: currentDebt,
+            showCancelButton: true,
+            confirmButtonColor: '#b38728',
+            confirmButtonText: 'Pagar',
+            background: '#1f2937', color: '#fff',
+            inputValidator: (value) => {
+                if (!value) return null; // Accept empty for full payment
+                if (isNaN(value) || parseFloat(value) <= 0) return 'Ingresa un monto válido';
+                if (parseFloat(value) > currentDebt) return 'No puedes pagar más de la deuda';
+            }
+        });
+
+        if (amount !== undefined) { // If confirmed
+            try {
+                Swal.showLoading();
+                const response = await fetch('/api/banxico/cards/pay', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        userId: window.currentUser.id,
+                        cardId,
+                        amount: amount ? parseFloat(amount) : null
+                    })
+                });
+
+                const res = await response.json();
+                if (!res.success) throw new Error(res.error);
+
+                Swal.fire({
+                    icon: 'success', title: 'Pago Exitoso',
+                    text: res.message,
+                    background: '#1f2937', color: '#fff',
+                    confirmButtonColor: '#b38728'
+                });
+
+                // Refresh Dashboard (Cards + Balance)
+                document.getElementById('cards-container').innerHTML = ''; // Clear to reload
+                loadDashboardData(window.currentUser); // Reload static
+                loadCreditCards(window.currentUser.id); // Reload dynamic
+                // Also update global balance display if returned
+                if (res.newBalance) document.getElementById('balance-display').innerHTML = `$${res.newBalance.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`;
+
+            } catch (e) {
+                Swal.fire({
+                    icon: 'error', title: 'Error',
+                    text: e.message,
+                    background: '#1f2937', color: '#fff'
+                });
+            }
+        }
+    };
 
     // Business Data Loading
     async function loadBusinessData(userId) {
