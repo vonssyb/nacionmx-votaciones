@@ -85,7 +85,7 @@ const port = process.env.PORT || 8000;
 const applicationsRouter = require('./routes/applications');
 const banxicoRouter = require('./routes/banxico')(supabase);
 
-app.use('/banxico', express.static(path.join(__dirname, '../public/banxico')));
+app.use('/', express.static(path.join(__dirname, '../public')));
 app.use('/api/banxico', banxicoRouter);
 
 // Note: We'll pass client after bots are initialized
