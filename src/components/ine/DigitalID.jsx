@@ -4,6 +4,10 @@ import React, { useState } from 'react';
 // Let's use a simple img tag with a QR API for now to be safe and light.
 
 const DigitalID = ({ userData, dniData, votes }) => {
+    // Debugging incoming data
+    console.log('[DigitalID] Received dniData:', dniData);
+    console.log('[DigitalID] Received userData:', userData);
+
     const [isFlipped, setIsFlipped] = useState(false);
 
     // Mock Data if missing
@@ -78,25 +82,25 @@ const DigitalID = ({ userData, dniData, votes }) => {
                             </div>
 
                             <div className="grid grid-cols-2 gap-2">
-                                <div>
+                                <div className="col-span-2">
                                     <p className="text-[10px] text-gray-500 font-bold uppercase">Nombre</p>
-                                    <h2 className="text-sm font-bold text-gray-900 leading-tight">{name}</h2>
+                                    <h2 className="text-lg font-bold text-gray-900 leading-tight">{name}</h2>
                                 </div>
                                 <div>
                                     <p className="text-[10px] text-gray-500 font-bold uppercase">Fecha de Nacimiento</p>
-                                    <p className="text-xs font-medium text-black">{birthDate}</p>
-                                </div>
-                                <div>
-                                    <p className="text-[10px] text-gray-500 font-bold uppercase">Domicilio</p>
-                                    <p className="text-[10px] font-medium text-gray-800 leading-tight">{address}</p>
+                                    <p className="text-sm font-bold text-black">{birthDate}</p>
                                 </div>
                                 <div>
                                     <p className="text-[10px] text-gray-500 font-bold uppercase">Año de Registro</p>
                                     <p className="text-sm font-bold text-[#D90F74]">{registerDate}</p>
                                 </div>
-                                <div className="col-span-2">
-                                    <p className="text-[10px] text-gray-500 font-bold uppercase">Folio / Curp</p>
-                                    <p className="text-xs font-mono font-medium text-black">{folio} <span className="text-gray-400 mx-1">/</span> {curp}</p>
+                                <div className="col-span-2 mt-2">
+                                    <p className="text-[10px] text-gray-500 font-bold uppercase">Folio / CURP</p>
+                                    <p className="text-sm font-mono font-bold text-gray-700">
+                                        {folio !== "0000000000" && folio !== undefined ? folio : "S/R"}
+                                        <span className="text-gray-400 mx-2">/</span>
+                                        {curp !== "S/R" && curp !== undefined ? curp : "S/R"}
+                                    </p>
                                 </div>
                             </div>
                         </div>    <div className="text-[8px] font-mono text-gray-400 tracking-wider">
