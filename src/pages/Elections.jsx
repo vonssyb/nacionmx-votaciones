@@ -106,17 +106,19 @@ const Elections = () => {
                     if (vError) throw vError;
                     votesData = vData || [];
 
-                    // Fetch DNI Name (Try Discord ID first, then fallback to UUID just in case)
-                    const discordId = memberData.user.user_metadata?.provider_id || memberData.user.identities?.[0]?.id;
+                    // Fetch DNI Name (Adapting to actual DB schema: user_id, nombre, apellido)
+                    const discordId = memberData.user.user_metadata?.provider_id || memberData.user.identities?.[0]?.id; // Discord ID
 
-                    const { data: dData, error: dError } = await supabase
-                        .from('citizen_dni')
-                        .select('nombre, apellido_paterno, apellido_materno')
-                        .or(`discord_user_id.eq.${discordId},discord_user_id.eq.${memberData.user.id}`)
-                        .maybeSingle();
+                    if (discordId) {
+                        const { data: dData, error: dError } = await supabase
+                            .from('citizen_dni')
+                            .select('nombre, apellido')
+                            .eq('user_id', discordId)
+                            .maybeSingle();
 
-                    if (!dError && dData) {
-                        setDniData(dData);
+                        if (!dError && dData) {
+                            setDniData(dData);
+                        }
                     }
                 }
 
@@ -660,7 +662,7 @@ const Elections = () => {
 
                                 <p className="text-lg text-gray-600 italic mb-4">Se hace constar que el ciudadano/a:</p>
                                 <h2 className="text-3xl font-bold text-black mb-6 uppercase underline decoration-[#D90F74]/30 decoration-4 underline-offset-4">
-                                    {dniData ? `${dniData.nombre} ${dniData.apellido_paterno || ''} ${dniData.apellido_materno || ''}` : (memberData?.user?.username || "Ciudadano Distinguido")}
+                                    {dniData ? `${dniData.nombre} ${dniData.apellido || ''}` : (memberData?.user?.username || "Ciudadano Distinguido")}
                                 </h2>
 
                                 <p className="text-gray-600 mb-8 leading-relaxed">
