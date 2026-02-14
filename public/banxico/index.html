@@ -268,7 +268,7 @@
                         <h3 class="text-xs font-bold text-gray-300 uppercase tracking-wider">Accesos Rápidos</h3>
                     </div>
                     <div class="p-2">
-                        <button
+                        <button id="btn-open-sat"
                             class="w-full text-left px-4 py-3 hover:bg-white/5 rounded text-gray-400 hover:text-[#b38728] text-sm transition flex items-center gap-3">
                             <i class="fas fa-file-invoice width-5"></i> Mis Impuestos (SAT)
                         </button>
@@ -395,6 +395,46 @@
                                 </div>
                             </div>
                         </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SAT TAX MODAL -->
+    <div id="sat-modal"
+        class="fixed inset-0 z-[100] flex items-center justify-center hidden opacity-0 transition-opacity duration-300">
+        <div class="absolute inset-0 bg-[#000]/80 backdrop-blur-sm" id="close-sat-overlay"></div>
+
+        <div class="relative z-10 w-full max-w-2xl p-1 glass-panel rounded-lg shadow-2xl animate-float">
+            <div
+                class="bg-[#111827] rounded-lg p-8 border border-white/5 max-h-[85vh] overflow-y-auto custom-scrollbar">
+                <button class="absolute top-4 right-4 text-gray-600 hover:text-white transition" id="close-sat-btn"><i
+                        class="fas fa-times"></i></button>
+
+                <div class="mb-6 border-b border-white/5 pb-4 flex items-center gap-4">
+                    <img src="https://igjedwdxqwkpbgrmtrrq.supabase.co/storage/v1/object/public/evidence/banxico/sinfondo.png"
+                        class="h-10 opacity-80">
+                    <div>
+                        <h2 class="text-xl font-official font-bold text-white tracking-widest">BUZÓN TRIBUTARIO</h2>
+                        <p class="text-[10px] text-[#b38728] uppercase tracking-[0.3em] font-bold mt-1">Servicio de
+                            Administración Tributaria</p>
+                    </div>
+                </div>
+
+                <div class="bg-yellow-900/10 border border-yellow-700/30 p-4 rounded mb-6 flex items-start gap-3">
+                    <i class="fas fa-info-circle text-yellow-600 mt-1"></i>
+                    <p class="text-xs text-gray-400">
+                        Cumplir con tus obligaciones fiscales garantiza el funcionamiento de los servicios públicos de
+                        Nación MX.
+                        Los pagos se debitan automáticamente de tu cuenta bancaria principal.
+                    </p>
+                </div>
+
+                <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">Deudas Pendientes</h3>
+                <div id="sat-debts-list" class="space-y-3">
+                    <div class="text-center py-8 text-gray-600">
+                        <i class="fas fa-spinner fa-spin"></i> Cargando información fiscal...
                     </div>
                 </div>
             </div>

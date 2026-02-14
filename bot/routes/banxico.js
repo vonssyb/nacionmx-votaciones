@@ -172,5 +172,95 @@ module.exports = (supabase) => {
         }
     });
 
-    return router;
+    res.status(500).json({ error: err.message || 'Error en la operación' });
+}
+    });
+
+/**
+ * GET /api/banxico/taxes/:userId
+ * Fetch outstanding tax debts
+ */
+router.get('/taxes/:userId', async (req, res) => {
+    const { userId } = req.params;
+    try {
+        const { data, error } = await supabase
+            .from('sat_tax_debts')
+            .select('*')
+            .eq('user_id', userId)
+            .in('status', ['pending', 'overdue'])
+            .order('due_date', { ascending: true });
+
+        if (error) throw error;
+        res.json({ success: true, debts: data });
+    } catch (err) {
+        res.status(500).json({ error: 'Error obteniendo impuestos' });
+    }
+});
+
+/**
+ * POST /api/banxico/taxes/pay
+ * Pay a specific tax debt
+ */
+router.post('/taxes/pay', async (req, res) => {
+    const { userId, debtId } = req.body;
+
+    if (!userId || !debtId) return res.status(400).json({ error: 'Datos incompletos' });
+
+    try {
+        // 1. Get Debt Details
+        const { data: debt, error: debtError } = await supabase
+            .from('sat_tax_debts')
+            .select('*')
+            .eq('id', debtId)
+            .single();
+
+        if (debtError || !debt) return res.status(404).json({ error: 'Deuda no encontrada' });
+        if (debt.status === 'paid') return res.status(400).json({ error: 'Esta deuda ya está pagada' });
+
+        // 2. Check User Balance
+        const { data: economy, error: ecoError } = await supabase
+            .from('economy_balances')
+            .select('*')
+            .eq('user_id', userId)
+            .eq('guild_id', '1398525215134318713') // Main Guild
+            .single();
+
+        if (ecoError || !economy) return res.status(400).json({ error: 'Cuenta no encontrada' });
+        if (economy.bank < debt.amount) return res.status(400).json({ error: 'Fondos insuficientes en banco' });
+
+        // 3. Process Payment (Sequential for now, ideally atomic transaction)
+
+        // Deduct Balance
+        const newBalance = parseFloat(economy.bank) - parseFloat(debt.amount);
+        const { error: updateError } = await supabase
+            .from('economy_balances')
+            .update({ bank: newBalance })
+            .eq('user_id', userId)
+            .eq('guild_id', '1398525215134318713');
+
+        if (updateError) throw updateError;
+
+        // Mark Debt as Paid
+        await supabase
+            .from('sat_tax_debts')
+            .update({ status: 'paid', paid_at: new Date().toISOString() })
+            .eq('id', debtId);
+
+        // Log Payment
+        await supabase.from('sat_payment_logs').insert({
+            debt_id: debtId,
+            user_id: userId,
+            amount: debt.amount,
+            payment_method: 'banxico_debit'
+        });
+
+        res.json({ success: true, newBalance, message: 'Impuesto pagado correctamente' });
+
+    } catch (err) {
+        console.error('Tax Payment Error:', err);
+        res.status(500).json({ error: 'Error procesando el pago' });
+    }
+});
+
+return router;
 };
