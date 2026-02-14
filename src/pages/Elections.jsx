@@ -189,16 +189,21 @@ const Elections = () => {
     };
 
     const handleVoteClick = (electionId, candidateId, candidateName, candidateParty, candidatePhoto, candidateLogo) => {
+        console.log('Vote Clicked:', { electionId, candidateId, user: memberData?.user?.id });
+
         if (!memberData?.user?.id) {
+            console.log('User not logged in');
             setLoginModal(true);
             return;
         }
 
         // CHECK ROLE for Voting
         const REQUIRED_ROLE_ID = '1412899401000685588';
+        console.log('User Roles:', memberData.roles);
         const hasRole = memberData.roles && memberData.roles.includes(REQUIRED_ROLE_ID);
 
         if (!hasRole) {
+            console.error('Role Check Failed. Required:', REQUIRED_ROLE_ID);
             setMessage({
                 type: 'error',
                 text: 'No tienes permiso para votar. Necesitas el rol verificado en el servidor de Discord.'
@@ -207,13 +212,21 @@ const Elections = () => {
             return;
         }
 
-        if (voting) return;
+        if (voting) {
+            console.warn('Vote ignored: Already voting');
+            return;
+        }
 
         // CHECK DATE
         const election = elections.find(e => e.id === electionId);
+        console.log('Election Data:', election);
+
         if (election && election.end_date) {
             const endDate = new Date(election.end_date);
-            if (new Date() > endDate) {
+            const now = new Date();
+            console.log('Date Check:', { now, endDate, isClosed: now > endDate });
+
+            if (now > endDate) {
                 setMessage({
                     type: 'error',
                     text: 'Las votaciones para esta elección han cerrado.'
@@ -678,7 +691,7 @@ const Elections = () => {
                                     </div>
                                     <div className="text-right">
                                         <p className="text-xs text-gray-400 uppercase font-bold">Folio Digital</p>
-                                        <p className="font-mono font-bold text-[#D90F74] leading-tight ml-auto text-[10px]">{showCertificate.folio}</p>
+                                        <p className="font-mono font-bold text-[#D90F74] leading-tight ml-auto text-[8px] whitespace-nowrap">{showCertificate.folio}</p>
                                     </div>
                                 </div>
                             </div>
