@@ -16,15 +16,25 @@ module.exports = (supabase) => {
 
         try {
             // 1. Verify Code
+            // 1. Verify Code
             const { data: authCode, error } = await supabase
                 .from('banxico_auth_codes')
                 .select('*')
                 .eq('code', code)
-                .gt('expires_at', new Date().toISOString())
-                .single();
+                .maybeSingle();
 
             if (error || !authCode) {
-                return res.status(401).json({ error: 'Código inválido o expirado' });
+                return res.status(401).json({ error: 'Código inválido' });
+            }
+
+            // Strict JS Expiration Check
+            const expirationTime = new Date(authCode.expires_at).getTime();
+            const currentTime = Date.now();
+
+            if (currentTime > expirationTime) {
+                // Delete expired code immediately
+                await supabase.from('banxico_auth_codes').delete().eq('code', code);
+                return res.status(401).json({ error: 'El código ha expirado' });
             }
 
             // 2. Get User Citizen Data (Name, Avatar)
