@@ -114,7 +114,7 @@ const Elections = () => {
                     if (discordId) {
                         const { data: dData, error: dError } = await supabase
                             .from('citizen_dni')
-                            .select('nombre, apellido')
+                            .select('*')
                             .eq('user_id', discordId)
                             .maybeSingle();
 

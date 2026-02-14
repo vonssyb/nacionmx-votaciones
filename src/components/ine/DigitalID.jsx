@@ -7,10 +7,12 @@ const DigitalID = ({ userData, dniData, votes }) => {
     const [isFlipped, setIsFlipped] = useState(false);
 
     // Mock Data if missing
-    const name = dniData?.nombre ? `${dniData.nombre} ${dniData.apellido}` : (userData?.username || 'Ciudadano'); // Fallback
+    const userAvatar = userData?.user_metadata?.avatar_url || userData?.avatar_url || "https://ui-avatars.com/api/?name=" + (dniData?.nombre || userData?.email || 'User');
+    const name = dniData?.nombre ? `${dniData.nombre} ${dniData.apellido}` : (userData?.user_metadata?.full_name || 'Ciudadano');
     const curp = dniData?.curp || 'S/R';
     const address = dniData?.domicilio || 'Domicilio Desconocido';
-    const registerDate = new Date(userData?.joined_at || Date.now()).toLocaleDateString('es-MX', { year: 'numeric' });
+    const birthDate = dniData?.fecha_nacimiento || 'N/A';
+    const registerDate = new Date(userData?.created_at || Date.now()).toLocaleDateString('es-MX', { year: 'numeric' });
     const section = "0520"; // Static for now
 
     // Stamps Logic: Check if user voted in specific years
@@ -40,7 +42,7 @@ const DigitalID = ({ userData, dniData, votes }) => {
                         {/* Photo Area */}
                         <div className="flex flex-col gap-2 w-32 shrink-0">
                             <div className="w-32 h-40 bg-gray-200 border-2 border-gray-300 rounded relative overflow-hidden">
-                                <img src={userData?.avatar_url || "https://ui-avatars.com/api/?name=" + name} alt="User" className="w-full h-full object-cover filter grayscale contrast-125" />
+                                <img src={userAvatar} alt="User" className="w-full h-full object-cover filter grayscale contrast-125" />
                                 {/* Hologram Overlay */}
                                 <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/30 to-transparent opacity-50 bg-[length:200%_200%] animate-shimmer"></div>
                                 <div className="absolute bottom-1 right-1 w-8 h-8 opacity-70">
@@ -64,7 +66,7 @@ const DigitalID = ({ userData, dniData, votes }) => {
                                 </div>
                                 <div>
                                     <p className="text-[10px] text-gray-500 font-bold uppercase">Fecha de Nacimiento</p>
-                                    <p className="text-xs font-medium">N/A</p> {/* Placeholder, maybe fetch from DNI if available */}
+                                    <p className="text-xs font-medium">{birthDate}</p>
                                 </div>
                             </div>
 
