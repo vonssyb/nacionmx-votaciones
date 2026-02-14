@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { supabase } from '../../services/supabase';
 import { useDiscordMember } from '../../components/auth/RoleGuard';
-import { ShieldCheck, Plus, Edit, Trash2, Save, X, Image as ImageIcon, Upload, ArrowLeft, AlertCircle, Download, Archive, Eye, EyeOff } from 'lucide-react';
+import { ShieldCheck, Plus, Edit, Trash2, Save, X, Image as ImageIcon, Upload, ArrowLeft, AlertCircle, Download, Archive, Eye, EyeOff, UserPlus, User, Flag } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toPng } from 'html-to-image';
 import ComplaintsAdmin from './ComplaintsAdmin';
@@ -378,44 +378,102 @@ const ElectionsAdmin = () => {
                                 </div>
 
                                 {editingCandidate && (
-                                    <div className="bg-gray-800 p-6 rounded-lg border border-[#D90F74] space-y-4 animate-fade-in">
-                                        <div className="flex justify-between items-center mb-2">
-                                            <h3 className="font-bold text-lg">{editingCandidate === 'new' ? 'Nuevo Candidato' : 'Editar Candidato'}</h3>
-                                            <button onClick={() => setEditingCandidate(null)} className="text-gray-400 hover:text-white"><X size={20} /></button>
+                                    <div className="bg-gray-800 p-8 rounded-xl border border-gray-700 shadow-2xl animate-fade-in relative overflow-hidden">
+                                        <div className="absolute top-0 left-0 w-1 h-full bg-[#D90F74]"></div>
+                                        <div className="flex justify-between items-center mb-6">
+                                            <h3 className="font-bold text-2xl text-white flex items-center gap-2">
+                                                <UserPlus className="text-[#D90F74]" size={28} />
+                                                {editingCandidate === 'new' ? 'Registrar Candidatura' : 'Editar Candidato'}
+                                            </h3>
+                                            <button onClick={() => setEditingCandidate(null)} className="p-2 bg-gray-700/50 hover:bg-gray-700 rounded-full text-gray-400 hover:text-white transition-colors"><X size={20} /></button>
                                         </div>
 
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                            <div className="space-y-2">
-                                                <input className="w-full bg-gray-900 border border-gray-700 p-2 rounded" placeholder="Nombre Completo" value={candidateForm.name} onChange={e => setCandidateForm({ ...candidateForm, name: e.target.value })} />
-                                                <input className="w-full bg-gray-900 border border-gray-700 p-2 rounded" placeholder="Partido / Coalición" value={candidateForm.party} onChange={e => setCandidateForm({ ...candidateForm, party: e.target.value })} />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <div className="flex items-center gap-2">
-                                                    <label className="flex-1 bg-gray-900 border border-gray-700 p-2 rounded cursor-pointer hover:bg-gray-700 transition-colors flex items-center gap-2 text-xs text-gray-400">
-                                                        <Upload size={14} />
-                                                        {candidateForm.photo_url ? 'Foto Subida' : 'Subir Foto'}
-                                                        <input type="file" className="hidden" accept="image/*" onChange={(e) => handleImageUpload(e, 'photo')} />
-                                                    </label>
-                                                    {candidateForm.photo_url && <img src={candidateForm.photo_url} className="w-8 h-8 rounded-full object-cover" alt="" />}
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                            <div className="space-y-6">
+                                                <div>
+                                                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Nombre del Candidato</label>
+                                                    <div className="relative">
+                                                        <User className="absolute left-3 top-3 text-gray-500" size={18} />
+                                                        <input
+                                                            className="w-full bg-gray-900/50 border border-gray-600 focus:border-[#D90F74] text-white p-2.5 pl-10 rounded-lg outline-none transition-colors"
+                                                            placeholder="Ej. Juan Pérez"
+                                                            value={candidateForm.name}
+                                                            onChange={e => setCandidateForm({ ...candidateForm, name: e.target.value })}
+                                                        />
+                                                    </div>
                                                 </div>
-                                                <div className="flex items-center gap-2">
-                                                    <label className="flex-1 bg-gray-900 border border-gray-700 p-2 rounded cursor-pointer hover:bg-gray-700 transition-colors flex items-center gap-2 text-xs text-gray-400">
-                                                        <Upload size={14} />
-                                                        {candidateForm.logo_url ? 'Logo Subido' : 'Subir Logo Partido'}
-                                                        <input type="file" className="hidden" accept="image/*" onChange={(e) => handleImageUpload(e, 'logo')} />
-                                                    </label>
-                                                    {candidateForm.logo_url && <img src={candidateForm.logo_url} className="w-8 h-8 object-contain" alt="" />}
+                                                <div>
+                                                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Partido o Coalición</label>
+                                                    <div className="relative">
+                                                        <Flag className="absolute left-3 top-3 text-gray-500" size={18} />
+                                                        <input
+                                                            className="w-full bg-gray-900/50 border border-gray-600 focus:border-[#D90F74] text-white p-2.5 pl-10 rounded-lg outline-none transition-colors"
+                                                            placeholder="Ej. Movimiento Ciudadano"
+                                                            value={candidateForm.party}
+                                                            onChange={e => setCandidateForm({ ...candidateForm, party: e.target.value })}
+                                                        />
+                                                    </div>
+                                                </div>
+                                                <div>
+                                                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Propuestas de Campaña</label>
+                                                    <textarea
+                                                        className="w-full bg-gray-900/50 border border-gray-600 focus:border-[#D90F74] text-white p-3 rounded-lg outline-none transition-colors h-32 resize-none"
+                                                        placeholder="Describe las principales propuestas..."
+                                                        value={candidateForm.proposals}
+                                                        onChange={e => setCandidateForm({ ...candidateForm, proposals: e.target.value })}
+                                                    />
                                                 </div>
                                             </div>
-                                        </div>
 
-                                        <textarea className="w-full bg-gray-900 border border-gray-700 p-2 rounded h-24" placeholder="Propuestas de Campaña (Detalladas)" value={candidateForm.proposals} onChange={e => setCandidateForm({ ...candidateForm, proposals: e.target.value })} />
+                                            <div className="space-y-6">
+                                                <div className="grid grid-cols-2 gap-4">
+                                                    <div>
+                                                        <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 text-center">Fotografía</label>
+                                                        <label className={`flex flex-col items-center justify-center aspect-square bg-gray-900/50 border-2 border-dashed ${candidateForm.photo_url ? 'border-[#D90F74]' : 'border-gray-600 hover:border-gray-500'} rounded-xl cursor-pointer transition-all group overflow-hidden relative`}>
+                                                            {candidateForm.photo_url ? (
+                                                                <img src={candidateForm.photo_url} className="w-full h-full object-cover" alt="Foto" />
+                                                            ) : (
+                                                                <>
+                                                                    <Upload className="text-gray-500 group-hover:text-white mb-2 transition-colors" size={24} />
+                                                                    <span className="text-[10px] text-gray-500 uppercase font-bold text-center px-2">Subir Foto</span>
+                                                                </>
+                                                            )}
+                                                            <input type="file" className="hidden" accept="image/*" onChange={(e) => handleImageUpload(e, 'photo')} />
+                                                            {candidateForm.photo_url && (
+                                                                <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                                                                    <Upload className="text-white" size={24} />
+                                                                </div>
+                                                            )}
+                                                        </label>
+                                                    </div>
+                                                    <div>
+                                                        <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 text-center">Logo Partido</label>
+                                                        <label className={`flex flex-col items-center justify-center aspect-square bg-gray-900/50 border-2 border-dashed ${candidateForm.logo_url ? 'border-[#D90F74]' : 'border-gray-600 hover:border-gray-500'} rounded-xl cursor-pointer transition-all group overflow-hidden relative`}>
+                                                            {candidateForm.logo_url ? (
+                                                                <img src={candidateForm.logo_url} className="w-full h-full object-contain p-2" alt="Logo" />
+                                                            ) : (
+                                                                <>
+                                                                    <Upload className="text-gray-500 group-hover:text-white mb-2 transition-colors" size={24} />
+                                                                    <span className="text-[10px] text-gray-500 uppercase font-bold text-center px-2">Subir Logo</span>
+                                                                </>
+                                                            )}
+                                                            <input type="file" className="hidden" accept="image/*" onChange={(e) => handleImageUpload(e, 'logo')} />
+                                                            {candidateForm.logo_url && (
+                                                                <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                                                                    <Upload className="text-white" size={24} />
+                                                                </div>
+                                                            )}
+                                                        </label>
+                                                    </div>
+                                                </div>
 
-                                        <div className="flex justify-end gap-2 pt-2">
-                                            <button onClick={() => setEditingCandidate(null)} className="px-4 py-2 text-gray-400 hover:text-white">Cancelar</button>
-                                            <button onClick={handleSaveCandidate} disabled={uploading} className="px-6 py-2 bg-green-600 hover:bg-green-500 text-white font-bold rounded flex items-center gap-2">
-                                                <Save size={18} /> {uploading ? 'Subiendo...' : 'Guardar Candidato'}
-                                            </button>
+                                                <div className="pt-4 flex justify-end gap-3">
+                                                    <button onClick={() => setEditingCandidate(null)} className="px-6 py-3 rounded-lg text-gray-400 hover:text-white font-medium hover:bg-gray-800 transition-colors">Cancelar</button>
+                                                    <button onClick={handleSaveCandidate} disabled={uploading} className="px-8 py-3 bg-gradient-to-r from-[#D90F74] to-pink-600 hover:from-[#b00c5e] hover:to-pink-700 text-white font-bold rounded-lg shadow-lg flex items-center gap-2 transform active:scale-95 transition-all">
+                                                        <Save size={20} /> {uploading ? 'Subiendo...' : 'Guardar Candidatura'}
+                                                    </button>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 )}
