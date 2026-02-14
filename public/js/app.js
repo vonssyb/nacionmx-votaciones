@@ -258,6 +258,125 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     };
 
+    // Global Helper: Open Employee Modal
+    window.openEmployeeModal = (companyId) => {
+        const company = window.myCompanies ? window.myCompanies.find(c => c.id === companyId) : null;
+        if (!company) return;
+
+        const modal = document.getElementById('employee-modal');
+        const title = document.getElementById('emp-modal-company-name');
+        const list = document.getElementById('modal-employee-list');
+        const hireBtn = document.getElementById('btn-hire');
+        const hireId = document.getElementById('hire-id-input');
+        const hireSalary = document.getElementById('hire-salary-input');
+        const closeBtn = document.getElementById('close-emp-btn');
+        const overlay = document.getElementById('close-emp-overlay');
+
+        if (title) title.innerText = company.name;
+
+        // Show Modal
+        if (modal) {
+            modal.classList.remove('hidden');
+            setTimeout(() => modal.classList.remove('opacity-0'), 10);
+        }
+
+        // Render List
+        const renderList = () => {
+            if (!company.company_employees || company.company_employees.length === 0) {
+                list.innerHTML = '<div class="text-xs text-gray-500 italic">No hay empleados registrados.</div>';
+            } else {
+                list.innerHTML = company.company_employees.map(emp => `
+                    <div class="flex justify-between items-center bg-gray-900/50 p-2 rounded border border-white/5">
+                        <div>
+                            <div class="text-xs font-bold text-gray-300">ID: ${emp.discord_id}</div>
+                            <div class="text-[10px] text-gray-500">Sueldo: $${emp.salary}</div>
+                        </div>
+                        <button onclick="fireEmployee('${company.id}', '${emp.discord_id}')" class="text-red-500 hover:text-red-400 text-xs">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                `).join('');
+            }
+        };
+        renderList();
+
+        // Close Logic
+        const close = () => {
+            modal.classList.add('opacity-0');
+            setTimeout(() => modal.classList.add('hidden'), 300);
+        };
+        if (closeBtn) closeBtn.onclick = close;
+        if (overlay) overlay.onclick = close;
+
+        // Hire Action
+        if (hireBtn) hireBtn.onclick = async () => {
+            const targetId = hireId.value.trim();
+            const salary = parseInt(hireSalary.value) || 0;
+
+            if (!targetId) return Swal.fire('Error', 'Ingresa un ID', 'warning');
+
+            hireBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            try {
+                const response = await fetch('/api/banxico/companies/employees/manage', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'hire',
+                        companyId: company.id,
+                        ownerId: window.currentUser.id,
+                        targetId: targetId,
+                        salary: salary
+                    })
+                });
+
+                const res = await response.json();
+                if (!res.success) throw new Error(res.error);
+
+                Swal.fire({
+                    toast: true, position: 'top-end', icon: 'success',
+                    title: 'Empleado Contratado', timer: 2000, showConfirmButton: false
+                });
+
+                // Refresh Data
+                if (typeof window.loadBusinessData === 'function') window.loadBusinessData(window.currentUser.id);
+                close();
+
+            } catch (e) {
+                Swal.fire('Error', e.message, 'error');
+            } finally {
+                hireBtn.innerHTML = '<i class="fas fa-user-plus mr-1"></i> Contratar';
+            }
+        };
+
+        window.fireEmployee = async (compId, targetId) => {
+            try {
+                const response = await fetch('/api/banxico/companies/employees/manage', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'fire',
+                        companyId: compId,
+                        ownerId: window.currentUser.id,
+                        targetId: targetId
+                    })
+                });
+                const res = await response.json();
+                if (!res.success) throw new Error(res.error);
+
+                Swal.fire({
+                    toast: true, position: 'top-end', icon: 'success',
+                    title: 'Empleado Despedido', timer: 2000, showConfirmButton: false
+                });
+
+                if (typeof window.loadBusinessData === 'function') window.loadBusinessData(window.currentUser.id);
+                close();
+
+            } catch (e) {
+                Swal.fire('Error', e.message, 'error');
+            }
+        };
+    };
+
     // Business Data Loading
     window.loadBusinessData = async function (userId) {
         const companiesContainer = document.getElementById('companies-list');
@@ -339,139 +458,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             console.error(e);
             if (companiesContainer) companiesContainer.innerHTML = '<div class="text-red-500 text-xs">Error cargando empresas</div>';
         }
-    }
-
-    // Make safe globally
-    window.openEmployeeModal = (companyId) => {
-        const company = window.myCompanies.find(c => c.id === companyId);
-        if (!company) return;
-
-        const modal = document.getElementById('employee-modal');
-        const title = document.getElementById('emp-modal-company-name');
-        const list = document.getElementById('modal-employee-list');
-        const hireBtn = document.getElementById('btn-hire');
-        const hireId = document.getElementById('hire-id-input');
-        const hireSalary = document.getElementById('hire-salary-input');
-        const closeBtn = document.getElementById('close-emp-btn');
-        const overlay = document.getElementById('close-emp-overlay');
-
-        if (title) title.innerText = company.name;
-
-        // Show Modal
-        if (modal) {
-            modal.classList.remove('hidden');
-            setTimeout(() => modal.classList.remove('opacity-0'), 10);
-        }
-
-        // Render List
-        const renderList = () => {
-            if (!company.company_employees || company.company_employees.length === 0) {
-                list.innerHTML = '<div class="text-xs text-gray-500 italic">No hay empleados registrados.</div>';
-            } else {
-                list.innerHTML = company.company_employees.map(emp => `
-                    <div class="flex justify-between items-center bg-gray-900/50 p-2 rounded border border-white/5">
-                        <div>
-                            <div class="text-xs font-bold text-gray-300">ID: ${emp.discord_id}</div>
-                            <div class="text-[10px] text-gray-500">Sueldo: $${emp.salary}</div>
-                        </div>
-                        <button onclick="fireEmployee('${company.id}', '${emp.discord_id}')" class="text-red-500 hover:text-red-400 text-xs">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </div>
-                `).join('');
-            }
-        };
-        renderList();
-
-        // Close Logic
-        const close = () => {
-            modal.classList.add('opacity-0');
-            setTimeout(() => modal.classList.add('hidden'), 300);
-        };
-        closeBtn.onclick = close;
-        overlay.onclick = close;
-
-        // Hire Action
-        hireBtn.onclick = async () => {
-            const targetId = hireId.value.trim();
-            const salary = parseInt(hireSalary.value) || 0;
-
-            if (!targetId) return Swal.fire('Error', 'Ingresa un ID', 'warning');
-
-            hireBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-            try {
-                // Ideally passing the ownerId from session, here we assume current user is owner (validated in backend)
-                // We need to retrieve current user ID from somewhere. 
-                // Since we don't have persistent session management in this quick demo, we rely on `window.currentUser` if we set it.
-                // Let's set window.currentUser in login.
-
-                const response = await fetch('/api/banxico/companies/employees/manage', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        action: 'hire',
-                        companyId: company.id,
-                        ownerId: window.currentUser.id,
-                        targetId: targetId,
-                        salary: salary
-                    })
-                });
-
-                const res = await response.json();
-                if (!res.success) throw new Error(res.error);
-
-                Swal.fire({
-                    toast: true, position: 'top-end', icon: 'success',
-                    title: 'Empleado Contratado', timer: 2000, showConfirmButton: false
-                });
-
-                // Refresh Data (Quick Hack: Reload all business data)
-                loadBusinessData(window.currentUser.id);
-                close();
-
-            } catch (e) {
-                Swal.fire('Error', e.message, 'error');
-            } finally {
-                hireBtn.innerHTML = '<i class="fas fa-user-plus mr-1"></i> Contratar';
-            }
-        };
-
-        window.fireEmployee = async (compId, targetId) => {
-            try {
-                const response = await fetch('/api/banxico/companies/employees/manage', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        action: 'fire',
-                        companyId: compId,
-                        ownerId: window.currentUser.id,
-                        targetId: targetId
-                    })
-                });
-                const res = await response.json();
-                if (!res.success) throw new Error(res.error);
-
-                Swal.fire({
-                    toast: true, position: 'top-end', icon: 'success',
-                    title: 'Empleado Despedido', timer: 2000, showConfirmButton: false
-                });
-
-                loadBusinessData(window.currentUser.id);
-                close();
-
-            } catch (e) {
-                Swal.fire('Error', e.message, 'error');
-            }
-        };
     };
-
-}
-
-        } catch (e) {
-    console.error(e);
-    if (companiesContainer) companiesContainer.innerHTML = '<div class="text-red-500 text-xs">Error cargando empresas</div>';
-}
-    }
 
 // Dashboard Data Loading
 window.loadDashboardData = function (user) {
