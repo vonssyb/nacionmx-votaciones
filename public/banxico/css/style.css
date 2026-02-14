@@ -1,0 +1,63 @@
+/* Banxico Custom Styles */
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap');
+
+:root {
+    --banxico-gold: #b38728;
+    --banxico-dark: #0f172a;
+    --banxico-bg: #1e293b;
+}
+
+body {
+    font-family: 'Montserrat', sans-serif;
+    background-color: var(--banxico-dark);
+    color: white;
+}
+
+.gold-gradient-text {
+    background: linear-gradient(135deg, #bf953f 0%, #fcf6ba 45%, #b38728 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.glass-card {
+    background: rgba(30, 41, 59, 0.7);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.auth-bg {
+    background-image: url('https://igjedwdxqwkpbgrmtrrq.supabase.co/storage/v1/object/public/evidence/banxico/confondo.png');
+    background-size: cover;
+    background-position: center;
+}
+
+/* Credit Card Styling */
+.credit-card {
+    background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+    border-radius: 16px;
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.3s ease;
+}
+
+.credit-card:hover {
+    transform: translateY(-5px);
+}
+
+.credit-card::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 60%);
+    transform: rotate(45deg);
+}
+
+.chip {
+    background: linear-gradient(135deg, #d4af37 0%, #fcf6ba 50%, #d4af37 100%);
+    border-radius: 4px;
+}
