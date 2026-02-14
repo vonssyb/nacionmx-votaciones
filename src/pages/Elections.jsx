@@ -661,7 +661,7 @@ const Elections = () => {
 
                         <div className="p-8 bg-gray-50 flex justify-center">
                             {/* CERTIFICATE TEMPLATE */}
-                            <div ref={certificateRef} className="w-[600px] h-[400px] bg-white border-8 border-double border-[#D90F74]/20 relative p-12 text-center shadow-lg text-gray-900"
+                            <div ref={certificateRef} className="w-[600px] h-[400px] bg-white border-8 border-double border-[#D90F74]/20 relative p-8 text-center shadow-lg text-gray-900"
                                 style={{
                                     backgroundImage: 'radial-gradient(circle at center, #f3f4f6 1px, transparent 1px)',
                                     backgroundSize: '20px 20px',
@@ -670,35 +670,35 @@ const Elections = () => {
                                 <div className="absolute top-4 left-4 opacity-50"><img src="https://igjedwdxqwkpbgrmtrrq.supabase.co/storage/v1/object/public/evidence/others/partidos%20politicos/ine4.png" className="h-16 grayscale" alt="" /></div>
                                 <div className="absolute bottom-4 right-4 opacity-50"><img src="https://igjedwdxqwkpbgrmtrrq.supabase.co/storage/v1/object/public/evidence/others/partidos%20politicos/ine4.png" className="h-16 grayscale" alt="" /></div>
 
-                                <h1 className="text-4xl font-bold text-[#D90F74] mb-2 uppercase tracking-widest border-b-2 border-[#D90F74] inline-block pb-2">Constancia de Voto</h1>
-                                <p className="text-sm font-bold text-gray-500 uppercase tracking-[0.3em] mb-8">Instituto Nacional Electoral • Nación MX</p>
+                                <h1 className="text-3xl font-bold text-[#D90F74] mb-1 uppercase tracking-widest border-b-2 border-[#D90F74] inline-block pb-1">Constancia de Voto</h1>
+                                <p className="text-xs font-bold text-gray-500 uppercase tracking-[0.3em] mb-4">Instituto Nacional Electoral • Nación MX</p>
 
-                                <p className="text-lg text-gray-600 italic mb-4">Se hace constar que el ciudadano/a:</p>
-                                <h2 className="text-3xl font-bold text-black mb-6 uppercase underline decoration-[#D90F74]/30 decoration-4 underline-offset-4">
+                                <p className="text-base text-gray-600 italic mb-2">Se hace constar que el ciudadano/a:</p>
+                                <h2 className="text-2xl font-bold text-black mb-4 uppercase underline decoration-[#D90F74]/30 decoration-4 underline-offset-4">
                                     {dniData ? `${dniData.nombre} ${dniData.apellido || ''}` : (memberData?.user?.username || "Ciudadano Distinguido")}
                                 </h2>
 
-                                <p className="text-gray-600 mb-8 leading-relaxed">
+                                <p className="text-sm text-gray-600 mb-4 leading-relaxed">
                                     Ha ejercido su derecho al voto libre y secreto en el proceso electoral:
                                     <br />
-                                    <strong className="text-[#D90F74]">{showCertificate.election.title}</strong>
+                                    <strong className="text-[#D90F74] text-base">{showCertificate.election.title}</strong>
                                 </p>
 
-                                <div className="border-t border-gray-300 pt-4 mt-8 flex flex-col gap-4">
-                                    <div className="flex justify-between items-center">
+                                <div className="border-t border-gray-300 pt-2 mt-2 flex flex-col gap-2">
+                                    <div className="flex justify-between items-center px-4">
                                         <div className="text-left">
-                                            <p className="text-xs text-gray-400 uppercase font-bold">Fecha de Emisión</p>
-                                            <p className="font-mono font-bold text-base text-gray-800">{showCertificate.date}</p>
+                                            <p className="text-[10px] text-gray-400 uppercase font-bold">Fecha de Emisión</p>
+                                            <p className="font-mono font-bold text-sm text-gray-800">{showCertificate.date}</p>
                                         </div>
                                         <div className="text-right">
-                                            <p className="text-xs text-gray-400 uppercase font-bold">Entidad</p>
-                                            <p className="font-mono font-bold text-base text-gray-800">Nación MX</p>
+                                            <p className="text-[10px] text-gray-400 uppercase font-bold">Entidad</p>
+                                            <p className="font-mono font-bold text-sm text-gray-800">Nación MX</p>
                                         </div>
                                     </div>
 
-                                    <div className="text-center bg-gray-50 p-2 rounded border border-gray-100">
-                                        <p className="text-[10px] text-gray-400 uppercase font-bold tracking-[0.2em] mb-1">Folio Digital de Autenticidad</p>
-                                        <p className="font-mono font-bold text-[#D90F74] text-xs tracking-wider break-all">{showCertificate.folio}</p>
+                                    <div className="text-center bg-gray-50 p-1.5 rounded border border-gray-100 mx-auto w-3/4">
+                                        <p className="text-[8px] text-gray-400 uppercase font-bold tracking-[0.2em] mb-0.5">Folio Digital de Autenticidad</p>
+                                        <p className="font-mono font-bold text-[#D90F74] text-[10px] tracking-wider break-all leading-tight">{showCertificate.folio}</p>
                                     </div>
                                 </div>
                             </div>
