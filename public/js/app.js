@@ -34,117 +34,130 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (closeLoginOverlay) closeLoginOverlay.addEventListener('click', () => toggleModal(false));
 
     // Login Logic
-    if (performLoginBtn && codeInput) {
-        console.log('Login button found, attaching listener');
-        performLoginBtn.addEventListener('click', async (e) => {
-            e.preventDefault(); // Prevent accidental form submission
-            console.log('Login button clicked');
-            const code = codeInput.value.trim();
+    // Login Logic
+    window.handleBanxicoLogin = async (e) => {
+        if (e) e.preventDefault();
+        console.log('Login Action Triggered via ' + (e ? 'Event' : 'Manual Call'));
 
-            // Validation
-            if (code.length < 6) {
-                Swal.fire({
-                    icon: 'warning',
-                    title: 'Código Invalido',
-                    text: 'El código de acceso debe tener 6 caracteres.',
-                    background: '#1f2937',
-                    color: '#fff',
-                    confirmButtonColor: '#b38728'
-                });
-                return;
+        const performLoginBtn = document.getElementById('perform-login-btn');
+        const codeInput = document.getElementById('code-input');
+
+        if (!performLoginBtn || !codeInput) return console.error('Elements missing');
+
+        const code = codeInput.value.trim();
+
+        // Validation
+        if (code.length < 6) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Código Invalido',
+                text: 'El código de acceso debe tener 6 caracteres.',
+                background: '#1f2937',
+                color: '#fff',
+                confirmButtonColor: '#b38728'
+            });
+            return;
+        }
+
+        // Loading State
+        const originalText = performLoginBtn.innerHTML;
+        performLoginBtn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Verificando...';
+        performLoginBtn.disabled = true;
+        performLoginBtn.classList.add('opacity-75', 'cursor-not-allowed');
+
+        // Perform Login Request
+        try {
+            const response = await fetch('/api/banxico/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ code })
+            });
+
+            const data = await response.json();
+
+            if (!data.success) {
+                throw new Error(data.error || 'Error de autenticación');
             }
 
-            // Loading State
-            const originalText = performLoginBtn.innerHTML;
-            performLoginBtn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Verificando...';
-            performLoginBtn.disabled = true;
-            performLoginBtn.classList.add('opacity-75', 'cursor-not-allowed');
+            // SUCCESS
+            const user = data.user;
+            window.currentUser = user; // Set Global for other functions
 
-            // Perform Login Request
-            try {
-                const response = await fetch('/api/banxico/login', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ code })
-                });
+            performLoginBtn.innerHTML = '<i class="fas fa-check"></i> Acceso Concedido';
+            performLoginBtn.classList.remove('bg-[#b38728]', 'hover:bg-[#967020]');
+            performLoginBtn.classList.add('bg-green-600', 'hover:bg-green-700');
 
-                const data = await response.json();
-
-                if (!data.success) {
-                    throw new Error(data.error || 'Error de autenticación');
+            setTimeout(() => {
+                // Transition to Dashboard
+                const loginModal = document.getElementById('login-modal');
+                if (loginModal) {
+                    loginModal.classList.add('opacity-0');
+                    setTimeout(() => loginModal.classList.add('hidden'), 300);
                 }
 
-                // SUCCESS
-                const user = data.user;
-                window.currentUser = user; // Set Global for other functions
-
-                performLoginBtn.innerHTML = '<i class="fas fa-check"></i> Acceso Concedido';
-                performLoginBtn.classList.remove('bg-[#b38728]', 'hover:bg-[#967020]');
-                performLoginBtn.classList.add('bg-green-600', 'hover:bg-green-700');
-
-                setTimeout(() => {
-                    // Transition to Dashboard
-                    toggleModal(false);
-
-                    // Show Welcome Toast
-                    const Toast = Swal.mixin({
-                        toast: true,
-                        position: 'top-end',
-                        showConfirmButton: false,
-                        timer: 3000,
-                        timerProgressBar: true,
-                        background: '#1f2937',
-                        color: '#fff',
-                        iconColor: '#b38728'
-                    });
-                    Toast.fire({
-                        icon: 'success',
-                        title: `Bienvenido, ${user.name}`
-                    });
-
-                    // Switch Views
-                    const landingPage = document.getElementById('landing-page');
-                    const dashboard = document.getElementById('dashboard');
-                    const navLoginBtn = document.getElementById('nav-login-btn');
-                    const navUserProfile = document.getElementById('nav-user-profile');
-                    const userAvatar = document.getElementById('user-avatar');
-                    const dashAvatar = document.getElementById('dashboard-avatar');
-
-                    if (landingPage) landingPage.classList.add('hidden');
-                    if (dashboard) dashboard.classList.remove('hidden');
-                    if (navLoginBtn) navLoginBtn.classList.add('hidden');
-                    if (navUserProfile) navUserProfile.classList.remove('hidden');
-
-                    // Set Avatar
-                    const avatarUrl = user.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=b38728&color=fff`;
-                    if (userAvatar) userAvatar.src = avatarUrl;
-                    if (dashAvatar) dashAvatar.src = avatarUrl;
-
-                    // Load Dashboard
-                    loadDashboardData(user);
-                    loadBusinessData(user.id);
-                    loadCreditCards(user.id);
-                    loadSatDebts(); // Load SAT debts on startup too
-                    initializeChart();
-
-                }, 800);
-
-            } catch (error) {
-                console.error(error);
-                performLoginBtn.innerHTML = originalText;
-                performLoginBtn.disabled = false;
-                performLoginBtn.classList.remove('opacity-75', 'cursor-not-allowed');
-
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Error de Acceso',
-                    text: error.message,
+                // Show Welcome Toast
+                const Toast = Swal.mixin({
+                    toast: true,
+                    position: 'top-end',
+                    showConfirmButton: false,
+                    timer: 3000,
+                    timerProgressBar: true,
                     background: '#1f2937',
                     color: '#fff',
-                    confirmButtonColor: '#d33'
+                    iconColor: '#b38728'
                 });
-            }
-        });
+                Toast.fire({
+                    icon: 'success',
+                    title: `Bienvenido, ${user.name}`
+                });
+
+                // Switch Views
+                const landingPage = document.getElementById('landing-page');
+                const dashboard = document.getElementById('dashboard');
+                const navLoginBtn = document.getElementById('nav-login-btn');
+                const navUserProfile = document.getElementById('nav-user-profile');
+                const userAvatar = document.getElementById('user-avatar');
+                const dashAvatar = document.getElementById('dashboard-avatar');
+
+                if (landingPage) landingPage.classList.add('hidden');
+                if (dashboard) dashboard.classList.remove('hidden');
+                if (navLoginBtn) navLoginBtn.classList.add('hidden');
+                if (navUserProfile) navUserProfile.classList.remove('hidden');
+
+                // Set Avatar
+                const avatarUrl = user.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=b38728&color=fff`;
+                if (userAvatar) userAvatar.src = avatarUrl;
+                if (dashAvatar) dashAvatar.src = avatarUrl;
+
+                // Load Dashboard
+                loadDashboardData(user);
+                loadBusinessData(user.id);
+                loadCreditCards(user.id);
+                loadSatDebts(); // Load SAT debts on startup too
+                initializeChart();
+
+            }, 800);
+
+        } catch (error) {
+            console.error(error);
+            performLoginBtn.innerHTML = originalText;
+            performLoginBtn.disabled = false;
+            performLoginBtn.classList.remove('opacity-75', 'cursor-not-allowed');
+
+            Swal.fire({
+                icon: 'error',
+                title: 'Error de Acceso',
+                text: error.message,
+                background: '#1f2937',
+                color: '#fff',
+                confirmButtonColor: '#d33'
+            });
+        }
+    };
+
+    // Attach listener as backup, but mainly rely on global now
+    if (performLoginBtn) {
+        performLoginBtn.addEventListener('click', window.handleBanxicoLogin);
     }
 
     async function loadCreditCards(userId) {
