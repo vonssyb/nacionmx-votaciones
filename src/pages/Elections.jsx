@@ -691,7 +691,7 @@ const Elections = () => {
                                     </div>
                                     <div className="text-right">
                                         <p className="text-xs text-gray-400 uppercase font-bold">Folio Digital</p>
-                                        <p className="font-mono font-bold text-[#D90F74] leading-tight ml-auto text-[8px] whitespace-nowrap">{showCertificate.folio}</p>
+                                        <p className="font-mono font-bold text-[#D90F74] leading-none ml-auto text-[8px] tracking-tighter" style={{ whiteSpace: 'nowrap', width: 'max-content' }}>{showCertificate.folio}</p>
                                     </div>
                                 </div>
                             </div>
