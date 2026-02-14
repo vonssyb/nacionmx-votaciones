@@ -4,10 +4,6 @@ import React, { useState } from 'react';
 // Let's use a simple img tag with a QR API for now to be safe and light.
 
 const DigitalID = ({ userData, dniData, votes }) => {
-    // Debugging incoming data
-    console.log('[DigitalID] Received dniData:', dniData);
-    console.log('[DigitalID] Received userData:', userData);
-
     const [isFlipped, setIsFlipped] = useState(false);
 
     // Mock Data if missing
@@ -40,14 +36,9 @@ const DigitalID = ({ userData, dniData, votes }) => {
                 {/* === FRONT SIDE === */}
                 <div className="absolute w-full h-full backface-hidden rounded-xl overflow-hidden shadow-2xl bg-[#E8E8E8] text-gray-900 border border-gray-300">
                     {/* Background Pattern (Guilloche-ish) */}
+                    {/* Background Pattern (Guilloche-ish) */}
                     <div className="absolute inset-0 opacity-10 pointer-events-none"
                         style={{ backgroundImage: 'radial-gradient(circle at 50% 50%, #D90F74 1px, transparent 1px)', backgroundSize: '10px 10px' }}>
-                    </div>
-
-                    {/* Header */}
-                    <div className="h-12 bg-white flex items-center justify-between px-4 border-b-2 border-[#D90F74]">
-                        <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/1/1a/Logotipo_del_INE_%28M%C3%A9xico%29.svg/1200px-Logotipo_del_INE_%28M%C3%A9xico%29.svg.png" alt="INE Logo" className="h-6" />
-                        <span className="font-bold text-[#D90F74] text-sm tracking-widest uppercase">Credencial para Votar</span>
                     </div>
 
                     {/* Content Grid */}
