@@ -401,6 +401,51 @@
         </div>
     </div>
 
+    <!-- EMPLOYEE MANAGEMENT MODAL -->
+    <div id="employee-modal"
+        class="fixed inset-0 z-[100] flex items-center justify-center hidden opacity-0 transition-opacity duration-300">
+        <div class="absolute inset-0 bg-[#000]/80 backdrop-blur-sm" id="close-emp-overlay"></div>
+
+        <div class="relative z-10 w-full max-w-2xl p-1 glass-panel rounded-lg shadow-2xl animate-float">
+            <div
+                class="bg-[#111827] rounded-lg p-8 border border-white/5 max-h-[85vh] overflow-y-auto custom-scrollbar">
+                <button class="absolute top-4 right-4 text-gray-600 hover:text-white transition" id="close-emp-btn"><i
+                        class="fas fa-times"></i></button>
+
+                <div class="mb-6 border-b border-white/5 pb-4">
+                    <h2 class="text-xl font-official font-bold text-white tracking-widest">GESTIÓN DE PERSONAL</h2>
+                    <p class="text-[10px] text-[#b38728] uppercase tracking-[0.3em] font-bold mt-1"
+                        id="emp-modal-company-name">Empresa S.A.</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <!-- Employee List -->
+                    <div class="md:col-span-2 space-y-4">
+                        <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider">Nómina Actual</h3>
+                        <div id="modal-employee-list" class="space-y-2">
+                            <!-- Injected JS -->
+                        </div>
+                    </div>
+
+                    <!-- Actions -->
+                    <div class="space-y-4">
+                        <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider">Contratar</h3>
+                        <div class="bg-gray-800/50 p-4 rounded border border-white/5">
+                            <input type="text" id="hire-id-input" placeholder="ID Ciudadano"
+                                class="w-full bg-[#0b0f19] border border-gray-700 text-white text-xs p-2 rounded mb-2 outline-none focus:border-[#b38728]">
+                            <input type="number" id="hire-salary-input" placeholder="Sueldo Semanal"
+                                class="w-full bg-[#0b0f19] border border-gray-700 text-white text-xs p-2 rounded mb-4 outline-none focus:border-[#b38728]">
+                            <button id="btn-hire"
+                                class="w-full bg-[#b38728] hover:bg-[#967020] text-white text-[10px] font-bold uppercase py-2 rounded transition">
+                                <i class="fas fa-user-plus mr-1"></i> Contratar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- LOGIN MODAL (INE Style) -->
     <div id="login-modal"
         class="fixed inset-0 z-[100] flex items-center justify-center hidden opacity-0 transition-opacity duration-300">
