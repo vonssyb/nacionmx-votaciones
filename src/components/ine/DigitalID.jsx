@@ -12,7 +12,9 @@ const DigitalID = ({ userData, dniData, votes }) => {
     const curp = dniData?.curp || 'S/R';
     const address = dniData?.domicilio || 'Domicilio Desconocido';
     const birthDate = dniData?.fecha_nacimiento || 'N/A';
-    const registerDate = new Date(userData?.created_at || Date.now()).toLocaleDateString('es-MX', { year: 'numeric' });
+    const registerDate = dniData?.created_at
+        ? new Date(dniData.created_at).getFullYear()
+        : new Date(userData?.created_at || Date.now()).getFullYear();
     const section = "0520"; // Static for now
 
     // Stamps Logic: Check if user voted in specific years
