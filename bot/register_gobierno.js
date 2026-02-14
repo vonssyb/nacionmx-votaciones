@@ -38,12 +38,25 @@ async function registerGovernmentCommands() {
     const commandsPath = path.join(__dirname, 'commands');
 
     console.log('🔄 Cargando comandos de Gobierno...');
-    await loadCommands(client, commandsPath, ['gov', 'economy', 'business']);
+    // Added 'utils' to ensure helper commands are present. 
+    // If we are unifying, we might want 'economy' too, but let's stick to what's requested + utils.
+    // User requested "todos los comandos completos". 
+    // 'gov' has DNI, Licencia. 'utils' has Ayuda.
+    // 'economy' has Banxico? No, Banxico is in 'gov' now (migrated).
+    const categoriesToLoad = ['gov', 'utils', 'economy', 'business', 'games'];
+    await loadCommands(client, commandsPath, categoriesToLoad);
 
     const allCommands = Array.from(client.commands.values()).map(cmd => cmd.data.toJSON());
 
     console.log(`🔄 Registrando ${allCommands.length} comandos de GOBIERNO en Discord...`);
-    console.log(`   -> Includes categories: gov, utils`);
+    console.log(`   -> Includes categories: ${categoriesToLoad.join(', ')}`);
+
+    // Create Audit File for User
+    const fs = require('fs');
+    const auditContent = allCommands.map(c => `- /${c.name}`).sort().join('\n');
+    fs.writeFileSync('REGISTERED_COMMANDS_LOG.txt', `Ultimo Registro: ${new Date().toISOString()}\n\n${auditContent}`);
+    console.log('📄 Lista de comandos guardada en REGISTERED_COMMANDS_LOG.txt');
+
     console.log(`📡 Guild ID: ${GUILD_ID}`);
     console.log(`🤖 Client ID: ${CLIENT_ID}`);
 

@@ -7,7 +7,9 @@ const path = require('path');
  * @param {string} commandsPath - Path to the commands directory
  */
 const loadCommands = async (client, commandsPath, allowedCategories = null) => {
-    client.commands = new Map();
+    if (!client.commands) {
+        client.commands = new Map();
+    }
     const commandFolders = fs.readdirSync(commandsPath);
 
     let loadedCount = 0;

@@ -1,19 +1,26 @@
-// test_loader.cjs
 const path = require('path');
 const { loadCommands } = require('./bot/handlers/commandLoader');
 
-const client = { commands: new Map() };
-const commandsPath = path.join(__dirname, 'bot', 'commands');
+async function testLoad() {
+    const client = { commands: new Map() };
+    const commandsPath = path.join(__dirname, 'bot/commands');
 
-console.log(`📂 Loading commands from: ${commandsPath}`);
+    console.log('Testing command loader for [gov, utils]...');
+    await loadCommands(client, commandsPath, ['gov', 'utils']);
 
-async function run() {
-    try {
-        const count = await loadCommands(client, commandsPath);
-        console.log(`✅ Loaded ${count} commands.`);
-    } catch (error) {
-        console.error('❌ Failed to load commands:', error);
-    }
+    console.log(`Loaded ${client.commands.size} commands.`);
+
+    const expected = ['dni', 'licencia', 'banxico'];
+    expected.forEach(cmd => {
+        if (client.commands.has(cmd)) {
+            console.log(`✅ Found: ${cmd}`);
+        } else {
+            console.error(`❌ MISSING: ${cmd}`);
+        }
+    });
+
+    // List all loaded names
+    console.log('All loaded:', Array.from(client.commands.keys()));
 }
 
-run();
+testLoad();
