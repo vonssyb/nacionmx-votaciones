@@ -118,5 +118,59 @@ module.exports = (supabase) => {
         }
     });
 
+    /**
+     * POST /api/banxico/companies/employees/manage
+     * Handle Hire/Fire/Update actions
+     */
+    router.post('/companies/employees/manage', async (req, res) => {
+        const { action, companyId, ownerId, targetId, salary } = req.body;
+        // Actions: 'hire', 'fire', 'update'
+
+        if (!action || !companyId || !ownerId || !targetId) {
+            return res.status(400).json({ error: 'Faltan datos requeridos' });
+        }
+
+        try {
+            // 1. Verify Ownership
+            const { data: company, error: compError } = await supabase
+                .from('companies')
+                .select('id, owner_id')
+                .eq('id', companyId)
+                .single();
+
+            if (compError || !company) return res.status(404).json({ error: 'Empresa no encontrada' });
+            if (company.owner_id !== ownerId) return res.status(403).json({ error: 'No tienes permiso' });
+
+            // 2. Perform Action
+            if (action === 'hire') {
+                const { error } = await supabase.from('company_employees').insert({
+                    company_id: companyId,
+                    discord_id: targetId,
+                    salary: salary || 0, // Default salary
+                    role: 'Empleado'
+                });
+                if (error) throw error;
+            } else if (action === 'fire') {
+                const { error } = await supabase.from('company_employees')
+                    .delete()
+                    .eq('company_id', companyId)
+                    .eq('discord_id', targetId);
+                if (error) throw error;
+            } else if (action === 'update') {
+                const { error } = await supabase.from('company_employees')
+                    .update({ salary: salary })
+                    .eq('company_id', companyId)
+                    .eq('discord_id', targetId);
+                if (error) throw error;
+            }
+
+            res.json({ success: true, message: 'Operación exitosa' });
+
+        } catch (err) {
+            console.error('Employee Management Error:', err);
+            res.status(500).json({ error: err.message || 'Error en la operación' });
+        }
+    });
+
     return router;
 };

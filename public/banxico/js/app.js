@@ -73,6 +73,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 // SUCCESS
                 const user = data.user;
+                window.currentUser = user; // Set Global for other functions
 
                 performLoginBtn.innerHTML = '<i class="fas fa-check"></i> Acceso Concedido';
                 performLoginBtn.classList.remove('bg-[#b38728]', 'hover:bg-[#967020]');
@@ -165,6 +166,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                             <div class="text-xs text-gray-500">No tienes empresas registradas</div>
                         </div>`;
                 } else {
+                    // Store companies globally for modal access
+                    window.myCompanies = data.owned;
+
                     companiesContainer.innerHTML = data.owned.map(comp => `
                         <div class="bg-gray-800/50 p-3 rounded border border-white/5 flex justify-between items-center group hover:border-[#b38728]/50 transition">
                             <div class="flex items-center gap-3">
@@ -176,8 +180,13 @@ document.addEventListener('DOMContentLoaded', async () => {
                                     <div class="text-[9px] text-gray-500 uppercase tracking-wider">Dueño</div>
                                 </div>
                             </div>
-                             <div class="font-mono font-bold text-xs text-[#b38728]">
-                                $${(comp.balance || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+                            <div class="flex items-center gap-3">
+                                <div class="font-mono font-bold text-xs text-[#b38728]">
+                                    $${(comp.balance || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+                                </div>
+                                <button onclick="openEmployeeModal('${comp.id}')" class="text-[10px] bg-gray-700 hover:bg-gray-600 text-white px-2 py-1 rounded transition">
+                                    <i class="fas fa-cog"></i>
+                                </button>
                             </div>
                         </div>
                     `).join('');
@@ -216,29 +225,182 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    // Dashboard Data Loading
-    function loadDashboardData(user) {
-        const balanceEl = document.getElementById('balance-display');
-        const cardsContainer = document.getElementById('cards-container');
-        const transactionsList = document.getElementById('transactions-list');
+    // Make safe globally
+    window.openEmployeeModal = (companyId) => {
+        const company = window.myCompanies.find(c => c.id === companyId);
+        if (!company) return;
 
-        // REAL DATA
-        const realBalance = user.balance; // Bank Balance
-        const realCash = user.cash; // Cash Money
+        const modal = document.getElementById('employee-modal');
+        const title = document.getElementById('emp-modal-company-name');
+        const list = document.getElementById('modal-employee-list');
+        const hireBtn = document.getElementById('btn-hire');
+        const hireId = document.getElementById('hire-id-input');
+        const hireSalary = document.getElementById('hire-salary-input');
+        const closeBtn = document.getElementById('close-emp-btn');
+        const overlay = document.getElementById('close-emp-overlay');
 
-        const realCards = [
-            { type: 'CUENTA MAESTRA', number: user.accountNumber, bank: 'BANXICO', balance: realBalance, chip: true },
-            { type: 'EFECTIVO', number: '---- ----', bank: 'BOLSILLO', balance: realCash, chip: false }
-        ];
+        if (title) title.innerText = company.name;
 
-        // Animate Balance
-        if (balanceEl) {
-            animateValue(balanceEl, 0, realBalance, 2000);
+        // Show Modal
+        if (modal) {
+            modal.classList.remove('hidden');
+            setTimeout(() => modal.classList.remove('opacity-0'), 10);
         }
 
-        // Render Cards with Glass/Premium Look
-        if (cardsContainer) {
-            cardsContainer.innerHTML = realCards.map((card, i) => `
+        // Render List
+        const renderList = () => {
+            if (!company.company_employees || company.company_employees.length === 0) {
+                list.innerHTML = '<div class="text-xs text-gray-500 italic">No hay empleados registrados.</div>';
+            } else {
+                list.innerHTML = company.company_employees.map(emp => `
+                    <div class="flex justify-between items-center bg-gray-900/50 p-2 rounded border border-white/5">
+                        <div>
+                            <div class="text-xs font-bold text-gray-300">ID: ${emp.discord_id}</div>
+                            <div class="text-[10px] text-gray-500">Sueldo: $${emp.salary}</div>
+                        </div>
+                        <button onclick="fireEmployee('${company.id}', '${emp.discord_id}')" class="text-red-500 hover:text-red-400 text-xs">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                `).join('');
+            }
+        };
+        renderList();
+
+        // Close Logic
+        const close = () => {
+            modal.classList.add('opacity-0');
+            setTimeout(() => modal.classList.add('hidden'), 300);
+        };
+        closeBtn.onclick = close;
+        overlay.onclick = close;
+
+        // Hire Action
+        hireBtn.onclick = async () => {
+            const targetId = hireId.value.trim();
+            const salary = parseInt(hireSalary.value) || 0;
+
+            if (!targetId) return Swal.fire('Error', 'Ingresa un ID', 'warning');
+
+            hireBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            try {
+                // Ideally passing the ownerId from session, here we assume current user is owner (validated in backend)
+                // We need to retrieve current user ID from somewhere. 
+                // Since we don't have persistent session management in this quick demo, we rely on `window.currentUser` if we set it.
+                // Let's set window.currentUser in login.
+
+                const response = await fetch('/api/banxico/companies/employees/manage', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'hire',
+                        companyId: company.id,
+                        ownerId: window.currentUser.id,
+                        targetId: targetId,
+                        salary: salary
+                    })
+                });
+
+                const res = await response.json();
+                if (!res.success) throw new Error(res.error);
+
+                Swal.fire({
+                    toast: true, position: 'top-end', icon: 'success',
+                    title: 'Empleado Contratado', timer: 2000, showConfirmButton: false
+                });
+
+                // Refresh Data (Quick Hack: Reload all business data)
+                loadBusinessData(window.currentUser.id);
+                close();
+
+            } catch (e) {
+                Swal.fire('Error', e.message, 'error');
+            } finally {
+                hireBtn.innerHTML = '<i class="fas fa-user-plus mr-1"></i> Contratar';
+            }
+        };
+
+        window.fireEmployee = async (compId, targetId) => {
+            try {
+                const response = await fetch('/api/banxico/companies/employees/manage', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'fire',
+                        companyId: compId,
+                        ownerId: window.currentUser.id,
+                        targetId: targetId
+                    })
+                });
+                const res = await response.json();
+                if (!res.success) throw new Error(res.error);
+
+                Swal.fire({
+                    toast: true, position: 'top-end', icon: 'success',
+                    title: 'Empleado Despedido', timer: 2000, showConfirmButton: false
+                });
+
+                loadBusinessData(window.currentUser.id);
+                close();
+
+            } catch (e) {
+                Swal.fire('Error', e.message, 'error');
+            }
+        };
+    };
+    if (data.employment.length === 0) {
+        employmentContainer.innerHTML = `
+                         <div class="p-4 border border-dashed border-gray-700 rounded-lg text-center">
+                            <i class="fas fa-user-slash text-gray-600 text-xl mb-2"></i>
+                            <div class="text-xs text-gray-500">No tienes empleos registrados</div>
+                        </div>`;
+    } else {
+        employmentContainer.innerHTML = data.employment.map(emp => `
+                        <div class="bg-gray-800/50 p-3 rounded border border-white/5 flex justify-between items-center">
+                            <div class="flex items-center gap-3">
+                                <div class="w-8 h-8 rounded bg-blue-500/10 text-blue-400 flex items-center justify-center font-bold text-xs">
+                                    <i class="fas fa-briefcase"></i>
+                                </div>
+                                <div>
+                                    <div class="text-xs font-bold text-gray-200">${emp.companies?.name || 'Empresa'}</div>
+                                    <div class="text-[9px] text-gray-500 uppercase tracking-wider">Empleado</div>
+                                </div>
+                            </div>
+                            <div class="text-[10px] bg-green-500/20 text-green-400 px-2 py-0.5 rounded uppercase font-bold">Activo</div>
+                        </div>
+                    `).join('');
+    }
+}
+
+        } catch (e) {
+    console.error(e);
+    if (companiesContainer) companiesContainer.innerHTML = '<div class="text-red-500 text-xs">Error cargando empresas</div>';
+}
+    }
+
+// Dashboard Data Loading
+function loadDashboardData(user) {
+    const balanceEl = document.getElementById('balance-display');
+    const cardsContainer = document.getElementById('cards-container');
+    const transactionsList = document.getElementById('transactions-list');
+
+    // REAL DATA
+    const realBalance = user.balance; // Bank Balance
+    const realCash = user.cash; // Cash Money
+
+    const realCards = [
+        { type: 'CUENTA MAESTRA', number: user.accountNumber, bank: 'BANXICO', balance: realBalance, chip: true },
+        { type: 'EFECTIVO', number: '---- ----', bank: 'BOLSILLO', balance: realCash, chip: false }
+    ];
+
+    // Animate Balance
+    if (balanceEl) {
+        animateValue(balanceEl, 0, realBalance, 2000);
+    }
+
+    // Render Cards with Glass/Premium Look
+    if (cardsContainer) {
+        cardsContainer.innerHTML = realCards.map((card, i) => `
                 <div class="relative h-48 rounded-xl p-6 text-white shadow-2xl overflow-hidden group cursor-pointer transition-transform hover:scale-[1.02] hover:shadow-[0_0_30px_rgba(179,135,40,0.2)] border border-white/10"
                      style="background: linear-gradient(135deg, ${i === 0 ? '#1f2937, #111827' : '#0f172a, #1e293b'});">
                     
@@ -272,15 +434,15 @@ document.addEventListener('DOMContentLoaded', async () => {
                     </div>
                 </div>
             `).join('');
-        }
+    }
 
-        // Render Transactions (Mock for now, as we don't have transaction history API yet)
-        const mockTransactions = [
-            { date: 'Hoy', desc: 'Consulta de Saldo', amount: 0, type: 'in' }
-        ];
+    // Render Transactions (Mock for now, as we don't have transaction history API yet)
+    const mockTransactions = [
+        { date: 'Hoy', desc: 'Consulta de Saldo', amount: 0, type: 'in' }
+    ];
 
-        if (transactionsList) {
-            transactionsList.innerHTML = mockTransactions.map(t => `
+    if (transactionsList) {
+        transactionsList.innerHTML = mockTransactions.map(t => `
                 <div class="flex justify-between items-center p-3 hover:bg-white/5 rounded-lg transition border-b border-white/5 last:border-0 group">
                     <div class="flex items-center gap-3">
                         <div class="w-8 h-8 rounded-full ${t.type === 'in' ? 'bg-green-500/10 text-green-500' : 'bg-red-500/10 text-red-500'} flex items-center justify-center border border-white/5 group-hover:scale-110 transition-transform">
@@ -296,70 +458,70 @@ document.addEventListener('DOMContentLoaded', async () => {
                     </div>
                 </div>
             `).join('');
-        }
     }
+}
 
-    // Chart Initialization
-    function initializeChart() {
-        const ctx = document.getElementById('balanceChart');
-        if (ctx) {
-            new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun'],
-                    datasets: [{
-                        label: 'Balance Histórico',
-                        data: [12000, 19000, 15000, 22000, 28000, 35000],
-                        borderColor: '#b38728',
-                        backgroundColor: (context) => {
-                            const ctx = context.chart.ctx;
-                            const gradient = ctx.createLinearGradient(0, 0, 0, 200);
-                            gradient.addColorStop(0, 'rgba(179, 135, 40, 0.5)');
-                            gradient.addColorStop(1, 'rgba(179, 135, 40, 0)');
-                            return gradient;
-                        },
-                        borderWidth: 2,
-                        tension: 0.4,
-                        pointBackgroundColor: '#111827',
-                        pointBorderColor: '#b38728',
-                        fill: true
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { display: false }
+// Chart Initialization
+function initializeChart() {
+    const ctx = document.getElementById('balanceChart');
+    if (ctx) {
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun'],
+                datasets: [{
+                    label: 'Balance Histórico',
+                    data: [12000, 19000, 15000, 22000, 28000, 35000],
+                    borderColor: '#b38728',
+                    backgroundColor: (context) => {
+                        const ctx = context.chart.ctx;
+                        const gradient = ctx.createLinearGradient(0, 0, 0, 200);
+                        gradient.addColorStop(0, 'rgba(179, 135, 40, 0.5)');
+                        gradient.addColorStop(1, 'rgba(179, 135, 40, 0)');
+                        return gradient;
                     },
-                    scales: {
-                        y: {
-                            grid: { color: 'rgba(255, 255, 255, 0.05)' },
-                            ticks: { color: '#6b7280', font: { size: 10, family: 'monospace' } }
-                        },
-                        x: {
-                            grid: { display: false },
-                            ticks: { color: '#6b7280', font: { size: 10 } }
-                        }
+                    borderWidth: 2,
+                    tension: 0.4,
+                    pointBackgroundColor: '#111827',
+                    pointBorderColor: '#b38728',
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    y: {
+                        grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                        ticks: { color: '#6b7280', font: { size: 10, family: 'monospace' } }
+                    },
+                    x: {
+                        grid: { display: false },
+                        ticks: { color: '#6b7280', font: { size: 10 } }
                     }
                 }
-            });
-        }
-    }
-
-    // Utility: Number Animation
-    function animateValue(obj, start, end, duration) {
-        let startTimestamp = null;
-        const step = (timestamp) => {
-            if (!startTimestamp) startTimestamp = timestamp;
-            const progress = Math.min((timestamp - startTimestamp) / duration, 1);
-            const value = Math.floor(progress * (end - start) + start);
-            obj.innerHTML = `$${value.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`;
-            if (progress < 1) {
-                window.requestAnimationFrame(step);
-            } else {
-                obj.innerHTML = `$${end.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`;
             }
-        };
-        window.requestAnimationFrame(step);
+        });
     }
+}
+
+// Utility: Number Animation
+function animateValue(obj, start, end, duration) {
+    let startTimestamp = null;
+    const step = (timestamp) => {
+        if (!startTimestamp) startTimestamp = timestamp;
+        const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+        const value = Math.floor(progress * (end - start) + start);
+        obj.innerHTML = `$${value.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`;
+        if (progress < 1) {
+            window.requestAnimationFrame(step);
+        } else {
+            obj.innerHTML = `$${end.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`;
+        }
+    };
+    window.requestAnimationFrame(step);
+}
 });
