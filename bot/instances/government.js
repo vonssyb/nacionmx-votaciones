@@ -31,6 +31,8 @@ async function startGovernmentBot(supabase) {
     const exchangeService = new ExchangeService(supabase, billingService.ubService);
     const TreasuryService = require('../services/TreasuryService');
     const treasuryService = new TreasuryService(supabase, client);
+    const BanxicoService = require('../services/BanxicoService');
+    const banxicoService = new BanxicoService(supabase);
 
     // Initialize StateManager
     const stateManager = new StateManager(supabase);
@@ -45,7 +47,8 @@ async function startGovernmentBot(supabase) {
         billing: billingService,
         exchange: exchangeService,
         stateManager: stateManager,
-        treasury: treasuryService
+        treasury: treasuryService,
+        banxico: banxicoService
     };
     client.treasuryService = treasuryService;
 
