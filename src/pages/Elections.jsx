@@ -106,18 +106,17 @@ const Elections = () => {
                     if (vError) throw vError;
                     votesData = vData || [];
 
-                    // Fetch DNI Name (Use Discord ID, not Supabase UUID)
+                    // Fetch DNI Name (Try Discord ID first, then fallback to UUID just in case)
                     const discordId = memberData.user.user_metadata?.provider_id || memberData.user.identities?.[0]?.id;
 
-                    if (discordId) {
-                        const { data: dData, error: dError } = await supabase
-                            .from('citizen_dni')
-                            .select('nombre, apellido_paterno, apellido_materno')
-                            .eq('discord_user_id', discordId)
-                            .maybeSingle();
-                        if (!dError && dData) {
-                            setDniData(dData);
-                        }
+                    const { data: dData, error: dError } = await supabase
+                        .from('citizen_dni')
+                        .select('nombre, apellido_paterno, apellido_materno')
+                        .or(`discord_user_id.eq.${discordId},discord_user_id.eq.${memberData.user.id}`)
+                        .maybeSingle();
+
+                    if (!dError && dData) {
+                        setDniData(dData);
                     }
                 }
 
@@ -677,7 +676,7 @@ const Elections = () => {
                                     </div>
                                     <div className="text-right">
                                         <p className="text-xs text-gray-400 uppercase font-bold">Folio Digital</p>
-                                        <p className="font-mono font-bold text-[#D90F74] text-[10px] leading-tight break-all max-w-[150px] ml-auto">{showCertificate.folio}</p>
+                                        <p className="font-mono font-bold text-[#D90F74] leading-tight ml-auto" style={{ fontSize: '10px', wordBreak: 'break-all', maxWidth: '150px' }}>{showCertificate.folio}</p>
                                     </div>
                                 </div>
                             </div>
