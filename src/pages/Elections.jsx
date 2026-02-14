@@ -110,15 +110,17 @@ const Elections = () => {
                     const discordId = memberData.user.user_metadata?.provider_id || memberData.user.identities?.[0]?.id; // Discord ID
 
                     if (discordId) {
-                        // Fetch DNI data - Try both column names for compatibility
+                        // Fetch DNI data using actual schema: user_id holds the Discord ID
                         const { data: dData, error: dError } = await supabase
                             .from('citizen_dni')
                             .select('*')
-                            .or(`discord_user_id.eq.${discordId},user_id.eq.${discordId}`)
+                            .eq('user_id', discordId)
                             .maybeSingle();
 
                         if (!dError && dData) {
                             setDniData(dData);
+                        } else {
+                            console.warn('DNI Fetch Error or Empty:', dError);
                         }
                     }
                 }
