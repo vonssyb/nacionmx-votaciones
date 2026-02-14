@@ -20,7 +20,7 @@ module.exports = {
 
         if (!banxicoService) {
             console.error('BanxicoService not found in client.services');
-            return interaction.reply({ content: '❌ Error interno: Servicio Banxico no disponible.', ephemeral: true });
+            return interaction.editReply({ content: '❌ Error interno: Servicio Banxico no disponible.' });
         }
 
         const subcommand = interaction.options.getSubcommand();
@@ -42,9 +42,9 @@ module.exports = {
                     });
                 });
 
-                return interaction.reply({ embeds: [embed] });
+                return interaction.editReply({ embeds: [embed] });
             } catch (e) {
-                return interaction.reply({ content: '❌ Error obteniendo indicadores.', ephemeral: true });
+                return interaction.editReply({ content: '❌ Error obteniendo indicadores.' });
             }
         }
 
@@ -67,30 +67,30 @@ module.exports = {
                                 .setFooter({ text: 'Sistema de Seguridad Banxico' })
                         ]
                     });
-                    return interaction.reply({ content: '✅ Te he enviado el código de acceso por mensaje privado.', ephemeral: true });
+                    return interaction.editReply({ content: '✅ Te he enviado el código de acceso por mensaje privado.' });
                 } catch (err) {
-                    return interaction.reply({ content: `❌ No pude enviarte el DM. Por favor habilita tus mensajes privados.\nTu código es: ||${code}||`, ephemeral: true });
+                    return interaction.editReply({ content: `❌ No pude enviarte el DM. Por favor habilita tus mensajes privados.\nTu código es: ||${code}||` });
                 }
             } catch (error) {
                 console.error(error);
-                return interaction.reply({ content: '❌ Error al generar el código. Intenta de nuevo.', ephemeral: true });
+                return interaction.editReply({ content: '❌ Error al generar el código. Intenta de nuevo.' });
             }
         }
 
         if (subcommand === 'tasa') {
             // Check Admin permission (or specific role later)
             if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
-                return interaction.reply({ content: '❌ Solo el Gobernador del Banco de México puede ajustar tasas.', ephemeral: true });
+                return interaction.editReply({ content: '❌ Solo el Gobernador del Banco de México puede ajustar tasas.' });
             }
 
             const newValue = interaction.options.getNumber('valor');
             try {
                 await banxicoService.updateIndicator('interest_rate', newValue, interaction.user.id);
-                return interaction.reply({
+                return interaction.editReply({
                     content: `✅ **Tasa de Interés ajustada a ${newValue}%** por el Gobernador.`
                 });
             } catch (e) {
-                return interaction.reply({ content: '❌ Error actualizando tasa.', ephemeral: true });
+                return interaction.editReply({ content: '❌ Error actualizando tasa.' });
             }
         }
     }
