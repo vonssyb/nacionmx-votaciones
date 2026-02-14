@@ -3,7 +3,6 @@ import { supabase } from '../services/supabase';
 import { useDiscordMember } from '../components/auth/RoleGuard';
 import { toPng } from 'html-to-image';
 import { Check, AlertCircle, Vote, User, LogIn, Download, FileText, BarChart2, CreditCard } from 'lucide-react';
-import DigitalID from '../components/ine/DigitalID';
 
 const Elections = () => {
     const memberData = useDiscordMember();
@@ -25,7 +24,6 @@ const Elections = () => {
     const [message, setMessage] = useState(null);
     const [timeLeft, setTimeLeft] = useState('00:00:00');
     const [voting, setVoting] = useState(false);
-    const [showDigitalID, setShowDigitalID] = useState(false);
 
     // Timer Logic
     useEffect(() => {
@@ -366,16 +364,6 @@ const Elections = () => {
                             <span className="text-xl font-mono text-white font-bold">{timeLeft}</span>
                         </div>
                     </div>
-                    {memberData && (
-                        <button
-                            onClick={() => setShowDigitalID(true)}
-                            className="hidden md:flex flex-col items-center justify-center p-2 bg-gray-800 rounded-lg border border-gray-700 hover:bg-gray-700 transition-colors group cursor-pointer"
-                            title="Ver Mi Credencial"
-                        >
-                            <CreditCard size={20} className="text-[#D90F74] group-hover:scale-110 transition-transform" />
-                            <span className="text-[10px] text-gray-400 font-bold uppercase mt-1">Mi INE</span>
-                        </button>
-                    )}
                 </div>
 
                 {
@@ -739,27 +727,6 @@ const Elections = () => {
                     </div>
                 )
             }
-            {/* Digital ID Modal */}
-            {
-                showDigitalID && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" onClick={() => setShowDigitalID(false)}>
-                        <div className="relative animate-in fade-in zoom-in duration-300" onClick={e => e.stopPropagation()}>
-                            <button
-                                onClick={() => setShowDigitalID(false)}
-                                className="absolute -top-12 right-0 text-white hover:text-[#D90F74] transition-colors"
-                            >
-                                Cerrar [ESC]
-                            </button>
-                            <DigitalID
-                                userData={memberData?.user}
-                                dniData={dniData}
-                                votes={userVotes}
-                            />
-                        </div>
-                    </div>
-                )
-            }
-
         </div >
     );
 };
