@@ -684,14 +684,21 @@ const Elections = () => {
                                     <strong className="text-[#D90F74]">{showCertificate.election.title}</strong>
                                 </p>
 
-                                <div className="flex justify-between items-end border-t border-gray-300 pt-4 mt-8">
-                                    <div className="text-left">
-                                        <p className="text-xs text-gray-400 uppercase font-bold">Fecha de Emisión</p>
-                                        <p className="font-mono font-bold text-lg">{showCertificate.date}</p>
+                                <div className="border-t border-gray-300 pt-4 mt-8 flex flex-col gap-4">
+                                    <div className="flex justify-between items-center">
+                                        <div className="text-left">
+                                            <p className="text-xs text-gray-400 uppercase font-bold">Fecha de Emisión</p>
+                                            <p className="font-mono font-bold text-base text-gray-800">{showCertificate.date}</p>
+                                        </div>
+                                        <div className="text-right">
+                                            <p className="text-xs text-gray-400 uppercase font-bold">Entidad</p>
+                                            <p className="font-mono font-bold text-base text-gray-800">Nación MX</p>
+                                        </div>
                                     </div>
-                                    <div className="text-right">
-                                        <p className="text-xs text-gray-400 uppercase font-bold">Folio Digital</p>
-                                        <p className="font-mono font-bold text-[#D90F74] leading-none ml-auto text-[8px] tracking-tighter" style={{ whiteSpace: 'nowrap', width: 'max-content' }}>{showCertificate.folio}</p>
+
+                                    <div className="text-center bg-gray-50 p-2 rounded border border-gray-100">
+                                        <p className="text-[10px] text-gray-400 uppercase font-bold tracking-[0.2em] mb-1">Folio Digital de Autenticidad</p>
+                                        <p className="font-mono font-bold text-[#D90F74] text-xs tracking-wider break-all">{showCertificate.folio}</p>
                                     </div>
                                 </div>
                             </div>
