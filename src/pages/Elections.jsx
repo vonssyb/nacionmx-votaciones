@@ -10,6 +10,7 @@ const Elections = () => {
     const [candidates, setCandidates] = useState([]);
     const [userVotes, setUserVotes] = useState([]);
     const [publicResults, setPublicResults] = useState({}); // { electionId: { candidateId: count } }
+    const [dniData, setDniData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [confirmModal, setConfirmModal] = useState(null);
     const [loginModal, setLoginModal] = useState(false);
@@ -104,6 +105,16 @@ const Elections = () => {
 
                     if (vError) throw vError;
                     votesData = vData || [];
+
+                    // Fetch DNI Name
+                    const { data: dData, error: dError } = await supabase
+                        .from('citizen_dni')
+                        .select('nombre, apellido_paterno, apellido_materno')
+                        .eq('discord_user_id', memberData.user.id)
+                        .maybeSingle();
+                    if (!dError && dData) {
+                        setDniData(dData);
+                    }
                 }
 
                 return { electionsData, candidatesData, votesData };
@@ -646,7 +657,7 @@ const Elections = () => {
 
                                 <p className="text-lg text-gray-600 italic mb-4">Se hace constar que el ciudadano/a:</p>
                                 <h2 className="text-3xl font-bold text-black mb-6 uppercase underline decoration-[#D90F74]/30 decoration-4 underline-offset-4">
-                                    {memberData?.user?.username || "Ciudadano Distinguido"}
+                                    {dniData ? `${dniData.nombre} ${dniData.apellido_paterno || ''} ${dniData.apellido_materno || ''}` : (memberData?.user?.username || "Ciudadano Distinguido")}
                                 </h2>
 
                                 <p className="text-gray-600 mb-8 leading-relaxed">
@@ -662,7 +673,7 @@ const Elections = () => {
                                     </div>
                                     <div className="text-right">
                                         <p className="text-xs text-gray-400 uppercase font-bold">Folio Digital</p>
-                                        <p className="font-mono font-bold text-[#D90F74] text-lg">{showCertificate.folio}</p>
+                                        <p className="font-mono font-bold text-[#D90F74] text-xs tracking-tighter">{showCertificate.folio}</p>
                                     </div>
                                 </div>
                             </div>
