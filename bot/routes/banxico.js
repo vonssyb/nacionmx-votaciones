@@ -133,15 +133,18 @@ module.exports = (supabase) => {
                 if (cards && cards.length > 0) {
                     discordId = cards[0].discord_user_id;
                 } else {
-                    // RETURN DETAILED ERROR TO CLIENT
+                    // RETURN DETAILED ERROR TO CLIENT (Visible in Alert)
+                    const errorMsg = error ? `Error DB: ${error.message}` : 'Código no encontrado';
+                    const debugInfo = `(DB: ${dbUrl})`;
+
                     return res.status(401).json({
                         success: false,
-                        error: `Código inválido o expirado.`,
+                        error: `Acceso Denegado: ${errorMsg} ${debugInfo}`,
                         debug: {
                             received: code,
                             db_query_error: error ? error.message : 'None',
                             db_url_check: dbUrl,
-                            table_exists: !error // If error is present, maybe table missing
+                            table_exists: !error
                         }
                     });
                 }
