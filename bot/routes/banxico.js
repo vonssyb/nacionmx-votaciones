@@ -91,11 +91,175 @@ module.exports = (supabase) => {
         res.json(data);
     });
 
+
+    /**
+     * POST /api/banxico/auth
+     * Login via Debit Card (Last 6 digits) -> Used by Banxico Portal Frontend
+     */
+    router.post('/auth', async (req, res) => {
+        const { code } = req.body;
+        console.log('[API] Auth attempt:', code);
+
+        if (!code || code.length !== 6) {
+            return res.status(400).json({ success: false, error: 'Formato de código inválido' });
+        }
+
+        try {
+            // Search for debit card to find full Discord ID
+            const { data: cards, error } = await supabase
+                .from('debit_cards')
+                .select('discord_user_id')
+                .like('discord_user_id', `${code}%`)
+                .eq('status', 'active')
+                .limit(1);
+
+            if (error) {
+                console.error('[API] Auth Database error:', error);
+                return res.status(500).json({ success: false, error: 'Database error' });
+            }
+
+            if (!cards || cards.length === 0) {
+                return res.status(404).json({ success: false, error: 'Usuario no encontrado' });
+            }
+
+            const discordId = cards[0].discord_user_id;
+            const guildId = process.env.DISCORD_GUILD_ID || '1398525215134318713';
+
+            // Fetch REAL name from citizen_dni
+            let fullName = `Usuario ${discordId.substring(0, 8)}`;
+            const { data: dni } = await supabase
+                .from('citizen_dni')
+                .select('nombre, apellido')
+                .eq('user_id', discordId)
+                .eq('guild_id', guildId)
+                .maybeSingle();
+
+            if (dni) fullName = `${dni.nombre} ${dni.apellido}`;
+
+            // Fetch REAL balance from UnbelievaBoat
+            const UnbelievaBoatService = require('../../services/UnbelievaBoatService');
+            const ubToken = process.env.UNBELIEVABOAT_TOKEN;
+            let cash = 0, bank = 0;
+
+            if (ubToken && guildId) {
+                try {
+                    const ubService = new UnbelievaBoatService(ubToken);
+                    const balance = await ubService.getUserBalance(guildId, discordId);
+                    cash = balance.cash || 0;
+                    bank = balance.bank || 0;
+                } catch (ubError) {
+                    console.error('[API] UnbelievaBoat error:', ubError.message);
+                }
+            }
+
+            const avatarUrl = `https://cdn.discordapp.com/embed/avatars/${parseInt(discordId) % 5}.png`;
+
+            res.json({
+                success: true,
+                user: {
+                    id: discordId,
+                    name: fullName,
+                    username: fullName,
+                    balance: bank,
+                    cash: cash,
+                    accountNumber: `BX-${discordId.substring(0, 8)}`,
+                    avatar: avatarUrl
+                }
+            });
+
+        } catch (error) {
+            console.error('[API] Auth error:', error);
+            res.status(500).json({ success: false, error: 'Internal server error' });
+        }
+    });
+
+    /**
+     * GET /api/banxico/transactions/:userId
+     * Fetch real transaction history
+     */
+    router.get('/transactions/:userId', async (req, res) => {
+        const { userId } = req.params;
+        const limit = parseInt(req.query.limit) || 10;
+
+        try {
+            // Try economy_transactions first
+            const { data: transactions, error } = await supabase
+                .from('economy_transactions')
+                .select('*')
+                .or(`sender_id.eq.${userId},receiver_id.eq.${userId}`)
+                .order('created_at', { ascending: false })
+                .limit(limit);
+
+            if (!error && transactions && transactions.length > 0) {
+                const formatted = transactions.map(tx => ({
+                    id: tx.id,
+                    type: tx.receiver_id === userId ? 'in' : 'out',
+                    description: tx.description || 'Transferencia',
+                    amount: parseFloat(tx.amount),
+                    date: tx.created_at
+                }));
+                return res.json({ success: true, transactions: formatted });
+            }
+
+            // Fallback to banxico_logs
+            const { data: logs } = await supabase
+                .from('banxico_logs')
+                .select('*')
+                .eq('executor_id', userId)
+                .order('created_at', { ascending: false })
+                .limit(limit);
+
+            const formattedLogs = (logs || []).map(l => ({
+                id: l.id,
+                type: 'out',
+                description: l.action,
+                amount: 0,
+                date: l.created_at
+            }));
+
+            res.json({ success: true, transactions: formattedLogs });
+
+        } catch (error) {
+            console.error('Transactions fetch error', error);
+            res.json({ success: true, transactions: [] });
+        }
+    });
+
+    /**
+     * GET /api/banxico/cards/:userId
+     * Fetch user credit cards
+     */
+    router.get('/cards/:userId', async (req, res) => {
+        const { userId } = req.params;
+        try {
+            const { data: cards, error } = await supabase
+                .from('credit_cards')
+                .select('*')
+                .eq('discord_user_id', userId);
+
+            if (error) throw error;
+
+            res.json({
+                success: true,
+                cards: (cards || []).map(card => ({
+                    id: card.id,
+                    card_name: card.card_name || 'VISA',
+                    current_balance: parseFloat(card.current_balance) || 0,
+                    discord_user_id: card.discord_user_id
+                }))
+            });
+        } catch (error) {
+            console.error('[API] Cards error:', error);
+            res.status(500).json({ success: false, error: 'Database error' });
+        }
+    });
+
     /**
      * POST /api/banxico/companies
      * Returns companies owned by the user and their employment status
      */
     router.post('/companies', async (req, res) => {
+        // ... (Existing implementation)
         const { userId } = req.body;
         if (!userId) return res.status(400).json({ error: 'Falta User ID' });
 
@@ -127,6 +291,7 @@ module.exports = (supabase) => {
             res.status(500).json({ error: 'Error obteniendo empresas' });
         }
     });
+
 
     /**
      * POST /api/banxico/companies/employees/manage
