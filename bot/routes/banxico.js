@@ -115,6 +115,13 @@ module.exports = (supabase) => {
             let discordId;
 
             if (error || !authCode) {
+                // EXPLICIT LOGGING FOR DEBUGGING
+                if (error) console.error('[API] Supabase Query Error:', error);
+                if (!authCode) console.warn('[API] Code not found:', code);
+
+                // Get masked project URL to confirm we are on the right DB
+                const dbUrl = process.env.SUPABASE_URL ? process.env.SUPABASE_URL.substring(0, 15) + '...' : 'MISSING';
+
                 // Fallback: Check if it's a debug code (Start of Discord ID)
                 const { data: cards } = await supabase
                     .from('debit_cards')
@@ -126,7 +133,17 @@ module.exports = (supabase) => {
                 if (cards && cards.length > 0) {
                     discordId = cards[0].discord_user_id;
                 } else {
-                    return res.status(401).json({ success: false, error: 'Código inválido o expirado' });
+                    // RETURN DETAILED ERROR TO CLIENT
+                    return res.status(401).json({
+                        success: false,
+                        error: `Código inválido o expirado.`,
+                        debug: {
+                            received: code,
+                            db_query_error: error ? error.message : 'None',
+                            db_url_check: dbUrl,
+                            table_exists: !error // If error is present, maybe table missing
+                        }
+                    });
                 }
             } else {
                 // Check expiration
