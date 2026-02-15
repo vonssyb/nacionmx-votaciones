@@ -78,6 +78,12 @@ process.on('unhandledRejection', (reason) => logger.error('Unhandled Rejection',
 
 // --- HEALTH CHECK SERVER ---
 const app = express();
+const cors = require('cors');
+app.use(cors({
+    origin: ['https://vonssyb.github.io', 'http://localhost:5173', 'http://127.0.0.1:5500'],
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+}));
 app.use(express.json()); // Parse JSON request bodies
 const port = process.env.PORT || 8000;
 
