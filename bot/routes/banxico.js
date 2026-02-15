@@ -112,9 +112,10 @@ module.exports = (supabase) => {
                 .eq('code', code)
                 .maybeSingle();
 
+            let discordId;
+
             if (error || !authCode) {
                 // Fallback: Check if it's a debug code (Start of Discord ID)
-                // This preserves my "easy" login for testing if needed
                 const { data: cards } = await supabase
                     .from('debit_cards')
                     .select('discord_user_id')
@@ -123,9 +124,7 @@ module.exports = (supabase) => {
                     .limit(1);
 
                 if (cards && cards.length > 0) {
-                    // Found via ID prefix, continue with this user
-                    // (Passing to flow below by mocking authCode structure)
-                    var discordId = cards[0].discord_user_id;
+                    discordId = cards[0].discord_user_id;
                 } else {
                     return res.status(401).json({ success: false, error: 'Código inválido o expirado' });
                 }
@@ -136,7 +135,7 @@ module.exports = (supabase) => {
                     await supabase.from('banxico_auth_codes').delete().eq('code', code);
                     return res.status(401).json({ success: false, error: 'El código ha expirado' });
                 }
-                var discordId = authCode.user_id;
+                discordId = authCode.user_id;
 
                 // Consume code (One-time use)
                 await supabase.from('banxico_auth_codes').delete().eq('code', code);
@@ -188,7 +187,8 @@ module.exports = (supabase) => {
 
         } catch (error) {
             console.error('[API] Auth error:', error);
-            res.status(500).json({ success: false, error: 'Internal server error' });
+            // Return detailed error for debugging (remove stack in production later)
+            res.status(500).json({ success: false, error: `Error interno: ${error.message}`, details: error.stack });
         }
     });
 
