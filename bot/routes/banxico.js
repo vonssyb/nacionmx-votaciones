@@ -1,7 +1,12 @@
 const express = require('express');
 const router = express.Router();
+const UnbelievaBoatService = require('../services/UnbelievaBoatService');
 
 module.exports = (supabase) => {
+
+    const ubToken = process.env.UNBELIEVABOAT_TOKEN;
+    const guildId = process.env.DISCORD_GUILD_ID || '1398525215134318713';
+    const ubService = ubToken ? new UnbelievaBoatService(ubToken) : null;
 
     /**
      * POST /api/banxico/login
@@ -532,6 +537,67 @@ module.exports = (supabase) => {
         } catch (err) {
             console.error('Card Payment Error:', err);
             res.status(500).json({ error: 'Error procesando el pago de tarjeta' });
+        }
+    });
+
+    /**
+     * POST /api/banxico/transfer
+     * Execute SPEI Transfer between users
+     */
+    router.post('/transfer', async (req, res) => {
+        const { senderId, targetId, amount, concept } = req.body;
+
+        if (!senderId || !targetId || !amount || parseFloat(amount) <= 0) {
+            return res.status(400).json({ success: false, error: 'Datos de transferencia inválidos' });
+        }
+
+        if (senderId === targetId) {
+            return res.status(400).json({ success: false, error: 'No puedes transferir a ti mismo' });
+        }
+
+        try {
+            if (!ubService) throw new Error('Servicio de economía no disponible');
+
+            const transferAmount = parseFloat(amount);
+
+            // 1. Verify Sender Balance
+            const balance = await ubService.getUserBalance(guildId, senderId);
+            const bankBalance = balance.bank || 0;
+
+            if (bankBalance < transferAmount) {
+                return res.status(400).json({ success: false, error: 'Fondos insuficientes en Cuenta Maestra' });
+            }
+
+            // 2. Perform Transfer (UnbelievaBoat)
+            // Deduct from sender
+            await ubService.removeMoney(guildId, senderId, transferAmount, `SPEI a ${targetId}: ${concept || 'Sin concepto'}`);
+            // Add to receiver
+            await ubService.addMoney(guildId, targetId, transferAmount, `SPEI de ${senderId}: ${concept || 'Sin concepto'}`);
+
+            // 3. Log to Supabase (economy_transactions)
+            await supabase.from('economy_transactions').insert({
+                sender_id: senderId,
+                receiver_id: targetId,
+                amount: transferAmount,
+                description: concept || 'Transferencia SPEI',
+            });
+
+            // 4. Log to Banxico Logs
+            await supabase.from('banxico_logs').insert({
+                action: 'spei_transfer',
+                executor_id: senderId,
+                details: { target: targetId, amount: transferAmount, concept }
+            });
+
+            res.json({
+                success: true,
+                message: 'Transferencia SPEI exitosa',
+                newBalance: bankBalance - transferAmount
+            });
+
+        } catch (error) {
+            console.error('[API] Transfer error:', error);
+            res.status(500).json({ success: false, error: error.message });
         }
     });
 
