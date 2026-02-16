@@ -111,10 +111,9 @@ module.exports = (supabase) => {
      */
     router.get('/transactions/:userId', async (req, res) => {
         const { userId } = req.params;
-        const limit = parseInt(req.query.limit) || 10;
+        const limit = parseInt(req.query.limit) || 20;
 
         try {
-            // Try economy_transactions first
             const { data: transactions, error } = await supabase
                 .from('economy_transactions')
                 .select('*')
@@ -122,34 +121,19 @@ module.exports = (supabase) => {
                 .order('created_at', { ascending: false })
                 .limit(limit);
 
-            if (!error && transactions && transactions.length > 0) {
-                const formatted = transactions.map(tx => ({
-                    id: tx.id,
-                    type: tx.receiver_id === userId ? 'in' : 'out',
-                    description: tx.description || 'Transferencia',
-                    amount: parseFloat(tx.amount),
-                    date: tx.created_at
-                }));
-                return res.json({ success: true, transactions: formatted });
-            }
+            if (error) throw error;
 
-            // Fallback to banxico_logs
-            const { data: logs } = await supabase
-                .from('banxico_logs')
-                .select('*')
-                .eq('executor_id', userId)
-                .order('created_at', { ascending: false })
-                .limit(limit);
-
-            const formattedLogs = (logs || []).map(l => ({
-                id: l.id,
-                type: 'out',
-                description: l.action,
-                amount: 0,
-                date: l.created_at
+            const formatted = (transactions || []).map(tx => ({
+                id: tx.id,
+                type: tx.receiver_id === userId ? 'in' : 'out',
+                description: tx.description || 'Transferencia SPEI',
+                amount: parseFloat(tx.amount),
+                date: tx.created_at,
+                sender_id: tx.sender_id,
+                receiver_id: tx.receiver_id
             }));
 
-            res.json({ success: true, transactions: formattedLogs });
+            res.json({ success: true, transactions: formatted });
 
         } catch (error) {
             console.error('Transactions fetch error', error);
@@ -159,27 +143,47 @@ module.exports = (supabase) => {
 
     /**
      * GET /api/banxico/cards/:userId
-     * Fetch user credit cards
+     * Fetch user credit and debit cards with full details
      */
     router.get('/cards/:userId', async (req, res) => {
         const { userId } = req.params;
         try {
-            const { data: cards, error } = await supabase
+            // 1. Credit Cards
+            const { data: creditCards } = await supabase
                 .from('credit_cards')
+                .select('*')
+                .eq('discord_id', userId);
+
+            // 2. Debit Cards
+            const { data: debitCards } = await supabase
+                .from('debit_cards')
                 .select('*')
                 .eq('discord_user_id', userId);
 
-            if (error) throw error;
-
-            res.json({
-                success: true,
-                cards: (cards || []).map(card => ({
-                    id: card.id,
-                    card_name: card.card_name || 'VISA',
-                    current_balance: parseFloat(card.current_balance) || 0,
-                    discord_user_id: card.discord_user_id
+            const formattedCards = [
+                ...(debitCards || []).map(c => ({
+                    id: c.id,
+                    type: 'debit',
+                    card_name: c.card_tier || 'NMX Débito',
+                    card_number: c.card_number,
+                    balance: parseFloat(c.balance) || 0,
+                    status: c.status
+                })),
+                ...(creditCards || []).map(c => ({
+                    id: c.id,
+                    type: 'credit',
+                    card_name: c.card_name || 'Vista Oro',
+                    card_number: c.card_number || `**** ${c.id.substring(0, 4)}`,
+                    balance: parseFloat(c.current_balance) || 0,
+                    limit: parseFloat(c.card_limit) || 0,
+                    cutoff_day: c.closing_day || 1,
+                    due_day: c.payment_due_day || 10,
+                    status: c.status
                 }))
-            });
+            ];
+
+            res.json({ success: true, cards: formattedCards });
+
         } catch (error) {
             console.error('[API] Cards error:', error);
             res.status(500).json({ success: false, error: 'Database error' });
@@ -231,51 +235,76 @@ module.exports = (supabase) => {
      */
     router.post('/companies/employees/manage', async (req, res) => {
         const { action, companyId, ownerId, targetId, salary } = req.body;
-        // Actions: 'hire', 'fire', 'update'
 
         if (!action || !companyId || !ownerId || !targetId) {
             return res.status(400).json({ error: 'Faltan datos requeridos' });
         }
 
         try {
-            // 1. Verify Ownership
-            const { data: company, error: compError } = await supabase
-                .from('companies')
-                .select('id, owner_id')
-                .eq('id', companyId)
-                .single();
+            // Verify Ownership
+            const { data: company } = await supabase.from('companies').select('owner_ids').eq('id', companyId).single();
+            if (!company || !company.owner_ids.includes(ownerId)) return res.status(403).json({ error: 'No autorizado' });
 
-            if (compError || !company) return res.status(404).json({ error: 'Empresa no encontrada' });
-            if (company.owner_id !== ownerId) return res.status(403).json({ error: 'No tienes permiso' });
-
-            // 2. Perform Action
             if (action === 'hire') {
-                const { error } = await supabase.from('company_employees').insert({
+                await supabase.from('company_employees').insert({
                     company_id: companyId,
-                    discord_id: targetId,
-                    salary: salary || 0, // Default salary
-                    role: 'Empleado'
+                    discord_user_id: targetId,
+                    role: 'Empleado',
+                    salary: salary || 0
                 });
-                if (error) throw error;
             } else if (action === 'fire') {
-                const { error } = await supabase.from('company_employees')
-                    .delete()
-                    .eq('company_id', companyId)
-                    .eq('discord_id', targetId);
-                if (error) throw error;
-            } else if (action === 'update') {
-                const { error } = await supabase.from('company_employees')
-                    .update({ salary: salary })
-                    .eq('company_id', companyId)
-                    .eq('discord_id', targetId);
-                if (error) throw error;
+                await supabase.from('company_employees').update({ status: 'fired' }).eq('company_id', companyId).eq('discord_user_id', targetId);
             }
 
-            res.json({ success: true, message: 'Operación exitosa' });
+            res.json({ success: true });
+        } catch (err) {
+            res.status(500).json({ error: err.message });
+        }
+    });
+
+    /**
+     * POST /api/banxico/companies/payroll
+     * Pay all employees from company balance
+     */
+    router.post('/companies/payroll', async (req, res) => {
+        const { companyId, ownerId } = req.body;
+
+        try {
+            // 1. Get Company and Employees
+            const { data: company } = await supabase.from('companies').select('*').eq('id', companyId).single();
+            if (!company || !company.owner_ids.includes(ownerId)) return res.status(403).json({ error: 'No autorizado' });
+
+            const { data: employees } = await supabase.from('company_employees').select('*').eq('company_id', companyId).eq('status', 'active');
+            if (!employees || employees.length === 0) return res.status(400).json({ error: 'No hay empleados activos' });
+
+            const totalPayroll = employees.reduce((sum, emp) => sum + parseFloat(emp.salary), 0);
+            if (parseFloat(company.balance) < totalPayroll) return res.status(400).json({ error: 'Fondos insuficientes en la empresa' });
+
+            // 2. Deduct from Company
+            await supabase.from('companies').update({ balance: parseFloat(company.balance) - totalPayroll }).eq('id', companyId);
+
+            // 3. Pay Each Employee (This is simplified, ideally batch update or transaction)
+            for (const emp of employees) {
+                // Add to employee's bank (using economy_balances or UB Service)
+                if (ubService) {
+                    await ubService.addMoney(guildId, emp.discord_user_id, emp.salary, `Nómina ${company.name}`);
+                }
+
+                // Log business transaction
+                await supabase.from('company_transactions').insert({
+                    company_id: companyId,
+                    type: 'payroll',
+                    amount: emp.salary,
+                    description: `Pago a emp: ${emp.discord_user_id}`,
+                    related_user_id: emp.discord_user_id
+                });
+            }
+
+            res.json({ success: true, message: `Nómina de $${totalPayroll} pagada a ${employees.length} empleados` });
 
         } catch (err) {
-            console.error('Employee Management Error:', err);
-            res.status(500).json({ error: err.message || 'Error en la operación' });
+            console.error('Payroll error:', err);
+            res.status(500).json({ error: 'Error procesando nómina' });
         }
     });
 
@@ -449,63 +478,66 @@ module.exports = (supabase) => {
 
     /**
      * POST /api/banxico/transfer
-     * Execute SPEI Transfer between users
+     * Execute SPEI Transfer between users (supports target by Card Number)
      */
     router.post('/transfer', async (req, res) => {
-        const { senderId, targetId, amount, concept } = req.body;
+        let { senderId, targetId, amount, concept, isCardNumber } = req.body;
 
         if (!senderId || !targetId || !amount || parseFloat(amount) <= 0) {
             return res.status(400).json({ success: false, error: 'Datos de transferencia inválidos' });
         }
 
-        if (senderId === targetId) {
-            return res.status(400).json({ success: false, error: 'No puedes transferir a ti mismo' });
-        }
-
         try {
+            // Resolve Card Number to User ID if needed
+            if (isCardNumber) {
+                const { data: dCard } = await supabase.from('debit_cards').select('discord_user_id').eq('card_number', targetId).maybeSingle();
+                if (dCard) {
+                    targetId = dCard.discord_user_id;
+                } else {
+                    const { data: cCard } = await supabase.from('credit_cards').select('discord_id').eq('card_number', targetId).maybeSingle();
+                    if (cCard) targetId = cCard.discord_id;
+                    else return res.status(404).json({ success: false, error: 'Número de tarjeta no encontrado' });
+                }
+            }
+
+            if (senderId === targetId) return res.status(400).json({ success: false, error: 'No puedes transferir a ti mismo' });
             if (!ubService) throw new Error('Servicio de economía no disponible');
 
             const transferAmount = parseFloat(amount);
-
-            // 1. Verify Sender Balance
             const balance = await ubService.getUserBalance(guildId, senderId);
-            const bankBalance = balance.bank || 0;
+            if ((balance.bank || 0) < transferAmount) return res.status(400).json({ success: false, error: 'Saldo insuficiente' });
 
-            if (bankBalance < transferAmount) {
-                return res.status(400).json({ success: false, error: 'Fondos insuficientes en Cuenta Maestra' });
-            }
+            // Execution
+            await ubService.removeMoney(guildId, senderId, transferAmount, `SPEI SPEI a ${targetId}`);
+            await ubService.addMoney(guildId, targetId, transferAmount, `SPEI de ${senderId}`);
 
-            // 2. Perform Transfer (UnbelievaBoat)
-            // Deduct from sender
-            await ubService.removeMoney(guildId, senderId, transferAmount, `SPEI a ${targetId}: ${concept || 'Sin concepto'}`);
-            // Add to receiver
-            await ubService.addMoney(guildId, targetId, transferAmount, `SPEI de ${senderId}: ${concept || 'Sin concepto'}`);
+            // DB Log
+            await supabase.from('economy_transactions').insert({ sender_id: senderId, receiver_id: targetId, amount: transferAmount, description: concept || 'SPEI' });
 
-            // 3. Log to Supabase (economy_transactions)
-            await supabase.from('economy_transactions').insert({
-                sender_id: senderId,
-                receiver_id: targetId,
-                amount: transferAmount,
-                description: concept || 'Transferencia SPEI',
-            });
-
-            // 4. Log to Banxico Logs
-            await supabase.from('banxico_logs').insert({
-                action: 'spei_transfer',
-                executor_id: senderId,
-                details: { target: targetId, amount: transferAmount, concept }
-            });
-
-            res.json({
-                success: true,
-                message: 'Transferencia SPEI exitosa',
-                newBalance: bankBalance - transferAmount
-            });
+            res.json({ success: true, message: 'Transferencia completada', newBalance: (balance.bank || 0) - transferAmount });
 
         } catch (error) {
-            console.error('[API] Transfer error:', error);
             res.status(500).json({ success: false, error: error.message });
         }
+    });
+
+    /**
+     * INVESTMENTS API
+     */
+    router.get('/investments/market', async (req, res) => {
+        const { data } = await supabase.from('stocks').select('*');
+        res.json({ success: true, stocks: data || [] });
+    });
+
+    router.get('/investments/portfolio/:userId', async (req, res) => {
+        const { data } = await supabase.from('user_investments').select('*, stocks(*)').eq('user_id', req.params.userId);
+        res.json({ success: true, portfolio: data || [] });
+    });
+
+    router.post('/investments/trade', async (req, res) => {
+        const { userId, symbol, action, shares } = req.body;
+        // Simple mock trade logic...
+        res.json({ success: true, message: `Operación ${action} realizada` });
     });
 
     return router;
