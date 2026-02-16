@@ -175,7 +175,8 @@ module.exports = (supabase) => {
             if (dni) fullName = `${dni.nombre} ${dni.apellido}`;
 
             // Fetch REAL balance from UnbelievaBoat
-            const UnbelievaBoatService = require('../../services/UnbelievaBoatService');
+            // Fetch REAL balance from UnbelievaBoat
+            const UnbelievaBoatService = require('../services/UnbelievaBoatService');
             const ubToken = process.env.UNBELIEVABOAT_TOKEN;
             let cash = 0, bank = 0;
 
