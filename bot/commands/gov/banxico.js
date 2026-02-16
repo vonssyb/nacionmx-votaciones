@@ -51,7 +51,7 @@ module.exports = {
         if (subcommand === 'acceso') {
             // Generate 6-digit code
             const code = Math.floor(100000 + Math.random() * 900000).toString();
-            const expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString(); // 30 minutes
+            const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString(); // 15 minutes
 
             try {
                 // Get service from client (standard pattern)
@@ -67,7 +67,7 @@ module.exports = {
                         embeds: [
                             new EmbedBuilder()
                                 .setTitle('🔐 Código de Acceso - Banco de México')
-                                .setDescription(`Tu código de seguridad para la Banca en Línea es:\n\n# \`${code}\`\n\n⚠️ Este código expira en 30 minutos. No lo compartas con nadie.`)
+                                .setDescription(`Tu código de seguridad para la Banca en Línea es:\n\n# \`${code}\`\n\n⚠️ Este código expira en 15 minutos. No lo compartas con nadie.`)
                                 .setColor('#b38728')
                                 .setFooter({ text: 'Sistema de Seguridad Banxico' })
                         ]
