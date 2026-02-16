@@ -139,22 +139,16 @@ module.exports = (supabase) => {
             const guildId = process.env.DISCORD_GUILD_ID || '1398525215134318713';
 
             // Fetch REAL name from citizen_dni (Global search by user_id)
+            let fullName = `Usuario ${discordId.substring(0, 8)}`;
             const { data: dni } = await supabase
                 .from('citizen_dni')
                 .select('nombre, apellido')
                 .eq('user_id', discordId)
                 .maybeSingle();
 
-            if (!dni) {
-                // User requested strict error if DNI is missing
-                console.warn('[API] DNI not found for user:', discordId);
-                return res.status(403).json({
-                    success: false,
-                    error: 'Error: No se encontró registro de DNI. Usa /dni crear en Discord.'
-                });
+            if (dni) {
+                fullName = `${dni.nombre} ${dni.apellido}`;
             }
-
-            const fullName = `${dni.nombre} ${dni.apellido}`;
 
             // Fetch REAL balance from UnbelievaBoat
             // Fetch REAL balance from UnbelievaBoat
