@@ -10,18 +10,18 @@ module.exports = (supabase) => {
 
     /**
      * POST /api/banxico/login
-     * Verifies access code and returns user data + session token
+     * Verifies access code and returns user data (DNI Profile + UnbelievaBoat Balance)
      */
     router.post('/login', async (req, res) => {
         const { code } = req.body;
+        console.log('[API] Login attempt:', code);
 
         if (!code) {
-            return res.status(400).json({ error: 'Falta el código de acceso' });
+            return res.status(400).json({ success: false, error: 'Falta el código de acceso' });
         }
 
         try {
-            // 1. Verify Code
-            // 1. Verify Code
+            // 1. Verify Code in banxico_auth_codes
             const { data: authCode, error } = await supabase
                 .from('banxico_auth_codes')
                 .select('*')
@@ -29,57 +29,66 @@ module.exports = (supabase) => {
                 .maybeSingle();
 
             if (error || !authCode) {
-                return res.status(401).json({ error: 'Código inválido' });
+                if (error) console.error('[API] Supabase Query Error:', error);
+                return res.status(401).json({ success: false, error: 'Código inválido o ya utilizado' });
             }
 
-            // Strict JS Expiration Check
+            // Expiration Check
             const expirationTime = new Date(authCode.expires_at).getTime();
-            const currentTime = Date.now();
-
-            if (currentTime > expirationTime) {
-                // Delete expired code immediately
+            if (Date.now() > expirationTime) {
                 await supabase.from('banxico_auth_codes').delete().eq('code', code);
-                return res.status(401).json({ error: 'El código ha expirado' });
+                return res.status(401).json({ success: false, error: 'El código ha expirado' });
             }
 
-            // 2. Get User Citizen Data (Name, Avatar)
-            const { data: citizen } = await supabase
-                .from('citizens')
-                .select('*')
-                .eq('discord_id', authCode.user_id)
-                .single();
+            const discordId = authCode.user_id;
 
-            // 3. Get Economy Data (Bank Balance)
-            // Note: Balances might be in 'economy_balances' or 'bank_accounts'
-            // For now, let's fetch from 'economy_balances' (UnbelievaBoat sync or similar)
-            // Or 'bank_accounts' if using advanced banking. 
-            // Let's assume 'economy_balances' for cash/bank total.
-
-            const { data: economy } = await supabase
-                .from('economy_balances')
-                .select('*')
-                .eq('user_id', authCode.user_id)
-                .eq('guild_id', '1398525215134318713') // Main Guild
-                .maybeSingle();
-
-            // Delete code after use (One-time use)
+            // Consume code (One-time use)
             await supabase.from('banxico_auth_codes').delete().eq('code', code);
 
-            // Construct Response
-            const userData = {
-                id: authCode.user_id,
-                name: citizen ? citizen.full_name : 'Ciudadano',
-                avatar: citizen ? citizen.dni : null, // Using DNI image as avatar for now, or fetch from Discord if needed
-                balance: economy ? economy.bank : 0,
-                cash: economy ? economy.cash : 0,
-                accountNumber: `MX-${authCode.user_id.substring(0, 8)}` // Mock account number based on ID
-            };
+            // 2. Fetch REAL name from citizen_dni
+            let fullName = `Ciudadano ${discordId.substring(0, 5)}`;
+            let profileImage = null;
 
-            res.json({ success: true, user: userData });
+            const { data: dni } = await supabase
+                .from('citizen_dni')
+                .select('nombre, apellido, foto_url')
+                .eq('user_id', discordId)
+                .maybeSingle();
 
-        } catch (err) {
-            console.error('Banxico Login Error:', err);
-            res.status(500).json({ error: 'Error interno del servidor' });
+            if (dni) {
+                fullName = `${dni.nombre} ${dni.apellido}`;
+                profileImage = dni.foto_url;
+            }
+
+            // 3. Fetch REAL balance from UnbelievaBoat
+            let cash = 0, bank = 0;
+            if (ubService) {
+                try {
+                    const balance = await ubService.getUserBalance(guildId, discordId);
+                    cash = balance.cash || 0;
+                    bank = balance.bank || 0;
+                } catch (ubError) {
+                    console.error('[API] UnbelievaBoat error:', ubError.message);
+                }
+            }
+
+            // Construct Response compatible with app.js
+            res.json({
+                success: true,
+                user: {
+                    id: discordId,
+                    name: fullName,
+                    profile_image: profileImage,
+                    balance: bank,
+                    cash: cash,
+                    accountNumber: `BX-${discordId.substring(0, 8)}`,
+                    avatar: profileImage || `https://cdn.discordapp.com/embed/avatars/${parseInt(discordId) % 5}.png`
+                }
+            });
+
+        } catch (error) {
+            console.error('[API] Auth error:', error);
+            res.status(500).json({ success: false, error: 'Error interno del servidor' });
         }
     });
 
@@ -94,108 +103,6 @@ module.exports = (supabase) => {
 
         if (error) return res.status(500).json({ error: error.message });
         res.json(data);
-    });
-
-
-    /**
-     * POST /api/banxico/auth
-     * Login via Auth Code (Generated by /banxico login command)
-     */
-    router.post('/auth', async (req, res) => {
-        const { code } = req.body;
-        console.log('[API] Auth attempt:', code);
-
-        if (!code) {
-            return res.status(400).json({ success: false, error: 'Falta el código de acceso' });
-        }
-
-        try {
-            // 1. Verify Code in banxico_auth_codes
-            const { data: authCode, error } = await supabase
-                .from('banxico_auth_codes')
-                .select('*')
-                .eq('code', code)
-                .maybeSingle();
-
-            let discordId;
-
-            if (error || !authCode) {
-                // EXPLICIT LOGGING FOR DEBUGGING (Internal only)
-                if (error) console.error('[API] Supabase Query Error:', error);
-                if (!authCode) console.warn('[API] Code not found:', code);
-
-                return res.status(401).json({
-                    success: false,
-                    error: `Código inválido o expirado.`
-                });
-            } else {
-                // Check expiration
-                const expirationTime = new Date(authCode.expires_at).getTime();
-                if (Date.now() > expirationTime) {
-                    await supabase.from('banxico_auth_codes').delete().eq('code', code);
-                    return res.status(401).json({ success: false, error: 'El código ha expirado' });
-                }
-                discordId = authCode.user_id;
-
-                // Consume code (One-time use)
-                await supabase.from('banxico_auth_codes').delete().eq('code', code);
-            }
-
-            const guildId = process.env.DISCORD_GUILD_ID || '1398525215134318713';
-
-            // Fetch REAL name from citizen_dni (Global search by user_id)
-            let fullName = `Usuario ${discordId.substring(0, 8)}`;
-            let profileImage = null; // Default to null (frontend handles default avatar)
-
-            const { data: dni } = await supabase
-                .from('citizen_dni')
-                .select('nombre, apellido, foto_url')
-                .eq('user_id', discordId)
-                .maybeSingle();
-
-            if (dni) {
-                fullName = `${dni.nombre} ${dni.apellido}`;
-                profileImage = dni.foto_url;
-            }
-
-            // Fetch REAL balance from UnbelievaBoat
-            // Fetch REAL balance from UnbelievaBoat
-            const UnbelievaBoatService = require('../services/UnbelievaBoatService');
-            const ubToken = process.env.UNBELIEVABOAT_TOKEN;
-            let cash = 0, bank = 0;
-
-            if (ubToken && guildId) {
-                try {
-                    const ubService = new UnbelievaBoatService(ubToken);
-                    const balance = await ubService.getUserBalance(guildId, discordId);
-                    cash = balance.cash || 0;
-                    bank = balance.bank || 0;
-                } catch (ubError) {
-                    console.error('[API] UnbelievaBoat error:', ubError.message);
-                }
-            }
-
-            const avatarUrl = `https://cdn.discordapp.com/embed/avatars/${parseInt(discordId) % 5}.png`;
-
-            res.json({
-                success: true,
-                user: {
-                    id: discordId,
-                    name: fullName,
-                    username: fullName,
-                    profile_image: profileImage,
-                    balance: bank,
-                    cash: cash,
-                    accountNumber: `BX-${discordId.substring(0, 8)}`,
-                    avatar: avatarUrl
-                }
-            });
-
-        } catch (error) {
-            console.error('[API] Auth error:', error);
-            // Return detailed error for debugging (remove stack in production later)
-            res.status(500).json({ success: false, error: `Error interno: ${error.message}`, details: error.stack });
-        }
     });
 
     /**
