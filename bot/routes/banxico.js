@@ -140,14 +140,17 @@ module.exports = (supabase) => {
 
             // Fetch REAL name from citizen_dni (Global search by user_id)
             let fullName = `Usuario ${discordId.substring(0, 8)}`;
+            let profileImage = null; // Default to null (frontend handles default avatar)
+
             const { data: dni } = await supabase
                 .from('citizen_dni')
-                .select('nombre, apellido')
+                .select('nombre, apellido, foto_url')
                 .eq('user_id', discordId)
                 .maybeSingle();
 
             if (dni) {
                 fullName = `${dni.nombre} ${dni.apellido}`;
+                profileImage = dni.foto_url;
             }
 
             // Fetch REAL balance from UnbelievaBoat
@@ -175,6 +178,7 @@ module.exports = (supabase) => {
                     id: discordId,
                     name: fullName,
                     username: fullName,
+                    profile_image: profileImage,
                     balance: bank,
                     cash: cash,
                     accountNumber: `BX-${discordId.substring(0, 8)}`,
