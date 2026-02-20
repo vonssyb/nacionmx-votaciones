@@ -142,8 +142,9 @@ async function handleBankButtonPress(service, interaction, client, supabase) {
     if (service === 'close_ticket') return handleBankCloseAsk(interaction);
     if (service === 'close_confirm') return handleBankCloseConfirm(interaction, client, supabase);
 
-    if (service.startsWith('approve_loan_')) return handleApproveLoan(service.replace('approve_loan_', ''), interaction, client, supabase);
-    if (service.startsWith('approve_savings_')) return handleApproveSavings(service.replace('approve_savings_', ''), interaction, client, supabase);
+    // Loan and Savings approval is now handled by ticketHandler.js or specific strategies
+    // if (service.startsWith('approve_loan_')) return handleApproveLoan(service.replace('approve_loan_', ''), interaction, client, supabase);
+    // if (service.startsWith('approve_savings_')) return handleApproveSavings(service.replace('approve_savings_', ''), interaction, client, supabase);
 
     // Quick Buttons from Panel
     switch (service) {

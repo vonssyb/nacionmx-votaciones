@@ -1,0 +1,165 @@
+const { GoogleGenerativeAI } = require("@google/generative-ai");
+const logger = require('./Logger');
+
+class AIService {
+    constructor(supabase) {
+        this.supabase = supabase;
+        this.apiKey = process.env.GEMINI_API_KEY; // Use Gemini Key
+
+        if (this.apiKey) {
+            const genAI = new GoogleGenerativeAI(this.apiKey);
+            this.model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" }); // Efficient model
+        } else {
+            logger.warn('⚠️ GEMINI_API_KEY missing. AI features will be disabled.');
+            this.model = null;
+        }
+    }
+
+    /**
+     * Store a new memory/lesson in the database
+     */
+    async storeMemory(type, summary, sourceId, userId = null, tags = [], confidence = 1.0) {
+        try {
+            const { error } = await this.supabase.from('ai_memory').insert([{
+                memory_type: type,
+                summary: summary,
+                source_id: sourceId,
+                user_id: userId,
+                tags: tags,
+                confidence_score: confidence,
+                created_at: new Date().toISOString()
+            }]);
+
+            if (error) throw error;
+            logger.info('🧠 AI Memory Stored:', summary.substring(0, 50) + '...');
+        } catch (e) {
+            logger.error('Error storing AI memory:', e);
+        }
+    }
+
+    /**
+     * Analyze a resolved ticket and store the lesson
+     */
+    async learnFromTicket(ticketData, transcriptText) {
+        if (!this.model) return;
+
+        try {
+            const prompt = `
+            Analiza el siguiente transcript de soporte técnico de un servidor de Roleplay (GTA V).
+            Tu objetivo es extraer una "Lección Aprendida" o "Solución" que sirva para futuros casos.
+            
+            Salida JSON estricta:
+            {
+                "summary": "Resumen conciso del problema y la solución (máx 2 frases)",
+                "tags": ["tag1", "tag2", "categoria"],
+                "confidence": 0.9
+            }
+
+            Transcript:
+            ${transcriptText.substring(0, 10000)}
+            `;
+
+            const result = await this.model.generateContent(prompt);
+            const response = await result.response;
+            const text = response.text();
+
+            // Clean markdown JSON if present
+            const jsonStr = text.replace(/```json/g, '').replace(/```/g, '').trim();
+            const data = JSON.parse(jsonStr);
+
+            await this.storeMemory(
+                'TICKET_RESOLUTION',
+                data.summary,
+                ticketData.channel_id,
+                ticketData.user_id,
+                data.tags,
+                data.confidence
+            );
+
+        } catch (e) {
+            logger.error('Error learning from ticket:', e);
+        }
+    }
+
+    /**
+     * Consult the AI for help based on memories
+     */
+    async consult(query) {
+        if (!this.model) return "❌ IA no configurada (Falta GEMINI_API_KEY).";
+
+        try {
+            // 1. Retrieve relevant memories (Simple text search for Phase 1)
+            const terms = query.split(' ').filter(w => w.length > 3).join(' & ');
+
+            const { data: memories, error } = await this.supabase
+                .from('ai_memory')
+                .select('summary, tags, created_at')
+                .textSearch('summary', terms, { config: 'spanish' })
+                .limit(5);
+
+            let context = "";
+            if (memories && memories.length > 0) {
+                context = memories.map(m => `- [${new Date(m.created_at).toLocaleDateString()}] ${m.summary}`).join('\n');
+            } else {
+                // Fallback: fetch recent memories
+                const { data: recent } = await this.supabase
+                    .from('ai_memory')
+                    .select('summary')
+                    .neq('memory_type', 'ERROR_LOG')
+                    .order('created_at', { ascending: false })
+                    .limit(3);
+                if (recent) context = "Recientes:\n" + recent.map(m => `- ${m.summary}`).join('\n');
+            }
+
+            const prompt = `
+            Contexto (Memoria del servidor):
+            ${context}
+
+            Pregunta del Staff: "${query}"
+
+            Responde como el asistente de NacionMX. Si la respuesta está en la memoria, úsala. Si no, usa tu conocimiento general sobre Roleplay/GTA V pero aclara que es sugerencia general.
+            `;
+
+            const result = await this.model.generateContent(prompt);
+            return result.response.text();
+
+        } catch (e) {
+            logger.error('Error consulting AI:', e);
+            return "❌ Error al consultar a la IA.";
+        }
+    }
+
+    /**
+     * Profile a user based on history
+     */
+    async profileUser(userId) {
+        if (!this.model) return "❌ IA no disponible.";
+
+        // Fetch user history from tickets
+        const { data: tickets } = await this.supabase
+            .from('tickets')
+            .select('ticket_type, created_at, metadata')
+            .eq('user_id', userId)
+            .order('created_at', { ascending: false })
+            .limit(10);
+
+        if (!tickets || tickets.length === 0) return "El usuario no tiene historial de tickets.";
+
+        const history = tickets.map(t => `- Tipo: ${t.ticket_type}, Rating: ${t.metadata?.rating || 'N/A'}`).join('\n');
+
+        const prompt = `
+        Analiza el historial de este usuario y genera un perfil breve (Psicología, Comportamiento, Calidad como usuario).
+        Historial:
+        ${history}
+        `;
+
+        try {
+            const result = await this.model.generateContent(prompt);
+            return result.response.text();
+        } catch (e) {
+            return "Error al generar perfil.";
+        }
+    }
+}
+
+module.exports = AIService;

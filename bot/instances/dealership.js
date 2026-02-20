@@ -87,8 +87,8 @@ async function startDealershipBot(supabase) {
 
             // --- HANDLER FOR MCQUEEN TICKET PANEL BUTTONS ---
             if (interaction.isButton() && interaction.customId.startsWith('ticket_')) {
-                const mcqueenTicketHandler = require('../handlers/mcqueenTicketHandler');
-                return await mcqueenTicketHandler.handleTicketButton(interaction, client, supabase);
+                const { handleTicketInteraction } = require('../handlers/ticketHandler');
+                return await handleTicketInteraction(interaction, client, supabase);
             }
 
             // --- HANDLER FOR VENDER COMMAND BUTTONS ---
