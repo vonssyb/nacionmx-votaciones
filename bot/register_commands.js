@@ -57,7 +57,8 @@ try {
     // I recall commands.js usually ends with module.exports = commands;
 
     // Check if duplicate before adding
-    const legacyCommands = Array.isArray(legacyCommandsModule) ? legacyCommandsModule : legacyCommandsModule.commands;
+    // DISABLED LEGACY LOADING TO REDUCE COMMAND COUNT (<100)
+    const legacyCommands = []; // Array.isArray(legacyCommandsModule) ? legacyCommandsModule : legacyCommandsModule.commands;
 
     if (legacyCommands) {
         let legacyCount = 0;
@@ -66,6 +67,7 @@ try {
             // Only add if not already present AND not excluded
             if (!commands.find(c => c.name === cmd.name) && !EXCLUDED_LEGACY.includes(cmd.name)) {
                 commands.push(cmd);
+                console.log(`+ Legacy: ${cmd.name}`);
                 legacyCount++;
             }
         }
