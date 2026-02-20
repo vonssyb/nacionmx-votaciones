@@ -138,8 +138,8 @@ class EconomyScheduler {
 
                 // Notify User logic here (omitted for brevity, or implemented cleanly)
                 try {
-                    const user = await this.client.users.fetch(loan.borrower_discord_id).catch(() => null);
-                    if (user) user.send(`⚠️ **Préstamo Vencido**\nTu préstamo de $${loan.amount.toLocaleString()} ha vencido hoy. Por favor acude al banco para evitar embargos.`).catch(() => { });
+                    const user = await this.client.users.fetch(loan.discord_user_id).catch(() => null);
+                    if (user) user.send(`⚠️ **Préstamo Vencido (Personaje #${loan.character_id})**\nTu préstamo de $${loan.loan_amount.toLocaleString()} ha vencido hoy. Por favor acude al banco para evitar embargos.`).catch(() => { });
                 } catch (e) { }
             }
 

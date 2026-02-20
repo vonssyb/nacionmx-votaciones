@@ -1549,6 +1549,11 @@ class CasinoService {
         const session = this.sessions.crash[channelId];
         if (!session) return;
 
+        if (session.bets.length === 0) {
+            delete this.sessions.crash[channelId];
+            return;
+        }
+
         session.status = 'RUNNING';
 
         // Algorithm
@@ -2006,6 +2011,11 @@ class CasinoService {
     async runRaceLogic(channelId) {
         const session = this.sessions.races[channelId];
         if (!session || !session.active) return;
+
+        if (session.bets.length === 0) {
+            delete this.sessions.races[channelId];
+            return;
+        }
 
         // 1. Animate (Reuse existing logic or simplified)
         // We need a clearer way to send updates. We can use the LAST interaction to send updates to channel?

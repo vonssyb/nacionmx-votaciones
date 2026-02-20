@@ -94,6 +94,10 @@ async function handleAyuda(interaction) {
 async function handlePagar(interaction, supabase, client) {
     await interaction.deferReply({ ephemeral: true });
 
+    const CharacterService = require('../../services/CharacterService');
+    const characterService = new CharacterService(client, supabase);
+    const charId = await characterService.getActiveCharacter(interaction.user.id);
+
     const loanId = interaction.options.getInteger('prestamo_id');
     const monto = interaction.options.getInteger('monto');
 
@@ -102,11 +106,12 @@ async function handlePagar(interaction, supabase, client) {
         .select('*')
         .eq('id', loanId)
         .eq('discord_user_id', interaction.user.id)
+        .eq('character_id', charId) // Ensure user owns loan on THIS character
         .eq('status', 'active')
         .maybeSingle();
 
     if (!loan) {
-        return interaction.editReply('❌ No se encontró ese préstamo activo.');
+        return interaction.editReply(`❌ No se encontró ese préstamo activo para tu Personaje #${charId}.`);
     }
 
     const remaining = loan.total_to_pay - loan.amount_paid;
@@ -117,8 +122,8 @@ async function handlePagar(interaction, supabase, client) {
     }
 
     // Check user's balance
-    const UnbelievaBoatService = require('../../services/UnbelievaBoatService');
-    const ubService = new UnbelievaBoatService(process.env.UNBELIEVABOAT_TOKEN, supabase);
+    const UnbelievableBoatService = require('../../services/UnbelievaBoatService');
+    const ubService = new UnbelievableBoatService(process.env.UNBELIEVABOAT_TOKEN, supabase);
 
     const balance = await ubService.getBalance(interaction.guildId, interaction.user.id);
 
@@ -127,7 +132,7 @@ async function handlePagar(interaction, supabase, client) {
     }
 
     // Process payment
-    await ubService.removeMoney(interaction.guildId, interaction.user.id, paymentAmount, `Pago de préstamo #${loanId}`, 'cash');
+    await ubService.removeMoney(interaction.guildId, interaction.user.id, paymentAmount, `Pago de préstamo #${loanId} (PJ ${charId})`, 'cash');
 
     const newAmountPaid = loan.amount_paid + paymentAmount;
     const newPaymentsMade = loan.payments_made + 1;
@@ -159,7 +164,8 @@ async function handlePagar(interaction, supabase, client) {
         .addFields(
             { name: '💰 Monto Pagado', value: `$${paymentAmount.toLocaleString()}`, inline: true },
             { name: '📊 Total Pagado', value: `$${newAmountPaid.toLocaleString()}`, inline: true },
-            { name: '💵 Restante', value: `$${(loan.total_to_pay - newAmountPaid).toLocaleString()}`, inline: true }
+            { name: '💵 Restante', value: `$${(loan.total_to_pay - newAmountPaid).toLocaleString()}`, inline: true },
+            { name: '👤 Personaje', value: `#${charId}`, inline: true }
         )
         .setColor(isPaidOff ? 0x00FF00 : 0x5865F2)
         .setTimestamp();
@@ -172,7 +178,7 @@ async function handleVer(interaction, supabase) {
 
     const targetUser = interaction.options.getUser('usuario') || interaction.user;
 
-    // Check permissions if viewing another user
+    // Permission Check
     if (targetUser.id !== interaction.user.id) {
         const BANKER_ROLES = ['1450591546524307689', '1412882245735420006'];
         const isBanker = interaction.member.roles.cache.some(r => BANKER_ROLES.includes(r.id)) ||
@@ -183,19 +189,32 @@ async function handleVer(interaction, supabase) {
         }
     }
 
+    // Get Active Character of TARGET USER
+    // If viewing self -> use my active char
+    // If viewing others -> we might want to see specific char? For now, default to their active char or list all?
+    // Let's default to their ACTIVE character for consistency, or maybe ALL if banker?
+    // Let's show currently active character's loans.
+    const CharacterService = require('../../services/CharacterService');
+    // Need client to init service
+    const client = interaction.client;
+    const characterService = new CharacterService(client, supabase);
+    const charId = await characterService.getActiveCharacter(targetUser.id);
+
     const { data: loans } = await supabase
         .from('loans')
         .select('*')
         .eq('discord_user_id', targetUser.id)
+        .eq('character_id', charId) // Active Char Filter
         .in('status', ['active', 'pending'])
         .order('created_at', { ascending: false });
 
     if (!loans || loans.length === 0) {
-        return interaction.editReply(`📭 ${targetUser.id === interaction.user.id ? 'No tienes' : `${targetUser.tag} no tiene`} préstamos activos.`);
+        return interaction.editReply(`📭 ${targetUser.id === interaction.user.id ? 'No tienes' : `${targetUser.tag} (PJ ${charId}) no tiene`} préstamos activos.`);
     }
 
     const embed = new EmbedBuilder()
         .setTitle(`💰 Préstamos de ${targetUser.tag}`)
+        .setDescription(`**Personaje Activo: #${charId}**`)
         .setColor(0x5865F2)
         .setTimestamp();
 

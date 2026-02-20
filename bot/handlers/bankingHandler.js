@@ -329,6 +329,11 @@ async function handleBankModalSubmit(customId, interaction, client, supabase) {
     let automationData = null;
     let autoEmbed = null;
 
+    // Get Active Character
+    const CharacterService = require('../services/CharacterService');
+    const characterService = new CharacterService(client, supabase);
+    const charId = await characterService.getActiveCharacter(interaction.user.id);
+
     // 1. Pre-Create Data for Automation (only for prestamo and ahorro)
     if (serviceType === 'prestamo') {
         const monto = parseInt(interaction.fields.getTextInputValue('monto'));
@@ -346,7 +351,9 @@ async function handleBankModalSubmit(customId, interaction, client, supabase) {
         const payment = Math.ceil((monto * monthlyRate * Math.pow(1 + monthlyRate, plazo)) / (Math.pow(1 + monthlyRate, plazo) - 1));
 
         const { data: loan, error: loanError } = await supabase.from('loans').insert({
-            guild_id: interaction.guildId, discord_user_id: interaction.user.id,
+            guild_id: interaction.guildId,
+            discord_user_id: interaction.user.id,
+            character_id: charId, // NEW
             loan_amount: monto, interest_rate: rate, term_months: plazo,
             monthly_payment: payment, total_to_pay: payment * plazo,
             purpose: motivo, status: 'pending',
@@ -361,11 +368,12 @@ async function handleBankModalSubmit(customId, interaction, client, supabase) {
 
         if (loan) {
             automationData = { type: 'LOAN', id: loan.id };
-            autoEmbed = new EmbedBuilder().setTitle('📋 Solicitud de Préstamo (Automática)')
+            autoEmbed = new EmbedBuilder().setTitle(`📋 Solicitud de Préstamo (Automática) - Personaje #${charId}`)
                 .addFields(
                     { name: 'Monto', value: `$${monto.toLocaleString()}`, inline: true },
                     { name: 'Plazo', value: `${plazo} meses`, inline: true },
-                    { name: 'Pago Mensual', value: `$${payment.toLocaleString()}`, inline: true }
+                    { name: 'Pago Mensual', value: `$${payment.toLocaleString()}`, inline: true },
+                    { name: 'Personaje', value: `#${charId}`, inline: true }
                 )
                 .setColor(0xFFA500);
         }
@@ -384,7 +392,9 @@ async function handleBankModalSubmit(customId, interaction, client, supabase) {
         const maturity = new Date(); maturity.setMonth(maturity.getMonth() + plazo);
 
         const { data: acc, error: accError } = await supabase.from('savings_accounts').insert({
-            guild_id: interaction.guildId, discord_user_id: interaction.user.id,
+            guild_id: interaction.guildId,
+            discord_user_id: interaction.user.id,
+            character_id: charId, // NEW
             account_number: accNum, initial_deposit: deposito, current_balance: 0, // 0 until activated
             interest_rate: rate, term_months: plazo, status: 'pending',
             maturity_date: maturity.toISOString()
@@ -398,10 +408,11 @@ async function handleBankModalSubmit(customId, interaction, client, supabase) {
 
         if (acc) {
             automationData = { type: 'SAVINGS', id: acc.id };
-            autoEmbed = new EmbedBuilder().setTitle('📋 Solicitud Ahorro (Automática)')
+            autoEmbed = new EmbedBuilder().setTitle(`📋 Solicitud Ahorro (Automática) - Personaje #${charId}`)
                 .addFields(
                     { name: 'Depósito', value: `$${deposito.toLocaleString()}`, inline: true },
-                    { name: 'Plazo', value: `${plazo} meses`, inline: true }
+                    { name: 'Plazo', value: `${plazo} meses`, inline: true },
+                    { name: 'Personaje', value: `#${charId}`, inline: true }
                 )
                 .setColor(0x2ECC71);
         }

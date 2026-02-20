@@ -179,21 +179,7 @@ class StockService {
         return { success: true, message: `Vendiste ${quantity} acciones de ${ticker} por ${EconomyHelper.formatMoney(totalSale)}` };
     }
 
-    async getMarketData() {
-        const { data, error } = await this.supabase
-            .from('companies')
-            .select('id, name, ticker, stock_price, volatility, total_shares, company_type, balance, last_balance')
-            .not('ticker', 'is', null)
-            .order('market_cap', { ascending: false });
 
-        if (error) {
-            console.error('[StockService] Error fetching market data:', error);
-            return [];
-        }
-        return data;
-    }
-
-    // ... (generateTicker, listCompany, buyStock, sellStock remain similar) ...
 
     /**
      * Market Simulation Step (Update Prices)

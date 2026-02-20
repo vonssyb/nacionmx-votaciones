@@ -16,6 +16,7 @@
 
 const { EmbedBuilder } = require('discord.js');
 const ValidationHelper = require('../utils/ValidationHelper');
+const CharacterService = require('./CharacterService');
 
 class DNIService {
     /**
@@ -23,22 +24,17 @@ class DNIService {
      * @param {object} supabase - Supabase client
      * @param {string} userId - Discord user ID
      * @param {object} dniData - DNI data
-     * @param {string} dniData.nombre - Full name
-     * @param {string} dniData.fecha_nacimiento - Birth date
-     * @param {string} dniData.sexo - Gender (M/F)
-     * @param {string} dniData.nacionalidad - Nationality
-     * @param {string} dniData.estado_nacimiento - Birth state
-     * @param {string} dniData.domicilio - Address
+     * @param {number} [characterId=1] - Character slot ID
      * @returns {Promise<{success: boolean, message: string, data?: object}>}
      */
-    static async createDNI(supabase, userId, dniData) {
+    static async createDNI(supabase, userId, dniData, characterId = 1) {
         try {
-            // Check if DNI already exists
-            const existing = await this.getDNI(supabase, userId);
+            // Check if DNI already exists for this character
+            const existing = await this.getDNI(supabase, userId, characterId);
             if (existing) {
                 return {
                     success: false,
-                    message: '❌ Este usuario ya tiene un DNI registrado.'
+                    message: `❌ Este usuario ya tiene un DNI registrado para el Personaje #${characterId}.`
                 };
             }
 
@@ -63,7 +59,8 @@ class DNIService {
             const { data, error } = await supabase
                 .from('citizen_dni')
                 .insert({
-                    discord_user_id: userId,
+                    user_id: userId, // Corrected column name
+                    character_id: characterId,
                     dni_number: dniNumber,
                     curp: curp,
                     nombre: dniData.nombre,
@@ -90,7 +87,7 @@ class DNIService {
 
             return {
                 success: true,
-                message: '✅ DNI creado exitosamente.',
+                message: characterId === 2 ? '✅ DNI (Personaje 2) creado exitosamente.' : '✅ DNI creado exitosamente.',
                 data
             };
         } catch (error) {
@@ -103,16 +100,18 @@ class DNIService {
     }
 
     /**
-     * Get DNI by user ID
+     * Get DNI by user ID and Character ID
      * @param {object} supabase - Supabase client
      * @param {string} userId - Discord user ID
+     * @param {number} [characterId=1] - Character slot ID
      * @returns {Promise<object|null>} DNI data or null
      */
-    static async getDNI(supabase, userId) {
+    static async getDNI(supabase, userId, characterId = 1) {
         const { data, error } = await supabase
             .from('citizen_dni')
             .select('*')
-            .eq('discord_user_id', userId)
+            .eq('user_id', userId) // Corrected column name
+            .eq('character_id', characterId)
             .maybeSingle();
 
         if (error) {
@@ -128,9 +127,10 @@ class DNIService {
      * @param {object} supabase - Supabase client
      * @param {string} userId - Discord user ID
      * @param {object} updates - Fields to update
+     * @param {number} [characterId=1] - Character slot ID
      * @returns {Promise<{success: boolean, message: string}>}
      */
-    static async updateDNI(supabase, userId, updates) {
+    static async updateDNI(supabase, userId, updates, characterId = 1) {
         try {
             // Validate updates if they contain name
             if (updates.nombre) {
@@ -143,7 +143,8 @@ class DNIService {
             const { error } = await supabase
                 .from('citizen_dni')
                 .update(updates)
-                .eq('discord_user_id', userId);
+                .eq('user_id', userId) // Corrected column name
+                .eq('character_id', characterId);
 
             if (error) {
                 console.error('[DNIService] Error updating DNI:', error);
@@ -170,14 +171,16 @@ class DNIService {
      * Delete DNI
      * @param {object} supabase - Supabase client
      * @param {string} userId - Discord user ID
+     * @param {number} [characterId=1] - Character slot ID
      * @returns {Promise<{success: boolean, message: string}>}
      */
-    static async deleteDNI(supabase, userId) {
+    static async deleteDNI(supabase, userId, characterId = 1) {
         try {
             const { error } = await supabase
                 .from('citizen_dni')
                 .delete()
-                .eq('discord_user_id', userId);
+                .eq('user_id', userId) // Corrected column name
+                .eq('character_id', characterId);
 
             if (error) {
                 console.error('[DNIService] Error deleting DNI:', error);
@@ -204,10 +207,11 @@ class DNIService {
      * Check if DNI exists
      * @param {object} supabase - Supabase client
      * @param {string} userId - Discord user ID
+     * @param {number} [characterId=1] - Character slot ID
      * @returns {Promise<boolean>}
      */
-    static async dniExists(supabase, userId) {
-        const dni = await this.getDNI(supabase, userId);
+    static async dniExists(supabase, userId, characterId = 1) {
+        const dni = await this.getDNI(supabase, userId, characterId);
         return dni !== null;
     }
 
@@ -306,15 +310,16 @@ class DNIService {
     /**
      * Format DNI display text
      * @param {object} dniData - DNI data
+     * @param {number} characterId - Active Character ID
      * @returns {string} Formatted display string
      */
-    static formatDNIDisplay(dniData) {
-        if (!dniData) return 'Sin DNI';
+    static formatDNIDisplay(dniData, characterId = 1) {
+        if (!dniData) return `Sin DNI (Personaje ${characterId})`;
 
-        return `**${dniData.nombre}**\\n` +
-            `📋 DNI: \`${dniData.dni_number}\`\\n` +
-            `🆔 CURP: \`${dniData.curp}\`\\n` +
-            `📅 Nacimiento: ${dniData.fecha_nacimiento}\\n` +
+        return `**${dniData.nombre}** (PJ #${characterId})\n` +
+            `📋 DNI: \`${dniData.dni_number}\`\n` +
+            `🆔 CURP: \`${dniData.curp}\`\n` +
+            `📅 Nacimiento: ${dniData.fecha_nacimiento}\n` +
             `🏠 Domicilio: ${dniData.domicilio || 'No especificado'}`;
     }
 
@@ -322,18 +327,19 @@ class DNIService {
      * Create DNI embed
      * @param {object} dniData - DNI data
      * @param {GuildMember} member - Discord guild member
+     * @param {number} characterId - Active Character ID
      * @returns {EmbedBuilder} DNI embed
      */
-    static createDNIEmbed(dniData, member) {
+    static createDNIEmbed(dniData, member, characterId = 1) {
         const embed = new EmbedBuilder()
-            .setTitle('🪪 Documento Nacional de Identidad')
+            .setTitle(`🪪 Documento Nacional de Identidad (PJ ${characterId})`)
             .setColor('#FF0000')
             .setThumbnail(dniData.foto_url || member.user.displayAvatarURL())
             .addFields(
                 { name: '📋 Número de DNI', value: `\`${dniData.dni_number}\``, inline: true },
                 { name: '🆔 CURP', value: `\`${dniData.curp}\``, inline: true },
                 { name: '👤 Nombre Completo', value: `${dniData.nombre} ${dniData.apellido_paterno || ''} ${dniData.apellido_materno || ''}`, inline: false },
-                { name: '📅 Fecha de Nacimiento', value: dniData.fech a_nacimiento, inline: true },
+                { name: '📅 Fecha de Nacimiento', value: dniData.fecha_nacimiento, inline: true },
                 { name: '⚧ Sexo', value: dniData.sexo === 'M' ? 'Masculino' : 'Femenino', inline: true },
                 { name: '🌎 Nacionalidad', value: dniData.nacionalidad || 'Mexicana', inline: true },
                 { name: '🏛️ Estado de Nacimiento', value: dniData.estado_nacimiento || 'No especificado', inline: true },

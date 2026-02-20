@@ -96,7 +96,8 @@ class BillingService {
                     await this.recordPayment(card.id, discordId, chargeAmount, 'SUCCESS', 'PAYMENT', result.newBalance);
                     await this.updateCardDebt(card.id, debt - chargeAmount);
 
-                    this.notifyUser(discordId, `✅ **Pago Automático Exitoso**\nSe han descontado **$${chargeAmount.toLocaleString()}** de tu cuenta.\nTu tarjeta sigue **ACTIVA**.`, true);
+                    const charInfo = card.character_id ? ` (Personaje #${card.character_id})` : '';
+                    this.notifyUser(discordId, `✅ **Pago Automático Exitoso${charInfo}**\nSe han descontado **$${chargeAmount.toLocaleString()}** de tu cuenta.\nTu tarjeta sigue **ACTIVA**.`, true);
                 } else {
                     // Failed to remove money (API error?)
                     this.handleFailedPayment(card, discordId, "API Error during charge");
