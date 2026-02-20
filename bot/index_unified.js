@@ -40,11 +40,10 @@ const INSTANCE_ID = Math.random().toString(36).substring(7).toUpperCase();
 logger.info(`Instance ID: ${INSTANCE_ID}`);
 
 // --- DATABASE ---
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
-if (!SUPABASE_URL || !SUPABASE_KEY) {
-    logger.error('CRITICAL: Supabase credentials missing (.env)');
-    process.exit(1);
+const SUPABASE_URL = process.env.SUPABASE_URL || 'https://placeholder.supabase.co';
+const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || 'placeholder_key_to_prevent_crash';
+if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    logger.error('CRITICAL: Supabase credentials missing (.env). App will boot for health checks only.');
 }
 
 // Configure Supabase client with timeout settings
@@ -75,8 +74,8 @@ logger.info('Starting Supabase keep-alive service...');
 
 
 // --- GLOBAL ERROR HANDLERS ---
-process.on('uncaughtException', (err) => logger.errorWithContext('Uncaught Exception', err, { source: 'global' }));
-process.on('unhandledRejection', (reason) => logger.error('Unhandled Rejection', { reason }));
+process.on('uncaughtException', (err) => { console.error('Uncaught Exception:', err); logger.errorWithContext('Uncaught Exception', err, { source: 'global' }); });
+process.on('unhandledRejection', (reason) => { console.error('Unhandled Rejection:', reason); logger.error('Unhandled Rejection', { reason }); });
 
 // --- HEALTH CHECK SERVER ---
 const app = express();

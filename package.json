@@ -4,6 +4,7 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
+    "postinstall": "cd bot && npm install",
     "start": "cd bot && npm start",
     "bot": "cd bot && node index.js",
     "bot:mod": "cd bot && node index_moderacion.js",
