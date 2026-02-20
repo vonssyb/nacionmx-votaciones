@@ -91,10 +91,8 @@ const port = process.env.PORT || 8000;
 
 // --- API ROUTES ---
 const applicationsRouter = require('./routes/applications');
-const banxicoRouter = require('./routes/banxico')(supabase);
-
+// Banxico Router moved to launch sequence to inject client
 app.use('/', express.static(path.join(__dirname, '../public')));
-app.use('/api/banxico', banxicoRouter);
 
 // Note: We'll pass client after bots are initialized
 let moderationClient = null;
@@ -189,7 +187,10 @@ app.listen(port, '0.0.0.0', () => logger.info('🌐', `Health Server listening o
         // Register API routes (now that we have client)
         if (moderationClient) {
             app.use('/api', applicationsRouter(moderationClient, supabase));
-            app.use('/api', applicationsRouter(moderationClient, supabase));
+
+            // Banxico Router with Client Access (For Roles/Licenses)
+            const banxicoRouter = require('./routes/banxico')(supabase, moderationClient);
+            app.use('/api/banxico', banxicoRouter);
             logger.info('✅', 'Applications API routes registered');
 
             // --- AI DAILY REPORT SCHEDULER ---

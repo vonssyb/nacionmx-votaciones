@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const UnbelievaBoatService = require('../services/UnbelievaBoatService');
 
-module.exports = (supabase) => {
+module.exports = (supabase, client) => {
 
     const ubToken = process.env.UNBELIEVABOAT_TOKEN;
     const guildId = process.env.DISCORD_GUILD_ID || '1398525215134318713';
@@ -538,6 +538,256 @@ module.exports = (supabase) => {
         const { userId, symbol, action, shares } = req.body;
         // Simple mock trade logic...
         res.json({ success: true, message: `Operación ${action} realizada` });
+    });
+
+    /**
+     * GET /api/banxico/documents/:userId
+     * Fetch DNI, Visa and Licenses (from Roles)
+     */
+    router.get('/documents/:userId', async (req, res) => {
+        const { userId } = req.params;
+
+        try {
+            // 1. Fetch DNI
+            const { data: dni } = await supabase
+                .from('citizen_dni')
+                .select('*')
+                .eq('user_id', userId)
+                .maybeSingle();
+
+            // 2. Fetch US Visa
+            const { data: visa } = await supabase
+                .from('us_visas')
+                .select('*')
+                .eq('user_id', userId)
+                .eq('status', 'active')
+                .maybeSingle();
+
+            // 3. Fetch Licenses via Discord Roles
+            const licenses = [];
+            if (client) {
+                try {
+                    const guild = await client.guilds.fetch(guildId).catch(() => null);
+                    if (guild) {
+                        const member = await guild.members.fetch(userId).catch(() => null);
+                        if (member) {
+                            // Role IDs from licencia.js
+                            const LICENSES = {
+                                '1413543909761614005': { type: 'conducir', name: 'Licencia de Conducir' },
+                                '1413543907110682784': { type: 'arma_corta', name: 'Licencia de Arma Corta' },
+                                '1413541379803578431': { type: 'arma_larga', name: 'Licencia de Arma Larga' }
+                            };
+
+                            for (const [roleId, data] of Object.entries(LICENSES)) {
+                                if (member.roles.cache.has(roleId)) {
+                                    // Calculate artificial expiration (1 year from now for display)
+                                    const expDate = new Date();
+                                    expDate.setFullYear(expDate.getFullYear() + 1);
+
+                                    licenses.push({
+                                        type: data.type,
+                                        name: data.name,
+                                        status: 'active',
+                                        expiration: expDate.toISOString()
+                                    });
+                                }
+                            }
+                        }
+                    }
+                } catch (e) {
+                    console.error('Error fetching Discord member for licenses:', e);
+                }
+            }
+
+            res.json({
+                success: true,
+                dni: dni || null,
+                visa: visa || null,
+                licenses: licenses
+            });
+
+        } catch (error) {
+            console.error('Error fetching documents:', error);
+            res.status(500).json({ success: false, error: 'Error al obtener documentos' });
+        }
+    });
+
+    /**
+     * PHASE 5: ADVANCED FINANCIAL SERVICES
+     */
+
+    // --- LOANS ---
+    router.get('/loans/:userId', async (req, res) => {
+        const { userId } = req.params;
+        const { data } = await supabase.from('loans').select('*').eq('user_id', userId).eq('status', 'active');
+        res.json({ success: true, loans: data || [] });
+    });
+
+    router.post('/loans/request', async (req, res) => {
+        const { userId, amount } = req.body;
+        if (!userId || !amount || amount <= 0) return res.status(400).json({ error: 'Monto inválido' });
+
+        try {
+            // 1. Check existing active loans
+            const { data: activeLoans } = await supabase.from('loans').select('*').eq('user_id', userId).eq('status', 'active');
+            if (activeLoans && activeLoans.length > 0) return res.status(400).json({ error: 'Ya tienes un préstamo activo. Pálgalo primero.' });
+
+            // 2. Credit Score Check (Mock: Check bank balance history or level)
+            // For now, limit max loan to $500,000 for everyone
+            if (amount > 500000) return res.status(400).json({ error: 'Monto excede tu límite de crédito ($500,000)' });
+
+            // 3. Create Loan
+            const interestRate = 5.0; // 5%
+            const dueDate = new Date();
+            dueDate.setDate(dueDate.getDate() + 7); // 1 week term
+
+            const { data: loan, error } = await supabase.from('loans').insert({
+                user_id: userId,
+                amount: amount,
+                interest_rate: interestRate,
+                due_date: dueDate.toISOString()
+            }).select().single();
+
+            if (error) throw error;
+
+            // 4. Deposit Money
+            if (ubService) await ubService.addMoney(guildId, userId, parseFloat(amount), 'Préstamo Bancario');
+
+            res.json({ success: true, message: 'Préstamo aprobado y depositado.', loan });
+
+        } catch (err) {
+            console.error('Loan Error:', err);
+            res.status(500).json({ error: 'Error procesando préstamo' });
+        }
+    });
+
+    router.post('/loans/pay', async (req, res) => {
+        const { userId, loanId } = req.body;
+
+        try {
+            const { data: loan } = await supabase.from('loans').select('*').eq('id', loanId).single();
+            if (!loan || loan.status !== 'active') return res.status(400).json({ error: 'Préstamo inválido' });
+
+            const totalPay = loan.amount * (1 + (loan.interest_rate / 100)); // Simple interest
+
+            // Check Balance
+            const balance = await ubService.getUserBalance(guildId, userId);
+            if (balance.bank < totalPay) return res.status(400).json({ error: 'Fondos insuficientes' });
+
+            // Execute Payment
+            await ubService.removeMoney(guildId, userId, totalPay, 'Pago de Préstamo');
+            await supabase.from('loans').update({ status: 'paid' }).eq('id', loanId);
+
+            res.json({ success: true, message: 'Préstamo liquidado correctamente.' });
+        } catch (err) {
+            res.status(500).json({ error: err.message });
+        }
+    });
+
+    // --- SAVINGS ---
+    router.get('/savings/:userId', async (req, res) => {
+        const { userId } = req.params;
+        const { data } = await supabase.from('savings_accounts').select('*').eq('user_id', userId).maybeSingle();
+        res.json({ success: true, savings: data || { balance: 0 } });
+    });
+
+    router.post('/savings/deposit', async (req, res) => {
+        const { userId, amount } = req.body;
+        if (!userId || !amount || amount <= 0) return res.status(400).json({ error: 'Monto inválido' });
+
+        try {
+            // Check Bank Balance
+            const balance = await ubService.getUserBalance(guildId, userId);
+            if (balance.bank < amount) return res.status(400).json({ error: 'Fondos insuficientes en banco' });
+
+            // Transfer
+            await ubService.removeMoney(guildId, userId, parseFloat(amount), 'Depósito a Ahorros');
+
+            // Check if account exists, upsert
+            const { data: existing } = await supabase.from('savings_accounts').select('*').eq('user_id', userId).maybeSingle();
+            let newBalance = parseFloat(amount);
+
+            if (existing) {
+                newBalance += parseFloat(existing.balance);
+                await supabase.from('savings_accounts').update({ balance: newBalance }).eq('user_id', userId);
+            } else {
+                await supabase.from('savings_accounts').insert({ user_id: userId, balance: newBalance });
+            }
+
+            res.json({ success: true, message: 'Depósito a ahorros realizado', newBalance });
+        } catch (e) {
+            res.status(500).json({ error: e.message });
+        }
+    });
+
+    router.post('/savings/withdraw', async (req, res) => {
+        const { userId, amount } = req.body;
+        if (!userId || !amount || amount <= 0) return res.status(400).json({ error: 'Monto inválido' });
+
+        try {
+            const { data: account } = await supabase.from('savings_accounts').select('*').eq('user_id', userId).maybeSingle();
+            if (!account || parseFloat(account.balance) < amount) return res.status(400).json({ error: 'Fondos insuficientes en ahorros' });
+
+            // Check Lock
+            if (account.locked_until && new Date(account.locked_until) > new Date()) return res.status(400).json({ error: 'Cuenta bloqueada por plazo fijo' });
+
+            const newBalance = parseFloat(account.balance) - parseFloat(amount);
+
+            await supabase.from('savings_accounts').update({ balance: newBalance }).eq('user_id', userId);
+            await ubService.addMoney(guildId, userId, parseFloat(amount), 'Retiro de Ahorros');
+
+            res.json({ success: true, message: 'Retiro realizado exitosamente', newBalance });
+        } catch (e) {
+            res.status(500).json({ error: e.message });
+        }
+    });
+
+    // --- INVOICES ---
+    router.get('/invoices/:userId', async (req, res) => {
+        const { userId } = req.params;
+        const { data: issued } = await supabase.from('invoices').select('*').eq('issuer_id', userId).order('created_at', { ascending: false });
+        const { data: received } = await supabase.from('invoices').select('*').eq('receiver_id', userId).order('created_at', { ascending: false });
+        res.json({ success: true, issued: issued || [], received: received || [] });
+    });
+
+    router.post('/invoices/create', async (req, res) => {
+        const { issuerId, targetId, amount, concept } = req.body;
+        // Mock implementation: Create Invoice
+        try {
+            const { data, error } = await supabase.from('invoices').insert({
+                issuer_id: issuerId,
+                receiver_id: targetId,
+                amount,
+                concept
+            }).select().single();
+
+            if (error) throw error;
+
+            // Notification
+            await supabase.from('notifications').insert({
+                user_id: targetId,
+                title: 'Nueva Factura Recibida',
+                message: `Te han enviado una factura por $${amount}: ${concept}`,
+                type: 'payment'
+            });
+
+            res.json({ success: true, invoice: data });
+        } catch (e) {
+            res.status(500).json({ error: e.message });
+        }
+    });
+
+    // --- NOTIFICATIONS ---
+    router.get('/notifications/:userId', async (req, res) => {
+        const { userId } = req.params;
+        const { data } = await supabase.from('notifications').select('*').eq('user_id', userId).eq('read', false).order('created_at', { ascending: false });
+        res.json({ success: true, notifications: data || [] });
+    });
+
+    router.post('/notifications/mark-read', async (req, res) => {
+        const { ids } = req.body; // Array of IDs
+        await supabase.from('notifications').update({ read: true }).in('id', ids);
+        res.json({ success: true });
     });
 
     return router;
