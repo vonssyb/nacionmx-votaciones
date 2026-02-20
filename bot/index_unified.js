@@ -7,6 +7,8 @@ const { createClient } = require('@supabase/supabase-js');
 const express = require('express');
 const logger = require('./services/Logger');
 const SingleInstanceLock = require('./services/SingleInstanceLock');
+const cron = require('node-cron');
+const AIDailyService = require('./services/AIDailyService');
 
 // --- BOT INSTANCES ---
 // --- BOT INSTANCES ---
@@ -187,7 +189,24 @@ app.listen(port, '0.0.0.0', () => logger.info('🌐', `Health Server listening o
         // Register API routes (now that we have client)
         if (moderationClient) {
             app.use('/api', applicationsRouter(moderationClient, supabase));
+            app.use('/api', applicationsRouter(moderationClient, supabase));
             logger.info('✅', 'Applications API routes registered');
+
+            // --- AI DAILY REPORT SCHEDULER ---
+            if (process.env.GEMINI_API_KEY) {
+                logger.info('📅 Scheduling AI Daily Report for 23:59...');
+                cron.schedule('59 23 * * *', async () => {
+                    try {
+                        const dailyService = new AIDailyService(moderationClient, supabase);
+                        await dailyService.generateDailyReport('1398891368398585886');
+                    } catch (error) {
+                        logger.error('❌ Failed to run scheduled AI Daily Report:', error);
+                    }
+                }, {
+                    scheduled: true,
+                    timezone: "America/Mexico_City"
+                });
+            }
         }
 
         logger.info('🚀', 'System Fully Operational');
