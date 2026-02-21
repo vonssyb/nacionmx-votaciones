@@ -106,5 +106,17 @@ module.exports = {
         });
 
         console.log(`[Slash Command] 📢 /anunciar by ${member.user.tag}: "${message}"`);
+
+        // [NMX-CÓRTEX] AI MEMORY INJECTION (RAG) - Global Directive
+        if (client.aiService) {
+            const aiDesc = `El directivo ${member.user.tag} emitió un ANUNCIO OFICIAL PARA TODO EL SERVIDOR: "${message}". Esta es una regla temporal o permanente.`;
+            client.aiService.observeAction(
+                'GOVERNMENT_DIRECTIVE',
+                aiDesc,
+                interaction.channelId,
+                member.id,
+                ['gobierno', 'anuncio', 'regla', 'ley']
+            );
+        }
     }
 };

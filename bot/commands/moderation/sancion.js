@@ -540,6 +540,18 @@ module.exports = {
                 );
             }
 
+            // [NMX-CÓRTEX] AI MEMORY INJECTION (RAG)
+            if (interaction.client.aiService) {
+                const aiDesc = `El moderador ${interaction.user.tag} aplicó una sanción de tipo "${accion || type}" al usuario ${targetUser ? targetUser.tag : 'Desconocido'}. Motivo: ${motivo}. Descripción: ${descripcion}. Duración: ${durationText || 'N/A'}.`;
+                interaction.client.aiService.observeAction(
+                    'MODERATION_SANCTION',
+                    aiDesc,
+                    interaction.channelId,
+                    targetUser ? targetUser.id : null,
+                    ['moderacion', 'sancion', (accion || type).toLowerCase()]
+                );
+            }
+
             // DM User with Appeal Buttons
             if (targetUser && (type === 'general' || type === 'sa' || type === 'notificacion')) {
                 try {

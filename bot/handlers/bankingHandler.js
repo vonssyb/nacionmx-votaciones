@@ -267,6 +267,19 @@ async function handleApproveLoan(loanId, interaction, client, supabase) {
     await interaction.message.edit({ components: [] });
 
     await interaction.editReply(`✅ **Préstamo Aprobado Automáticamente**\nSe han depositado $${loan.loan_amount.toLocaleString()} al usuario.`);
+
+    // [NMX-CÓRTEX] AI MEMORY INJECTION (RAG) - Economy Anomaly / Loan
+    if (client.aiService && loan.loan_amount >= 50000) {
+        const aiDesc = `El ${interaction.user.tag} (Banquero) aprobó un préstamo bancario gigante de $${loan.loan_amount.toLocaleString()} al usuario ID ${loan.discord_user_id} por el motivo: "${loan.purpose}". Plazo: ${loan.term_months} meses.`;
+        client.aiService.observeAction(
+            'ECONOMY_ANOMALY',
+            aiDesc,
+            interaction.channelId,
+            loan.discord_user_id,
+            ['economia', 'prestamo', 'banco', 'riesgo']
+        );
+    }
+
     return true;
 }
 

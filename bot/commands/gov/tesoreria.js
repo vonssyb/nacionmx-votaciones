@@ -119,6 +119,18 @@ module.exports = {
                         { name: 'Motivo', value: motivo, inline: false }
                     );
 
+                // [NMX-CÓRTEX] AI MEMORY INJECTION (RAG) - Economy Anomaly / Gov Withdrawal
+                if (client.aiService && monto >= 100000) {
+                    const aiDesc = `El directivo ${interaction.user.tag} retiró agresivamente $${monto.toLocaleString()} de la Tesorería Nacional. Motivo reportado: "${motivo}".`;
+                    client.aiService.observeAction(
+                        'ECONOMY_ANOMALY',
+                        aiDesc,
+                        interaction.channelId,
+                        interaction.user.id,
+                        ['economia', 'gobierno', 'tesoreria', 'retiro']
+                    );
+                }
+
                 await interaction.editReply({ embeds: [embed] });
 
             } else if (subcommand === 'depositar') {
@@ -180,6 +192,18 @@ module.exports = {
                         { name: 'Nuevo Balance', value: `$${newBalance !== undefined && newBalance !== null ? newBalance.toLocaleString() : 'Error'}`, inline: true },
                         { name: 'Origen', value: origen || 'Desconocido', inline: false }
                     );
+
+                // [NMX-CÓRTEX] AI MEMORY INJECTION (RAG) - Economy Anomaly / Gov Deposit
+                if (client.aiService && monto >= 100000) {
+                    const aiDesc = `El usuario ${interaction.user.tag} depositó una cantidad gigante de $${monto.toLocaleString()} a la Tesorería Nacional. Origen reportado: "${origen}".`;
+                    client.aiService.observeAction(
+                        'ECONOMY_ANOMALY',
+                        aiDesc,
+                        interaction.channelId,
+                        interaction.user.id,
+                        ['economia', 'gobierno', 'tesoreria', 'deposito']
+                    );
+                }
 
                 await interaction.editReply({ embeds: [embed] });
             }
