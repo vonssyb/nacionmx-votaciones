@@ -4,51 +4,62 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Banco de México | Sistema Central</title>
+    <title>INE NacionMX | Portal de Identidad y Ciudadanía</title>
+    <link rel="icon" href="ine-favicon.png">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <!-- Fonts matching INE quality level -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <link
-        href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Montserrat:wght@300;400;500;600;700&display=swap"
+        href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Montserrat:wght@300;400;500;600;700&display=swap"
         rel="stylesheet">
-    <link rel="stylesheet" href="css/style.css">
     <style>
+        :root {
+            --ine-red: #B22222;
+            --ine-dark-red: #8B0000;
+            --ine-green: #006400;
+            --ine-gold: #C9A227;
+            --ine-navy: #0A1628;
+            --ine-slate: #0D1F3C;
+        }
+
         body {
             font-family: 'Montserrat', sans-serif;
-            background-color: #111827;
+            background-color: var(--ine-navy);
             color: white;
         }
 
         .font-official {
-            font-family: 'Cinzel', serif;
+            font-family: 'Rajdhani', sans-serif;
         }
 
-        /* INE-style Glassmorphism */
         .glass-panel {
-            background: rgba(17, 24, 39, 0.7);
-            backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.05);
+            background: rgba(10, 22, 40, 0.85);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(185, 34, 34, 0.15);
         }
 
         .glass-card {
-            background: rgba(31, 41, 55, 0.6);
-            backdrop-filter: blur(8px);
-            border: 1px solid rgba(255, 255, 255, 0.05);
+            background: rgba(13, 31, 60, 0.7);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.06);
             transition: all 0.3s ease;
         }
 
         .glass-card:hover {
-            transform: translateY(-5px);
-            border-color: rgba(179, 135, 40, 0.3);
-            box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
+            transform: translateY(-4px);
+            border-color: rgba(178, 34, 34, 0.4);
+            box-shadow: 0 12px 32px -8px rgba(178, 34, 34, 0.2);
         }
 
-        /* Gold Gradient Text */
-        .text-gold-gradient {
-            background: linear-gradient(135deg, #fcf6ba 0%, #b38728 50%, #fcf6ba 100%);
+        /* Tricolor accent */
+        .tricolor {
+            background: linear-gradient(90deg, #006400 33%, white 33%, white 66%, #B22222 66%);
+            height: 3px;
+        }
+
+        .text-ine-gradient {
+            background: linear-gradient(135deg, #e8c96a 0%, #C9A227 50%, #e8c96a 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-size: 200% auto;
@@ -61,13 +72,12 @@
             }
         }
 
-        /* Background Texture Pattern (Like INE Certificate) */
         .bg-pattern {
-            background-image: radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px);
-            background-size: 24px 24px;
+            background-image:
+                repeating-linear-gradient(45deg, rgba(178, 34, 34, 0.02) 0px, rgba(178, 34, 34, 0.02) 1px, transparent 1px, transparent 8px),
+                repeating-linear-gradient(-45deg, rgba(0, 100, 0, 0.02) 0px, rgba(0, 100, 0, 0.02) 1px, transparent 1px, transparent 8px);
         }
 
-        /* Animations */
         .animate-float {
             animation: float 6s ease-in-out infinite;
         }
@@ -80,405 +90,432 @@
             }
 
             50% {
-                transform: translateY(-10px);
+                transform: translateY(-8px);
             }
+        }
+
+        .id-card {
+            background: linear-gradient(135deg, #0D1F3C 0%, #1a2f54 50%, #0D1F3C 100%);
+            border: 1px solid rgba(178, 34, 34, 0.3);
+            border-radius: 12px;
+            aspect-ratio: 85.6 / 54;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .id-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 5px;
+            background: linear-gradient(90deg, #006400 33%, white 33%, white 66%, #B22222 66%);
+        }
+
+        .id-card::after {
+            content: 'INE';
+            position: absolute;
+            right: -20px;
+            bottom: -20px;
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 120px;
+            font-weight: 700;
+            color: rgba(178, 34, 34, 0.04);
+            line-height: 1;
+        }
+
+        .stat-badge {
+            background: rgba(178, 34, 34, 0.1);
+            border: 1px solid rgba(178, 34, 34, 0.2);
+            border-radius: 6px;
+        }
+
+        .btn-ine {
+            background: var(--ine-red);
+            transition: all 0.2s ease;
+        }
+
+        .btn-ine:hover {
+            background: var(--ine-dark-red);
+            box-shadow: 0 0 20px rgba(178, 34, 34, 0.4);
+            transform: translateY(-1px);
+        }
+
+        input:focus {
+            border-color: var(--ine-red) !important;
+        }
+
+        .sidebar-btn {
+            transition: all 0.2s ease;
+            border-left: 3px solid transparent;
+        }
+
+        .sidebar-btn:hover,
+        .sidebar-btn.active {
+            background: rgba(178, 34, 34, 0.1);
+            border-left-color: var(--ine-red);
+            color: white;
+        }
+
+        /* Status indicator */
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #22c55e;
+            animation: pulse-green 2s infinite;
+        }
+
+        @keyframes pulse-green {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.5;
+            }
+        }
+
+        .section-title {
+            border-left: 3px solid var(--ine-red);
+            padding-left: 12px;
+        }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(178, 34, 34, 0.3);
+            border-radius: 4px;
         }
     </style>
 </head>
 
-<body
-    class="bg-[#111827] min-h-screen bg-pattern relative overflow-x-hidden selection:bg-[#b38728] selection:text-white">
+<body class="bg-[#0A1628] min-h-screen bg-pattern relative overflow-x-hidden">
 
-    <!-- Background Ambient Glow -->
-    <div class="fixed top-0 left-0 w-full h-full overflow-hidden -z-10 pointer-events-none">
+    <!-- Background Ambient -->
+    <div class="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
         <div
-            class="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-[#b38728] opacity-[0.03] blur-[120px] rounded-full">
+            class="absolute top-[-20%] left-[-10%] w-[40%] h-[40%] bg-[#B22222] opacity-[0.04] blur-[150px] rounded-full">
         </div>
         <div
-            class="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-[#b38728] opacity-[0.03] blur-[120px] rounded-full">
+            class="absolute bottom-[-20%] right-[-10%] w-[40%] h-[40%] bg-[#006400] opacity-[0.04] blur-[150px] rounded-full">
+        </div>
+        <div
+            class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[60%] h-[40%] bg-[#C9A227] opacity-[0.02] blur-[200px] rounded-full">
         </div>
     </div>
 
-    <!-- HEADER / NAVBAR -->
-    <header class="sticky top-0 z-50 glass-panel border-b border-white/5 shadow-2xl">
+    <!-- TRICOLOR TOP BAR -->
+    <div class="tricolor w-full"></div>
+
+    <!-- HEADER -->
+    <header class="sticky top-[3px] z-50 glass-panel border-b border-red-900/20 shadow-2xl">
         <div class="container mx-auto px-6 py-4 flex justify-between items-center">
+            <!-- Logo -->
             <div class="flex items-center gap-4 cursor-pointer hover:opacity-80 transition" onclick="location.reload()">
-                <img src="https://igjedwdxqwkpbgrmtrrq.supabase.co/storage/v1/object/public/evidence/banxico/sinfondo.png"
-                    alt="Logo" class="h-12 drop-shadow-md">
+                <img src="ine-logo-final.png" alt="INE Logo" class="h-10 drop-shadow-md">
                 <div>
-                    <h1 class="font-official font-bold text-xl tracking-[0.1em] text-white leading-none">BANCO DE MÉXICO
-                    </h1>
-                    <div class="text-[10px] text-[#b38728] uppercase tracking-[0.3em] font-bold mt-1">Garante de
-                        Estabilidad</div>
+                    <h1 class="font-official font-bold text-xl tracking-[0.15em] text-white leading-none">INSTITUTO
+                        NACIONAL ELECTORAL</h1>
+                    <div class="tricolor w-full mt-1" style="height:2px"></div>
+                    <div class="text-[9px] text-[#C9A227] uppercase tracking-[0.4em] font-bold mt-1">Nación MX — Portal
+                        Ciudadano</div>
                 </div>
             </div>
 
-            <!-- Stats Bar (Hidden on mobile) -->
-            <div class="hidden lg:flex items-center gap-8 text-right border-r border-l border-white/5 px-8 h-12">
-                <div>
-                    <span class="text-[9px] uppercase text-gray-500 font-bold block tracking-wider">Tasa Objetivo</span>
-                    <span class="text-sm font-mono font-bold text-white">11.25%</span>
+            <!-- Status + Button -->
+            <div class="flex items-center gap-6">
+                <div class="hidden md:flex items-center gap-2 text-xs text-gray-400">
+                    <div class="status-dot"></div>
+                    <span>Sistema Operativo</span>
                 </div>
-                <div>
-                    <span class="text-[9px] uppercase text-gray-500 font-bold block tracking-wider">Inflación</span>
-                    <span class="text-sm font-mono font-bold text-white">4.50%</span>
-                </div>
-                <div>
-                    <span class="text-[9px] uppercase text-gray-500 font-bold block tracking-wider">T. Cambio</span>
-                    <span class="text-sm font-mono font-bold text-[#b38728]">$19.45 MXN</span>
-                </div>
-            </div>
-
-            <div class="flex items-center gap-4">
                 <button id="nav-login-btn"
-                    class="group relative px-6 py-2.5 bg-[#b38728] hover:bg-[#967020] text-white text-xs font-bold uppercase tracking-widest rounded transition-all shadow-lg hover:shadow-[#b38728]/20 flex items-center gap-2 overflow-hidden">
-                    <span class="relative z-10">Banca en Línea</span>
-                    <i class="fas fa-arrow-right relative z-10 group-hover:translate-x-1 transition-transform"></i>
-                    <div
-                        class="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300">
-                    </div>
+                    class="btn-ine group px-6 py-2.5 text-white text-xs font-bold uppercase tracking-widest rounded flex items-center gap-2">
+                    <i class="fas fa-id-card"></i>
+                    <span>Portal Ciudadano</span>
+                    <i class="fas fa-arrow-right group-hover:translate-x-1 transition-transform"></i>
                 </button>
-
-                <!-- User Profile (Hidden default) -->
+                <!-- Logged in state -->
                 <div id="nav-user-profile" class="hidden flex items-center gap-3 pl-4 border-l border-white/10">
                     <div class="text-right">
-                        <div class="text-xs font-bold text-white">Usuario</div>
-                        <div class="text-[9px] text-gray-400 font-mono">ID: ...</div>
+                        <div class="text-xs font-bold text-white" id="nav-username">Ciudadano</div>
+                        <div class="text-[9px] text-[#C9A227] font-mono" id="nav-clave">CURP: ...</div>
                     </div>
-                    <img src="" class="w-8 h-8 rounded bg-gray-800 border border-white/10" id="user-avatar">
+                    <img src="" class="w-9 h-9 rounded bg-gray-800 border-2 border-red-800/40 object-cover"
+                        id="user-avatar">
                 </div>
             </div>
         </div>
     </header>
 
-    <!-- LANDING PAGE CONTENT -->
-    <div id="landing-page" class="relative z-10 animate-fade-in">
+    <!-- ═══ LANDING PAGE ═══ -->
+    <div id="landing-page" class="relative z-10">
 
-        <!-- Hero Section -->
+        <!-- Hero -->
         <div class="relative min-h-[85vh] flex items-center justify-center p-6">
-            <!-- Central Visual -->
             <div class="text-center max-w-5xl mx-auto">
-                <div class="inline-flex items-center justify-center p-4 mb-8 glass-panel rounded-full animate-float">
-                    <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse mr-2"></span>
-                    <span class="text-[10px] uppercase tracking-[0.2em] font-bold text-gray-300">Sistema Financiero
-                        Operativo</span>
+
+                <!-- Status badge -->
+                <div
+                    class="inline-flex items-center gap-3 px-5 py-2.5 glass-panel rounded-full mb-10 animate-float border border-red-900/20">
+                    <div class="status-dot"></div>
+                    <span class="text-[10px] uppercase tracking-[0.25em] font-bold text-gray-300">Registro Electoral
+                        Digital Activo</span>
                 </div>
 
-                <h1 class="text-5xl md:text-7xl font-bold mb-6 font-official leading-tight">
-                    <span class="block text-white mb-2 text-2xl md:text-4xl tracking-widest opacity-80">AUTONOMÍA
-                        &</span>
-                    <span class="text-gold-gradient drop-shadow-2xl">ESTABILIDAD</span>
+                <!-- ID Card Visual -->
+                <div class="id-card max-w-sm mx-auto mb-12 p-5 animate-float" style="animation-delay: 0.5s">
+                    <div class="flex items-start gap-4 mt-3">
+                        <div
+                            class="w-16 h-20 bg-gray-700/50 rounded border border-white/10 flex items-center justify-center">
+                            <i class="fas fa-user text-gray-500 text-2xl"></i>
+                        </div>
+                        <div class="flex-1 text-left">
+                            <div class="text-[8px] text-gray-400 uppercase tracking-widest">Instituto Nacional Electoral
+                            </div>
+                            <div class="text-[8px] text-[#C9A227] uppercase tracking-widest mt-0.5">Nación MX</div>
+                            <div class="text-white font-bold text-sm mt-2 font-official tracking-wider">CIUDADANO
+                                NACIONMX</div>
+                            <div class="text-[8px] text-gray-400 mt-1">CLAVE ELECTOR: <span
+                                    class="text-[#C9A227] font-mono">NMX-000000</span></div>
+                            <div class="mt-3 grid grid-cols-2 gap-1">
+                                <div class="text-[7px] text-gray-500">FOLIO: <span class="text-gray-300">000000</span>
+                                </div>
+                                <div class="text-[7px] text-gray-500">VIGENCIA: <span class="text-gray-300">2029</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="absolute bottom-3 left-5 right-5 flex justify-between items-end">
+                        <div class="font-official text-[10px] font-bold text-[#C9A227] tracking-widest">INE</div>
+                        <div class="flex gap-1">
+                            <div class="w-6 h-4 rounded" style="background:rgba(0,100,0,0.6)"></div>
+                            <div class="w-6 h-4 rounded bg-white/20"></div>
+                            <div class="w-6 h-4 rounded" style="background:rgba(178,34,34,0.6)"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <h1 class="text-4xl md:text-6xl font-bold mb-5 font-official leading-tight tracking-wider">
+                    <span class="block text-white/60 text-xl md:text-2xl tracking-[0.3em] mb-2">IDENTIDAD &amp;</span>
+                    <span class="text-ine-gradient">CIUDADANÍA DIGITAL</span>
                 </h1>
 
-                <p class="text-gray-400 text-lg max-w-2xl mx-auto font-light leading-relaxed mb-12">
-                    La plataforma central confiable para la gestión de activos, transferencias interbancarias y
-                    monitoreo económico de Nación MX.
+                <p class="text-gray-400 text-base max-w-xl mx-auto font-light leading-relaxed mb-12">
+                    Plataforma oficial de identidad ciudadana de Nación MX. Consulta tu credencial, historial electoral
+                    y trámites en línea.
                 </p>
 
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto">
-                    <!-- Feature 1 -->
+                <!-- Features -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-5 max-w-3xl mx-auto">
                     <div
-                        class="glass-card p-6 rounded-lg text-left group cursor-pointer border-t-2 border-transparent hover:border-[#b38728]">
+                        class="glass-card p-5 rounded-xl text-left group cursor-pointer border-t-2 border-transparent hover:border-[#B22222]">
                         <div
-                            class="w-12 h-12 bg-[#b38728]/10 rounded-lg flex items-center justify-center mb-4 group-hover:bg-[#b38728] transition-colors">
-                            <i
-                                class="fas fa-wallet text-[#b38728] text-xl group-hover:text-white transition-colors"></i>
+                            class="w-10 h-10 bg-[#B22222]/10 rounded-lg flex items-center justify-center mb-3 group-hover:bg-[#B22222] transition-colors">
+                            <i class="fas fa-id-card text-[#B22222] group-hover:text-white transition-colors"></i>
                         </div>
-                        <h3 class="text-white font-bold text-sm uppercase tracking-wider mb-2">Billetera Digital</h3>
-                        <p class="text-gray-500 text-xs leading-relaxed">Gestión centralizada de cuentas de débito,
-                            crédito y activos líquidos.</p>
+                        <h3 class="text-white font-bold text-sm tracking-wider mb-1">Credencial Digital</h3>
+                        <p class="text-gray-500 text-xs">Tu identificación oficial con folio único y datos verificados.
+                        </p>
                     </div>
-
-                    <!-- Feature 2 -->
                     <div
-                        class="glass-card p-6 rounded-lg text-left group cursor-pointer border-t-2 border-transparent hover:border-[#b38728]">
+                        class="glass-card p-5 rounded-xl text-left group cursor-pointer border-t-2 border-transparent hover:border-[#B22222]">
                         <div
-                            class="w-12 h-12 bg-[#b38728]/10 rounded-lg flex items-center justify-center mb-4 group-hover:bg-[#b38728] transition-colors">
-                            <i
-                                class="fas fa-exchange-alt text-[#b38728] text-xl group-hover:text-white transition-colors"></i>
+                            class="w-10 h-10 bg-[#006400]/10 rounded-lg flex items-center justify-center mb-3 group-hover:bg-[#006400] transition-colors">
+                            <i class="fas fa-vote-yea text-[#22c55e] group-hover:text-white transition-colors"></i>
                         </div>
-                        <h3 class="text-white font-bold text-sm uppercase tracking-wider mb-2">Sistema SPEI</h3>
-                        <p class="text-gray-500 text-xs leading-relaxed">Infraestructura de pagos en tiempo real con
-                            liquidación inmediata.</p>
+                        <h3 class="text-white font-bold text-sm tracking-wider mb-1">Registro Electoral</h3>
+                        <p class="text-gray-500 text-xs">Historial de participación en procesos electorales de NMX.</p>
                     </div>
-
-                    <!-- Feature 3 -->
                     <div
-                        class="glass-card p-6 rounded-lg text-left group cursor-pointer border-t-2 border-transparent hover:border-[#b38728]">
+                        class="glass-card p-5 rounded-xl text-left group cursor-pointer border-t-2 border-transparent hover:border-[#B22222]">
                         <div
-                            class="w-12 h-12 bg-[#b38728]/10 rounded-lg flex items-center justify-center mb-4 group-hover:bg-[#b38728] transition-colors">
-                            <i
-                                class="fas fa-chart-line text-[#b38728] text-xl group-hover:text-white transition-colors"></i>
+                            class="w-10 h-10 bg-[#C9A227]/10 rounded-lg flex items-center justify-center mb-3 group-hover:bg-[#C9A227] transition-colors">
+                            <i class="fas fa-file-shield text-[#C9A227] group-hover:text-white transition-colors"></i>
                         </div>
-                        <h3 class="text-white font-bold text-sm uppercase tracking-wider mb-2">Indicadores</h3>
-                        <p class="text-gray-500 text-xs leading-relaxed">Visualización de métricas macroeconómicas y
-                            reservas internacionales.</p>
+                        <h3 class="text-white font-bold text-sm tracking-wider mb-1">Expediente Ciudadano</h3>
+                        <p class="text-gray-500 text-xs">Trámites, notificaciones y documentos oficiales centralizados.
+                        </p>
                     </div>
                 </div>
             </div>
         </div>
 
         <!-- Footer -->
-        <footer class="border-t border-white/5 bg-[#0f1522] py-12">
-            <div class="container mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-6">
-                <div class="flex items-center gap-3 opacity-60 hover:opacity-100 transition">
-                    <img src="https://igjedwdxqwkpbgrmtrrq.supabase.co/storage/v1/object/public/evidence/banxico/sinfondo.png"
-                        class="h-8 grayscale">
-                    <span class="font-official font-bold text-sm text-white tracking-widest">BANXICO</span>
+        <footer class="border-t border-red-900/20 bg-[#07101f] py-10">
+            <div class="container mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-4">
+                <div class="flex items-center gap-3 opacity-50 hover:opacity-100 transition">
+                    <img src="ine-logo-final.png" class="h-7 grayscale">
+                    <div class="font-official font-bold text-sm text-white tracking-widest">INE NACIÓN MX</div>
                 </div>
-                <div class="text-[10px] text-gray-500 font-mono tracking-widest uppercase text-center md:text-right">
-                    © 2026 Banco de México<br>
-                    Todos los derechos reservados
+                <div class="tricolor w-24 rounded-full"></div>
+                <div class="text-[9px] text-gray-500 font-mono tracking-widest uppercase text-right">
+                    © 2026 Instituto Nacional Electoral<br>Nación MX — Todos los derechos reservados
                 </div>
             </div>
         </footer>
     </div>
 
-    <!-- DASHBOARD VIEW (Initially Hidden) -->
-    <div id="dashboard" class="hidden min-h-screen pt-8 pb-20 animate-fade-in relative z-10">
-        <div class="container mx-auto px-4 lg:px-8 grid grid-cols-1 lg:grid-cols-12 gap-8">
+    <!-- ═══ DASHBOARD ═══ -->
+    <div id="dashboard" class="hidden min-h-screen pt-6 pb-20 relative z-10">
+        <div class="container mx-auto px-4 lg:px-8 grid grid-cols-1 lg:grid-cols-12 gap-6">
 
-            <!-- Sidebar / Profile Summary -->
-            <div class="lg:col-span-3 space-y-6">
-                <div class="glass-card p-6 rounded-xl text-center relative overflow-hidden">
-                    <div
-                        class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-[#b38728] to-transparent opacity-50">
-                    </div>
-                    <div
-                        class="w-24 h-24 mx-auto bg-gray-800 rounded-full p-1 border border-[#b38728]/30 mb-4 shadow-xl">
-                        <img src="" id="dashboard-avatar" class="w-full h-full rounded-full object-cover">
-                    </div>
-                    <h2 class="text-white font-bold text-lg" id="dashboard-username">Usuario</h2>
-                    <p class="text-[#b38728] text-xs font-mono mb-6" id="dashboard-id">ID: ...</p>
+            <!-- Sidebar -->
+            <div class="lg:col-span-3 space-y-5">
 
-                    <div class="grid grid-cols-2 gap-2 text-left mb-4">
-                        <div class="bg-gray-800/50 p-3 rounded border border-white/5">
-                            <span class="text-[9px] uppercase text-gray-500 block">Nivel</span>
-                            <span class="text-white font-bold text-sm">Ciudadano</span>
+                <!-- ID Card Preview -->
+                <div class="id-card p-4 relative">
+                    <div class="flex items-start gap-3 mt-3">
+                        <div class="w-14 h-18 rounded border border-white/10 overflow-hidden bg-gray-800 flex-shrink-0">
+                            <img src="" id="card-avatar" class="w-full h-full object-cover">
                         </div>
-                        <div class="bg-gray-800/50 p-3 rounded border border-white/5">
-                            <span class="text-[9px] uppercase text-gray-500 block">Score</span>
-                            <span class="text-green-400 font-bold text-sm">Bueno</span>
+                        <div class="flex-1 min-w-0">
+                            <div class="text-[7px] text-gray-400 uppercase tracking-widest">INE — Cred. Elector</div>
+                            <div class="text-white font-bold text-xs mt-1 font-official tracking-wide truncate"
+                                id="card-name">NOMBRE APELLIDO</div>
+                            <div class="text-[7px] text-[#C9A227] mt-1 font-mono" id="card-clave">CLAVE: ...</div>
+                            <div class="text-[7px] text-gray-500 mt-1" id="card-discord">Discord ID: ...</div>
                         </div>
                     </div>
                 </div>
 
-                <div class="glass-card p-0 rounded-xl overflow-hidden">
-                    <div class="p-4 border-b border-white/5 bg-gray-800/30">
-                        <h3 class="text-xs font-bold text-gray-300 uppercase tracking-wider">Accesos Rápidos</h3>
+                <!-- Quick Navigation -->
+                <div class="glass-card rounded-xl overflow-hidden">
+                    <div class="p-3 border-b border-white/5 bg-red-900/10">
+                        <h3 class="text-[10px] font-bold text-gray-300 uppercase tracking-widest">Menú Ciudadano</h3>
                     </div>
-                    <div class="p-2">
-                        <button id="btn-open-sat"
-                            class="w-full text-left px-4 py-3 hover:bg-white/5 rounded text-gray-400 hover:text-[#b38728] text-sm transition flex items-center gap-3">
-                            <i class="fas fa-file-invoice width-5"></i> Mis Impuestos (SAT)
+                    <div class="p-2 space-y-1">
+                        <button onclick="showSection('credencial')"
+                            class="sidebar-btn active w-full text-left px-3 py-2.5 rounded text-gray-400 text-xs flex items-center gap-3">
+                            <i class="fas fa-id-card w-4 text-center text-[#B22222]"></i> Mi Credencial
                         </button>
-                        <button
-                            class="w-full text-left px-4 py-3 hover:bg-white/5 rounded text-gray-400 hover:text-[#b38728] text-sm transition flex items-center gap-3">
-                            <i class="fas fa-folder-open width-5"></i> Expediente Digital
+                        <button onclick="showSection('electoral')"
+                            class="sidebar-btn w-full text-left px-3 py-2.5 rounded text-gray-400 text-xs flex items-center gap-3">
+                            <i class="fas fa-vote-yea w-4 text-center text-green-600"></i> Historial Electoral
+                        </button>
+                        <button onclick="showSection('expediente')"
+                            class="sidebar-btn w-full text-left px-3 py-2.5 rounded text-gray-400 text-xs flex items-center gap-3">
+                            <i class="fas fa-folder-open w-4 text-center text-[#C9A227]"></i> Mi Expediente
+                        </button>
+                        <button onclick="showSection('sanciones')"
+                            class="sidebar-btn w-full text-left px-3 py-2.5 rounded text-gray-400 text-xs flex items-center gap-3">
+                            <i class="fas fa-gavel w-4 text-center text-orange-500"></i> Antecedentes
                         </button>
                     </div>
                 </div>
+
+                <button onclick="logout()"
+                    class="w-full text-center text-[10px] text-gray-600 hover:text-red-400 transition py-2">
+                    <i class="fas fa-sign-out-alt mr-1"></i> Cerrar Sesión
+                </button>
             </div>
 
             <!-- Main Content -->
-            <div class="lg:col-span-9 space-y-8">
-                <!-- Balance Card -->
-                <div
-                    class="glass-card p-8 rounded-xl relative overflow-hidden bg-gradient-to-br from-[#111827] to-[#0f172a] border border-[#b38728]/20">
-                    <div class="absolute right-0 top-0 p-8 opacity-5">
-                        <i class="fas fa-university text-9xl text-white"></i>
-                    </div>
-                    <div class="relative z-10">
-                        <div class="flex justify-between items-start mb-6">
-                            <div>
-                                <p class="text-[#b38728] text-[10px] uppercase font-bold tracking-[0.2em] mb-1">Balance
-                                    Total Consolidado</p>
-                                <h2 class="text-5xl font-mono font-bold text-white tracking-tight" id="balance-display">
-                                    $0.00</h2>
-                            </div>
-                            <div
-                                class="bg-[#b38728]/10 px-3 py-1 rounded text-[#b38728] text-xs font-bold border border-[#b38728]/20">
-                                <i class="fas fa-check-circle mr-1"></i> Activo
-                            </div>
-                        </div>
+            <div class="lg:col-span-9 space-y-6">
 
-                        <div class="flex gap-3 mt-4">
-                            <button
-                                class="px-6 py-2 bg-[#b38728] hover:bg-[#967020] text-white text-xs font-bold uppercase rounded shadow-lg transition flex items-center gap-2">
-                                <i class="fas fa-paper-plane"></i> Transferir
-                            </button>
-                            <button
-                                class="px-6 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 text-xs font-bold uppercase rounded border border-white/10 transition flex items-center gap-2">
-                                <i class="fas fa-history"></i> Historial
-                            </button>
-                        </div>
-                    </div>
-                </div>
+                <!-- SECTION: Credencial -->
+                <div id="section-credencial" class="space-y-6">
+                    <h2 class="section-title font-official text-lg font-bold text-white tracking-widest uppercase">Mi
+                        Credencial Ciudadana</h2>
 
-                <!-- Products Grid -->
-                <div>
-                    <div class="flex justify-between items-center mb-4">
-                        <h3
-                            class="text-white font-bold uppercase tracking-wider text-sm border-l-4 border-[#b38728] pl-3">
-                            Mis Productos Financieros</h3>
-                        <button
-                            class="text-[10px] text-[#b38728] hover:text-white uppercase font-bold tracking-wider transition">+
-                            Nuevo Producto</button>
-                    </div>
-                    <div id="cards-container" class="grid md:grid-cols-2 gap-6">
-                        <!-- Injected via JS -->
-                        <div
-                            class="col-span-2 py-12 text-center text-gray-600 border border-dashed border-gray-800 rounded-xl">
-                            <i class="fas fa-spinner fa-spin mb-2"></i><br>Cargando información...
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Chart Area & Transactions -->
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <!-- Full ID Card Display -->
                     <div class="glass-card p-6 rounded-xl">
-                        <div class="flex justify-between items-center mb-6">
-                            <h3 class="text-gray-300 font-bold text-xs uppercase tracking-wider">Comportamiento
-                                Financiero</h3>
-                            <div class="flex gap-2">
-                                <span class="w-3 h-3 bg-[#b38728] rounded-full"></span>
-                                <span class="text-[10px] text-gray-500 uppercase">Ingresos</span>
-                            </div>
-                        </div>
-                        <div class="h-64 w-full">
-                            <canvas id="balanceChart"></canvas>
-                        </div>
-                    </div>
-
-                    <!-- Recent Transactions -->
-                    <div class="glass-card p-6 rounded-xl">
-                        <div class="flex justify-between items-center mb-6">
-                            <h3 class="text-gray-300 font-bold text-xs uppercase tracking-wider">Movimientos Recientes
-                            </h3>
-                            <button
-                                class="text-[10px] text-[#b38728] hover:text-white uppercase font-bold tracking-wider transition">Ver
-                                Todo</button>
-                        </div>
-                        <div id="transactions-list" class="space-y-2 max-h-64 overflow-y-auto pr-2 custom-scrollbar">
-                            <!-- Injected via JS -->
-                        </div>
-                    </div>
-                </div>
-
-                <!-- BUSINESS & EMPLOYMENT SECTION -->
-                <div class="glass-card p-6 rounded-xl border border-[#b38728]/20">
-                    <div class="flex justify-between items-center mb-6">
-                        <h3
-                            class="text-white font-bold uppercase tracking-wider text-sm border-l-4 border-[#b38728] pl-3">
-                            Gestión Empresarial y Laboral</h3>
-                    </div>
-
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        <!-- Owned Companies -->
-                        <div>
-                            <h4 class="text-[10px] text-gray-500 uppercase font-bold tracking-widest mb-4">Mis Empresas
-                            </h4>
-                            <div id="companies-list" class="space-y-3">
-                                <div class="text-center py-6 text-gray-600 text-xs">
-                                    <i class="fas fa-building mb-2"></i><br>Cargando empresas...
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div class="id-card p-6" style="aspect-ratio: auto; min-height: 200px;">
+                                <div class="flex gap-4 pt-3">
+                                    <div
+                                        class="w-20 h-24 rounded border border-white/10 overflow-hidden bg-gray-800 flex-shrink-0">
+                                        <img src="" id="big-avatar" class="w-full h-full object-cover">
+                                    </div>
+                                    <div class="flex-1">
+                                        <div class="text-[8px] text-[#C9A227] uppercase tracking-widest">Credencial para
+                                            Votar</div>
+                                        <div class="text-white font-bold text-lg font-official mt-1" id="big-name">
+                                            NOMBRE CIUDADANO</div>
+                                        <div class="space-y-1 mt-3">
+                                            <div class="text-[9px] text-gray-400">Discord ID: <span
+                                                    class="text-gray-200 font-mono" id="big-discord">...</span></div>
+                                            <div class="text-[9px] text-gray-400">Clave Elector: <span
+                                                    class="text-[#C9A227] font-mono text-[10px]"
+                                                    id="big-clave">NMX-000000</span></div>
+                                            <div class="text-[9px] text-gray-400">Registro: <span class="text-gray-200"
+                                                    id="big-fecha">...</span></div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="mt-4 pt-3 border-t border-white/5 flex justify-between items-center">
+                                    <div class="font-official text-xs font-bold text-[#C9A227] tracking-widest">
+                                        INSTITUTO NACIONAL ELECTORAL</div>
+                                    <div class="flex gap-1">
+                                        <div class="w-5 h-3 rounded" style="background:rgba(0,100,0,0.7)"></div>
+                                        <div class="w-5 h-3 rounded bg-white/30"></div>
+                                        <div class="w-5 h-3 rounded" style="background:rgba(178,34,34,0.7)"></div>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
 
-                        <!-- Employment -->
-                        <div>
-                            <h4 class="text-[10px] text-gray-500 uppercase font-bold tracking-widest mb-4">Mis Empleos
-                            </h4>
-                            <div id="employment-list" class="space-y-3">
-                                <div class="text-center py-6 text-gray-600 text-xs">
-                                    <i class="fas fa-briefcase mb-2"></i><br>Cargando empleos...
+                            <div class="space-y-3">
+                                <h3 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Datos
+                                    Ciudadanos</h3>
+                                <div id="citizen-data-grid" class="grid grid-cols-2 gap-3">
+                                    <!-- Injected via JS -->
+                                    <div class="col-span-2 text-center py-6 text-gray-600 text-xs">
+                                        <i class="fas fa-spinner fa-spin mr-1"></i> Cargando datos...
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
-            </div>
-        </div>
-    </div>
 
-    <!-- SAT TAX MODAL -->
-    <div id="sat-modal"
-        class="fixed inset-0 z-[100] flex items-center justify-center hidden opacity-0 transition-opacity duration-300">
-        <div class="absolute inset-0 bg-[#000]/80 backdrop-blur-sm" id="close-sat-overlay"></div>
-
-        <div class="relative z-10 w-full max-w-2xl p-1 glass-panel rounded-lg shadow-2xl animate-float">
-            <div
-                class="bg-[#111827] rounded-lg p-8 border border-white/5 max-h-[85vh] overflow-y-auto custom-scrollbar">
-                <button class="absolute top-4 right-4 text-gray-600 hover:text-white transition" id="close-sat-btn"><i
-                        class="fas fa-times"></i></button>
-
-                <div class="mb-6 border-b border-white/5 pb-4 flex items-center gap-4">
-                    <img src="https://igjedwdxqwkpbgrmtrrq.supabase.co/storage/v1/object/public/evidence/banxico/sinfondo.png"
-                        class="h-10 opacity-80">
-                    <div>
-                        <h2 class="text-xl font-official font-bold text-white tracking-widest">BUZÓN TRIBUTARIO</h2>
-                        <p class="text-[10px] text-[#b38728] uppercase tracking-[0.3em] font-bold mt-1">Servicio de
-                            Administración Tributaria</p>
-                    </div>
-                </div>
-
-                <div class="bg-yellow-900/10 border border-yellow-700/30 p-4 rounded mb-6 flex items-start gap-3">
-                    <i class="fas fa-info-circle text-yellow-600 mt-1"></i>
-                    <p class="text-xs text-gray-400">
-                        Cumplir con tus obligaciones fiscales garantiza el funcionamiento de los servicios públicos de
-                        Nación MX.
-                        Los pagos se debitan automáticamente de tu cuenta bancaria principal.
-                    </p>
-                </div>
-
-                <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">Deudas Pendientes</h3>
-                <div id="sat-debts-list" class="space-y-3">
-                    <div class="text-center py-8 text-gray-600">
-                        <i class="fas fa-spinner fa-spin"></i> Cargando información fiscal...
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- EMPLOYEE MANAGEMENT MODAL -->
-    <div id="employee-modal"
-        class="fixed inset-0 z-[100] flex items-center justify-center hidden opacity-0 transition-opacity duration-300">
-        <div class="absolute inset-0 bg-[#000]/80 backdrop-blur-sm" id="close-emp-overlay"></div>
-
-        <div class="relative z-10 w-full max-w-2xl p-1 glass-panel rounded-lg shadow-2xl animate-float">
-            <div
-                class="bg-[#111827] rounded-lg p-8 border border-white/5 max-h-[85vh] overflow-y-auto custom-scrollbar">
-                <button class="absolute top-4 right-4 text-gray-600 hover:text-white transition" id="close-emp-btn"><i
-                        class="fas fa-times"></i></button>
-
-                <div class="mb-6 border-b border-white/5 pb-4">
-                    <h2 class="text-xl font-official font-bold text-white tracking-widest">GESTIÓN DE PERSONAL</h2>
-                    <p class="text-[10px] text-[#b38728] uppercase tracking-[0.3em] font-bold mt-1"
-                        id="emp-modal-company-name">Empresa S.A.</p>
-                </div>
-
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <!-- Employee List -->
-                    <div class="md:col-span-2 space-y-4">
-                        <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider">Nómina Actual</h3>
-                        <div id="modal-employee-list" class="space-y-2">
-                            <!-- Injected JS -->
+                <!-- SECTION: Electoral -->
+                <div id="section-electoral" class="hidden space-y-5">
+                    <h2 class="section-title font-official text-lg font-bold text-white tracking-widest uppercase">
+                        Historial Electoral</h2>
+                    <div class="glass-card p-6 rounded-xl">
+                        <div id="electoral-list" class="space-y-3">
+                            <div class="text-center py-8 text-gray-600 text-sm">
+                                <i class="fas fa-vote-yea text-2xl mb-2 block"></i>
+                                Cargando participaciones electorales...
+                            </div>
                         </div>
                     </div>
+                </div>
 
-                    <!-- Actions -->
-                    <div class="space-y-4">
-                        <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider">Contratar</h3>
-                        <div class="bg-gray-800/50 p-4 rounded border border-white/5">
-                            <input type="text" id="hire-id-input" placeholder="ID Ciudadano"
-                                class="w-full bg-[#0b0f19] border border-gray-700 text-white text-xs p-2 rounded mb-2 outline-none focus:border-[#b38728]">
-                            <input type="number" id="hire-salary-input" placeholder="Sueldo Semanal"
-                                class="w-full bg-[#0b0f19] border border-gray-700 text-white text-xs p-2 rounded mb-4 outline-none focus:border-[#b38728]">
-                            <button id="btn-hire"
-                                class="w-full bg-[#b38728] hover:bg-[#967020] text-white text-[10px] font-bold uppercase py-2 rounded transition">
-                                <i class="fas fa-user-plus mr-1"></i> Contratar
-                            </button>
+                <!-- SECTION: Expediente -->
+                <div id="section-expediente" class="hidden space-y-5">
+                    <h2 class="section-title font-official text-lg font-bold text-white tracking-widest uppercase">Mi
+                        Expediente</h2>
+                    <div class="glass-card p-6 rounded-xl">
+                        <div id="expediente-content" class="space-y-3">
+                            <div class="text-center py-8 text-gray-600 text-sm">
+                                <i class="fas fa-folder-open text-2xl mb-2 block"></i>
+                                Expediente en construcción.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SECTION: Sanciones -->
+                <div id="section-sanciones" class="hidden space-y-5">
+                    <h2 class="section-title font-official text-lg font-bold text-white tracking-widest uppercase">
+                        Antecedentes Ciudadanos</h2>
+                    <div class="glass-card p-6 rounded-xl">
+                        <div id="sanctions-list" class="space-y-3">
+                            <div class="text-center py-8 text-gray-600 text-sm">
+                                <i class="fas fa-gavel text-2xl mb-2 block"></i>
+                                Cargando antecedentes...
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -486,63 +523,62 @@
         </div>
     </div>
 
-    <!-- LOGIN MODAL (INE Style) -->
+    <!-- ═══ LOGIN MODAL ═══ -->
     <div id="login-modal"
         class="fixed inset-0 z-[100] flex items-center justify-center hidden opacity-0 transition-opacity duration-300">
-        <div class="absolute inset-0 bg-[#000]/80 backdrop-blur-sm" id="close-login-overlay"></div>
+        <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" id="close-login-overlay"></div>
 
-        <div class="relative z-10 w-full max-w-md p-1 glass-panel rounded-lg shadow-2xl animate-float">
-            <div class="bg-[#111827] rounded-lg p-8 border border-white/5">
-                <button class="absolute top-4 right-4 text-gray-600 hover:text-white transition" id="close-login-btn"><i
-                        class="fas fa-times"></i></button>
-
+        <div
+            class="relative z-10 w-full max-w-md p-1 glass-panel rounded-xl shadow-2xl animate-float border border-red-900/20">
+            <div class="tricolor"></div>
+            <div class="bg-[#0A1628] rounded-b-xl p-8">
                 <div class="text-center mb-8">
-                    <img src="https://igjedwdxqwkpbgrmtrrq.supabase.co/storage/v1/object/public/evidence/banxico/sinfondo.png"
-                        class="h-16 mx-auto mb-4 drop-shadow-xl">
-                    <h2 class="text-2xl font-official font-bold text-white tracking-widest">ACCESO SEGURO</h2>
-                    <p class="text-[10px] text-[#b38728] uppercase tracking-[0.3em] font-bold mt-2">Autenticación
-                        Biométrica</p>
+                    <img src="ine-logo-final.png" class="h-16 mx-auto mb-4 drop-shadow-xl">
+                    <h2 class="text-2xl font-official font-bold text-white tracking-widest">ACCESO CIUDADANO</h2>
+                    <p class="text-[9px] text-[#C9A227] uppercase tracking-[0.4em] font-bold mt-2">Portal de Identidad —
+                        Nación MX</p>
                 </div>
 
-                <div class="space-y-6">
+                <div class="space-y-5">
                     <div class="group">
                         <label class="text-[10px] uppercase font-bold text-gray-500 mb-2 block tracking-wider">Código de
-                            Acceso Único</label>
+                            Verificación Ciudadana</label>
                         <div class="relative">
                             <input type="text" id="code-input" placeholder="XXXXXX"
-                                class="w-full bg-[#0b0f19] border border-gray-700 text-white text-center text-xl font-mono py-4 rounded focus:border-[#b38728] outline-none transition-colors tracking-[0.5em] placeholder-gray-800"
+                                class="w-full bg-[#06111f] border border-gray-700 text-white text-center text-2xl font-mono py-4 rounded-lg focus:border-[#B22222] outline-none transition-colors tracking-[0.6em] placeholder-gray-800"
                                 maxlength="6">
-                            <div
-                                class="absolute inset-x-0 bottom-0 h-0.5 bg-[#b38728] scale-x-0 group-hover:scale-x-100 transition-transform duration-500">
-                            </div>
                         </div>
                     </div>
 
-                    <button id="perform-login-btn"
-                        class="w-full bg-[#b38728] hover:bg-[#967020] text-white font-bold py-4 rounded text-xs uppercase tracking-[0.2em] shadow-lg hover:shadow-[#b38728]/20 transition-all transform hover:-translate-y-1">
-                        Validar Credenciales
+                    <button id="perform-login-btn" onclick="handleINELogin(event)"
+                        class="btn-ine w-full text-white font-bold py-4 rounded-lg text-xs uppercase tracking-[0.2em] shadow-lg">
+                        <i class="fas fa-fingerprint mr-2"></i>Verificar Identidad
                     </button>
                 </div>
 
-                <div class="mt-8 text-center pt-6 border-t border-white/5">
+                <div class="mt-6 text-center pt-5 border-t border-white/5">
                     <p class="text-gray-500 text-xs">
-                        Para obtener su código, ejecute <code
-                            class="bg-gray-800 px-2 py-1 rounded text-[#b38728] font-mono">/banxico acceso</code> en el
-                        sistema local.
+                        Obtén tu código con <code
+                            class="bg-gray-800 px-2 py-1 rounded text-[#C9A227] font-mono">/ine acceso</code> en
+                        Discord.
                     </p>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Scripts -->
-    <script src="js/app.js"></script>
+    <!-- SCRIPTS -->
     <script>
-        // Modal Logic
+        const SUPABASE_URL = 'https://igjedwdxqwkpbgrmtrrq.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlnamVkd2R4cXdrcGJncm10cnJxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzgxMTk2ODEsImV4cCI6MjA1MzY5NTY4MX0.JCZMcQFp8UGZG-xhipJm-OmPJj1Y-7SHBVHlJJU9k54';
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        let currentUser = null;
+
+        // ── Modal control ──────────────────────────────────────────────────────
         const modal = document.getElementById('login-modal');
-        const openBtn = document.getElementById('nav-login-btn');
-        const closeBtn = document.getElementById('close-login-btn');
-        const overlay = document.getElementById('close-login-overlay');
+        document.getElementById('nav-login-btn').addEventListener('click', () => toggleModal(true));
+        document.getElementById('close-login-overlay').addEventListener('click', () => toggleModal(false));
 
         function toggleModal(show) {
             if (show) {
@@ -554,9 +590,138 @@
             }
         }
 
-        openBtn.addEventListener('click', () => toggleModal(true));
-        closeBtn.addEventListener('click', () => toggleModal(false));
-        overlay.addEventListener('click', () => toggleModal(false));
+        // ── Section navigation ─────────────────────────────────────────────────
+        function showSection(name) {
+            ['credencial', 'electoral', 'expediente', 'sanciones'].forEach(s => {
+                document.getElementById(`section-${s}`).classList.toggle('hidden', s !== name);
+            });
+            document.querySelectorAll('.sidebar-btn').forEach(b => b.classList.remove('active'));
+            event?.currentTarget?.classList.add('active');
+
+            if (name === 'sanciones') loadSanctions();
+        }
+
+        // ── Login ──────────────────────────────────────────────────────────────
+        async function handleINELogin(event) {
+            event?.preventDefault();
+            const code = document.getElementById('code-input').value.trim().toUpperCase();
+            if (!code || code.length < 6) {
+                return Swal.fire({ icon: 'warning', title: 'Código requerido', text: 'Ingresa tu código de 6 caracteres.', background: '#0A1628', color: '#fff' });
+            }
+
+            const btn = document.getElementById('perform-login-btn');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Verificando...';
+
+            try {
+                // Try login via the unified API
+                const res = await fetch('/api/banxico/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ code })
+                });
+                const data = await res.json();
+
+                if (!res.ok || !data.success) throw new Error(data.error || 'Código inválido o expirado.');
+
+                currentUser = data;
+                toggleModal(false);
+                showDashboard(data);
+
+            } catch (err) {
+                Swal.fire({ icon: 'error', title: 'Acceso denegado', text: err.message, background: '#0A1628', color: '#fff', confirmButtonColor: '#B22222' });
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-fingerprint mr-2"></i>Verificar Identidad';
+            }
+        }
+
+        // ── Show dashboard ─────────────────────────────────────────────────────
+        function showDashboard(data) {
+            document.getElementById('landing-page').classList.add('hidden');
+            document.getElementById('dashboard').classList.remove('hidden');
+            document.getElementById('nav-login-btn').classList.add('hidden');
+            document.getElementById('nav-user-profile').classList.remove('hidden');
+
+            const avatar = data.avatar_url || '';
+            const name = data.username || `Ciudadano ${data.discord_id}`;
+            const claveElector = `NMX-${data.discord_id?.slice(-6) || '000000'}`;
+            const fechaRegistro = new Date(data.registered_at || Date.now()).toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' });
+
+            // Navbar
+            document.getElementById('nav-username').textContent = name.toUpperCase();
+            document.getElementById('nav-clave').textContent = `CLAVE: ${claveElector}`;
+            document.getElementById('user-avatar').src = avatar;
+
+            // Sidebar card
+            document.getElementById('card-avatar').src = avatar;
+            document.getElementById('card-name').textContent = name.toUpperCase();
+            document.getElementById('card-clave').textContent = `CLAVE: ${claveElector}`;
+            document.getElementById('card-discord').textContent = `Discord ID: ${data.discord_id}`;
+
+            // Big ID Card
+            document.getElementById('big-avatar').src = avatar;
+            document.getElementById('big-name').textContent = name.toUpperCase();
+            document.getElementById('big-discord').textContent = data.discord_id;
+            document.getElementById('big-clave').textContent = claveElector;
+            document.getElementById('big-fecha').textContent = fechaRegistro;
+
+            // Data grid
+            const grid = document.getElementById('citizen-data-grid');
+            const fields = [
+                ['🎮 Discord', name],
+                ['🆔 ID', data.discord_id],
+                ['💰 Balance', data.balance ? `$${Number(data.balance).toLocaleString()}` : 'N/A'],
+                ['📅 Registro', fechaRegistro],
+                ['🏛️ Clave Elector', claveElector],
+                ['📊 Estado', '✅ Ciudadano Activo'],
+            ];
+            grid.innerHTML = fields.map(([label, value]) => `
+                <div class="bg-gray-800/40 border border-white/5 rounded-lg p-3">
+                    <div class="text-[9px] text-gray-500 uppercase tracking-widest">${label}</div>
+                    <div class="text-white text-xs font-bold mt-1 truncate">${value}</div>
+                </div>
+            `).join('');
+        }
+
+        // ── Load sanctions ─────────────────────────────────────────────────────
+        async function loadSanctions() {
+            if (!currentUser) return;
+            const el = document.getElementById('sanctions-list');
+            el.innerHTML = '<div class="text-center py-6 text-gray-600 text-xs"><i class="fas fa-spinner fa-spin"></i> Cargando antecedentes...</div>';
+
+            const { data, error } = await supabase
+                .from('sanctions')
+                .select('type, reason, created_at')
+                .eq('discord_id', currentUser.discord_id)
+                .order('created_at', { ascending: false })
+                .limit(10);
+
+            if (!data?.length) {
+                el.innerHTML = '<div class="text-center py-8 text-gray-600 text-sm"><i class="fas fa-check-circle text-green-600 text-2xl mb-2 block"></i>Sin antecedentes registrados.</div>';
+                return;
+            }
+
+            el.innerHTML = data.map(s => {
+                const date = new Date(s.created_at).toLocaleDateString('es-MX');
+                const color = s.type?.toLowerCase().includes('ban') ? 'text-red-400' : s.type?.toLowerCase().includes('warn') ? 'text-yellow-400' : 'text-orange-400';
+                return `<div class="flex items-start gap-3 p-3 bg-gray-800/30 border border-white/5 rounded-lg">
+                    <div class="mt-0.5 font-official font-bold text-xs ${color} w-16 flex-shrink-0">${s.type?.toUpperCase() || 'SANCIÓN'}</div>
+                    <div class="flex-1 min-w-0">
+                        <div class="text-gray-300 text-xs">${s.reason || 'Sin motivo registrado'}</div>
+                    </div>
+                    <div class="text-[9px] text-gray-600 flex-shrink-0">${date}</div>
+                </div>`;
+            }).join('');
+        }
+
+        function logout() {
+            currentUser = null;
+            document.getElementById('dashboard').classList.add('hidden');
+            document.getElementById('landing-page').classList.remove('hidden');
+            document.getElementById('nav-login-btn').classList.remove('hidden');
+            document.getElementById('nav-user-profile').classList.add('hidden');
+        }
     </script>
 </body>
 
