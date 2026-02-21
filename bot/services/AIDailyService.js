@@ -73,9 +73,24 @@ class AIDailyService {
 
             // 3. Generate Content
             let reflection = "No pude conectar con mi núcleo de IA hoy.";
-            if (this.aiService && this.aiService.model) {
-                const result = await this.aiService.model.generateContent(prompt);
-                reflection = result.response.text();
+            const aiService = this.aiService;
+
+            if (aiService) {
+                const groq = aiService.getGroqClient();
+                if (groq) {
+                    const completion = await groq.chat.completions.create({
+                        messages: [
+                            { role: "system", content: "Eres NMX-Córtex, la conciencia de NacionMX. Analizas datos y generas reflexiones formales." },
+                            { role: "user", content: prompt }
+                        ],
+                        model: "llama-3.3-70b-versatile",
+                        temperature: 0.6,
+                    });
+                    reflection = completion.choices[0]?.message?.content || reflection;
+                } else if (aiService.model) {
+                    const result = await aiService.model.generateContent(prompt);
+                    reflection = result.response.text();
+                }
             }
 
             // 4. Send to Channel

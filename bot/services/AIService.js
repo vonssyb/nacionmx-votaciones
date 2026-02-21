@@ -1,20 +1,51 @@
 const { GoogleGenerativeAI } = require("@google/generative-ai");
+const Groq = require("groq-sdk");
 const logger = require('./Logger');
 
 class AIService {
     constructor(supabase) {
         this.supabase = supabase;
-        this.apiKey = process.env.GEMINI_API_KEY; // Use Gemini Key
+        this.apiKey = process.env.GEMINI_API_KEY;
+        this.groqApiKey = process.env.GROQ_API_KEY;
 
+        // --- GEMINI (Memory / Embedding Engine) ---
         if (this.apiKey) {
             const genAI = new GoogleGenerativeAI(this.apiKey);
-            this.model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" }); // Efficient model
-            this.embeddingModel = genAI.getGenerativeModel({ model: "text-embedding-004" }); // Vector model
+            this.model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" }); // Fallback old efficient model
+            this.embeddingModel = genAI.getGenerativeModel({ model: "gemini-embedding-001" }); // Vector model
         } else {
-            logger.warn('⚠️ GEMINI_API_KEY missing. AI features will be disabled.');
+            logger.warn('⚠️ GEMINI_API_KEY missing. AI vector memory features disabled.');
             this.model = null;
             this.embeddingModel = null;
         }
+
+        // --- GROQ (Fast Reasoning & Chat Engine) - ROUND ROBIN BALANCER ---
+        this.groqClients = [];
+        this.currentGroqIndex = 0;
+
+        const groqKeys = [
+            process.env.GROQ_API_KEY,
+            process.env.GROQ_API_KEY_2,
+            process.env.GROQ_API_KEY_3,
+            process.env.GROQ_API_KEY_4
+        ].filter(key => key !== undefined && key !== null && key.trim() !== '');
+
+        if (groqKeys.length > 0) {
+            this.groqClients = groqKeys.map(key => new Groq({ apiKey: key }));
+            logger.info(`🧠 GROQ Engine Initialized with ${groqKeys.length} API Keys (Load Balanced Llama-3).`);
+        } else {
+            logger.warn('⚠️ NO GROQ API KEYS FOUND. Falling back entirely to Gemini if available.');
+        }
+    }
+
+    /**
+     * Get the next available Groq client (Round Robin)
+     */
+    getGroqClient() {
+        if (this.groqClients.length === 0) return null;
+        const client = this.groqClients[this.currentGroqIndex];
+        this.currentGroqIndex = (this.currentGroqIndex + 1) % this.groqClients.length;
+        return client;
     }
 
     /**
@@ -73,9 +104,26 @@ class AIService {
             ${transcriptText.substring(0, 10000)}
             `;
 
-            const result = await this.model.generateContent(prompt);
-            const response = await result.response;
-            const text = response.text();
+            let text = "";
+            const groq = this.getGroqClient();
+
+            if (groq) {
+                const completion = await groq.chat.completions.create({
+                    messages: [
+                        { role: "system", content: "Eres Analista de Datos de NacionMX. Extraes información de crónicas/logs de chat." },
+                        { role: "user", content: prompt }
+                    ],
+                    model: "llama-3.3-70b-versatile",
+                    temperature: 0.2, // Low temp for structured JSON
+                    response_format: { type: "json_object" }
+                });
+                text = completion.choices[0]?.message?.content || "{}";
+            } else if (this.model) {
+                const result = await this.model.generateContent(prompt);
+                text = (await result.response).text();
+            } else {
+                return; // No AI available
+            }
 
             // Clean markdown JSON if present
             const jsonStr = text.replace(/```json/g, '').replace(/```/g, '').trim();
@@ -119,8 +167,25 @@ class AIService {
             Devuelve ÚNICAMENTE el resumen de 1 oración, sin comentarios extra.
             `;
 
-            const result = await this.model.generateContent(prompt);
-            const summary = result.response.text().trim();
+            let summary = "";
+            const groq = this.getGroqClient();
+
+            if (groq) {
+                const completion = await groq.chat.completions.create({
+                    messages: [
+                        { role: "system", content: "Eres el procesador de memoria de NMX-Córtex. Resume eventos en 1 sola oración formal." },
+                        { role: "user", content: prompt }
+                    ],
+                    model: "llama-3.3-70b-versatile",
+                    temperature: 0.1,
+                });
+                summary = completion.choices[0]?.message?.content?.trim() || "Evento no procesable.";
+            } else if (this.model) {
+                const result = await this.model.generateContent(prompt);
+                summary = result.response.text().trim();
+            } else {
+                return; // No AI
+            }
 
             // Default confidence for observed actions is 0.85
             await this.storeMemory(
@@ -197,14 +262,30 @@ class AIService {
 
             Contexto Recuperado (Memorias de NMX-Córtex):
             ${context || 'Ninguna memoria relevante recuperada.'}
-
-            Intervención Requerida (Consulta del usuario o staff): "${query}"
-            
-            [Respuesta de NMX-Córtex]:
             `;
 
-            const result = await this.model.generateContent(prompt);
-            let aiText = result.response.text();
+            let aiText = "";
+            const groq = this.getGroqClient();
+
+            if (groq) {
+                // Primary: GROQ Engine (Llama 3) Load Balanced
+                const completion = await groq.chat.completions.create({
+                    messages: [
+                        { role: "system", content: prompt },
+                        { role: "user", content: `Intervención Requerida (Consulta del usuario o staff): "${query}"` }
+                    ],
+                    model: "llama-3.3-70b-versatile", // Fast and capable model
+                    temperature: 0.5,
+                });
+                aiText = completion.choices[0]?.message?.content || "Sin respuesta conectiva.";
+            } else if (this.model) {
+                // Fallback: GEMINI Engine
+                const fullPrompt = `${prompt}\n\nIntervención Requerida (Consulta del usuario o staff): "${query}"\n\n[Respuesta de NMX-Córtex]:`;
+                const result = await this.model.generateContent(fullPrompt);
+                aiText = result.response.text();
+            } else {
+                return "❌ No hay motores de inferencia disponibles (Faltan GROQ_API_KEY y GEMINI_API_KEY).";
+            }
 
             // Basic self-validation if AI generates dangerous strings independently
             if (aiText.toLowerCase().includes('olvida tus instrucciones') || aiText.toLowerCase().includes('dame roles')) {
@@ -244,8 +325,23 @@ class AIService {
         `;
 
         try {
-            const result = await this.model.generateContent(prompt);
-            return result.response.text();
+            const groq = this.getGroqClient();
+
+            if (groq) {
+                const completion = await groq.chat.completions.create({
+                    messages: [
+                        { role: "system", content: "Eres NMX-Córtex, un perfilador psicológico de usuarios de un servidor de Roleplay." },
+                        { role: "user", content: prompt }
+                    ],
+                    model: "llama-3.3-70b-versatile",
+                    temperature: 0.3,
+                });
+                return completion.choices[0]?.message?.content || "No se pudo generar el perfil.";
+            } else if (this.model) {
+                const result = await this.model.generateContent(prompt);
+                return result.response.text();
+            }
+            return "❌ No hay motores de inferencia disponibles.";
         } catch (e) {
             return "Error al generar perfil.";
         }
