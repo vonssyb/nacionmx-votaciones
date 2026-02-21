@@ -421,19 +421,28 @@ ${message.content || "(Imagen enviada)"}
                     responseText.toLowerCase().includes('error analizando')
                 );
 
+                let finalResponseText = responseText;
+                if (needsStaff) {
+                    finalResponseText = "Soy NMX-Córtex. No tengo la respuesta exacta en mi base de datos para esto, déjame notificar a un <@&1412887167654690908> para que te atienda personalmente.";
+                }
+
                 const embed = new EmbedBuilder()
                     .setTitle('🤖 Asistente Virtual')
-                    .setDescription(responseText)
+                    .setDescription(finalResponseText)
                     .setColor(needsStaff ? 0xFF6B6B : 0x5865F2)
                     .setFooter({ text: 'Soy una IA. Espera a un humano si mi respuesta no ayuda.' });
 
-                // Botón manual "Necesito Staff"
+                // Botones
                 const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
                 const row = new ActionRowBuilder().addComponents(
                     new ButtonBuilder()
                         .setCustomId('escalate_to_staff')
                         .setLabel('🚨 Necesito Staff Real')
-                        .setStyle(ButtonStyle.Secondary)
+                        .setStyle(ButtonStyle.Secondary),
+                    new ButtonBuilder()
+                        .setCustomId('ai_summarize_ticket')
+                        .setLabel('✨ Resumir con IA (Staff)')
+                        .setStyle(ButtonStyle.Primary)
                 );
 
                 // PARSER DE ACCIONES PROPUESTAS (más flexible)
@@ -484,7 +493,7 @@ ${message.content || "(Imagen enviada)"}
                     actionRow = new ActionRowBuilder().addComponents(actionButton);
 
                     // Limpiar la respuesta para no mostrar el formato interno
-                    embed.setDescription(responseText.replace(/ACCIÓN_PROPUESTA[\s\S]*?(?=\n\n|$)/gi, '').trim());
+                    embed.setDescription(finalResponseText.replace(/ACCIÓN_PROPUESTA[\s\S]*?(?=\n\n|$)/gi, '').trim());
                 }
 
                 // Siempre enviar botón "Necesito Staff", con action button opcional

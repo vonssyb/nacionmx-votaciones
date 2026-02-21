@@ -146,6 +146,12 @@ module.exports = {
             return true;
         }
 
+        // --- SUMMARIZE TICKET (AI) ---
+        if (customId === 'ai_summarize_ticket') {
+            await this.handleAISummarize(interaction, client, supabase);
+            return true;
+        }
+
         // --- SKIP RATING ---
         if (customId === 'feedback_s') { // Skip
             await interaction.reply('✅ Gracias. Cerrando ticket...');
@@ -474,5 +480,58 @@ module.exports = {
         }
 
         return true;
+    },
+
+    async handleAISummarize(interaction, client, supabase) {
+        // Solo staff puede usarlo
+        const staffRoles = ['1412887167654690908', '1398526164253888640', '1412882245735420006'];
+        const isStaff = interaction.member.roles.cache.some(r => staffRoles.includes(r.id)) || interaction.member.permissions.has(PermissionFlagsBits.ManageMessages);
+
+        if (!isStaff) {
+            return interaction.reply({ content: '🚫 Solo el Staff puede usar el resumen de IA.', ephemeral: true });
+        }
+
+        await interaction.deferReply({ ephemeral: true });
+
+        try {
+            const messages = await interaction.channel.messages.fetch({ limit: 100 });
+            const transcriptText = Array.from(messages.values()).reverse().map(m => `[${m.author.username}]: ${m.content}`).join('\n').substring(0, 3500);
+
+            const AIService = require('../services/AIService');
+            const ai = new AIService(supabase);
+
+            const groq = ai.getGroqClient();
+            if (!groq) {
+                return interaction.editReply('❌ El motor de IA (Groq) no está disponible en este momento.');
+            }
+
+            const prompt = `
+Eres NMX-Córtex. Resume este ticket de soporte de Discord para el equipo de Staff.
+Sé extremadamente breve y directo (máximo 3 bullets).
+Indica de qué va el problema, quién está involucrado, y qué sugieres hacer.
+
+HISTORIAL DEL TICKET:
+${transcriptText}
+`;
+
+            const completion = await groq.chat.completions.create({
+                messages: [{ role: "system", content: "Eres asistente de staff NMX." }, { role: "user", content: prompt }],
+                model: "llama-3.3-70b-versatile",
+                temperature: 0.3,
+            });
+
+            const summary = completion.choices[0]?.message?.content || "No se pudo generar el resumen.";
+
+            const embed = new EmbedBuilder()
+                .setTitle('✨ Resumen del Ticket (IA)')
+                .setDescription(summary)
+                .setColor(0x9B59B6);
+
+            await interaction.editReply({ embeds: [embed] });
+
+        } catch (error) {
+            logger.errorWithContext('Error generating AI ticket summary', error);
+            await interaction.editReply('❌ Ocurrió un error al generar el resumen de IA.');
+        }
     }
 };
