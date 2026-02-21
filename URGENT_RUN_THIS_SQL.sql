@@ -1,33 +1,59 @@
 -- ============================================
--- COMPREHENSIVE FIX FOR ALL KNOWN ISSUES
+-- NMX-CÓRTEX RAG MEMORY - FULL SETUP
 -- ============================================
--- Run ALL of these in Supabase SQL Editor
 
--- 1. Add discord_user_id to credit_cards
-ALTER TABLE credit_cards 
-ADD COLUMN IF NOT EXISTS discord_user_id TEXT;
+-- 1. Activar la extensión vectorial
+CREATE EXTENSION IF NOT EXISTS vector;
 
-CREATE INDEX IF NOT EXISTS idx_credit_cards_discord_user_id 
-ON credit_cards(discord_user_id);
+-- 2. Eliminar tabla vieja si existe pero estaba mal hecha
+DROP TABLE IF EXISTS ai_memory CASCADE;
 
--- 2. Remove outdated card_type constraint
-ALTER TABLE credit_cards 
-DROP CONSTRAINT IF EXISTS credit_cards_card_type_check;
-
--- 3. Create giro_transfers table
-CREATE TABLE IF NOT EXISTS giro_transfers (
+-- 3. Crear la tabla ai_memory con TODAS las columnas necesarias
+CREATE TABLE ai_memory (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    sender_id TEXT NOT NULL,
-    receiver_id TEXT NOT NULL,
-    amount NUMERIC NOT NULL CHECK (amount > 0),
-    reason TEXT,
-    release_date TIMESTAMPTZ NOT NULL,
-    status TEXT NOT NULL CHECK (status IN ('pending', 'completed', 'cancelled')),
+    category TEXT NOT NULL,
+    summary TEXT NOT NULL,
+    source_id TEXT NOT NULL,
+    user_id TEXT,
+    tags TEXT[],
+    confidence FLOAT DEFAULT 1.0,
+    embedding vector(3072), -- Gemini Embeddings
     created_at TIMESTAMPTZ DEFAULT NOW(),
-    completed_at TIMESTAMPTZ
+    updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS idx_giro_transfers_receiver ON giro_transfers(receiver_id, status);
-CREATE INDEX IF NOT EXISTS idx_giro_transfers_release_date ON giro_transfers(release_date) WHERE status = 'pending';
+-- 4. Crear índices para buscar más rápido
+CREATE INDEX IF NOT EXISTS idx_ai_memory_category ON ai_memory(category);
+CREATE INDEX IF NOT EXISTS idx_ai_memory_user_id ON ai_memory(user_id);
+CREATE INDEX IF NOT EXISTS idx_ai_memory_source_id ON ai_memory(source_id);
 
--- Done! All SQL fixes applied.
+-- 5. Crear la función de búsqueda de memoria (RAG)
+CREATE OR REPLACE FUNCTION match_ai_memories(
+  query_embedding vector(3072),
+  match_threshold float,
+  match_count int
+)
+RETURNS TABLE (
+  id uuid,
+  category text,
+  summary text,
+  source_id text,
+  user_id text,
+  tags text[],
+  similarity float
+)
+LANGUAGE sql STABLE
+AS $$
+  SELECT
+    ai_memory.id,
+    ai_memory.category,
+    ai_memory.summary,
+    ai_memory.source_id,
+    ai_memory.user_id,
+    ai_memory.tags,
+    1 - (ai_memory.embedding <=> query_embedding) as similarity
+  FROM ai_memory
+  WHERE 1 - (ai_memory.embedding <=> query_embedding) > match_threshold
+  ORDER BY similarity DESC
+  LIMIT match_count;
+$$;

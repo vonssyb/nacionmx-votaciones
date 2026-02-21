@@ -60,12 +60,12 @@ class AIService {
             }
 
             const payload = {
-                memory_type: type,
+                category: type,
                 summary: summary,
                 source_id: sourceId,
                 user_id: userId,
                 tags: tags,
-                confidence_score: confidence,
+                confidence: confidence,
                 created_at: new Date().toISOString()
             };
 
