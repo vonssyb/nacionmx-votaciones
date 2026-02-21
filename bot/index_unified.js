@@ -173,15 +173,26 @@ app.listen(port, '0.0.0.0', () => logger.info('🌐', `Health Server listening o
 
         console.log("🚀 [Startup] Launching bot instances...");
 
-        // Start Bots in Parallel and store references
-        const [modClient] = await Promise.all([
-            startModerationBot(supabase).catch(e => console.error("❌ [MOD] Failed:", e)),
-            startEconomyBot(supabase).catch(e => console.error("❌ [ECO] Failed:", e)),
-            startGovernmentBot(supabase).catch(e => console.error("❌ [GOV] Failed:", e)),
-            startDealershipBot(supabase).catch(e => console.error("❌ [DEALERSHIP] Failed:", e)) // [NEW]
-        ]);
+        // Start Bots in Parallel and store references ONLY if token exists
+        const startPromises = [];
 
-        moderationClient = modClient;
+        if (process.env.DISCORD_TOKEN_MOD) {
+            startPromises.push(startModerationBot(supabase).catch(e => { console.error("❌ [MOD] Failed:", e); return null; }));
+        }
+        if (process.env.DISCORD_TOKEN_ECO) {
+            startPromises.push(startEconomyBot(supabase).catch(e => { console.error("❌ [ECO] Failed:", e); return null; }));
+        }
+        if (process.env.DISCORD_TOKEN_GOV) {
+            startPromises.push(startGovernmentBot(supabase).catch(e => { console.error("❌ [GOV] Failed:", e); return null; }));
+        }
+        if (process.env.DISCORD_TOKEN_DEALERSHIP) {
+            startPromises.push(startDealershipBot(supabase).catch(e => { console.error("❌ [DEALERSHIP] Failed:", e); return null; }));
+        }
+
+        const results = await Promise.all(startPromises);
+
+        // Find which promise result corresponds to the Moderation client (needed for API)
+        moderationClient = process.env.DISCORD_TOKEN_MOD ? results[0] : null;
 
         // Register API routes (now that we have client)
         if (moderationClient) {

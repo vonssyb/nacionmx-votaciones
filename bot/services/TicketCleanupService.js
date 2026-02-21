@@ -260,6 +260,8 @@ class TicketCleanupService {
                 if (channel) {
                     await channel.delete('Purge old closed ticket');
                     deleted++;
+                    // [NEW] Avoid Discord Rate Limits by adding a small delay between deletions
+                    await new Promise(resolve => setTimeout(resolve, 2000));
                 }
                 await this.updateMeta(ticket.id, { channel_deleted: true });
                 logger.info(`[TICKET-CLEANUP] Purged ticket channel #${ticket.id}`);

@@ -9,9 +9,11 @@ class AIService {
         if (this.apiKey) {
             const genAI = new GoogleGenerativeAI(this.apiKey);
             this.model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" }); // Efficient model
+            this.embeddingModel = genAI.getGenerativeModel({ model: "text-embedding-004" }); // Vector model
         } else {
             logger.warn('⚠️ GEMINI_API_KEY missing. AI features will be disabled.');
             this.model = null;
+            this.embeddingModel = null;
         }
     }
 
@@ -20,7 +22,13 @@ class AIService {
      */
     async storeMemory(type, summary, sourceId, userId = null, tags = [], confidence = 1.0) {
         try {
-            const { error } = await this.supabase.from('ai_memory').insert([{
+            let embedding = null;
+            if (this.embeddingModel) {
+                const result = await this.embeddingModel.embedContent(summary);
+                embedding = result.embedding.values;
+            }
+
+            const payload = {
                 memory_type: type,
                 summary: summary,
                 source_id: sourceId,
@@ -28,7 +36,13 @@ class AIService {
                 tags: tags,
                 confidence_score: confidence,
                 created_at: new Date().toISOString()
-            }]);
+            };
+
+            if (embedding) {
+                payload.embedding = embedding;
+            }
+
+            const { error } = await this.supabase.from('ai_memory').insert([payload]);
 
             if (error) throw error;
             logger.info('🧠 AI Memory Stored:', summary.substring(0, 50) + '...');
@@ -88,18 +102,26 @@ class AIService {
         if (!this.model) return "❌ IA no configurada (Falta GEMINI_API_KEY).";
 
         try {
-            // 1. Retrieve relevant memories (Simple text search for Phase 1)
-            const terms = query.split(' ').filter(w => w.length > 3).join(' & ');
+            // 1. Retrieve relevant memories (Semantic Search)
+            let memories = null;
 
-            const { data: memories, error } = await this.supabase
-                .from('ai_memory')
-                .select('summary, tags, created_at')
-                .textSearch('summary', terms, { config: 'spanish' })
-                .limit(5);
+            if (this.embeddingModel) {
+                const queryResult = await this.embeddingModel.embedContent(query);
+                const queryEmbedding = queryResult.embedding.values;
+
+                // Use pgvector RPC
+                const { data, error } = await this.supabase.rpc('match_ai_memories', {
+                    query_embedding: queryEmbedding,
+                    match_threshold: 0.5, // 50% threshold
+                    match_count: 5
+                });
+
+                if (!error && data) memories = data;
+            }
 
             let context = "";
             if (memories && memories.length > 0) {
-                context = memories.map(m => `- [${new Date(m.created_at).toLocaleDateString()}] ${m.summary}`).join('\n');
+                context = memories.map(m => `- ${m.summary}`).join('\n');
             } else {
                 // Fallback: fetch recent memories
                 const { data: recent } = await this.supabase
